@@ -1,0 +1,4 @@
+[Path]
+engine_dir=@engine_dir@
+config_dir=@config_dir@
+bin_dir=@CMAKE_RUNTIME_OUTPUT_DIRECTORY@
