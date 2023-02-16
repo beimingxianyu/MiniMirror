@@ -1,17 +1,13 @@
 #pragma once
 
-#include <unordered_map>
-#include <string>
-
-#include "runtime/core/reflection/macro.h"
-#include "runtime/core/reflection/accessor.h"
-#include "runtime/core/reflection/meta_type.h"
-
-
-std::unordered_map<std::string, MM::ClassFunctionTuple> g_class_reflection_map;
-
-std::unordered_map<std::string, MM::FieldFunctionTuple> g_field_reflection_map;
-
-std::unordered_map<std::string, MM::ArrayFunctionTuple> g_array_reflection_map;
-
-
+#include "runtime/core/reflection/database.h"
+#include "runtime/core/reflection/type.h"
+#include "runtime/core/reflection/destructor.h"
+#include "runtime/core/reflection/variable.h"
+#include "runtime/core/reflection/constructor.h"
+#include "runtime/core/reflection/utils.h"
+#include "runtime/core/reflection/method.h"
+#include "runtime/core/reflection/reflection.h"
+#include "runtime/core/reflection/property.h"
+#include "runtime/core/reflection/meta.h"
+#include "runtime/core/reflection/registration.h"

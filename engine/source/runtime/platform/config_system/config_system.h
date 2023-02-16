@@ -5,43 +5,48 @@
 #include <string>
 #include <unordered_map>
 
+#include "runtime/platform/file_system/file_system.h"
+
 namespace MM {
-std::string LoadOneConfigFromIni(const std::string& file_path,
+namespace ConfigSystem {
+std::string LoadOneConfigFromIni(const MM::FileSystem::Path& file_path,
                                  const std::string& key);
 
 std::unordered_map<std::string, std::string> LoadConfigFromIni(
-    const std::string& file_path);
+    const MM::FileSystem::Path& file_path);
 
 class ConfigSystem {
- public:
-  ~ConfigSystem() = delete;
+  friend std::shared_ptr<ConfigSystem>;
+
+public:
+  ~ConfigSystem();
   ConfigSystem(const ConfigSystem&) = delete;
   ConfigSystem(ConfigSystem&&) = delete;
   ConfigSystem& operator=(const ConfigSystem&) = delete;
   ConfigSystem& operator=(ConfigSystem&&) = delete;
 
- public:
+public:
   /**
    * \brief Create instance.
    * \return A ConfigSystem instance.
    */
-  static ConfigSystem* GetInstance();
+  static std::shared_ptr<MM::ConfigSystem::ConfigSystem> GetInstance();
 
   /**
    * \brief Modified the value.
    * \param key Name of the setting to be modified.
    * \param data The new value of the setting to be modified.
    */
-  void Set(const std::string& key, const std::string& data);
-  void Set(const std::string& key, const int& data);
-  void Set(const std::string& key, const long& data);
-  void Set(const std::string& key, const long long& data);
-  void Set(const std::string& key, const float& data);
-  void Set(const std::string& key, const double& data);
-  void Set(const std::string& key, const long double& data);
-  void Set(const std::string& key, const unsigned& data);
-  void Set(const std::string& key, const unsigned long& data);
-  void Set(const std::string& key, const unsigned long long& data);
+  void SetConfig(const std::string& key, const std::string& data);
+  void SetConfig(const std::string& key, const int& data);
+  void SetConfig(const std::string& key, const long& data);
+  void SetConfig(const std::string& key, const long long& data);
+  void SetConfig(const std::string& key, const float& data);
+  void SetConfig(const std::string& key, const double& data);
+  void SetConfig(const std::string& key, const long double& data);
+  void SetConfig(const std::string& key, const unsigned& data);
+  void SetConfig(const std::string& key, const unsigned long& data);
+  void SetConfig(const std::string& key, const unsigned long long& data);
 
   /**
    * \brief Get the value.
@@ -50,23 +55,23 @@ class ConfigSystem {
    * \return If the desired setting does not exist, return false; Otherwise,
    * return true.
    */
-  bool Get(const std::string& key, std::string& get_data) const;
-  bool Get(const std::string& key, int& get_data) const;
-  bool Get(const std::string& key, unsigned& get_data) const;
-  bool Get(const std::string& key, float& get_data) const;
-  bool Get(const std::string& key, long& get_data) const;
-  bool Get(const std::string& key, long double& get_data) const;
-  bool Get(const std::string& key, long long& get_data) const;
-  bool Get(const std::string& key, unsigned long& get_data) const;
-  bool Get(const std::string& key, unsigned long long& get_data) const;
-  // void Set(std::string key, std::string data);
+  bool GetConfig(const std::string& key, std::string& get_data) const;
+  bool GetConfig(const std::string& key, int& get_data) const;
+  bool GetConfig(const std::string& key, unsigned& get_data) const;
+  bool GetConfig(const std::string& key, float& get_data) const;
+  bool GetConfig(const std::string& key, long& get_data) const;
+  bool GetConfig(const std::string& key, long double& get_data) const;
+  bool GetConfig(const std::string& key, long long& get_data) const;
+  bool GetConfig(const std::string& key, unsigned long& get_data) const;
+  bool GetConfig(const std::string& key, unsigned long long& get_data) const;
+  // void SetConfig(std::string key, std::string data);
 
   /**
    * \brief Get the value,but its type is std::string.
    * \param key Name of the setting to be modified.
    * \return The data of setting you want to obtain.
    */
-  std::string Get(const std::string& key);
+  std::string GetConfig(const std::string& key);
 
   /**
    * \brief Judge whether a setting item exists.
@@ -82,8 +87,8 @@ class ConfigSystem {
    * \return Returns true if the settings were read successfully; otherwise
    * returns false.
    */
-  bool LoadOneConfigFromIni(const std::string& file_path,
-                                   const std::string& key);
+  bool LoadOneConfigFromIni(const MM::FileSystem::Path& file_path,
+                            const std::string& key);
 
   /**
    * \brief Get all setting from a ini file.
@@ -91,7 +96,7 @@ class ConfigSystem {
    * \return Returns true if the settings were read successfully; otherwise
    * returns false.
    */
-  bool LoadConfigFromIni(const std::string& file_path);
+  bool LoadConfigFromIni(const MM::FileSystem::Path& file_path);
 
   /**
    * \brief Clear all settings.
@@ -110,16 +115,24 @@ class ConfigSystem {
    */
   const size_t Size();
 
+
+   /**
+   * \brief Destroy the instance. If it is successfully destroyed, it returns
+   * true, otherwise it returns false.
+   * \remark Only when no other module uses
+   * this system can it be destroyed successfully.
+   * \return If it is successfully
+   * destroyed, it returns true, otherwise it returns false.
+   */
+  bool Destroy();
+
 protected:
   ConfigSystem() = default;
+  static std::shared_ptr<ConfigSystem> config_system_;
 
- private:
+private:
   static std::mutex sync_flag_;
-  static ConfigSystem* config_system_;
   static std::unordered_map<std::string, std::string> config_data_base_;
 };
-
-std::mutex ConfigSystem::sync_flag_{std::mutex()};
-ConfigSystem* ConfigSystem::config_system_{nullptr};
-std::unordered_map<std::string, std::string> ConfigSystem::config_data_base_{};
+}
 }  // namespace MM

@@ -10,12 +10,13 @@
 #include "runtime/platform/cross_platform_header/cross_platform_header.h"
 
 namespace MM {
+namespace FileSystem {
 class FileSystem;
 
 class Path {
   friend FileSystem;
 
- public:
+public:
   Path() = delete;
   ~Path() = default;
   Path(const Path& other);
@@ -29,7 +30,7 @@ class Path {
   explicit operator std::string() const;
   explicit operator std::filesystem::path() const;
 
- public:
+public:
   /**
    * \brief Get source path data.
    * \return The source path data.
@@ -102,7 +103,7 @@ class Path {
    */
   void ReplacePath(const std::string& other_path);
 
- private:
+private:
   /**
    * \brief Remove "." and ".." from the path.
    * \param original_path The original path you want to simplify.
@@ -110,24 +111,26 @@ class Path {
    */
   static std::string RemoveDotAndDotDot(const std::string& original_path);
 
- private:
+private:
   std::unique_ptr<std::filesystem::path> path_;
 };
 
 class FileSystem {
- public:
-  ~FileSystem() = delete;
+  friend std::shared_ptr<FileSystem> std::make_shared();
+
+public:
+  ~FileSystem();
   FileSystem(const FileSystem&) = delete;
   FileSystem(const FileSystem&&) = delete;
   FileSystem& operator=(const FileSystem&) = delete;
   FileSystem& operator=(const FileSystem&&) = delete;
 
- public:
+public:
   /**
    * \brief Create Instance.
    * \return A FileSystem pointer.
    */
-  static FileSystem* GetInstance();
+  static std::shared_ptr<MM::FileSystem::FileSystem> GetInstance();
 
   /**
    * \brief Checks whether path refers to existing file system object.
@@ -313,14 +316,22 @@ class FileSystem {
    */
   std::vector<Path> GetAll(const Path& path) const;
 
- protected:
+  /**
+   * \brief Destroy the instance. If it is successfully destroyed, it returns
+   * true, otherwise it returns false.
+   * \remark Only when no other module uses
+   * this system can it be destroyed successfully.
+   * \return If it is successfully
+   * destroyed, it returns true, otherwise it returns false.
+   */
+  bool Destroy();
+
+protected:
   FileSystem() = default;
+  static std::shared_ptr<FileSystem> file_system_;
 
- private:
+private:
   static std::mutex sync_flag_;
-  static FileSystem* file_system_;
 };
-
-std::mutex FileSystem::sync_flag_{};
-FileSystem* FileSystem::file_system_{nullptr};
+}
 }  // namespace MM

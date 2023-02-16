@@ -2,16 +2,21 @@
 
 #include <cstdint>
 
-#include "spdlog/async.h"
+std::shared_ptr<MM::LogSystem::LogSystem> MM::LogSystem::LogSystem::log_system_{nullptr};
+std::mutex MM::LogSystem::LogSystem::sync_flag_{};
 
-MM::LogSystem* MM::LogSystem::GetInstance() {
+MM::LogSystem::LogSystem::~LogSystem() {
+  logger_->flush();
+  spdlog::drop_all();
+  log_system_ = nullptr;
+}
+
+std::shared_ptr<MM::LogSystem::LogSystem> MM::LogSystem::LogSystem::GetInstance() {
   if (log_system_) {
-
   } else {
-
-    std::lock_guard<std::mutex> guard(sync_flag_);
+    std::lock_guard<std::mutex> guard{sync_flag_};
     if (!log_system_) {
-      log_system_ = new LogSystem();
+      log_system_.reset(new LogSystem{});
 
       auto console_sink =
           std::make_shared<spdlog::sinks::stdout_color_sink_mt>();
@@ -22,14 +27,24 @@ MM::LogSystem* MM::LogSystem::GetInstance() {
 
       spdlog::init_thread_pool(8192, 1);
 
-      logger_ = std::make_shared<spdlog::async_logger>(
+      log_system_->logger_ = std::make_shared<spdlog::async_logger>(
           "muggle_logger", sink_list.begin(), sink_list.end(),
           spdlog::thread_pool(), spdlog::async_overflow_policy::block);
-      logger_->set_level(spdlog::level::trace);
-
-      spdlog::register_logger(logger_);
+      //log_system_->logger_ = std::make_shared<spdlog::logger>(
+      //    "muggle_logger", sink_list.begin(), sink_list.end());
+      log_system_->SetLevel(LogLevel::Trace);
+      spdlog::register_logger(log_system_->logger_);
     }
-
   }
   return log_system_;
+}
+
+bool MM::LogSystem::LogSystem::Destroy() {
+  if (log_system_) {
+    if (log_system_.use_count() == 1) {
+      log_system_.reset();
+      return true;
+    }
+  }
+  return false;
 }

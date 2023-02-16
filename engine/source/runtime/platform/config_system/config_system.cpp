@@ -1,8 +1,12 @@
 #include "runtime/platform/config_system/config_system.h"
 
-std::string MM::LoadOneConfigFromIni(const std::string& file_path,
-                                     const std::string& key) {
-  std::fstream config_file{file_path};
+std::mutex MM::ConfigSystem::ConfigSystem::sync_flag_{std::mutex()};
+std::shared_ptr<MM::ConfigSystem::ConfigSystem> MM::ConfigSystem::ConfigSystem::config_system_{nullptr};
+std::unordered_map<std::string, std::string> MM::ConfigSystem::ConfigSystem::config_data_base_{};
+
+std::string MM::ConfigSystem::LoadOneConfigFromIni(const MM::FileSystem::Path& file_path,
+                                                   const std::string& key) {
+  std::fstream config_file{file_path.String()};
   if (config_file.is_open()) {
     std::string line;
     while (std::getline(config_file, line)) {
@@ -30,9 +34,9 @@ std::string MM::LoadOneConfigFromIni(const std::string& file_path,
   return std::string{};
 }
 
-std::unordered_map<std::string, std::string> MM::LoadConfigFromIni(
-    const std::string& file_path) {
-  std::fstream config_file{file_path};
+std::unordered_map<std::string, std::string> MM::ConfigSystem::LoadConfigFromIni(
+    const MM::FileSystem::Path& file_path) {
+  std::fstream config_file{file_path.String()};
   std::unordered_map<std::string, std::string> result;
   if (config_file.is_open()) {
     std::string line;
@@ -61,33 +65,36 @@ std::unordered_map<std::string, std::string> MM::LoadConfigFromIni(
   return result;
 }
 
-MM::ConfigSystem* MM::ConfigSystem::GetInstance() {
+MM::ConfigSystem::ConfigSystem::~ConfigSystem() { config_system_ = nullptr; }
+
+std::shared_ptr<MM::ConfigSystem::ConfigSystem>
+MM::ConfigSystem::ConfigSystem::GetInstance() {
   if (config_system_) {
   } else {
     std::lock_guard<std::mutex> guard(sync_flag_);
     if (!config_system_) {
-      config_system_ = new ConfigSystem();
+      config_system_.reset(new ConfigSystem{});
       config_data_base_["config_dir"] = CONFIG_DIR;
-      config_system_->LoadConfigFromIni(config_data_base_["config_dir"] + "init_config.ini");
+      config_system_->LoadConfigFromIni(config_data_base_["config_dir"] + "/init_config.ini");
     }
   }
   return config_system_;
 }
 
-std::string MM::ConfigSystem::Get(const std::string& key) {
+std::string MM::ConfigSystem::ConfigSystem::GetConfig(const std::string& key) {
   if (Have(key)) {
     return config_data_base_[key];
   }
   return std::string{};
 }
 
-inline bool MM::ConfigSystem::Have(const std::string& key) const{
+bool MM::ConfigSystem::ConfigSystem::Have(const std::string& key) const{
   return config_data_base_.find(key) != config_data_base_.end();
 }
 
-bool MM::ConfigSystem::LoadOneConfigFromIni(const std::string& file_path,
-                                            const std::string& key) {
-  std::fstream config_file{file_path};
+bool MM::ConfigSystem::ConfigSystem::LoadOneConfigFromIni(const MM::FileSystem::Path& file_path,
+  const std::string& key) {
+  std::fstream config_file{file_path.String()};
   if (config_file.is_open()) {
     std::string line;
     while (std::getline(config_file, line)) {
@@ -117,8 +124,8 @@ bool MM::ConfigSystem::LoadOneConfigFromIni(const std::string& file_path,
   return false;
 }
 
-bool MM::ConfigSystem::LoadConfigFromIni(const std::string& file_path) {
-  std::fstream config_file{file_path};
+bool MM::ConfigSystem::ConfigSystem::LoadConfigFromIni(const MM::FileSystem::Path& file_path) {
+  std::fstream config_file{file_path.String()};
   if (config_file.is_open()) {
     std::string line;
     while (std::getline(config_file, line)) {
@@ -146,59 +153,75 @@ bool MM::ConfigSystem::LoadConfigFromIni(const std::string& file_path) {
   return false;
 }
 
-void MM::ConfigSystem::Clear() { config_data_base_.clear(); }
+void MM::ConfigSystem::ConfigSystem::Clear() { config_data_base_.clear(); }
 
-const std::unordered_map<std::string, std::string>& MM::ConfigSystem::GetAllConfig() const{
+const std::unordered_map<std::string, std::string>&
+MM::ConfigSystem::ConfigSystem::GetAllConfig() const {
   return config_data_base_;
 }
 
-const size_t MM::ConfigSystem::Size() { return config_data_base_.size(); }
+const size_t MM::ConfigSystem::ConfigSystem::Size() {
+  return config_data_base_.size();
+}
 
-void MM::ConfigSystem::Set(const std::string& key,
-                           const std::string& data) {
+bool MM::ConfigSystem::ConfigSystem::Destroy() {
+  if (config_system_) {
+    if (config_system_.use_count() == 1) {
+      config_system_.reset();
+      return true;
+    }
+  }
+  return false;
+  }
+
+void MM::ConfigSystem::ConfigSystem::SetConfig(const std::string& key,
+                                   const std::string& data) {
   config_data_base_[key] = data;
 }
 
-void MM::ConfigSystem::Set(const std::string& key, const int& data) {
+void MM::ConfigSystem::ConfigSystem::SetConfig(const std::string& key, const int& data) {
+ ConfigSystem::config_data_base_[key] = std::to_string(data);
+}
+
+void MM::ConfigSystem::ConfigSystem::SetConfig(const std::string& key, const long& data) {
   config_data_base_[key] = std::to_string(data);
 }
 
-void MM::ConfigSystem::Set(const std::string& key, const long& data) {
+void MM::ConfigSystem::ConfigSystem::SetConfig(const std::string& key,
+                                   const long long& data) {
   config_data_base_[key] = std::to_string(data);
 }
 
-void MM::ConfigSystem::Set(const std::string& key, const long long& data) {
+void MM::ConfigSystem::ConfigSystem::SetConfig(const std::string& key, const float& data) {
   config_data_base_[key] = std::to_string(data);
 }
 
-void MM::ConfigSystem::Set(const std::string& key, const float& data) {
+void MM::ConfigSystem::ConfigSystem::SetConfig(const std::string& key, const double& data) {
   config_data_base_[key] = std::to_string(data);
 }
 
-void MM::ConfigSystem::Set(const std::string& key, const double& data) {
+void MM::ConfigSystem::ConfigSystem::SetConfig(const std::string& key,
+                                   const long double& data) {
   config_data_base_[key] = std::to_string(data);
 }
 
-void MM::ConfigSystem::Set(const std::string& key, const long double& data) {
-  config_data_base_[key] = std::to_string(data);
-}
-
-void MM::ConfigSystem::Set(const std::string& key,
+void MM::ConfigSystem::ConfigSystem::SetConfig(const std::string& key,
                                   const unsigned int& data) {
   config_data_base_[key] = std::to_string(data);
 }
 
-void MM::ConfigSystem::Set(const std::string& key,
+void MM::ConfigSystem::ConfigSystem::SetConfig(const std::string& key,
                                   const unsigned long& data) {
   config_data_base_[key] = std::to_string(data);
 }
 
-void MM::ConfigSystem::Set(const std::string& key,
+void MM::ConfigSystem::ConfigSystem::SetConfig(const std::string& key,
                                   const unsigned long long& data) {
   config_data_base_[key] = std::to_string(data);
 }
 
-bool MM::ConfigSystem::Get(const std::string& key, std::string& get_data) const {
+bool MM::ConfigSystem::ConfigSystem::GetConfig(const std::string& key,
+                                   std::string& get_data) const {
   if (Have(key)) {
     get_data = config_data_base_[key];
     return true;
@@ -206,7 +229,8 @@ bool MM::ConfigSystem::Get(const std::string& key, std::string& get_data) const 
   return false;
 }
 
-bool MM::ConfigSystem::Get(const std::string& key, int& get_data) const{
+bool MM::ConfigSystem::ConfigSystem::GetConfig(const std::string& key,
+                                   int& get_data) const {
   if (Have(key)) {
     get_data = std::stoi(config_data_base_[key]);
     return true;
@@ -214,7 +238,8 @@ bool MM::ConfigSystem::Get(const std::string& key, int& get_data) const{
   return false;
 }
 
-bool MM::ConfigSystem::Get(const std::string& key, unsigned int& get_data) const{
+bool MM::ConfigSystem::ConfigSystem::GetConfig(const std::string& key,
+                                   unsigned int& get_data) const {
   if (Have(key)) {
     get_data = static_cast<unsigned int>(std::stoi(config_data_base_[key]));
     return true;
@@ -222,7 +247,8 @@ bool MM::ConfigSystem::Get(const std::string& key, unsigned int& get_data) const
   return false;
 }
 
-bool MM::ConfigSystem::Get(const std::string& key, float& get_data) const{
+bool MM::ConfigSystem::ConfigSystem::GetConfig(const std::string& key,
+                                   float& get_data) const {
   if (Have((key))) {
     get_data = std::stof(config_data_base_[key]);
     return true;
@@ -230,7 +256,8 @@ bool MM::ConfigSystem::Get(const std::string& key, float& get_data) const{
   return false;
 }
 
-bool MM::ConfigSystem::Get(const std::string& key, long& get_data) const{
+bool MM::ConfigSystem::ConfigSystem::GetConfig(const std::string& key,
+                                   long& get_data) const {
   if (Have((key))) {
     get_data = std::stol(config_data_base_[key]);
     return true;
@@ -238,7 +265,8 @@ bool MM::ConfigSystem::Get(const std::string& key, long& get_data) const{
   return false;
 }
 
-bool MM::ConfigSystem::Get(const std::string& key, long double& get_data) const{
+bool MM::ConfigSystem::ConfigSystem::GetConfig(const std::string& key,
+                                   long double& get_data) const {
   if (Have((key))) {
     get_data = std::stold(config_data_base_[key]);
     return true;
@@ -246,7 +274,8 @@ bool MM::ConfigSystem::Get(const std::string& key, long double& get_data) const{
   return false;
 }
 
-bool MM::ConfigSystem::Get(const std::string& key, long long& get_data) const{
+bool MM::ConfigSystem::ConfigSystem::GetConfig(const std::string& key,
+                                   long long& get_data) const {
   if (Have((key))) {
     get_data = std::stoll(config_data_base_[key]);
     return true;
@@ -254,7 +283,8 @@ bool MM::ConfigSystem::Get(const std::string& key, long long& get_data) const{
   return false;
 }
 
-bool MM::ConfigSystem::Get(const std::string& key, unsigned long& get_data) const{
+bool MM::ConfigSystem::ConfigSystem::GetConfig(const std::string& key,
+                                   unsigned long& get_data) const {
   if (Have((key))) {
     get_data = std::stoul(config_data_base_[key]);
     return true;
@@ -262,7 +292,7 @@ bool MM::ConfigSystem::Get(const std::string& key, unsigned long& get_data) cons
   return false;
 }
 
-bool MM::ConfigSystem::Get(const std::string& key,
+bool MM::ConfigSystem::ConfigSystem::GetConfig(const std::string& key,
                                   unsigned long long& get_data) const{
   if (Have((key))) {
     get_data = std::stoull(config_data_base_[key]);

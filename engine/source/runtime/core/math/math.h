@@ -10,3 +10,7 @@
 #include "runtime/core/math/utils.h"
 #include "runtime/core/math/random.h"
 #include "runtime/core/math/transform.h"
+
+namespace MM {
+namespace Math = glm;
+}

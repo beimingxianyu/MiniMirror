@@ -1,6 +1,6 @@
 #pragma once
 
-#include <glm/glm.hpp>
+#include "runtime/core/math/math.h"
 
 namespace MM {
 // TODO: MM Reflection Color
@@ -10,7 +10,7 @@ class Color {
    * \brief Get color(no alpha value).
    * \return The color(no alpha value).
    */
-  glm::vec3 GetColor() const;
+  Math::vec3 GetColor() const;
 
   /**
    * \brief Get color (including alpha value).

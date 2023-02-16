@@ -34,8 +34,8 @@ function(CopyDir from_dir dest_dir)
 	file(COPY ${from_dir} DESTINATION ${dest_dir})
 endfunction()
 
-function(CopyFileToTestDirPostBuild build_target source_dll dest_dir)
+function(CopyFileToDestDirPostBuild build_target source_file dest_dir)
 	add_custom_command(TARGET ${build_target} POST_BUILD
-		      		   COMMAND ${CMAKE_COMMAND} -E copy ${source_dll} ${dest_dir})
+		      		   COMMAND ${CMAKE_COMMAND} -E copy ${source_file} ${dest_dir})
 endfunction()
 

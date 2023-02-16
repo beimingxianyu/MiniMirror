@@ -2,7 +2,7 @@
 #include <gtest/gtest.h>
 
 TEST(file_system, relative_path) {
-  const MM::Path ori_path(ORIGINE_DIR);
+  const MM::FileSystem::Path ori_path(ORIGINE_DIR);
 #ifdef WIN32
   EXPECT_EQ(ori_path.IsDirectory(), true);
   EXPECT_EQ(ori_path.RelativePath(std::string(ORIGINE_DIR) + "/../"),
