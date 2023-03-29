@@ -10,10 +10,10 @@
 #include <unordered_map>
 #include <unordered_set>
 
-#include "runtime/function/render/vulkan_utils.h"
+#include "runtime/function/render/vk_utils.h"
 #include "runtime/core/log/log_system.h"
 #include "runtime/function/render/import_other_system.h"
-#include "runtime/function/render/vulkan_type.h"
+#include "runtime/function/render/vk_type.h"
 #include "utils/utils.h"
 
 extern std::shared_ptr<MM::LogSystem::LogSystem> log_system;
@@ -92,7 +92,7 @@ class RenderResourceBase {
    * \remark If this object held is a resource array, the sum of the memory
    * occupied by all resources in the array is returned.
    */
-  virtual const uint64_t& GetSize() const = 0;
+  virtual const VkDeviceSize& GetSize() const = 0;
 
   /**
    * \brief Determine whether the resource is a array.
@@ -125,8 +125,8 @@ class RenderResourceTexture final : public RenderResourceBase {
    */
   RenderResourceTexture(
       const std::string& resource_name, RenderEngine* engine,
-      const std::shared_ptr<VkDescriptorSetLayoutBinding>& bind,
-      const std::shared_ptr<AllocatedImage>& image, const ImageInfo& image_info,
+      const VkDescriptorSetLayoutBinding& bind,
+      const AllocatedImage& image, const ImageInfo& image_info,
                         const std::shared_ptr<VkImageView>& image_view,
                         const std::shared_ptr<VkSampler>& sampler,
                         const std::shared_ptr<VkSemaphore>& semaphore);
@@ -142,17 +142,21 @@ class RenderResourceTexture final : public RenderResourceBase {
 
   const VkImageLayout& GetImageLayout() const;
 
-  RenderResourceTexture GetBackupWithNewImageView(
+  const ImageInfo& GetImageInfo() const;
+
+  RenderResourceTexture GetCopy() const;
+
+  RenderResourceTexture GetCopyWithNewImageView(
       const VkImageViewCreateInfo& image_view_create_info);
 
-  RenderResourceTexture GetBackupWithNewSampler(const VkSamplerCreateInfo& sampler_create_info);
+  RenderResourceTexture GetCopyWithNewSampler(const VkSamplerCreateInfo& sampler_create_info);
 
-  RenderResourceTexture GetBackupWithNewImageView(
+  RenderResourceTexture GetCopyWithNewImageView(
       const VkFormat& image_format,
       const VkImageLayout& image_layout,
       const std::shared_ptr<VkImageView>& image_view);
 
-   RenderResourceTexture GetBackupWithNewSampler(
+   RenderResourceTexture GetCopyWithNewSampler(
       const std::shared_ptr<VkSampler>& sampler);
 
   VkDescriptorType GetDescriptorType() const;
@@ -187,7 +191,7 @@ class RenderResourceTexture final : public RenderResourceBase {
 
   ResourceType GetResourceType() const override;
 
-  const uint64_t& GetSize() const override;
+  const VkDeviceSize& GetSize() const override;
 
   bool IsArray() const override;
 
@@ -216,8 +220,8 @@ class RenderResourceTexture final : public RenderResourceBase {
 
 private:
   RenderEngine* render_engine_{nullptr};
-  std::shared_ptr<VkDescriptorSetLayoutBinding> bind_{nullptr};
-  std::shared_ptr<AllocatedImage> image_{nullptr};
+  VkDescriptorSetLayoutBinding bind_{};
+  AllocatedImage image_{};
   ImageInfo image_info_;
   std::shared_ptr<VkImageView> image_view_{nullptr};
   std::shared_ptr<VkSampler> sampler_{nullptr};
@@ -253,9 +257,42 @@ public:
  RenderResourceBuffer& operator=(RenderResourceBuffer&& other) noexcept;
 
 public:
-  // TODO 添加函数，具体添加那些函数可以参考RenderResourceTexture
+  const VkDescriptorType& GetDescriptorType() const;
 
- VkDescriptorType GetDescriptorType() const;
+  RenderResourceBuffer GetCopy() const;
+
+  /**
+   * \remark Returns a RenderResourceBuffer with an offset value of \ref new_offset.
+   * When the size of the buffer held by the resource is smaller than \ref new_offset
+   * and the buffer is not a dynamic buffer, the new offset is \ref buffer_size; When the buffer is
+   * a dynamic buffer and \ref new_offset+dynamic_offset>buffer_size, the \ref new_offset is \ref buffer_size - dynamic_offset.
+   */
+  RenderResourceBuffer GetCopyWithNewOffset(const VkDeviceSize& new_offset) const;
+
+  /**
+   * \remark Returns a RenderResourceBuffer with an offset value of \ref new_dynamic_offset.
+   * When the buffer_size of the buffer held by the resource is smaller than \ref new_dynamic_offset,
+   * the \ref new_dynamic_size is \ref buffer_size - offset.If the buffer held by this resource
+   * is not a dynamic buffer, the value of its \ref dynamic_buffer will not be changed.
+  */
+  RenderResourceBuffer GetCopyWithNewDynamicOffset(const VkDeviceSize& new_dynamic_offset) const;
+
+  /**
+   * \remark It is equivalent to executing \ref GetBackupWithNewOffset first and then GetBackupWithNewDynamicOffset.
+   * \remark \ref new_offset and \ref new_dynamic_offset will only be set when \ref new_offset + new_dynamic_offset < buffer_size is true.
+  */
+  RenderResourceBuffer GetCopyWithNewOffsetAndDynamicOffset(
+      const VkDeviceSize& new_offset, const VkDeviceSize& new_dynamic_offset) const;
+
+  /**
+   * \remark If the buffer held by the resource is already a dynamic buffer, a copy
+   * of the resource is returned (shallow copy, instead of copying the buffer held by the resource,
+   * only the shared_ptr pointing to the buffer). If the buffer held by this resource is not
+   * a dynamic buffer, a new resource that holds this resource buffer but supports dynamic offset is returned.
+   * If the buffer held by this resource does not support dynamic offset, this resource will be returned.
+  */
+  RenderResourceBuffer GetCopyWithDynamicBuffer(const VkDeviceSize& new_offset = VK_WHOLE_SIZE,
+                                                const VkDeviceSize& new_dynamic_offset = VK_WHOLE_SIZE) const;
 
   bool IsDynamic() const;
 
@@ -264,6 +301,14 @@ public:
   bool IsUniform() const;
 
   bool IsTexel() const;
+
+  const VkDeviceSize& GetOffset() const;
+
+  const VkDeviceSize& GetDynamicOffset() const;
+
+  const bool& CanMapped() const;
+
+  const BufferInfo& GetBufferInfo() const;
 
   bool IsValid() const override;
 
@@ -275,7 +320,7 @@ public:
 
   ResourceType GetResourceType() const override;
 
-  const uint64_t& GetSize() const override;
+  const VkDeviceSize& GetSize() const override;
 
   bool IsArray() const override;
 
@@ -293,8 +338,13 @@ private:
                   const VmaMemoryUsage& memory_usage = VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE,
                   const VmaAllocationCreateFlags& allocation_flags = 0);
 
+  /**
+   * \remark Returns true if the \ref data is nullptr or the data is successfully copied, otherwise returns false.
+   */
   bool CopyDataToBuffer(void* data, const VkDeviceSize& offset,
                         const VkDeviceSize& size);
+
+  bool InitSemaphore();
 
   bool OffsetIsAlignment(const RenderEngine* engine,
                          const VkDescriptorType& descriptor_type,
@@ -303,9 +353,9 @@ private:
   
 private:
  RenderEngine* render_engine_{nullptr};
- std::shared_ptr<VkDescriptorSetLayoutBinding> bind_{nullptr};
+ VkDescriptorSetLayoutBinding bind_{};
  BufferInfo buffer_info_{};
- std::shared_ptr<AllocatedBuffer> buffer_{nullptr};
+ AllocatedBuffer buffer_{};
  std::shared_ptr<VkSemaphore> semaphore_{nullptr};
 };
 
@@ -338,13 +388,13 @@ class RenderResourceConstants final : public RenderResourceBase {
   const uint32_t& GetOffset() const;
 
   std::shared_ptr<const ConstantType> GetValue() const;
-  RenderResourceConstants GetBackupWithNewValue(
+  RenderResourceConstants GetCopyWithNewValue(
       const uint32_t& new_offset, const uint32_t& new_size,
       const std::shared_ptr<ConstantType>& new_value);
 
-  const uint64_t& GetSize() const override;
+  const VkDeviceSize& GetSize() const override;
 
-  RenderResourceConstants GetBackupWithNewOffsetAndNewSize(const uint32_t& new_offset, const uint32_t& new_size);
+  RenderResourceConstants GetCopyWithNewOffsetAndNewSize(const uint32_t& new_offset, const uint32_t& new_size);
 
   ResourceType GetResourceType() const override;
 
@@ -439,20 +489,20 @@ GetValue() const {
 }
 
 template <typename ConstantType>
-RenderResourceConstants<ConstantType> RenderResourceConstants<ConstantType>::GetBackupWithNewValue(
+RenderResourceConstants<ConstantType> RenderResourceConstants<ConstantType>::GetCopyWithNewValue(
     const uint32_t& new_offset, const uint32_t& new_size,
     const std::shared_ptr<ConstantType>& new_value) {
   return RenderResourceConstants<ConstantType>(new_offset, new_size, new_value);
 }
 
 template <typename ConstantType>
-const uint64_t& RenderResourceConstants<ConstantType>::GetSize() const {
+const VkDeviceSize& RenderResourceConstants<ConstantType>::GetSize() const {
   return size_;
 }
 
 template <typename ConstantType>
 RenderResourceConstants<ConstantType> RenderResourceConstants<ConstantType>::
-GetBackupWithNewOffsetAndNewSize(const uint32_t& new_offset, const uint32_t& new_size) {
+GetCopyWithNewOffsetAndNewSize(const uint32_t& new_offset, const uint32_t& new_size) {
   return RenderResourceConstants<ConstantType>(new_offset, new_size, value_);
 }
 

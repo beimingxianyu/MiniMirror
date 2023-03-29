@@ -1,15 +1,13 @@
 #pragma once
 
 #include <vulkan/vulkan.h>
+#include <vk_mem_alloc.h>
 
 #include <functional>
 #include <memory>
 #include <mutex>
 #include <optional>
 #include <vector>
-
-
-#include "vk_mem_alloc.h"
 
 namespace MM {
 namespace RenderSystem {
@@ -105,12 +103,16 @@ public:
    * \param function A function that contains the record operations you want to perform.
    * \param auto_start_end_submit If this item is true, the start command, end command,
    * and submit command (etc.) are automatically recorded. The default value is false.
-   * \param record_new_command Whether to not use the last submitted command buffer. The default value is true.
+   * If this item is true, please do not perform automatically completed work in the function again.
+   * \param record_new_command Whether to not use the last submitted command buffer.
+   * The default value is true.
    * \param submit_info_ptr Custom VkSubmitInfo.
    * \return If there are no errors in the entire recording and submission process,
    * it returns true, otherwise it returns false.
    * \remark If \ref auto_start_end_submit is set to true and \ref function also has
    * a start command or an end command, an error will occur.
+   * \remark Please do not create a VkFence in the \ref function and wait it. Doing so
+   * will cause the program to permanently block.
    */
   bool RecordAndSubmitCommand(const std::function<void(VkCommandBuffer& cmd)>&
                                   function,
@@ -192,6 +194,10 @@ class AllocatedBuffer {
 
   const VmaAllocation& GetAllocation() const;
 
+  void Release();
+
+  uint32_t UseCount() const;
+
   bool IsValid() const;
 
  private:
@@ -220,6 +226,8 @@ class AllocatedBuffer {
 
     bool IsValid() const;
 
+    void Release();
+
    private:
     VmaAllocator allocator_{nullptr};
     VkBuffer buffer_{nullptr};
@@ -247,6 +255,10 @@ class AllocatedImage {
   const VkImage& GetImage() const;
 
   const VmaAllocation& GetAllocation() const;
+
+  void Release();
+
+  uint32_t UseCount() const;
 
   bool IsValid() const;
 

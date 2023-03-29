@@ -3,6 +3,8 @@
 #include <vulkan/vulkan.h>
 #include <vk_mem_alloc.h>
 
+#include <vector>
+
 namespace MM {
 namespace RenderSystem {
 class AllocatedImage;
@@ -141,11 +143,21 @@ bool DescriptorTypeIsStorageBuffer(const VkDescriptorType& descriptor_type);
 
 bool DescriptorTypeIsUniformBuffer(const VkDescriptorType& descriptor_type);
 
+bool DescriptorTypeIsTexel(const VkDescriptorType& descriptor_type);
+
 AllocatedBuffer CreateBuffer(
     const RenderEngine* engine,
     const size_t& alloc_size, const VkBufferUsageFlags& usage,
     const VmaMemoryUsage& memory_usage,
     const VmaAllocationCreateFlags& allocation_flags = 0);
+
+VkBufferCopy2 GetCopyBufferRegion(const VkDeviceSize& size,
+                                  const VkDeviceSize& src_offset = 0,
+                                  const VkDeviceSize& dest_offset = 0);
+
+VkCopyBufferInfo2 GetCopyBufferInfo(const AllocatedBuffer& src_buffer,
+                                    const AllocatedBuffer& dest_buffer,
+                                    std::vector<VkBufferCopy2>& regions);
 }
 }
 }

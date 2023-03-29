@@ -15,8 +15,8 @@
 
 #include "runtime/core/log/log_system.h"
 #include "runtime/function/render/import_other_system.h"
-#include "runtime/function/render/vulkan_type.h"
-#include "runtime/function/render/vulkan_utils.h"
+#include "runtime/function/render/vk_type.h"
+#include "runtime/function/render/vk_utils.h"
 #include "runtime/platform/config_system/config_system.h"
 #include "runtime/platform/file_system/file_system.h"
 #include "utils/utils.h"
@@ -76,9 +76,9 @@ class RenderEngine {
    * be record belongs to
    * \param function A function that contains the record
    * operations you want to perform.
-   * \param auto_start_end_submit If this item
-   * is true, the start command, end command, and submit command (etc.) are
-   * automatically recorded. The default value is false.
+   * \param auto_start_end_submit If this item is true, the start command, end command,
+   * and submit command (etc.) are automatically recorded. The default value is false.
+   * If this item is true, please do not perform automatically completed work in the function again.
    * \param record_new_command Whether to not use the last submitted command buffer.
    * The default value is true.
    * \param submit_info_ptr Custom VkSubmitInfo.
@@ -86,6 +86,8 @@ class RenderEngine {
    * process, it returns true, otherwise it returns false.
    * \remark If \ref auto_start_end_submit is set to true and \ref function also has a start
    * command or an end command, an error will occur.
+   * \remark Please do not create a VkFence in the \ref function and wait it. Doing so
+   * will cause the program to permanently block.
    */
   bool RecordAndSubmitCommand(
       const CommandBufferType& command_buffer_type,
@@ -94,10 +96,15 @@ class RenderEngine {
       const bool& record_new_command = true,
       const std::shared_ptr<VkSubmitInfo>& submit_info_ptr = nullptr);
 
+  /**
+   * \remark This function is mostly the same as \ref RecordAndSubmitCommand, except that
+   * when \ref auto_start_end_submit_wait is false, you can create a VkFence in the
+   * function and wait it.
+   */
   bool RecordAndSubmitSingleTimeCommand(
       const CommandBufferType& command_buffer_type,
       const std::function<void(VkCommandBuffer& cmd)>& function,
-      const bool& auto_start_end_submit = false);
+      const bool& auto_start_end_submit_wait = false);
 
   uint32_t GetCurrentFrame() const;
 

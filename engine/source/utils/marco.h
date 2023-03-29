@@ -53,7 +53,7 @@ namespace Utils {
 
 // TODO 添加对各种情况的警告（如内存不足）
 #define VK_CHECK(vk_executor, failed_callback) \
-  if (vk_executor) {                           \
+  if (vk_executor != VK_SUCCESS) {                           \
     failed_callback;                           \
   }
 

@@ -1,8 +1,8 @@
 #include <string>
 
-#include "runtime/function/render/vulkan_utils.h"
+#include "runtime/function/render/vk_utils.h"
 #include "runtime/function/render/import_other_system.h"
-#include "runtime/function/render/vulkan_type.h"
+#include "runtime/function/render/vk_type.h"
 #include "runtime/function/render/render.h"
 #include "utils/marco.h"
 
@@ -23,7 +23,7 @@ VkCommandBufferAllocateInfo MM::RenderSystem::Utils::GetCommandBufferAllocateInf
   VkCommandBufferAllocateInfo info = {};
   info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
   info.pNext = nullptr;
-
+  
   info.commandPool = command_pool;
   info.commandBufferCount = count;
   info.level = level;
@@ -309,7 +309,7 @@ VkBufferImageCopy MM::RenderSystem::Utils::GetBufferToImageCopyRegion(
     const VkImageAspectFlagBits& aspect, const VkExtent3D& image_extent,
     const VkDeviceSize& buffer_offset, const VkOffset3D& image_offset) {
   VkBufferImageCopy copy_region = {};
-  copy_region.bufferOffset = 0;
+  copy_region.bufferOffset = buffer_offset;
   copy_region.bufferRowLength = 0;
   copy_region.bufferImageHeight = 0;
 
@@ -318,6 +318,7 @@ VkBufferImageCopy MM::RenderSystem::Utils::GetBufferToImageCopyRegion(
   copy_region.imageSubresource.baseArrayLayer = 0;
   copy_region.imageSubresource.layerCount = 1;
   copy_region.imageExtent = image_extent;
+  copy_region.imageOffset = image_offset;
 
   return copy_region;
 }
@@ -476,6 +477,17 @@ bool MM::RenderSystem::Utils::DescriptorTypeIsUniformBuffer(
   return !DescriptorTypeIsStorageBuffer(descriptor_type);
 }
 
+bool MM::RenderSystem::Utils::DescriptorTypeIsTexel(
+    const VkDescriptorType& descriptor_type) {
+  switch (descriptor_type) {
+    case VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER:
+    case VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER:
+      return true;
+    default:
+      return false;
+  }
+}
+
 MM::RenderSystem::AllocatedBuffer MM::RenderSystem::Utils::CreateBuffer(
     const RenderEngine* engine, const size_t& alloc_size,
     const VkBufferUsageFlags& usage, const VmaMemoryUsage& memory_usage,
@@ -495,4 +507,33 @@ MM::RenderSystem::AllocatedBuffer MM::RenderSystem::Utils::CreateBuffer(
            LOG_ERROR("Failed to create buffer."))
 
   return AllocatedBuffer(engine->GetAllocator(), temp_buffer, temp_allocation);
+}
+
+VkBufferCopy2 MM::RenderSystem::Utils::GetCopyBufferRegion(
+    const VkDeviceSize& size, const VkDeviceSize& src_offset,
+    const VkDeviceSize& dest_offset) {
+  VkBufferCopy2 buffer_copy_region{};
+  buffer_copy_region.sType = VK_STRUCTURE_TYPE_BUFFER_COPY_2;
+  buffer_copy_region.pNext = nullptr;
+
+  buffer_copy_region.srcOffset = src_offset;
+  buffer_copy_region.dstOffset = dest_offset;
+  buffer_copy_region.size = size;
+
+  return buffer_copy_region;
+}
+
+VkCopyBufferInfo2 MM::RenderSystem::Utils::GetCopyBufferInfo(
+    const AllocatedBuffer& src_buffer, const AllocatedBuffer& dest_buffer,
+    std::vector<VkBufferCopy2>& regions) {
+  VkCopyBufferInfo2 copy_buffer_info{};
+  copy_buffer_info.sType = VK_STRUCTURE_TYPE_COPY_BUFFER_INFO_2;
+  copy_buffer_info.pNext = nullptr;
+
+  copy_buffer_info.srcBuffer = src_buffer.GetBuffer();
+  copy_buffer_info.dstBuffer = dest_buffer.GetBuffer();
+  copy_buffer_info.regionCount = static_cast<uint32_t>(regions.size());
+  copy_buffer_info.pRegions = regions.data();
+
+  return copy_buffer_info;
 }

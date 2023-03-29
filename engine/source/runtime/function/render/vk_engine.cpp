@@ -99,7 +99,7 @@ bool MM::RenderSystem::RenderEngine::RecordAndSubmitCommand(
 bool MM::RenderSystem::RenderEngine::RecordAndSubmitSingleTimeCommand(
     const CommandBufferType& command_buffer_type,
     const std::function<void(VkCommandBuffer& cmd)>& function,
-    const bool& auto_start_end_submit) {
+    const bool& auto_start_end_submit_wait) {
   if (!IsValid()) {
     return false;
   }
@@ -115,45 +115,51 @@ bool MM::RenderSystem::RenderEngine::RecordAndSubmitSingleTimeCommand(
            LOG_ERROR("Failed to create single Time command buffer.");
            return false;)
 
-  VkCommandBufferBeginInfo beginInfo = Utils::GetCommandBufferBeginInfo(
-      VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
+  if (auto_start_end_submit_wait) {
+    VkCommandBufferBeginInfo beginInfo = Utils::GetCommandBufferBeginInfo(
+        VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
 
-  VK_CHECK(vkBeginCommandBuffer(command_buffer, &beginInfo),
-           LOG_ERROR("Failed to begin single time command buffer.");
-           vkFreeCommandBuffers(device_, command_executor.GetCommandPool(), 1,
-                                &command_buffer);
-           return false;)
+    VK_CHECK(vkBeginCommandBuffer(command_buffer, &beginInfo),
+             LOG_ERROR("Failed to begin single time command buffer.");
+             vkFreeCommandBuffers(device_, command_executor.GetCommandPool(), 1,
+                                  &command_buffer);
+             return false;)
+  }
 
   function(command_buffer);
 
-  VK_CHECK(vkEndCommandBuffer(command_buffer),
-           LOG_ERROR("Failed to end single time command buffer.");
-           vkFreeCommandBuffers(device_, command_executor.GetCommandPool(), 1,
-                                &command_buffer);
-           return false;)
+  if (auto_start_end_submit_wait) {
+    VK_CHECK(vkEndCommandBuffer(command_buffer),
+             LOG_ERROR("Failed to end single time command buffer.");
+             vkFreeCommandBuffers(device_, command_executor.GetCommandPool(), 1,
+                                  &command_buffer);
+             return false;)
 
-  const VkSubmitInfo submit_info = Utils::GetCommandSubmitInfo(command_buffer);
+    const VkSubmitInfo submit_info =
+        Utils::GetCommandSubmitInfo(command_buffer);
 
-  const VkFenceCreateInfo fence_create_info = Utils::GetFenceCreateInfo();
-  VkFence temp_fence{nullptr};
-  VK_CHECK(vkCreateFence(device_, &fence_create_info, nullptr, &temp_fence),
-           LOG_ERROR("Failed to create VkFence.");
-           vkFreeCommandBuffers(device_, command_executor.GetCommandPool(), 1,
-                                &command_buffer);
-           return false;)
+    const VkFenceCreateInfo fence_create_info = Utils::GetFenceCreateInfo();
+    VkFence temp_fence{nullptr};
+    VK_CHECK(vkCreateFence(device_, &fence_create_info, nullptr, &temp_fence),
+             LOG_ERROR("Failed to create VkFence.");
+             vkFreeCommandBuffers(device_, command_executor.GetCommandPool(), 1,
+                                  &command_buffer);
+             return false;)
 
-  VK_CHECK(
-      vkQueueSubmit(command_executor.GetQueue(), 1, &submit_info, temp_fence),
-      LOG_ERROR("Failed to submit single time command buffer.");
-      vkFreeCommandBuffers(device_, command_executor.GetCommandPool(), 1,
-                           &command_buffer);
-      return false;)
+    VK_CHECK(
+        vkWaitForFences(device_, 1, &temp_fence, VK_FALSE, 99999999999),
+        LOG_FATAL(
+            "The wait time for VkFence timed out.An error is expected in the "
+            "program, and the render system will be restarted.(single "
+            "buffer)");)
 
-  VK_CHECK(
-      vkWaitForFences(device_, 1, &temp_fence, VK_FALSE, 99999999999),
-      LOG_FATAL(
-          "The wait time for VkFence timed out.An error is expected in the "
-          "program, and the render system will be restarted.(single buffer)");)
+    VK_CHECK(
+        vkQueueSubmit(command_executor.GetQueue(), 1, &submit_info, temp_fence),
+        LOG_ERROR("Failed to submit single time command buffer.");
+        vkFreeCommandBuffers(device_, command_executor.GetCommandPool(), 1,
+                             &command_buffer);
+        return false;)
+  }
 
   vkFreeCommandBuffers(device_, command_executor.GetCommandPool(), 1,
                        &command_buffer);

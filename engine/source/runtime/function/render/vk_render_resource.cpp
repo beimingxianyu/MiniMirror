@@ -153,10 +153,9 @@ MM::RenderSystem::RenderResourceTexture::RenderResourceTexture(
 
   // wrapper_->bind_->binding = 0; binding will be determined when binding to
   // RenderPass.
-  bind_ = std::make_shared<VkDescriptorSetLayoutBinding>();
-  bind_->descriptorType = descriptor_type;
-  bind_->descriptorCount = 1;
-  bind_->stageFlags = VK_SHADER_STAGE_ALL;
+  bind_.descriptorType = descriptor_type;
+  bind_.descriptorCount = 1;
+  bind_.stageFlags = VK_SHADER_STAGE_ALL;
   // wrapper_->bind_->pImmutableSamplers = nullptr; I don't know what to use.
   // I will temporarily use the default value.
 
@@ -211,8 +210,8 @@ MM::RenderSystem::RenderResourceTexture::RenderResourceTexture(
 
 MM::RenderSystem::RenderResourceTexture::RenderResourceTexture(
     const std::string& resource_name, RenderEngine* engine,
-    const std::shared_ptr<VkDescriptorSetLayoutBinding>& bind,
-    const std::shared_ptr<AllocatedImage>& image, const ImageInfo& image_info,
+    const VkDescriptorSetLayoutBinding& bind,
+    const AllocatedImage& image, const ImageInfo& image_info,
     const std::shared_ptr<VkImageView>& image_view,
     const std::shared_ptr<VkSampler>& sampler,
     const std::shared_ptr<VkSemaphore>& semaphore) :
@@ -268,7 +267,7 @@ MM::RenderSystem::RenderResourceTexture::operator=(
   image_view_ = other.image_view_;
   semaphore_ = other.semaphore_;
 
-  other.Release();
+  other.RenderResourceTexture::Release();
   return *this;
 }
 
@@ -284,8 +283,18 @@ const VkImageLayout& MM::RenderSystem::RenderResourceTexture::GetImageLayout() c
   return image_info_.image_layout_;
 }
 
+const MM::RenderSystem::ImageInfo& MM::RenderSystem::RenderResourceTexture::
+GetImageInfo() const {
+  return image_info_;
+}
+
+MM::RenderSystem::RenderResourceTexture MM::RenderSystem::RenderResourceTexture
+::GetCopy() const {
+  return *this;
+}
+
 MM::RenderSystem::RenderResourceTexture
-MM::RenderSystem::RenderResourceTexture::GetBackupWithNewImageView(
+MM::RenderSystem::RenderResourceTexture::GetCopyWithNewImageView(
     const VkImageViewCreateInfo& image_view_create_info) {
   auto new_texture = *this;
 
@@ -312,7 +321,7 @@ MM::RenderSystem::RenderResourceTexture::GetBackupWithNewImageView(
 }
 
 MM::RenderSystem::RenderResourceTexture MM::RenderSystem::RenderResourceTexture
-::GetBackupWithNewSampler(const VkSamplerCreateInfo& sampler_create_info) {
+::GetCopyWithNewSampler(const VkSamplerCreateInfo& sampler_create_info) {
   auto new_texture = *this;
   VkSampler temp_sample{nullptr};
   vkCreateSampler(render_engine_->device_, &sampler_create_info, nullptr, &temp_sample);
@@ -333,7 +342,7 @@ MM::RenderSystem::RenderResourceTexture MM::RenderSystem::RenderResourceTexture
 }
 
 MM::RenderSystem::RenderResourceTexture MM::RenderSystem::RenderResourceTexture
-::GetBackupWithNewImageView(const VkFormat& image_format,
+::GetCopyWithNewImageView(const VkFormat& image_format,
     const VkImageLayout& image_layout, const std::shared_ptr<VkImageView>& image_view) {
   auto new_texture = *this;
 
@@ -346,7 +355,7 @@ MM::RenderSystem::RenderResourceTexture MM::RenderSystem::RenderResourceTexture
 }
 
 MM::RenderSystem::RenderResourceTexture MM::RenderSystem::RenderResourceTexture
-::GetBackupWithNewSampler(const std::shared_ptr<VkSampler>& sampler) {
+::GetCopyWithNewSampler(const std::shared_ptr<VkSampler>& sampler) {
   auto new_texture = *this;
 
   new_texture.sampler_ = sampler;
@@ -356,7 +365,7 @@ MM::RenderSystem::RenderResourceTexture MM::RenderSystem::RenderResourceTexture
 
 VkDescriptorType MM::RenderSystem::RenderResourceTexture::
 GetDescriptorType() const {
-  return bind_->descriptorType;
+  return bind_.descriptorType;
 }
 
 std::shared_ptr<VkSemaphore> MM::RenderSystem::RenderResourceTexture::
@@ -369,7 +378,7 @@ bool MM::RenderSystem::RenderResourceTexture::CanMapped() const {
 }
 
 bool MM::RenderSystem::RenderResourceTexture::IsStorage() const {
-  return bind_->descriptorType == VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+  return bind_.descriptorType == VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
 }
 
 bool MM::RenderSystem::RenderResourceTexture::HaveSample() const {
@@ -377,9 +386,9 @@ bool MM::RenderSystem::RenderResourceTexture::HaveSample() const {
 }
 
 bool MM::RenderSystem::RenderResourceTexture::IsValid() const {
-  bool result = render_engine_ != nullptr && bind_ != nullptr &&
-                image_ != nullptr && image_view_ != nullptr;
-  if (Utils::DescriptorTypeIsImageSampler(bind_->descriptorType)) {
+  bool result = render_engine_ != nullptr && bind_.descriptorCount != 0 &&
+                image_.IsValid() && image_view_ != nullptr;
+  if (Utils::DescriptorTypeIsImageSampler(bind_.descriptorType)) {
     result = result && sampler_ != nullptr;
   }
   return result;
@@ -391,16 +400,16 @@ void MM::RenderSystem::RenderResourceTexture::Release() {
     return;
   }
 
-  bind_.reset();
   semaphore_.reset();
   sampler_.reset();
   image_view_.reset();
+  bind_.descriptorCount = 0;
   image_info_.image_extent_ = {0, 0, 0};
   image_info_.image_size_ = 0;
   image_info_.image_format_ = VkFormat{};
   image_info_.image_layout_ = VkImageLayout{};
   image_info_.mipmap_levels = 1;
-  image_.reset();
+  image_.Release();
   render_engine_ = nullptr;
 }
 
@@ -410,7 +419,6 @@ void MM::RenderSystem::RenderResourceTexture::Reset(
     Release();
     return;
   }
-  RenderResourceBase::Reset(other);
   if (other->GetResourceType() != ResourceType::Texture) {
     LOG_WARN(
         "The resource type of the reset resource is different from the "
@@ -419,11 +427,12 @@ void MM::RenderSystem::RenderResourceTexture::Reset(
     Release();
     return;
   }
+  RenderResourceBase::Reset(other);
   operator=(*dynamic_cast<RenderResourceTexture*>(other));
 }
 
 uint32_t MM::RenderSystem::RenderResourceTexture::UseCount() const {
-  return image_.use_count();
+  return image_.UseCount();
 }
 
 MM::RenderSystem::ResourceType
@@ -431,7 +440,7 @@ MM::RenderSystem::RenderResourceTexture::GetResourceType() const {
   return ResourceType::Texture;
 }
 
-const uint64_t& MM::RenderSystem::RenderResourceTexture::GetSize() const {
+const VkDeviceSize& MM::RenderSystem::RenderResourceTexture::GetSize() const {
   return RenderResourceBase::GetSize();
   return image_info_.image_size_;
 }
@@ -514,7 +523,8 @@ bool MM::RenderSystem::RenderResourceTexture::LoadImageToStageBuffer(
 
   stage_buffer = render_engine_->CreateBuffer(image_info_.image_size_,
                                               VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-                                              VMA_MEMORY_USAGE_AUTO);
+                                              VMA_MEMORY_USAGE_AUTO,
+                                              VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT);
 
   if (!stage_buffer.IsValid()) {
     LOG_ERROR("Failed to create stage buffer.");
@@ -552,7 +562,7 @@ bool MM::RenderSystem::RenderResourceTexture::InitImage(
   VmaAllocation temp_allocation{nullptr};
 
   usages |= VK_IMAGE_USAGE_TRANSFER_DST_BIT;
-  if (Utils::DescriptorTypeIsImageSampler(bind_->descriptorType)) {
+  if (Utils::DescriptorTypeIsImageSampler(bind_.descriptorType)) {
     usages |= VK_IMAGE_USAGE_SAMPLED_BIT;
   }
   VK_CHECK(vmaCreateImage(render_engine_->allocator_, &image_create_info,
@@ -561,13 +571,12 @@ bool MM::RenderSystem::RenderResourceTexture::InitImage(
            LOG_ERROR("Failed to create VkImage.");
            return false;)
 
-  image_ = std::make_shared<AllocatedImage>(render_engine_->allocator_,
-                                            temp_image, temp_allocation);
+  image_ =
+      AllocatedImage{render_engine_->allocator_, temp_image, temp_allocation};
 
-  VK_CHECK(
-      render_engine_->RecordAndSubmitSingleTimeCommand(
+  if (!render_engine_->RecordAndSubmitSingleTimeCommand(
           CommandBufferType::GRAPH,
-          [&image = *image_, &stage = stage_buffer,
+          [&image = image_, &stage = stage_buffer,
            &image_extent = image_info_.image_extent_,
            &image_layout = image_info_.image_layout_](VkCommandBuffer& cmd) {
             Utils::AddTransferImageCommands(
@@ -580,9 +589,10 @@ bool MM::RenderSystem::RenderResourceTexture::InitImage(
                                    VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
                                    stage.GetBuffer(), 1, &copy_region);
           },
-          true),
-      LOG_ERROR("Copying image data to the GPU failed.");
-      return false;)
+          true)) {
+    LOG_ERROR("Copying image data to the GPU failed.");
+    return false;
+  }
   return true;
 }
 
@@ -592,7 +602,7 @@ bool MM::RenderSystem::RenderResourceTexture::GenerateMipmap() {
       [&](VkCommandBuffer& cmd) {
         VkImageMemoryBarrier2 barrier{};
         barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
-        barrier.image = image_->GetImage();
+        barrier.image = image_.GetImage();
         barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
         barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
         barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
@@ -644,7 +654,7 @@ bool MM::RenderSystem::RenderResourceTexture::GenerateMipmap() {
           blit.dstSubresource.layerCount = 1;
 
           vkCmdBlitImage(
-              cmd, image_->GetImage(), VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, image_->GetImage(),
+              cmd, image_.GetImage(), VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, image_.GetImage(),
               VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &blit, VK_FILTER_LINEAR);
 
           barrier.subresourceRange.baseMipLevel = i - 1;
@@ -684,7 +694,7 @@ bool MM::RenderSystem::RenderResourceTexture::GenerateMipmap() {
 
 bool MM::RenderSystem::RenderResourceTexture::InitImageView() {
   auto image_view_create_info = Utils::GetImageViewCreateInfo(
-      *image_, image_info_.image_format_, VK_IMAGE_VIEW_TYPE_2D,
+      image_, image_info_.image_format_, VK_IMAGE_VIEW_TYPE_2D,
       VK_IMAGE_ASPECT_COLOR_BIT);
   image_view_create_info.subresourceRange.baseMipLevel = 0;
   image_view_create_info.subresourceRange.levelCount =
@@ -786,11 +796,10 @@ MM::RenderSystem::RenderResourceBuffer::RenderResourceBuffer(
 
   render_engine_ = engine;
 
-  bind_->descriptorType = descriptor_type;
-  bind_->descriptorCount = 1;
-  bind_->binding = 0;
-  bind_->pImmutableSamplers = nullptr;
-  bind_->stageFlags = VK_SHADER_STAGE_ALL;
+  bind_.descriptorType = descriptor_type;
+  bind_.descriptorCount = 1;
+  bind_.pImmutableSamplers = nullptr;
+  bind_.stageFlags = VK_SHADER_STAGE_ALL;
 
   // If there is data that needs to be copied to a buffer and the buffer cannot be mapped,
   // VK_BUFFER_USAGE_TRANSFER_DST_BIT will be automatically added to the buffer_usage to
@@ -804,12 +813,243 @@ MM::RenderSystem::RenderResourceBuffer::RenderResourceBuffer(
     return;
   }
 
+  if (!CopyDataToBuffer(data, offset, size)) {
+    RenderResourceBuffer::Release();
+    return;
+  }
 
+  if (!InitSemaphore()) {
+    RenderResourceBuffer::Release();
+    return;
+  }
+}
+
+MM::RenderSystem::RenderResourceBuffer& MM::RenderSystem::RenderResourceBuffer::
+operator=(const RenderResourceBuffer& other) {
+  if (&other == this) {
+    return *this;
+  }
+  RenderResourceBase::operator=(other);
+
+  render_engine_ = other.render_engine_;
+  bind_ = other.bind_;
+  buffer_info_ = other.buffer_info_;
+  buffer_ = other.buffer_;
+  semaphore_ = other.semaphore_;
+
+  return *this;
+}
+
+MM::RenderSystem::RenderResourceBuffer& MM::RenderSystem::RenderResourceBuffer::
+operator=(RenderResourceBuffer&& other) noexcept {
+  if (&other == this) {
+    return *this;
+  }
+  RenderResourceBase::operator=(std::move(other));
+
+  render_engine_ = other.render_engine_;
+  bind_ = other.bind_;
+  buffer_info_ = other.buffer_info_;
+  buffer_ = other.buffer_;
+  semaphore_ = other.semaphore_;
+
+  other.RenderResourceBuffer::Release();
+
+  return *this;
+}
+
+const VkDescriptorType& MM::RenderSystem::RenderResourceBuffer::
+GetDescriptorType() const {
+  return bind_.descriptorType;
+}
+
+MM::RenderSystem::RenderResourceBuffer MM::RenderSystem::RenderResourceBuffer::
+GetCopy() const {
+  return *this;
+}
+
+MM::RenderSystem::RenderResourceBuffer MM::RenderSystem::RenderResourceBuffer::
+GetCopyWithNewOffset(const VkDeviceSize& new_offset) const {
+  VkDeviceSize new_offset_in = new_offset;
+  if (IsDynamic()) {
+    if (new_offset_in > UINT64_MAX - buffer_info_.dynamic_offset_) {
+      LOG_WARN("New offset is too large.")
+      new_offset_in = buffer_info_.buffer_size_ - buffer_info_.dynamic_offset_;
+    }
+    if (new_offset_in + buffer_info_.dynamic_offset_ > buffer_info_.buffer_size_) {
+      LOG_WARN("New offset is too large.")
+      new_offset_in = buffer_info_.buffer_size_ - buffer_info_.dynamic_offset_;
+    }
+  } else {
+    if (new_offset_in > buffer_info_.buffer_size_) {
+      new_offset_in = buffer_info_.buffer_size_;
+    }
+  }
+  
+  auto new_buffer = GetCopy();
+  new_buffer.buffer_info_.offset_ = new_offset_in;
+
+  return new_buffer;
+}
+
+MM::RenderSystem::RenderResourceBuffer MM::RenderSystem::RenderResourceBuffer::
+GetCopyWithNewDynamicOffset(const VkDeviceSize& new_dynamic_offset) const {
+  VkDeviceSize new_dynamic_offset_in = new_dynamic_offset;
+
+  if (new_dynamic_offset > UINT64_MAX - buffer_info_.offset_) {
+    LOG_WARN("New_Dynamic_offset is too larger.")
+    new_dynamic_offset_in = buffer_info_.buffer_size_ - buffer_info_.offset_;
+  }
+  if (new_dynamic_offset_in + buffer_info_.offset_ > buffer_info_.buffer_size_) {
+    LOG_WARN("New_Dynamic_offset is too large.")
+    new_dynamic_offset_in = buffer_info_.buffer_size_ - buffer_info_.offset_;
+  }
+
+  auto new_buffer = GetCopy();
+  new_buffer.buffer_info_.dynamic_offset_ = new_dynamic_offset_in;
+
+  return new_buffer;
+}
+
+MM::RenderSystem::RenderResourceBuffer MM::RenderSystem::RenderResourceBuffer::
+GetCopyWithNewOffsetAndDynamicOffset(const VkDeviceSize& new_offset,
+    const VkDeviceSize& new_dynamic_offset) const {
+  VkDeviceSize new_offset_in = new_offset;
+  VkDeviceSize new_dynamic_offset_in = new_dynamic_offset;
+  if (IsDynamic()) {
+    if (new_offset_in > UINT64_MAX - buffer_info_.dynamic_offset_) {
+      LOG_WARN("The sum of new offset and new dynamic offset is too large.")
+      new_offset_in = buffer_info_.buffer_size_ - buffer_info_.dynamic_offset_;
+      new_dynamic_offset_in = buffer_info_.dynamic_offset_;
+    }
+    if (new_offset_in + new_dynamic_offset_in > buffer_info_.buffer_size_) {
+      LOG_WARN("The sum of new offset and new dynamic offset is too large.")
+      new_offset_in = buffer_info_.buffer_size_ - buffer_info_.dynamic_offset_;
+      new_dynamic_offset_in = buffer_info_.dynamic_offset_;
+    }
+  } else {
+    if (new_offset_in > buffer_info_.buffer_size_) {
+      new_offset_in = buffer_info_.buffer_size_;
+    }
+  }
+
+  auto new_buffer = GetCopy();
+  new_buffer.buffer_info_.offset_ = new_offset_in;
+
+  if (IsDynamic()) {
+    new_buffer.buffer_info_.dynamic_offset_ = new_dynamic_offset_in;
+  }
+
+  return new_buffer;
+}
+
+MM::RenderSystem::RenderResourceBuffer MM::RenderSystem::RenderResourceBuffer::
+GetCopyWithDynamicBuffer(const VkDeviceSize& new_offset,
+    const VkDeviceSize& new_dynamic_offset) const {
+  if (IsTexel()) {
+    return *this;
+  }
+
+  if (IsDynamic()) {
+    return *this;
+  }
+
+  auto new_buffer = GetCopy();
+  if (IsStorage()) {
+    new_buffer.bind_.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC;
+  } else {
+    new_buffer.bind_.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC;
+  }
+
+  if (new_offset < UINT64_MAX - new_dynamic_offset && new_offset + new_dynamic_offset < buffer_info_.buffer_size_) {
+    new_buffer.buffer_info_.offset_ = new_offset;
+    new_buffer.buffer_info_.dynamic_offset_ = new_dynamic_offset;
+  }
+
+  return new_buffer;
+}
+
+bool MM::RenderSystem::RenderResourceBuffer::IsDynamic() const {
+  return Utils::DescriptorTypeIsDynamicBuffer(bind_.descriptorType);
+}
+
+bool MM::RenderSystem::RenderResourceBuffer::IsStorage() const {
+  return Utils::DescriptorTypeIsStorageBuffer(bind_.descriptorType);
+}
+
+bool MM::RenderSystem::RenderResourceBuffer::IsUniform() const {
+  return Utils::DescriptorTypeIsUniformBuffer(bind_.descriptorType);
+}
+
+bool MM::RenderSystem::RenderResourceBuffer::IsTexel() const {
+  return Utils::DescriptorTypeIsTexel(bind_.descriptorType);
+}
+
+const VkDeviceSize& MM::RenderSystem::RenderResourceBuffer::GetOffset() const {
+  return buffer_info_.offset_;
+}
+
+const VkDeviceSize&
+MM::RenderSystem::RenderResourceBuffer::GetDynamicOffset() const {
+  return buffer_info_.dynamic_offset_;
+}
+
+const bool& MM::RenderSystem::RenderResourceBuffer::CanMapped() const {
+  return buffer_info_.can_mapped_;
+}
+
+const MM::RenderSystem::BufferInfo& MM::RenderSystem::RenderResourceBuffer::
+GetBufferInfo() const {
+  return buffer_info_;
+}
+
+bool MM::RenderSystem::RenderResourceBuffer::IsValid() const {
+  return render_engine_ != nullptr && bind_.descriptorCount != 0 && buffer_.
+         IsValid() && semaphore_.use_count() != 0 && buffer_info_.buffer_size_ != 0;
+}
+
+void MM::RenderSystem::RenderResourceBuffer::Release() {
+  RenderResourceBase::Release();
+
+  render_engine_ = nullptr;
+  bind_.descriptorCount = 0;
+  buffer_info_.offset_ = 0;
+  buffer_info_.dynamic_offset_ = 0;
+  buffer_info_.can_mapped_ = false;
+  buffer_info_.buffer_size_ = 0;
+  buffer_.Release();
+  semaphore_.reset();
+}
+
+void MM::RenderSystem::RenderResourceBuffer::Reset(
+    MM::RenderSystem::RenderResourceBase* other) {
+  if (other == nullptr) {
+    Release();
+    return;
+  }
+  if (other->GetResourceType() != ResourceType::BUFFER) {
+    LOG_WARN(
+        "The resource type of the reset resource is different from the "
+        "original resource type. Only the resources held by the object will be "
+        "released, and resources will not be reset.")
+    Release();
+    return;
+  }
+  RenderResourceBase::Reset(other);
+  operator=(*dynamic_cast<RenderResourceBuffer*>(other));
+}
+
+uint32_t MM::RenderSystem::RenderResourceBuffer::UseCount() const {
+  return buffer_.UseCount();
 }
 
 MM::RenderSystem::ResourceType MM::RenderSystem::RenderResourceBuffer::
 GetResourceType() const {
   return ResourceType::BUFFER;
+}
+
+const VkDeviceSize& MM::RenderSystem::RenderResourceBuffer::GetSize() const {
+  return buffer_info_.buffer_size_;
 }
 
 bool MM::RenderSystem::RenderResourceBuffer::IsArray() const { return false; }
@@ -923,37 +1163,90 @@ bool MM::RenderSystem::RenderResourceBuffer::InitBuffer(
            LOG_ERROR("Failed to create VkBuffer.");
            return false;)
 
-  buffer_ = std::make_shared<AllocatedBuffer>(render_engine_->allocator_,
-                                             temp_buffer, temp_allocation);
+  buffer_ =
+      AllocatedBuffer{render_engine_->allocator_, temp_buffer, temp_allocation};
 
   return false;
 }
 
 bool MM::RenderSystem::RenderResourceBuffer::CopyDataToBuffer(void* data,
     const VkDeviceSize& offset, const VkDeviceSize& size) {
+  if (data == nullptr) {
+    return true;
+  }
+
   if (buffer_info_.can_mapped_) {
     char* buffer_ptr{nullptr};
-    VK_CHECK(vmaMapMemory(render_engine_->allocator_, buffer_->GetAllocation(),
+    VK_CHECK(vmaMapMemory(render_engine_->allocator_, buffer_.GetAllocation(),
                           (void**)&buffer_ptr),
              LOG_ERROR("Unable to obtain a pointer mapped to a buffer");
-             return false;
-      )
+             return false;)
 
     buffer_ptr = buffer_ptr + offset;
     memcpy(buffer_ptr, data, size);
 
-    vmaUnmapMemory(render_engine_->allocator_, buffer_->GetAllocation());
+    vmaUnmapMemory(render_engine_->allocator_, buffer_.GetAllocation());
 
     return true;
   }
 
-  auto stage_buffer = render_engine_->CreateBuffer(size, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_AUTO_PREFER_HOST, VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT);
-
-  
+  const auto stage_buffer = render_engine_->CreateBuffer(size, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_AUTO_PREFER_HOST, VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT);
 
   if (!stage_buffer.IsValid()) {
     LOG_ERROR("Failed to create stage buffer.")
+    return false;
   }
+
+  const auto buffer_copy_region = Utils::GetCopyBufferRegion(size, 0, offset);
+  std::vector<VkBufferCopy2> buffer_copy_regions{buffer_copy_region};
+  auto buffer_copy_info = Utils::GetCopyBufferInfo(
+      stage_buffer, buffer_, buffer_copy_regions);
+
+  void* stage_buffer_ptr{nullptr};
+
+  VK_CHECK(vmaMapMemory(render_engine_->allocator_,
+                        stage_buffer.GetAllocation(),
+                        &stage_buffer_ptr),
+           LOG_ERROR("Unable to obtain a pointer mapped to a buffer");
+           return false;)
+
+  memcpy(stage_buffer_ptr, data, size);
+
+  vmaUnmapMemory(render_engine_->allocator_, stage_buffer.GetAllocation());
+
+  if (!render_engine_->RecordAndSubmitSingleTimeCommand(
+      CommandBufferType::GRAPH,
+      [&buffer_copy_info = buffer_copy_info](VkCommandBuffer& cmd) {
+            vkCmdCopyBuffer2(cmd, &buffer_copy_info);
+  }, true)) {
+    LOG_ERROR("Failed to copy data form stage_buffer to buffer_.")
+    return false;
+  }
+
+  
+
+  return true;
+}
+
+bool MM::RenderSystem::RenderResourceBuffer::InitSemaphore() {
+  const auto semaphore_create_info = Utils::GetSemaphoreCreateInfo();
+
+  VkSemaphore temp_semaphore{nullptr};
+  VK_CHECK(vkCreateSemaphore(render_engine_->device_, &semaphore_create_info,
+                             nullptr, &temp_semaphore),
+           LOG_ERROR("Failed to create VkSemaphore.");
+           return false;)
+
+  semaphore_ = MM::Utils::MakeSharedWithDestructor<VkSemaphore>(
+      [engine = render_engine_](VkSampler* value) {
+        if (value == nullptr) {
+          return;
+        }
+        vkDestroySampler(engine->device_, *value, nullptr);
+        delete value;
+        value = nullptr;
+      },
+      temp_semaphore);
 
   return true;
 }
@@ -982,16 +1275,16 @@ bool MM::RenderSystem::RenderResourceBuffer::OffsetIsAlignment(
       return !(offset %
                engine->gpu_properties_.limits.minStorageBufferOffsetAlignment);
     case VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC:
-      if (offset < engine->gpu_properties_.limits.minUniformBufferOffsetAlignment) {
+      if (offset + dynamic_offset < engine->gpu_properties_.limits.minUniformBufferOffsetAlignment) {
         return true;
       }
-      return !(offset %
+      return !(offset + dynamic_offset %
                engine->gpu_properties_.limits.minUniformBufferOffsetAlignment);
     case VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC:
-      if (offset < engine->gpu_properties_.limits.minStorageBufferOffsetAlignment) {
+      if (offset + dynamic_offset < engine->gpu_properties_.limits.minStorageBufferOffsetAlignment) {
         return true;
       }
-      return !(offset %
+      return !(offset + dynamic_offset %
                engine->gpu_properties_.limits.minStorageBufferOffsetAlignment);
     default:
       LOG_ERROR("The type referred to by descriptor_type is not currently supported.")

@@ -1,4 +1,4 @@
-#include "runtime/function/render/vulkan_type.h"
+#include "runtime/function/render/vk_type.h"
 
 #include "vk_engine.h"
 
@@ -177,9 +177,11 @@ bool MM::RenderSystem::AllocatedCommandBuffer::AllocatedCommandBufferWrapper::
 
   vkResetFences(engine_->device_, 1, &command_fence_);
   std::lock_guard<std::mutex> guard{record_mutex_};
-  VK_CHECK(!ResetCommandBuffer(), 
+  if (!ResetCommandBuffer()) {
     LOG_ERROR("Faild to record and submit command buffer!");
-    return false;)
+    return false;
+  }
+
   if (auto_start_end_submit) {
     const VkCommandBufferBeginInfo command_buffer_begin_info =
         MM::RenderSystem::Utils::GetCommandBufferBeginInfo();
@@ -257,6 +259,12 @@ const VmaAllocation& MM::RenderSystem::AllocatedBuffer::GetAllocation() const {
   return wrapper_->GetAllocation();
 }
 
+void MM::RenderSystem::AllocatedBuffer::Release() { wrapper_.reset(); }
+
+uint32_t MM::RenderSystem::AllocatedBuffer::UseCount() const {
+  return wrapper_.use_count();
+}
+
 bool MM::RenderSystem::AllocatedBuffer::IsValid() const {
   return wrapper_ != nullptr && wrapper_->IsValid();
 }
@@ -298,6 +306,10 @@ IsValid() const {
   return allocator_ != nullptr && buffer_ != nullptr && allocation_ != nullptr;
 }
 
+void MM::RenderSystem::AllocatedBuffer::AllocatedBufferWrapper::Release() {
+  wrapper_-
+}
+
 MM::RenderSystem::AllocatedImage::AllocatedImage(
     const VmaAllocator& allocator, const VkImage& image,
     const VmaAllocation& allocation)
@@ -334,6 +346,12 @@ const VkImage& MM::RenderSystem::AllocatedImage::GetImage() const {
 
 const VmaAllocation& MM::RenderSystem::AllocatedImage::GetAllocation() const {
   return wrapper_->GetAllocation();
+}
+
+void MM::RenderSystem::AllocatedImage::Release() { wrapper_.reset(); }
+
+uint32_t MM::RenderSystem::AllocatedImage::UseCount() const {
+  return wrapper_.use_count();
 }
 
 bool MM::RenderSystem::AllocatedImage::IsValid() const {
