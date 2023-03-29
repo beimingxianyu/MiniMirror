@@ -23,7 +23,7 @@ void MM::RenderSystem::RenderEngine::CleanUp() {
   if (is_initialized_) {
     // vkDestroyCommandPool(device_, compute_command_pool_, nullptr);
     // vkDestroyCommandPool(device_, graph_command_pool_, nullptr);
-
+    
     for (VkImageView swapchain_image_view : swapchain_image_views_) {
       vkDestroyImageView(device_, swapchain_image_view, nullptr);
     }
@@ -44,6 +44,17 @@ void MM::RenderSystem::RenderEngine::CleanUp() {
 
     glfwDestroyWindow(window_);
     glfwTerminate();
+
+    window_ = nullptr;
+    instance_ = nullptr;
+    physical_device_ = nullptr;
+    allocator_ = nullptr;
+    device_ = nullptr;
+    graphics_queue_ = nullptr;
+    compute_queue_ = nullptr;
+    present_queue_ = nullptr;
+    surface_ = nullptr;
+    swapchain_ = nullptr;
   }
 
   is_initialized_ = false;
@@ -53,21 +64,17 @@ bool MM::RenderSystem::RenderEngine::IsValid() const { return is_initialized_; }
 
 MM::RenderSystem::AllocatedBuffer MM::RenderSystem::RenderEngine::CreateBuffer(
     const size_t& alloc_size, const VkBufferUsageFlags& usage,
-    const VmaMemoryUsage& memory_usage) const {
-  const auto buffer_Info =
-      MM::RenderSystem::Utils::GetBufferCreateInfo(alloc_size, usage);
+    const VmaMemoryUsage& memory_usage,
+    const VmaAllocationCreateFlags& allocation_flags) const {
+  return Utils::CreateBuffer(this, alloc_size, usage, memory_usage, allocation_flags);
+}
 
-  VmaAllocationCreateInfo vma_alloc_info = {};
-  vma_alloc_info.usage = memory_usage;
+const VmaAllocator& MM::RenderSystem::RenderEngine::GetAllocator() const {
+  return allocator_;
+}
 
-  VkBuffer temp_buffer{};
-  VmaAllocation temp_allocation{};
-
-  VK_CHECK(vmaCreateBuffer(allocator_, &buffer_Info, &vma_alloc_info,
-                           &temp_buffer, &temp_allocation, nullptr),
-           LOG_ERROR("Failed to create cache."));
-
-  return AllocatedBuffer(allocator_, temp_buffer, temp_allocation);
+const VkDevice& MM::RenderSystem::RenderEngine::GetDevice() const {
+  return device_;
 }
 
 bool MM::RenderSystem::RenderEngine::RecordAndSubmitCommand(
@@ -75,6 +82,9 @@ bool MM::RenderSystem::RenderEngine::RecordAndSubmitCommand(
     const std::function<void(VkCommandBuffer& cmd)>& function,
     const bool& auto_start_end_submit, const bool& record_new_command,
     const std::shared_ptr<VkSubmitInfo>& submit_info_ptr) {
+  if (!IsValid()) {
+    return false;
+  }
   if (command_buffer_type == CommandBufferType::GRAPH) {
     return graph_command_executors_[GetCurrentFrame()].RecordAndSubmitCommand(
         function, auto_start_end_submit, record_new_command, submit_info_ptr);
@@ -90,6 +100,9 @@ bool MM::RenderSystem::RenderEngine::RecordAndSubmitSingleTimeCommand(
     const CommandBufferType& command_buffer_type,
     const std::function<void(VkCommandBuffer& cmd)>& function,
     const bool& auto_start_end_submit) {
+  if (!IsValid()) {
+    return false;
+  }
   AllocatedCommandBuffer command_executor =
       command_buffer_type == CommandBufferType::GRAPH
           ? graph_command_executors_[GetCurrentFrame()]
@@ -241,6 +254,10 @@ void MM::RenderSystem::RenderEngine::InitPhysicalDevice() {
   if (physical_device_ == VK_NULL_HANDLE) {
     LOG_FATAL("failed to find a suitable GPU!");
   }
+}
+
+void MM::RenderSystem::RenderEngine::InitGpuProperties() {
+  vkGetPhysicalDeviceProperties(physical_device_, &gpu_properties_);
 }
 
 void MM::RenderSystem::RenderEngine::InitLogicalDevice() {
@@ -555,6 +572,7 @@ void MM::RenderSystem::RenderEngine::InitVulkan() {
   SetUpDebugMessenger();
   InitSurface();
   InitPhysicalDevice();
+  InitGpuProperties();
   InitLogicalDevice();
   InitSwapChain();
   InitCommandExecutors();

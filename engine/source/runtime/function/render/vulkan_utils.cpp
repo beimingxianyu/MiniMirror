@@ -3,6 +3,7 @@
 #include "runtime/function/render/vulkan_utils.h"
 #include "runtime/function/render/import_other_system.h"
 #include "runtime/function/render/vulkan_type.h"
+#include "runtime/function/render/render.h"
 #include "utils/marco.h"
 
 VkCommandPoolCreateInfo MM::RenderSystem::Utils::GetCommandPoolCreateInfo(
@@ -422,4 +423,76 @@ bool MM::RenderSystem::Utils::DescriptorTypeIsBuffer(
     default:
       return false;
   }
+}
+
+bool MM::RenderSystem::Utils::CanBeMapped(
+    const VmaMemoryUsage& memory_usage,
+    const VmaAllocationCreateFlags& allocation_flags) {
+  switch (memory_usage) {
+    case VMA_MEMORY_USAGE_CPU_ONLY:
+    case VMA_MEMORY_USAGE_CPU_TO_GPU:
+    case VMA_MEMORY_USAGE_GPU_TO_CPU:
+      return true;
+      break;
+    case VMA_MEMORY_USAGE_AUTO:
+    case VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE:
+    case VMA_MEMORY_USAGE_AUTO_PREFER_HOST:
+      if (allocation_flags &
+              VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT ||
+          allocation_flags & VMA_ALLOCATION_CREATE_HOST_ACCESS_RANDOM_BIT) {
+        return true;
+      }
+      return false;
+      break;
+    default:
+      return false;
+  }
+}
+
+VkDeviceSize MM::RenderSystem::Utils::GetMinAlignmentSizeFromOriginalSize(
+    const VkDeviceSize& min_alignment, const VkDeviceSize& original_size) {
+  // Calculate required alignment based on minimum device offset alignment
+  VkDeviceSize alignedSize = original_size;
+  if (min_alignment > 0) {
+    alignedSize = (alignedSize + min_alignment - 1) & ~(min_alignment - 1);
+  }
+  return alignedSize;
+}
+
+bool MM::RenderSystem::Utils::DescriptorTypeIsStorageBuffer(
+    const VkDescriptorType& descriptor_type) {
+  switch (descriptor_type) {
+    case VK_DESCRIPTOR_TYPE_STORAGE_BUFFER:
+    case VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC:
+    case VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER:
+      return true;
+    default:
+      return false;
+  }
+}
+
+bool MM::RenderSystem::Utils::DescriptorTypeIsUniformBuffer(
+    const VkDescriptorType& descriptor_type) {
+  return !DescriptorTypeIsStorageBuffer(descriptor_type);
+}
+
+MM::RenderSystem::AllocatedBuffer MM::RenderSystem::Utils::CreateBuffer(
+    const RenderEngine* engine, const size_t& alloc_size,
+    const VkBufferUsageFlags& usage, const VmaMemoryUsage& memory_usage,
+    const VmaAllocationCreateFlags& allocation_flags) {
+  const auto buffer_Info =
+      MM::RenderSystem::Utils::GetBufferCreateInfo(alloc_size, usage);
+
+  VmaAllocationCreateInfo vma_alloc_info = {};
+  vma_alloc_info.usage = memory_usage;
+  vma_alloc_info.flags = allocation_flags;
+
+  VkBuffer temp_buffer{};
+  VmaAllocation temp_allocation{};
+
+  VK_CHECK(vmaCreateBuffer(engine->GetAllocator(), &buffer_Info, &vma_alloc_info,
+                           &temp_buffer, &temp_allocation, nullptr),
+           LOG_ERROR("Failed to create buffer."))
+
+  return AllocatedBuffer(engine->GetAllocator(), temp_buffer, temp_allocation);
 }

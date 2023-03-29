@@ -159,6 +159,12 @@ class RenderResourceTexture final : public RenderResourceBase {
 
   std::shared_ptr<VkSemaphore> GetSemaphore() const;
 
+  bool CanMapped() const;
+
+  bool IsStorage() const;
+
+  bool HaveSample() const;
+
   bool IsValid() const override;
 
   /**
@@ -231,13 +237,13 @@ public:
    */
   RenderResourceBuffer(const std::string& resource_name, RenderEngine* engine,
                        const VkDescriptorType& descriptor_type,
+                       VkBufferUsageFlags buffer_usage,
                        const VkDeviceSize& size,
                        const VkDeviceSize& offset,
                        const VkDeviceSize& dynamic_offset = 0,
                        void* data = nullptr,
                        const VkDeviceSize& copy_offset = 0,
                        const VkDeviceSize& copy_size = size,
-                       const VkBufferUsageFlags& buffer_usage,
                        const VkBufferCreateFlags& buffer_flags = 0,
                        const VmaMemoryUsage& memory_usage = VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE,
                        const VmaAllocationCreateFlags& allocation_flags = 0);
@@ -247,9 +253,17 @@ public:
  RenderResourceBuffer& operator=(RenderResourceBuffer&& other) noexcept;
 
 public:
+  // TODO 添加函数，具体添加那些函数可以参考RenderResourceTexture
+
  VkDescriptorType GetDescriptorType() const;
 
   bool IsDynamic() const;
+
+  bool IsStorage() const;
+
+  bool IsUniform() const;
+
+  bool IsTexel() const;
 
   bool IsValid() const override;
 
@@ -266,10 +280,13 @@ public:
   bool IsArray() const override;
 
 private:
-  bool CheckInitParameter(
-      const RenderEngine* engine, const VkDescriptorType& descriptor_type,
-      const VkBufferUsageFlags& buffer_usage, const VkDeviceSize& size, 
-      const VkDeviceSize& offset, const VkDeviceSize& dynamic_offset);
+  bool CheckInitParameter(const RenderEngine* engine,
+                         const VkDescriptorType& descriptor_type,
+                         const VkBufferUsageFlags& buffer_usage,
+                         const VkDeviceSize& size, const VkDeviceSize& offset,
+                         const VkDeviceSize& dynamic_offset, const void* data,
+                         const VkDeviceSize& copy_offset,
+                         const VkDeviceSize& copy_size) const;
 
   bool InitBuffer(const VkBufferUsageFlags& buffer_usage,
                   const VkBufferCreateFlags& buffer_flags,
@@ -279,6 +296,11 @@ private:
   bool CopyDataToBuffer(void* data, const VkDeviceSize& offset,
                         const VkDeviceSize& size);
 
+  bool OffsetIsAlignment(const RenderEngine* engine,
+                         const VkDescriptorType& descriptor_type,
+                         const VkDeviceSize& offset,
+                         const VkDeviceSize& dynamic_offset) const;
+  
 private:
  RenderEngine* render_engine_{nullptr};
  std::shared_ptr<VkDescriptorSetLayoutBinding> bind_{nullptr};

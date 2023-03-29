@@ -53,6 +53,7 @@ class RenderEngine {
 
   void CleanUp();
 
+  public:
   /**
    * \brief Judge whether the object is valid (if the object is initialized, it
    * is a valid object). \return Returns true if the object is valid, otherwise
@@ -62,7 +63,12 @@ class RenderEngine {
 
   AllocatedBuffer CreateBuffer(const size_t& alloc_size,
                                const VkBufferUsageFlags& usage,
-                               const VmaMemoryUsage& memory_usage) const;
+                               const VmaMemoryUsage& memory_usage,
+                               const VmaAllocationCreateFlags& allocation_flags = 0) const;
+
+  const VmaAllocator& GetAllocator() const;
+
+  const VkDevice& GetDevice() const;
 
   /**
    * \brief Record commands in the command buffer.
@@ -103,6 +109,7 @@ class RenderEngine {
   void InitInstance();
   void InitSurface();
   void InitPhysicalDevice();
+  void InitGpuProperties();
   void InitLogicalDevice();
   void InitAllocator();
   void InitSwapChain();
@@ -164,6 +171,7 @@ class RenderEngine {
   GLFWwindow* window_{nullptr};
   VkInstance instance_{nullptr};
   VkPhysicalDevice physical_device_{nullptr};
+  VkPhysicalDeviceProperties gpu_properties_;
   VkDevice device_{nullptr};
   VmaAllocator allocator_{nullptr};
   VkQueue graphics_queue_{nullptr};

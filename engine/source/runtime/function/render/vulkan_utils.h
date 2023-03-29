@@ -6,6 +6,8 @@
 namespace MM {
 namespace RenderSystem {
 class AllocatedImage;
+class AllocatedBuffer;
+class RenderEngine;
 enum ImageTransferMode;
 
 namespace Utils {
@@ -124,6 +126,26 @@ VkSemaphoreCreateInfo GetSemaphoreCreateInfo();
 bool DescriptorTypeIsDynamicBuffer(const VkDescriptorType& descriptor_type);
 
 bool DescriptorTypeIsBuffer(const VkDescriptorType& descriptor_type);
+
+/**
+ * \brief Determine whether the buffer/image can be mapped (accessible to the CPU)
+ * based on \ref memory_usage and \ref allocation_flags.
+ */
+bool CanBeMapped(const VmaMemoryUsage& memory_usage,
+                 const VmaAllocationCreateFlags& allocation_flags);
+
+VkDeviceSize GetMinAlignmentSizeFromOriginalSize(const VkDeviceSize& min_alignment,
+                              const VkDeviceSize& original_size);
+
+bool DescriptorTypeIsStorageBuffer(const VkDescriptorType& descriptor_type);
+
+bool DescriptorTypeIsUniformBuffer(const VkDescriptorType& descriptor_type);
+
+AllocatedBuffer CreateBuffer(
+    const RenderEngine* engine,
+    const size_t& alloc_size, const VkBufferUsageFlags& usage,
+    const VmaMemoryUsage& memory_usage,
+    const VmaAllocationCreateFlags& allocation_flags = 0);
 }
 }
 }

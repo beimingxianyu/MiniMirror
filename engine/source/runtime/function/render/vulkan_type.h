@@ -65,11 +65,14 @@ struct ImageInfo {
   VkFormat image_format_{VK_FORMAT_UNDEFINED};
   VkImageLayout image_layout_{VK_IMAGE_LAYOUT_UNDEFINED};
   uint32_t mipmap_levels{1};
+  bool can_mapped_{false};
 };
 
 struct BufferInfo {
   VkDeviceSize buffer_size_{0};
+  VkDeviceSize offset_{0};
   VkDeviceSize dynamic_offset_{0};
+  bool can_mapped_{false};
 };
 
 class AllocatedCommandBuffer {
