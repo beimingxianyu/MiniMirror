@@ -1,6 +1,7 @@
 #pragma once
 
 #include <memory>
+#include <string>
 
 namespace MM {
 namespace Utils {
@@ -32,6 +33,8 @@ std::shared_ptr<ElementType> MakeSharedWithDestructor(Destructor destructor,
   shared_p.reset(ptr, destructor);
   return shared_p;
 }
+
+std::size_t StringHash(const std::string& target);
 
 }
 }

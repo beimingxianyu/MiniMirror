@@ -32,7 +32,7 @@ class RenderEngine {
   friend class RenderResourceBase;
   friend class RenderResourceTexture;
   friend class RenderResourceBuffer;
-  friend class RenderResourceVertexBuffer;
+  friend class RenderResourceMesh;
   friend class RenderResourceFrameBuffer;
   friend class AllocatedCommandBuffer;
   template <typename ConstantType>
@@ -108,9 +108,12 @@ class RenderEngine {
 
   uint32_t GetCurrentFrame() const;
 
+  VkSampleCountFlagBits GetMultiSampleCount() const;
+
  private:
   void InitGlfw();
   void InitVulkan();
+  void InitInfo();
   // void Draw();
 
   void InitInstance();
@@ -124,6 +127,7 @@ class RenderEngine {
   // void InitCommandPool();
   // void InitCommandBuffers();
   void InitCommandExecutors();
+  void InitMultiSampleCount();
 
   std::vector<VkExtensionProperties> GetExtensionProperties();
   bool CheckExtensionSupport(const std::string& extension_name);
@@ -196,6 +200,7 @@ class RenderEngine {
   // std::vector<std::mutex> compute_command_record_mutex_{3};
   std::vector<AllocatedCommandBuffer> graph_command_executors_{};
   std::vector<AllocatedCommandBuffer> compute_command_executors_{};
+  RenderEngineInfo render_engine_info_{};
 };
 }  // namespace RenderSystem
 }  // namespace MM

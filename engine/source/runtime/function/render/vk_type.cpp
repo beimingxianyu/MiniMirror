@@ -8,6 +8,184 @@ bool MM::RenderSystem::QueueFamilyIndices::isComplete() const {
 }
 
 
+MM::RenderSystem::VertexInputInfo::VertexInputInfo()
+    : vertex_bind_{0, sizeof(MM::AssetType::Vertex),
+                   VK_VERTEX_INPUT_RATE_VERTEX},
+      vertex_attributes_{5},
+      instance_binds_(),
+      instance_attributes_() {
+  
+}
+
+MM::RenderSystem::VertexInputInfo::VertexInputInfo(
+    const std::vector<VkVertexInputBindingDescription>& instance_binds,
+    const std::vector<VkVertexInputAttributeDescription>& instance_attributes)
+  : vertex_bind_{0, sizeof(MM::AssetType::Vertex),
+                 VK_VERTEX_INPUT_RATE_VERTEX},
+    vertex_attributes_{5},
+    instance_binds_(instance_binds),
+    instance_attributes_(instance_attributes) {
+  std::string error_message;
+  if (!CheckLayoutIsCorrect(error_message)) {
+    LOG_ERROR(error_message);
+    Reset();
+  }
+  
+}
+
+MM::RenderSystem::VertexInputInfo::VertexInputInfo(
+    VertexInputInfo&& other) noexcept
+  : vertex_bind_(other.vertex_bind_),
+    vertex_attributes_(std::move(other.vertex_attributes_)),
+    instance_binds_(std::move(other.instance_binds_)),
+    instance_attributes_(std::move(other.instance_attributes_)) {}
+
+MM::RenderSystem::VertexInputInfo& MM::RenderSystem::VertexInputInfo::operator=(
+    const VertexInputInfo& other) {
+  if (&other == this) {
+    return *this;    
+  }
+  vertex_bind_ = other.vertex_bind_;
+  vertex_attributes_ = other.vertex_attributes_;
+  instance_binds_ = other.instance_binds_;
+  instance_attributes_ = other.instance_attributes_;
+
+  return *this;
+}
+
+MM::RenderSystem::VertexInputInfo& MM::RenderSystem::VertexInputInfo::operator=(
+    VertexInputInfo&& other) noexcept {
+  if (&other == this) {
+    return *this;
+  }
+  vertex_bind_ = other.vertex_bind_;
+  vertex_attributes_ = std::move(other.vertex_attributes_);
+  instance_binds_ = std::move(other.instance_binds_);
+  instance_attributes_ = std::move(other.instance_attributes_);
+
+  vertex_bind_.stride = 0;
+
+  return *this;
+}
+
+void MM::RenderSystem::VertexInputInfo::InitDefaultVertexInput() {
+  vertex_attributes_[0].binding = 0;
+  vertex_attributes_[0].location = 0;
+  vertex_attributes_[0].format = VK_FORMAT_R32G32B32_SFLOAT;
+  vertex_attributes_[0].offset =
+      static_cast<uint32_t>(MM::AssetType::Vertex::GetOffsetOfPosition());
+
+  vertex_attributes_[1].binding = 0;
+  vertex_attributes_[1].location = 1;
+  vertex_attributes_[1].format = VK_FORMAT_R32G32_SFLOAT;
+  vertex_attributes_[1].offset =
+      static_cast<uint32_t>(MM::AssetType::Vertex::GetOffsetOfTextureCoord());
+
+  vertex_attributes_[2].binding = 0;
+  vertex_attributes_[2].location = 2;
+  vertex_attributes_[2].format = VK_FORMAT_R32G32B32_SFLOAT;
+  vertex_attributes_[2].offset =
+      static_cast<uint32_t>(MM::AssetType::Vertex::GetOffsetOfNormal());
+
+  vertex_attributes_[3].binding = 0;
+  vertex_attributes_[3].location = 3;
+  vertex_attributes_[3].format = VK_FORMAT_R32G32B32_SFLOAT;
+  vertex_attributes_[3].offset =
+      static_cast<uint32_t>(MM::AssetType::Vertex::GetOffsetOfTangent());
+
+  vertex_attributes_[4].binding = 0;
+  vertex_attributes_[4].location = 4;
+  vertex_attributes_[4].format = VK_FORMAT_R32G32B32_SFLOAT;
+  vertex_attributes_[4].offset =
+      static_cast<uint32_t>(MM::AssetType::Vertex::GetOffsetOfBiTangent());
+}
+
+bool MM::RenderSystem::VertexInputInfo::IsValid() const {
+  return vertex_bind_.stride != 0;
+}
+
+void MM::RenderSystem::VertexInputInfo::Reset() {
+  vertex_bind_.stride = 0;
+  vertex_attributes_.clear();
+  instance_binds_.clear();
+  instance_attributes_.clear();
+}
+
+bool MM::RenderSystem::VertexInputInfo::CheckLayoutIsCorrect(
+    std::string& error_message) const {
+  std::map<uint32_t, VkDeviceSize> binds_info;
+  for (const auto& bind: instance_binds_) {
+    if (bind.binding == 0) {
+      error_message =
+          "The binding of instance input description is 0.0 is the exclusive binding slot of Vertex input description.";
+      return false;
+    }
+    if (bind.stride == 0) {
+      error_message = "The size of one instance data cannot be 0.";
+      return false;
+    }
+    if (bind.inputRate != VK_VERTEX_INPUT_RATE_INSTANCE) {
+      error_message =
+          "The instance input description input rate is not "
+          "VK_VERTEX_INPUT_RATE_INSTANCE";
+      return false;
+    }
+    if (binds_info.find(bind.binding) != binds_info.end()) {
+      error_message =
+          "Multiple instance input description are repeatedly bound to a same "
+          "binding.";
+      return false;
+    }
+    binds_info.emplace(bind.binding, bind.stride);
+  }
+
+  for (const auto& attribute: instance_attributes_) {
+    if (attribute.location < 5) {
+      error_message =
+          "The instance attribute location less than 5.0 to 4 is the exclusive "
+          "location slot of Vertex input description.";
+      return false;
+    }
+    const auto bind_itr = binds_info.find(attribute.binding);
+    if (bind_itr == binds_info.end()) {
+      error_message =
+          "The instance attribute description is bound to a nonexistent "
+          "binding.";
+      return false;
+    }
+    if (attribute.offset > bind_itr->second - 4) {
+      error_message = "The instance attribute description offset too larger.";
+      return false;
+    }
+  }
+
+  return true;
+}
+
+bool MM::RenderSystem::VertexInputInfo::CheckLayoutIsCorrect() const {
+  std::string temp;
+  return CheckLayoutIsCorrect(temp);
+}
+
+const VkVertexInputBindingDescription& MM::RenderSystem::VertexInputInfo::
+GetVertexBind() const { return vertex_bind_;
+}
+
+const std::vector<VkVertexInputAttributeDescription>& MM::RenderSystem::
+VertexInputInfo::GetVertexAttributes() const {
+  return vertex_attributes_;
+}
+
+const std::vector<VkVertexInputBindingDescription>& MM::RenderSystem::
+VertexInputInfo::GetInstanceBinds() {
+  return instance_binds_;
+}
+
+const std::vector<VkVertexInputAttributeDescription>& MM::RenderSystem::
+VertexInputInfo::GetInstanceAttributes() {
+  return instance_attributes_;
+}
+
 MM::RenderSystem::AllocatedCommandBuffer::AllocatedCommandBuffer(
     RenderEngine* engine, VkQueue queue, const VkCommandPool& command_pool,
     const VkCommandBuffer& command_buffer)
@@ -15,6 +193,9 @@ MM::RenderSystem::AllocatedCommandBuffer::AllocatedCommandBuffer(
       std::make_shared<AllocatedCommandBufferWrapper>(
           engine, queue, command_pool, command_buffer)) {
 }
+
+MM::RenderSystem::AllocatedCommandBuffer::AllocatedCommandBuffer(
+    AllocatedCommandBuffer&& other) noexcept : wrapper_(std::move(other.wrapper_)){}
 
 MM::RenderSystem::AllocatedCommandBuffer& MM::RenderSystem::
 AllocatedCommandBuffer::operator=(const AllocatedCommandBuffer& other) {
@@ -31,9 +212,7 @@ AllocatedCommandBuffer::operator=(AllocatedCommandBuffer&& other) noexcept {
   if (&other == this) {
     return *this;
   }
-  wrapper_ = other.wrapper_;
-
-  other.wrapper_.reset();
+  wrapper_ = std::move(other.wrapper_);
 
   return *this;
 }
@@ -225,6 +404,9 @@ MM::RenderSystem::AllocatedBuffer::AllocatedBuffer(
     const VmaAllocator& allocator, const VkBuffer& buffer,
     const VmaAllocation& allocation) : wrapper_(std::make_shared<AllocatedBufferWrapper>(allocator, buffer, allocation)){}
 
+MM::RenderSystem::AllocatedBuffer::AllocatedBuffer(
+    AllocatedBuffer&& other) noexcept : wrapper_(std::move(other.wrapper_)){}
+
 MM::RenderSystem::AllocatedBuffer& MM::RenderSystem::AllocatedBuffer::operator=(
     const AllocatedBuffer& other) {
   if (&other == this) {
@@ -240,9 +422,7 @@ MM::RenderSystem::AllocatedBuffer& MM::RenderSystem::AllocatedBuffer::operator=(
   if (&other == this) {
     return *this;
   }
-  wrapper_ = other.wrapper_;
-
-  other.wrapper_.reset();
+  wrapper_ = std::move(other.wrapper_);
 
   return *this;
 }
@@ -306,14 +486,14 @@ IsValid() const {
   return allocator_ != nullptr && buffer_ != nullptr && allocation_ != nullptr;
 }
 
-void MM::RenderSystem::AllocatedBuffer::AllocatedBufferWrapper::Release() {
-  wrapper_-
-}
-
 MM::RenderSystem::AllocatedImage::AllocatedImage(
     const VmaAllocator& allocator, const VkImage& image,
     const VmaAllocation& allocation)
     : wrapper_(std::make_shared<AllocatedImageWrapper>(allocator, image, allocation)) {}
+
+
+MM::RenderSystem::AllocatedImage::AllocatedImage(
+    AllocatedImage&& other) noexcept : wrapper_(std::move(other.wrapper_)) {}
 
 MM::RenderSystem::AllocatedImage& MM::RenderSystem::AllocatedImage::operator=(
     const AllocatedImage& other) {
@@ -329,9 +509,7 @@ MM::RenderSystem::AllocatedImage& MM::RenderSystem::AllocatedImage::operator=(
   if (&other == this) {
     return *this;
   }
-  wrapper_ = other.wrapper_;
-
-  other.wrapper_.reset();
+  wrapper_ = std::move(other.wrapper_);
 
   return *this;
 }

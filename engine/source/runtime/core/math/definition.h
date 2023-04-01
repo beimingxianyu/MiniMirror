@@ -3,6 +3,8 @@
 
 #include <glm/ext.hpp>
 
+#include "runtime/core/math/pre_header.h"
+
 namespace MM {
 namespace MathDefinition {
 static const float MATH_POS_INF = std::numeric_limits<float>::infinity();

@@ -2,30 +2,30 @@
 
 #include <memory>
 #include <random>
+#include <mutex>
 
 namespace MM {
+namespace Math {
 class Random {
- public:
-  Random() {
-    if (!rng_) {
-      rng_ = new std::mt19937();
-      urd_0_1_ = std::uniform_real_distribution<float>(0, 1);
-      rng_->seed(time(0));
-    }
-  }
+public:
+  static float Uniform();
 
-  float Uniform();
+  static int Uniform(const int& min, const int& max);
 
-  int Uniform(const int& min, const int& max);
+  static float Uniform(const float& min, const float& max);
 
-  float Uniform(const float& min, const float& max);
+  static float Normal(const float& mean, const float& sigma);
 
-  float Normal(const float& mean, const float& sigma);
+  static uint64_t NewGuid(const std::size_t& hash);
 
-  void SetSeed(const unsigned int& seed);
+  static void SetSeed(const unsigned int& seed);
 
- private:
+private:
   static std::mt19937* rng_;
+  static std::mt19937_64* guid_rng_;
   static std::uniform_real_distribution<float> urd_0_1_;
+  static std::uniform_int_distribution<uint64_t> guid_64_;
+  static std::mutex sync_flag_;
 };
+}
 }  // namespace MM

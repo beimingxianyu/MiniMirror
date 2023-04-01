@@ -7,7 +7,8 @@
 #include <set>
 #include <shared_mutex>
 
-#include "asset_system.h"
+#include "runtime/resource/asset_system/asset_system.h"
+#include "runtime/resource/asset_type/asset_type.h"
 #include "runtime/core/log/log_system.h"
 #include "runtime/platform/config_system/config_system.h"
 #include "runtime/platform/file_system/file_system.h"
@@ -19,15 +20,7 @@ IMPORT_CONFIG_SYSTEM
 IMPORT_FILE_SYSTEM
 IMPORT_LOG_SYSTEM
 
-class AssetBase;
-
-enum class AssetType { UNDEFINED = 0U, IMAGE, MESH };
-
-enum class ImageFormat { UNDEFINED = 0U, GREY, GREY_ALPHA, RGB, RGB_ALPHA };
-
 class AssetManager {
-  friend class AssetBase;
-
  public:
   ~AssetManager() = default;
   AssetManager(const AssetManager& other) = delete;
@@ -40,10 +33,10 @@ class AssetManager {
                  const FileSystem::Path& image_path,
                  const int& desired_channels = STBI_rgb_alpha);
 
-  std::vector<std::shared_ptr<AssetBase>> GetAssetsByName(
+  std::vector<std::shared_ptr<AssetType::AssetBase>> GetAssetsByName(
       const std::string& asset_name) const;
 
-  std::shared_ptr<AssetBase> GetAssetByID(const uint32_t& asset_ID) const;
+  std::shared_ptr<AssetType::AssetBase> GetAssetByID(const uint32_t& asset_ID) const;
 
   bool Erase(const uint32_t& asset_ID);
 
@@ -58,80 +51,12 @@ class AssetManager {
 
  private:
   std::multimap<std::string, uint32_t> asset_name_to_asset_ID_{};
-  std::unordered_map<uint32_t, std::shared_ptr<AssetBase>> asset_ID_to_asset_{};
+  std::unordered_map<uint32_t, std::shared_ptr<AssetType::AssetBase>> asset_ID_to_asset_{};
   mutable std::shared_mutex writer_mutex_{};
 
   static std::atomic_uint32_t increase_ID_;
   static std::mutex sync_flag_;
   static std::set<std::string> support_image_format;
-};
-
-class AssetBase {
- public:
-  AssetBase() = default;
-  virtual ~AssetBase() = default;
-  AssetBase(const std::string& resource_name);
-  AssetBase(const AssetBase& other) = default;
-  AssetBase(AssetBase&& other) noexcept = default;
-  AssetBase& operator=(const AssetBase& other);
-  AssetBase& operator=(AssetBase&& other) noexcept;
-
- public:
-  const std::string& GetAssetName() const;
-  AssetBase& SetAssetName(const std::string& new_asset_name);
-
-  const uint32_t& GetAssetID() const;
-
-  virtual bool IsValid() const = 0;
-
-  virtual AssetType GetAssetType() = 0;
-
- private:
-  std::string asset_name_{};
-  uint32_t asset_ID_{0};
-};
-
-class Image : public AssetBase {
- public:
-  Image() = default;
-  ~Image() override = default;
-  Image(const std::string& asset_name, const FileSystem::Path& image_path,
-        const int& desired_channels = STBI_rgb_alpha);
-  Image(const Image& other) = default;
-  Image(Image&& other) noexcept = default;
-  Image& operator=(const Image& other);
-  Image& operator=(Image&& other) noexcept;
-
- public:
-  const int& GetImageWidth() const;
-
-  const int& GetImageHeight() const;
-
-  const int& GetImageChannels() const;
-
-  const uint64_t& GetImageSize() const;
-
-  std::shared_ptr<const stbi_uc> GetImagePixels() const;
-
-  const ImageFormat& GetImageFormat() const;
-
-  static void Swap(Image& object1, Image& object2);
-
-  bool IsValid() const override;
-
-  AssetType GetAssetType() override;
-
- private:
-  int image_width_{0};
-  int image_height_{0};
-  int image_channels_{0};
-  uint64_t image_size_{0};
-  ImageFormat image_format_{ImageFormat::UNDEFINED};
-  std::shared_ptr<stbi_uc> image_pixels_{nullptr, stbi_image_free};
-};
-
-class Mesh : AssetBase {
- public:
 };
 
 class AssetSystem {

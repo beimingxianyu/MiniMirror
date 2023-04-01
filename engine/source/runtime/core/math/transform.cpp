@@ -8,7 +8,7 @@ Transform::Transform(const glm::vec3& position, const glm::vec3& scale,
     : position_(position), scale_(scale), rotation_(rotation) {}
 
 glm::mat4 Transform::GetMatrix() const {
-  glm::mat3 rot3x3{glm::QuatToRotationMatrix3(rotation_)};
+  glm::mat3 rot3x3{Math::QuatToRotationMatrix3(rotation_)};
   return glm::mat4{scale_.x * rot3x3[0][0],
                    scale_.y * rot3x3[0][1],
                    scale_.z * rot3x3[0][2],

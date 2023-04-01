@@ -24,6 +24,7 @@ set(script_dir "${CMAKE_CURRENT_SOURCE_DIR}/script")
 set(asset_dir "${engine_dir}/asset")
 set(asset_dir_std "${asset_dir}/standard")
 set(asset_dir_user "${asset_dir}/user")
+set(config_dir "${engine_dir}/config")
 
 add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/engine")
 

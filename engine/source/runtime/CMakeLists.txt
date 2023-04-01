@@ -1,6 +1,5 @@
 include("utils")
 
-
 include_directories("${CMAKE_CURRENT_SOURCE_DIR}/../")
 
 #####################################################
@@ -26,10 +25,6 @@ target_link_libraries(log_system PUBLIC spdlog::spdlog)
 ##########  reflection  ##########
 AddMoudle("reflection" "${CMAKE_CURRENT_SOURCE_DIR}/core/reflection")
 
-##########  color  ##########
-AddMoudle("color" "${CMAKE_CURRENT_SOURCE_DIR}/core/color")
-target_link_libraries(color PUBLIC glm)
-
 ##########  math  ##########
 AddMoudle("math" "${CMAKE_CURRENT_SOURCE_DIR}/core/math")
 target_link_libraries(math PUBLIC glm)
@@ -45,9 +40,13 @@ set_target_properties(task_flow PROPERTIES
 #####################################################
 #####################  resource  ####################
 #####################################################
+########## asset_type ##########
+AddMoudle("asset_type" "${CMAKE_CURRENT_SOURCE_DIR}/resource/asset_type")
+target_link_libraries(asset_type PUBLIC math assimp_lib stb)
+
 ########## resource_system ##########
 AddMoudle("asset_system" "${CMAKE_CURRENT_SOURCE_DIR}/resource/asset_system")
-target_link_libraries(asset_system PUBLIC stb file_system config_system log_system)
+target_link_libraries(asset_system PUBLIC file_system config_system log_system asset_type)
 
 #####################################################
 #####################  function  ####################

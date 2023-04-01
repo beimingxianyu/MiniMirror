@@ -8,6 +8,7 @@ const std::string MM::RenderSystem::RenderEngine::validation_layers_name{
 void MM::RenderSystem::RenderEngine::Init() {
   InitGlfw();
   InitVulkan();
+  
 
   is_initialized_ = true;
 }
@@ -169,6 +170,86 @@ bool MM::RenderSystem::RenderEngine::RecordAndSubmitSingleTimeCommand(
 
 uint32_t MM::RenderSystem::RenderEngine::GetCurrentFrame() const {
   return rendered_frame_count_ % flight_frame_number_;
+}
+
+VkSampleCountFlagBits MM::RenderSystem::RenderEngine::GetMultiSampleCount() const {
+  return render_engine_info_.multi_sample_count_;
+}
+
+void MM::RenderSystem::RenderEngine::InitMultiSampleCount() {
+  uint32_t count{0};
+  auto max_sample_count = static_cast<VkSampleCountFlagBits>(
+      gpu_properties_.limits.framebufferColorSampleCounts &
+                           gpu_properties_.limits.framebufferDepthSampleCounts);
+  if (max_sample_count & VK_SAMPLE_COUNT_64_BIT) {
+    max_sample_count = VK_SAMPLE_COUNT_64_BIT;
+  } else if (max_sample_count & VK_SAMPLE_COUNT_32_BIT) {
+    max_sample_count = VK_SAMPLE_COUNT_32_BIT;
+  } else if (max_sample_count & VK_SAMPLE_COUNT_16_BIT) {
+    max_sample_count = VK_SAMPLE_COUNT_16_BIT;
+  } else if (max_sample_count & VK_SAMPLE_COUNT_8_BIT) {
+    max_sample_count = VK_SAMPLE_COUNT_8_BIT;
+  } else if (max_sample_count & VK_SAMPLE_COUNT_4_BIT) {
+    max_sample_count = VK_SAMPLE_COUNT_4_BIT;
+  } else if (max_sample_count & VK_SAMPLE_COUNT_2_BIT) {
+    max_sample_count = VK_SAMPLE_COUNT_2_BIT;
+  } else {
+    render_engine_info_.multi_sample_count_ = VK_SAMPLE_COUNT_1_BIT;
+    return;
+  }
+  if (config_system->GetConfig("multi_sample_count", count)) {
+    if (count < 2) {
+      render_engine_info_.multi_sample_count_ = VK_SAMPLE_COUNT_1_BIT;
+      return;
+    }
+    if (count < 4) {
+      if (VK_SAMPLE_COUNT_2_BIT > max_sample_count) {
+        render_engine_info_.multi_sample_count_ = max_sample_count;
+        return;
+      }
+      render_engine_info_.multi_sample_count_ = VK_SAMPLE_COUNT_2_BIT;
+      return;
+    }
+    if (count < 8) {
+      if (VK_SAMPLE_COUNT_4_BIT > max_sample_count) {
+        render_engine_info_.multi_sample_count_ = max_sample_count;
+        return;
+      }
+      render_engine_info_.multi_sample_count_ = VK_SAMPLE_COUNT_4_BIT;
+      return;
+    }
+    if (count < 16) {
+      if (VK_SAMPLE_COUNT_8_BIT > max_sample_count) {
+        render_engine_info_.multi_sample_count_ = max_sample_count;
+        return;
+      }
+      render_engine_info_.multi_sample_count_ = VK_SAMPLE_COUNT_8_BIT;
+      return;
+    }
+    if (count < 32) {
+      if (VK_SAMPLE_COUNT_16_BIT > max_sample_count) {
+        render_engine_info_.multi_sample_count_ = max_sample_count;
+        return;
+      }
+      render_engine_info_.multi_sample_count_ = VK_SAMPLE_COUNT_16_BIT;
+      return;
+    }
+    if (count < 64) {
+      if (VK_SAMPLE_COUNT_32_BIT > max_sample_count) {
+        render_engine_info_.multi_sample_count_ = max_sample_count;
+        return;
+      }
+      render_engine_info_.multi_sample_count_ = VK_SAMPLE_COUNT_32_BIT;
+      return;
+    }
+    if (VK_SAMPLE_COUNT_64_BIT > max_sample_count) {
+      render_engine_info_.multi_sample_count_ = max_sample_count;
+      return;
+    }
+    render_engine_info_.multi_sample_count_ = VK_SAMPLE_COUNT_64_BIT;
+    return;
+  }
+  render_engine_info_.multi_sample_count_ = VK_SAMPLE_COUNT_1_BIT;
 }
 
 void MM::RenderSystem::RenderEngine::InitInstance() {
@@ -583,6 +664,8 @@ void MM::RenderSystem::RenderEngine::InitVulkan() {
   InitSwapChain();
   InitCommandExecutors();
 }
+
+void MM::RenderSystem::RenderEngine::InitInfo() { InitMultiSampleCount(); }
 
 std::vector<VkExtensionProperties>
 MM::RenderSystem::RenderEngine::GetExtensionProperties() {

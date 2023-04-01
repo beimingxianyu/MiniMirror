@@ -1,7 +1,7 @@
 #pragma once
 
-#include <vulkan/vulkan.h>
 #include <vk_mem_alloc.h>
+#include <vulkan/vulkan.h>
 
 #include <functional>
 #include <memory>
@@ -9,39 +9,11 @@
 #include <optional>
 #include <vector>
 
+#include "runtime/resource/asset_type/asset_type.h"
+
 namespace MM {
 namespace RenderSystem {
 class RenderEngine;
-
-enum class ResourceType {
-  Texture,
-  BUFFER,
-  VERTEX_BUFFER,
-  FRAME_BUFFER,
-  CONSTANTS,
-  UNDEFINED
-};
-
-/**
- * \brief Memory operations allowed for rendering resources.
- */
-enum class MemoryOperate { READ, WRITE, READ_AND_WRITE, UNDEFINED };
-
-enum class CommandBufferType {
-  GRAPH,
-  COMPUTE
-};
-
-enum class ImageTransferMode {
-  INIT_TO_ATTACHMENT,
-  INIT_TO_TRANSFER_DESTINATION,
-  TRANSFER_DESTINATION_TO_SHARED_READABLE,
-  TRANSFER_DESTINATION_TO_SHARED_PRESENT,
-  ATTACHMENT_TO_PRESENT,
-  INIT_TO_DEPTH_TEST,
-  ATTACHMENT_TO_TRANSFER_SOURCE,
-  TRANSFER_DESTINATION_TO_TRANSFER_SOURCE
-};
 
 struct QueueFamilyIndices {
   std::optional<uint32_t> graphics_family_;
@@ -55,6 +27,10 @@ struct SwapChainSupportDetails {
   VkSurfaceCapabilitiesKHR capabilities_{};
   std::vector<VkSurfaceFormatKHR> formats_{};
   std::vector<VkPresentModeKHR> presentModes_{};
+};
+
+struct RenderEngineInfo {
+  VkSampleCountFlagBits multi_sample_count_{VK_SAMPLE_COUNT_1_BIT};
 };
 
 struct ImageInfo {
@@ -73,20 +49,64 @@ struct BufferInfo {
   bool can_mapped_{false};
 };
 
+class VertexInputInfo {
+ public:
+  VertexInputInfo();
+  ~VertexInputInfo() = default;
+  VertexInputInfo(
+      const std::vector<VkVertexInputBindingDescription>& instance_binds,
+      const std::vector<VkVertexInputAttributeDescription>&
+          instance_attributes);
+  VertexInputInfo(const VertexInputInfo& other) = default;
+  VertexInputInfo(VertexInputInfo&& other) noexcept;
+  VertexInputInfo& operator=(const VertexInputInfo& other);
+  VertexInputInfo& operator=(VertexInputInfo&& other) noexcept;
+
+ public:
+  bool IsValid() const;
+
+  void Reset();
+
+  /**
+   * \remark When a layout error occurs, the \ref error_message will be set as an
+   * error message, otherwise the \ref error_message will be set to "succeeded".
+   */
+  bool CheckLayoutIsCorrect(std::string& error_message) const;
+
+  bool CheckLayoutIsCorrect() const;
+
+  const VkVertexInputBindingDescription& GetVertexBind() const;
+
+  const std::vector<VkVertexInputAttributeDescription>& GetVertexAttributes()
+      const;
+
+  const std::vector<VkVertexInputBindingDescription>& GetInstanceBinds();
+
+  const std::vector<VkVertexInputAttributeDescription>& GetInstanceAttributes();
+
+ private:
+  void InitDefaultVertexInput();
+
+ private:
+  VkVertexInputBindingDescription vertex_bind_;
+  std::vector<VkVertexInputAttributeDescription> vertex_attributes_{5};
+  std::vector<VkVertexInputBindingDescription> instance_binds_;
+  std::vector<VkVertexInputAttributeDescription> instance_attributes_;
+};
+
 class AllocatedCommandBuffer {
  public:
   AllocatedCommandBuffer() = default;
   ~AllocatedCommandBuffer() = default;
-  AllocatedCommandBuffer(RenderEngine* engine,
-                         VkQueue queue,
+  AllocatedCommandBuffer(RenderEngine* engine, VkQueue queue,
                          const VkCommandPool& command_pool,
                          const VkCommandBuffer& command_buffer);
   AllocatedCommandBuffer(const AllocatedCommandBuffer& other) = default;
-  AllocatedCommandBuffer(AllocatedCommandBuffer&& other) noexcept = default;
+  AllocatedCommandBuffer(AllocatedCommandBuffer&& other) noexcept;
   AllocatedCommandBuffer& operator=(const AllocatedCommandBuffer& other);
   AllocatedCommandBuffer& operator=(AllocatedCommandBuffer&& other) noexcept;
 
-public:
+ public:
   const RenderEngine& GetRenderEngine() const;
 
   const VkQueue& GetQueue() const;
@@ -97,25 +117,25 @@ public:
 
   const VkFence& GetFence() const;
 
-  
   /**
    * \brief Record commands in the command buffer.
-   * \param function A function that contains the record operations you want to perform.
-   * \param auto_start_end_submit If this item is true, the start command, end command,
-   * and submit command (etc.) are automatically recorded. The default value is false.
-   * If this item is true, please do not perform automatically completed work in the function again.
-   * \param record_new_command Whether to not use the last submitted command buffer.
+   * \param function A function that contains the record operations you want to
+   * perform. \param auto_start_end_submit If this item is true, the start
+   * command, end command, and submit command (etc.) are automatically recorded.
+   * The default value is false. If this item is true, please do not perform
+   * automatically completed work in the function again. \param
+   * record_new_command Whether to not use the last submitted command buffer.
    * The default value is true.
    * \param submit_info_ptr Custom VkSubmitInfo.
-   * \return If there are no errors in the entire recording and submission process,
-   * it returns true, otherwise it returns false.
-   * \remark If \ref auto_start_end_submit is set to true and \ref function also has
-   * a start command or an end command, an error will occur.
-   * \remark Please do not create a VkFence in the \ref function and wait it. Doing so
-   * will cause the program to permanently block.
+   * \return If there are no errors in the entire recording and submission
+   * process, it returns true, otherwise it returns false. \remark If \ref
+   * auto_start_end_submit is set to true and \ref function also has a start
+   * command or an end command, an error will occur. \remark Please do not
+   * create a VkFence in the \ref function and wait it. Doing so will cause the
+   * program to permanently block.
    */
-  bool RecordAndSubmitCommand(const std::function<void(VkCommandBuffer& cmd)>&
-                                  function,
+  bool RecordAndSubmitCommand(
+      const std::function<void(VkCommandBuffer& cmd)>& function,
       const bool& auto_start_end_submit = false,
       const bool& record_new_command = true,
       const std::shared_ptr<VkSubmitInfo>& submit_info_ptr = nullptr);
@@ -150,16 +170,15 @@ public:
 
     const VkFence& GetFence() const;
 
-    bool RecordAndSubmitCommand(const std::function<void(VkCommandBuffer& cmd)>&
-                                    function,
-                                const bool& auto_start_end_submit = false,
-                                const bool& record_new_command = true,
-                                std::shared_ptr<VkSubmitInfo>
-                                    submit_info_ptr = nullptr);
+    bool RecordAndSubmitCommand(
+        const std::function<void(VkCommandBuffer& cmd)>& function,
+        const bool& auto_start_end_submit = false,
+        const bool& record_new_command = true,
+        std::shared_ptr<VkSubmitInfo> submit_info_ptr = nullptr);
 
     bool IsValid() const;
 
-  private:
+   private:
     bool ResetCommandBuffer();
 
    private:
@@ -171,9 +190,8 @@ public:
     std::mutex record_mutex_{};
   };
 
-private:
+ private:
   std::shared_ptr<AllocatedCommandBufferWrapper> wrapper_{nullptr};
-  
 };
 
 class AllocatedBuffer {
@@ -183,7 +201,7 @@ class AllocatedBuffer {
   AllocatedBuffer(const VmaAllocator& allocator, const VkBuffer& buffer,
                   const VmaAllocation& allocation);
   AllocatedBuffer(const AllocatedBuffer& other) = default;
-  AllocatedBuffer(AllocatedBuffer&& other) noexcept = default;
+  AllocatedBuffer(AllocatedBuffer&& other) noexcept;
   AllocatedBuffer& operator=(const AllocatedBuffer& other);
   AllocatedBuffer& operator=(AllocatedBuffer&& other) noexcept;
 
@@ -226,8 +244,6 @@ class AllocatedBuffer {
 
     bool IsValid() const;
 
-    void Release();
-
    private:
     VmaAllocator allocator_{nullptr};
     VkBuffer buffer_{nullptr};
@@ -245,7 +261,7 @@ class AllocatedImage {
   AllocatedImage(const VmaAllocator& allocator, const VkImage& image,
                  const VmaAllocation& allocation);
   AllocatedImage(const AllocatedImage& other) = default;
-  AllocatedImage(AllocatedImage&& other) noexcept = default;
+  AllocatedImage(AllocatedImage&& other) noexcept;
   AllocatedImage& operator=(const AllocatedImage& other);
   AllocatedImage& operator=(AllocatedImage&& other) noexcept;
 

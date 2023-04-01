@@ -103,6 +103,16 @@ public:
    */
   void ReplacePath(const std::string& other_path);
 
+  friend void Swap(Path& lhs, Path& rhs) noexcept {
+    using std::swap;
+    swap(lhs.path_, rhs.path_);
+  }
+
+  friend void swap(Path& lhs, Path& rhs) noexcept {
+    using std::swap;
+    swap(lhs.path_, rhs.path_);
+  }
+
 private:
   /**
    * \brief Remove "." and ".." from the path.

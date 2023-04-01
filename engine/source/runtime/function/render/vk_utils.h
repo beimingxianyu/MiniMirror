@@ -5,12 +5,40 @@
 
 #include <vector>
 
+#include "runtime/function/render/import_other_system.h"
+
 namespace MM {
 namespace RenderSystem {
 class AllocatedImage;
 class AllocatedBuffer;
 class RenderEngine;
-enum ImageTransferMode;
+
+enum class ImageTransferMode {
+  INIT_TO_ATTACHMENT,
+  INIT_TO_TRANSFER_DESTINATION,
+  TRANSFER_DESTINATION_TO_SHARED_READABLE,
+  TRANSFER_DESTINATION_TO_SHARED_PRESENT,
+  ATTACHMENT_TO_PRESENT,
+  INIT_TO_DEPTH_TEST,
+  ATTACHMENT_TO_TRANSFER_SOURCE,
+  TRANSFER_DESTINATION_TO_TRANSFER_SOURCE
+};
+
+enum class ResourceType {
+  Texture,
+  BUFFER,
+  VERTEX_BUFFER,
+  FRAME_BUFFER,
+  CONSTANTS,
+  UNDEFINED
+};
+
+/**
+ * \brief Memory operations allowed for rendering resources.
+ */
+enum class MemoryOperate { READ, WRITE, READ_AND_WRITE, UNDEFINED };
+
+enum class CommandBufferType { GRAPH, COMPUTE };
 
 namespace Utils {
 // TODO Add default value annotations for various functions that obtain creation information, such as the \ref GetSamplerCreateInfo function.

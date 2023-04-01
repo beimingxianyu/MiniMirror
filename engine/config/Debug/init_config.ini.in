@@ -14,3 +14,4 @@ asset_dir_user=@asset_dir_user@
 [RenderConfig]
 window_extent_width=1920
 window_extent_height=1080
+multi_sample_count=4

@@ -1,7 +1,7 @@
 #include "runtime/core/math/utils.h"
 
-namespace glm {
-glm::quat QuatFromRotationMatrix(const glm::mat3& rotation) {
+
+glm::quat MM::Math::QuatFromRotationMatrix(const glm::mat3& rotation) {
   glm::quat quaternion;
   const float trace = rotation[0][0] + rotation[1][1] + rotation[2][2];
   float root;
@@ -34,7 +34,7 @@ glm::quat QuatFromRotationMatrix(const glm::mat3& rotation) {
   return quaternion;
 }
 
-glm::quat QuatFromRotationMatrix(const glm::mat4& rotation) {
+glm::quat MM::Math::QuatFromRotationMatrix(const glm::mat4& rotation) {
   glm::quat quaternion;
   const float trace = rotation[0][0] + rotation[1][1] + rotation[2][2];
   float root;
@@ -67,24 +67,28 @@ glm::quat QuatFromRotationMatrix(const glm::mat4& rotation) {
   return quaternion;
 }
 
-glm::quat QuatFromAngleAxis(const float& angle, const glm::vec3& axis) {
+glm::quat MM::Math::QuatFromAngleAxis(const float& angle,
+                                      const glm::vec3& axis) {
   const float half_angle(0.5 * angle);
   const float sin_v = glm::sin(half_angle);
   return glm::quat{glm::cos(half_angle), sin_v * axis.x, sin_v * axis.y,
                    sin_v * axis.z};
 }
 
-glm::quat QuatFromDirection(const glm::vec3& direction, const glm::vec3& up_direction) {
+glm::quat MM::Math::QuatFromDirection(const glm::vec3& direction,
+                                      const glm::vec3& up_direction) {
   glm::vec3 forward_direction = direction;
   forward_direction.z = 0.0f;
   forward_direction = glm::normalize(forward_direction);
 
   const glm::vec3 left_direction = glm::cross(up_direction, forward_direction);
 
-  return glm::normalize(QuatFromAxes(left_direction, -forward_direction, up_direction));
+  return glm::normalize(MM::Math::QuatFromAxes(left_direction, -forward_direction, up_direction));
 }
 
-glm::quat QuatFromAxes(const glm::vec3& x_axis, const glm::vec3& y_axis, const glm::vec3& z_axis) {
+glm::quat MM::Math::QuatFromAxes(const glm::vec3& x_axis,
+                                 const glm::vec3& y_axis,
+                                 const glm::vec3& z_axis) {
   glm::mat3 rot;
 
   rot[0][0] = x_axis.x;
@@ -99,10 +103,10 @@ glm::quat QuatFromAxes(const glm::vec3& x_axis, const glm::vec3& y_axis, const g
   rot[1][2] = z_axis.y;
   rot[2][2] = z_axis.z;
 
-  return QuatFromRotationMatrix(rot);
+  return MM::Math::QuatFromRotationMatrix(rot);
 }
 
-glm::mat3 QuatToRotationMatrix3(const glm::quat& quaternion) {
+glm::mat3 MM::Math::QuatToRotationMatrix3(const glm::quat& quaternion) {
   float fTx = quaternion.x + quaternion.x;  // 2x
   float fTy = quaternion.y + quaternion.y;  // 2y
   float fTz = quaternion.z + quaternion.z;  // 2z
@@ -122,7 +126,7 @@ glm::mat3 QuatToRotationMatrix3(const glm::quat& quaternion) {
          };
   }
 
-glm::mat4 QuatToRotationMatrix4(const glm::quat& quaternion) {
+glm::mat4 MM::Math::QuatToRotationMatrix4(const glm::quat& quaternion) {
   float fTx = quaternion.x + quaternion.x;  // 2x
   float fTy = quaternion.y + quaternion.y;  // 2y
   float fTz = quaternion.z + quaternion.z;  // 2z
@@ -142,4 +146,39 @@ glm::mat4 QuatToRotationMatrix4(const glm::quat& quaternion) {
                    0.0f, 0.0f, 0.0f, 1.0f
          };
 }
+
+bool MM::Math::NearOne(const float& value) { return std::abs(value - 1) < 1e-6; }
+
+bool MM::Math::NearOne(const double& value) { return std::abs(value - 1) < 1e-15; }
+
+bool MM::Math::IsNormalize(const vec2& vec) {
+  const float result = std::powf(vec.x, 2) + std::powf(vec.y, 2);
+  return NearOne(result);
+}
+
+bool MM::Math::IsNormalize(const vec3& vec) {
+  const float result = std::powf(vec.x, 2) + std::powf(vec.y, 2) + std::powf(vec.z, 2);
+  return NearOne(result);
+}
+
+bool MM::Math::IsNormalize(const vec4& vec) {
+  const float result = std::powf(vec.x, 2) + std::powf(vec.y, 2) + std::powf(vec.z, 2) + std::powf(vec.w, 2);
+  return NearOne(result);
+}
+
+bool MM::Math::IsNormalize(const dvec2& dvec) {
+  const double result = std::pow(dvec.x, 2) + std::pow(dvec.y, 2);
+  return NearOne(result);
+}
+
+bool MM::Math::IsNormalize(const dvec3& dvec) {
+  const double result =
+      std::pow(dvec.x, 2) + std::pow(dvec.y, 2) + std::pow(dvec.z, 2);
+  return NearOne(result);
+}
+
+bool MM::Math::IsNormalize(const dvec4& dvec) {
+  const double result = std::pow(dvec.x, 2) + std::pow(dvec.y, 2) +
+                        std::pow(dvec.z, 2) + std::pow(dvec.w, 2);
+  return NearOne(result);
 }

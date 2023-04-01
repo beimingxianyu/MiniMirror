@@ -1,7 +1,5 @@
 function(PrintMessage print_data)
-	message("===========================================")
-	message("${print_data}")
-	message("===========================================")
+	message("[MiniMirror] -- ${print_data}")
 endfunction()
 
 function(AddMoudle moudle_name moudle_path)
