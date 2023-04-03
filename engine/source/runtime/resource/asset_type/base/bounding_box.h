@@ -28,16 +28,16 @@ public:
   virtual void UpdateBoundingBoxWithOneVertex(const Vertex& vertex) = 0;
 };
 
-class AABBBox : public BoundingBox{
+class RectangleBox : public BoundingBox{
 public:
-  AABBBox() = default;
-  ~AABBBox() override = default;
-  AABBBox(const Math::vec3& left_bottom_forward,
+  RectangleBox() = default;
+  ~RectangleBox() override = default;
+  RectangleBox(const Math::vec3& left_bottom_forward,
           const Math::vec3& right_top_back);
-  AABBBox(const AABBBox& other) = default;
-  AABBBox(AABBBox&& other) noexcept = default;
-  AABBBox& operator=(const AABBBox& other);
-  AABBBox& operator=(AABBBox&& other) noexcept;
+  RectangleBox(const RectangleBox& other) = default;
+  RectangleBox(RectangleBox&& other) noexcept = default;
+  RectangleBox& operator=(const RectangleBox& other);
+  RectangleBox& operator=(RectangleBox&& other) noexcept;
 
 public:
   float& GetTop();
@@ -80,13 +80,13 @@ public:
 
   void UpdateBoundingBoxWithOneVertex(const Vertex& vertex) override;
 
-  friend void Swap(AABBBox& lhs, AABBBox& rhs) noexcept {
+  friend void Swap(RectangleBox& lhs, RectangleBox& rhs) noexcept {
     using std::swap;
     swap(lhs.left_bottom_forward, rhs.left_bottom_forward);
     swap(lhs.right_top_back, rhs.right_top_back);
   }
 
-  friend void swap(AABBBox& lhs, AABBBox& rhs) noexcept {
+  friend void swap(RectangleBox& lhs, RectangleBox& rhs) noexcept {
     using std::swap;
     swap(lhs.left_bottom_forward, rhs.left_bottom_forward);
     swap(lhs.right_top_back, rhs.right_top_back);
@@ -125,7 +125,7 @@ public:
  const float& GetBottom() const;
  void SetBottom(const float& new_bottom);
 
- AABBBox GetAABBBoxFormThis() const;
+ RectangleBox GetRectangleBoxFormThis() const;
 
  bool IsValid() const override;
 

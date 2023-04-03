@@ -97,6 +97,25 @@ bool MM::RenderSystem::RenderEngine::RecordAndSubmitCommand(
   return false;
 }
 
+bool MM::RenderSystem::RenderEngine::RecordAndSubmitCommand(
+    const CommandBufferType& command_buffer_type,
+    const std::function<bool(VkCommandBuffer& cmd)>& function,
+    const bool& auto_start_end_submit, const bool& record_new_command,
+    const std::shared_ptr<VkSubmitInfo>& submit_info_ptr) {
+  if (!IsValid()) {
+    return false;
+  }
+  if (command_buffer_type == CommandBufferType::GRAPH) {
+    return graph_command_executors_[GetCurrentFrame()].RecordAndSubmitCommand(
+        function, auto_start_end_submit, record_new_command, submit_info_ptr);
+  }
+  if (command_buffer_type == CommandBufferType::COMPUTE) {
+    return compute_command_executors_[GetCurrentFrame()].RecordAndSubmitCommand(
+        function, auto_start_end_submit, record_new_command, submit_info_ptr);
+  }
+  return false;
+}
+
 bool MM::RenderSystem::RenderEngine::RecordAndSubmitSingleTimeCommand(
     const CommandBufferType& command_buffer_type,
     const std::function<void(VkCommandBuffer& cmd)>& function,
@@ -168,6 +187,161 @@ bool MM::RenderSystem::RenderEngine::RecordAndSubmitSingleTimeCommand(
   return true;
 }
 
+bool MM::RenderSystem::RenderEngine::RecordAndSubmitSingleTimeCommand(
+    const CommandBufferType& command_buffer_type,
+    const std::function<bool(VkCommandBuffer& cmd)>& function,
+    const bool& auto_start_end_submit_wait) {
+  if (!IsValid()) {
+    return false;
+  }
+  AllocatedCommandBuffer command_executor =
+      command_buffer_type == CommandBufferType::GRAPH
+          ? graph_command_executors_[GetCurrentFrame()]
+          : compute_command_executors_[GetCurrentFrame()];
+  const VkCommandBufferAllocateInfo allocInfo =
+      Utils::GetCommandBufferAllocateInfo(command_executor.GetCommandPool(), 1);
+
+  VkCommandBuffer command_buffer;
+  VK_CHECK(vkAllocateCommandBuffers(device_, &allocInfo, &command_buffer),
+           LOG_ERROR("Failed to create single Time command buffer.");
+           return false;)
+
+  if (auto_start_end_submit_wait) {
+    VkCommandBufferBeginInfo beginInfo = Utils::GetCommandBufferBeginInfo(
+        VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
+
+    VK_CHECK(vkBeginCommandBuffer(command_buffer, &beginInfo),
+             LOG_ERROR("Failed to begin single time command buffer.");
+             vkFreeCommandBuffers(device_, command_executor.GetCommandPool(), 1,
+                                  &command_buffer);
+             return false;)
+  }
+
+  if (!function(command_buffer)) {
+    LOG_ERROR(
+        "Failed to execute function that input to "
+        "RecordAndSubmitSingleTimeCommand.");
+    return false;
+  }
+
+  if (auto_start_end_submit_wait) {
+    VK_CHECK(vkEndCommandBuffer(command_buffer),
+             LOG_ERROR("Failed to end single time command buffer.");
+             vkFreeCommandBuffers(device_, command_executor.GetCommandPool(), 1,
+                                  &command_buffer);
+             return false;)
+
+    const VkSubmitInfo submit_info =
+        Utils::GetCommandSubmitInfo(command_buffer);
+
+    const VkFenceCreateInfo fence_create_info = Utils::GetFenceCreateInfo();
+    VkFence temp_fence{nullptr};
+    VK_CHECK(vkCreateFence(device_, &fence_create_info, nullptr, &temp_fence),
+             LOG_ERROR("Failed to create VkFence.");
+             vkFreeCommandBuffers(device_, command_executor.GetCommandPool(), 1,
+                                  &command_buffer);
+             return false;)
+
+    VK_CHECK(
+        vkWaitForFences(device_, 1, &temp_fence, VK_FALSE, 99999999999),
+        LOG_FATAL(
+            "The wait time for VkFence timed out.An error is expected in the "
+            "program, and the render system will be restarted.(single "
+            "buffer)");)
+
+    VK_CHECK(
+        vkQueueSubmit(command_executor.GetQueue(), 1, &submit_info, temp_fence),
+        LOG_ERROR("Failed to submit single time command buffer.");
+        vkFreeCommandBuffers(device_, command_executor.GetCommandPool(), 1,
+                             &command_buffer);
+        return false;)
+  }
+
+  vkFreeCommandBuffers(device_, command_executor.GetCommandPool(), 1,
+                       &command_buffer);
+
+  return true;
+}
+
+bool MM::RenderSystem::RenderEngine::CopyBuffer(AllocatedBuffer& src_buffer,
+                                                AllocatedBuffer& dest_buffer, const VkDeviceSize& src_offset,
+                                                const VkDeviceSize& dest_offset, const VkDeviceSize& size) {
+  if (size == 0) {
+    return true;
+  }
+  if (dest_buffer.GetBuffer() == src_buffer.GetBuffer() && dest_offset - src_offset < size) {
+    const auto stage_buffer = CreateBuffer(
+        size,
+        VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+        VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE, 0);
+
+    const auto src_to_stage_buffer_copy_region =
+        Utils::GetCopyBufferRegion(size, src_offset, 0);
+    const auto src_to_stage_buffer_copy_info = Utils::GetCopyBufferInfo(
+        src_buffer, stage_buffer,
+        std::vector<VkBufferCopy2>{src_to_stage_buffer_copy_region});
+
+    if (!RecordAndSubmitSingleTimeCommand(CommandBufferType::GRAPH, [&copy_info = src_to_stage_buffer_copy_info](VkCommandBuffer& cmd) {
+              vkCmdCopyBuffer2(cmd, &copy_info);
+    }, true)) {
+      LOG_ERROR("Failed to copy data form src_buffer to dest_buffer.")
+      return false;
+    }
+
+    return true;
+  }
+
+  const auto src_to_stage_buffer_copy_region =
+      Utils::GetCopyBufferRegion(size, src_offset, dest_offset);
+  const auto src_to_stage_buffer_copy_info = Utils::GetCopyBufferInfo(
+      src_buffer, dest_buffer,
+      std::vector<VkBufferCopy2>{src_to_stage_buffer_copy_region});
+
+  if (!RecordAndSubmitSingleTimeCommand(
+          CommandBufferType::GRAPH,
+          [&copy_info = src_to_stage_buffer_copy_info](VkCommandBuffer& cmd) {
+            vkCmdCopyBuffer2(cmd, &copy_info);
+          },
+          true)) {
+    LOG_ERROR("Failed to copy data form src_buffer to dest_buffer.")
+    return false;
+  }
+
+  return true;
+}
+
+bool MM::RenderSystem::RenderEngine::CopyBuffer(AllocatedBuffer& src_buffer,
+    AllocatedBuffer& dest_buffer, const std::vector<VkDeviceSize>& src_offsets,
+    const std::vector<VkDeviceSize>& dest_offsets,
+    const std::vector<VkDeviceSize>& sizes) {
+  if (src_offsets.size() != dest_offsets.size() || dest_offsets.size() != sizes.size()) {
+    LOG_ERROR(
+        "The size of src_offsets,dest_offsets and sizes vector is not equal.")
+    return false;
+  }
+  const std::size_t all_element = src_offsets.size();
+  for (std::size_t i = 0; i < all_element; ++i) {
+    if (!CopyBuffer(src_buffer, dest_buffer, src_offsets[i], dest_offsets[i],
+                   sizes[i])) {
+      LOG_ERROR(std::string("Copying the ") + std::to_string(i) +
+                " buffer failed.")
+      return false;
+    }
+  }
+
+  return true;
+}
+
+const VkPhysicalDeviceFeatures& MM::RenderSystem::RenderEngine::
+GetPhysicalDeviceFeatures() const {
+  return gpu_features_;
+}
+
+const VkPhysicalDeviceProperties& MM::RenderSystem::RenderEngine::
+GetPhysicalDeviceProperties() const {
+  return gpu_properties_;
+}
+
 uint32_t MM::RenderSystem::RenderEngine::GetCurrentFrame() const {
   return rendered_frame_count_ % flight_frame_number_;
 }
@@ -176,7 +350,11 @@ VkSampleCountFlagBits MM::RenderSystem::RenderEngine::GetMultiSampleCount() cons
   return render_engine_info_.multi_sample_count_;
 }
 
-void MM::RenderSystem::RenderEngine::InitMultiSampleCount() {
+bool MM::RenderSystem::RenderEngine::SupportMultiDrawIndirect() const {
+  return gpu_features_.multiDrawIndirect;
+}
+
+void MM::RenderSystem::RenderEngine::ChooseMultiSampleCount() {
   uint32_t count{0};
   auto max_sample_count = static_cast<VkSampleCountFlagBits>(
       gpu_properties_.limits.framebufferColorSampleCounts &
@@ -322,7 +500,7 @@ void MM::RenderSystem::RenderEngine::InitPhysicalDevice() {
   vkEnumeratePhysicalDevices(instance_, &deviceCount, nullptr);
 
   if (deviceCount == 0) {
-    throw std::runtime_error("failed to find GPUs with Vulkan support!");
+    LOG_FATAL("failed to find GPUs with Vulkan support!");
   }
 
   std::vector<VkPhysicalDevice> devices(deviceCount);
@@ -345,6 +523,10 @@ void MM::RenderSystem::RenderEngine::InitPhysicalDevice() {
 
 void MM::RenderSystem::RenderEngine::InitGpuProperties() {
   vkGetPhysicalDeviceProperties(physical_device_, &gpu_properties_);
+}
+
+void MM::RenderSystem::RenderEngine::InitGpuFeatures() {
+  vkGetPhysicalDeviceFeatures(physical_device_, &gpu_features_);
 }
 
 void MM::RenderSystem::RenderEngine::InitLogicalDevice() {
@@ -614,6 +796,7 @@ void MM::RenderSystem::RenderEngine::InitCommandExecutors() {
   }
 }
 
+
 void MM::RenderSystem::RenderEngine::SetUpDebugMessenger() {
   if (!enable_validation_layers_) {
     return;
@@ -665,7 +848,7 @@ void MM::RenderSystem::RenderEngine::InitVulkan() {
   InitCommandExecutors();
 }
 
-void MM::RenderSystem::RenderEngine::InitInfo() { InitMultiSampleCount(); }
+void MM::RenderSystem::RenderEngine::InitInfo() { ChooseMultiSampleCount(); }
 
 std::vector<VkExtensionProperties>
 MM::RenderSystem::RenderEngine::GetExtensionProperties() {
@@ -782,6 +965,10 @@ int MM::RenderSystem::RenderEngine::RateDeviceSuitability(
   vkGetPhysicalDeviceProperties(physical_device, &device_properties);
   vkGetPhysicalDeviceFeatures(physical_device, &device_features);
 
+  if (device_properties.limits.maxStorageBufferRange < 1073741820) {
+    return 0;
+  }
+
   int score = 0;
 
   // Discrete GPUs have a significant performance advantage
@@ -791,6 +978,17 @@ int MM::RenderSystem::RenderEngine::RateDeviceSuitability(
 
   // Maximum possible size of textures affects graphics quality
   score += device_properties.limits.maxImageDimension2D;
+
+  score += device_properties.limits.framebufferColorSampleCounts +
+           device_properties.limits.framebufferDepthSampleCounts;
+
+  if (device_properties.limits.maxUniformBufferRange != 0) {
+    score += 20;
+  }
+
+  if (device_features.multiDrawIndirect) {
+    score += 100;
+  }
 
   // Application can't function without geometry shaders
   if (!device_features.geometryShader) {

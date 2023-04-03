@@ -9,7 +9,7 @@ MM::AssetType::Mesh::Mesh(const std::string& asset_name,
 
 MM::AssetType::Mesh::Mesh(const std::string& asset_name,
                           const uint64_t& asset_ID,
-                          const AABBBox& aabb_box,
+                          const RectangleBox& aabb_box,
                           const std::shared_ptr<std::vector<uint32_t>>& indexes,
                           const std::shared_ptr<std::vector<Vertex>>& vertices) :
   AssetBase(asset_name, asset_ID), bounding_box_(std::make_unique<BoundingBox>(aabb_box)), indexes_(indexes), vertices_(vertices)
@@ -99,7 +99,9 @@ void MM::AssetType::Mesh::LoadModel(const FileSystem::Path& mesh_path,
   Assimp::Importer mesh_importer;
   const aiScene* scene = mesh_importer.ReadFile(
       mesh_path.String().c_str(),
-      aiProcess_Triangulate | aiProcess_FlipUVs | aiProcess_CalcTangentSpace | aiProcess_MakeLeftHanded);
+      aiProcess_Triangulate | aiProcess_FlipUVs | aiProcess_CalcTangentSpace |
+          aiProcess_MakeLeftHanded | aiProcess_GenNormals |
+          aiProcess_OptimizeMeshes);
   if (!scene || scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE ||
       !scene->mRootNode)
   {

@@ -5,7 +5,8 @@
 
 #include <vector>
 
-#include "runtime/function/render/import_other_system.h"
+#include "vk_type.h"
+#include "runtime/function/render/pre_header.h"
 
 namespace MM {
 namespace RenderSystem {
@@ -185,7 +186,7 @@ VkBufferCopy2 GetCopyBufferRegion(const VkDeviceSize& size,
 
 VkCopyBufferInfo2 GetCopyBufferInfo(const AllocatedBuffer& src_buffer,
                                     const AllocatedBuffer& dest_buffer,
-                                    std::vector<VkBufferCopy2>& regions);
+                                    const std::vector<VkBufferCopy2>& regions);
 }
 }
 }

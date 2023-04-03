@@ -15,3 +15,7 @@ asset_dir_user=@asset_dir_user@
 window_extent_width=1920
 window_extent_height=1080
 multi_sample_count=4
+init_vertex_buffer_size=131072000
+max_vertex_buffer_size=1073741760
+init_index_buffer_size=8192000
+max_index_buffer_size=32768000

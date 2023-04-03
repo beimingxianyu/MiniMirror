@@ -131,6 +131,13 @@ protected:
   static std::shared_ptr<ConfigSystem> config_system_;
 
 private:
+  static void CheckInit();
+
+  static bool CheckAllNeedConfigLoaded();
+
+  static bool CheckInitVertexAndIndexBuffer();
+
+private:
   static std::mutex sync_flag_;
   static std::unordered_map<std::string, std::string> config_data_base_;
 };

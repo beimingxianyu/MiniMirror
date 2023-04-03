@@ -11,7 +11,7 @@
 #include <unordered_set>
 
 #include "runtime/core/log/log_system.h"
-#include "runtime/function/render/import_other_system.h"
+#include "runtime/function/render/pre_header.h"
 #include "runtime/function/render/vk_type.h"
 #include "runtime/function/render/vk_utils.h"
 #include "utils/utils.h"
@@ -390,13 +390,26 @@ class RenderResourceBuffer final : public RenderResourceBase {
 class RenderResourceMesh final : public RenderResourceBase {
 public:
   RenderResourceMesh() = default;
- RenderResourceMesh(const RenderResourceMesh& other) = default;
- 
+  ~RenderResourceMesh() override = default;
+  RenderResourceMesh(const std::string& resource_name, RenderEngine* engine,
+                     const std::vector<AssetType::Mesh>& meshes);
+  RenderResourceMesh(const RenderResourceMesh& other) = default;
+  RenderResourceMesh(RenderResourceMesh&& other) noexcept;
+  RenderResourceMesh& operator=(const RenderResourceMesh& other);
+  RenderResourceMesh& operator=(RenderResourceMesh&& other) noexcept;
+
+public:
+  bool IsValid() const override;
 
 private:
   RenderEngine* render_engine_{nullptr};
- VertexInputInfo vertex_input_info_{};
-  std::vector<AllocatedBuffer> buffer_{};
+  VertexInputState vertex_input_state_{};
+  AllocatedBuffer index_buffer_{};
+  BufferInfo index_buffer_info{};
+  AllocatedBuffer vertex_buffer_{};
+  BufferInfo vertex_buffer_info{};
+  std::vector<AllocatedBuffer> instance_buffers_{};
+  std::vector<BufferInfo> instance_buffers_info{};
 };
 
 class RenderResourceFrameBuffer final : public RenderResourceBase {

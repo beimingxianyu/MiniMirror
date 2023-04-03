@@ -18,7 +18,7 @@ class Mesh : public AssetBase{
        const uint32_t& mesh_index);
   Mesh(const std::string& asset_name,
        const uint64_t& asset_ID,
-       const AABBBox& aabb_box,
+       const RectangleBox& aabb_box,
        const std::shared_ptr<std::vector<uint32_t>>& indexes,
        const std::shared_ptr<std::vector<Vertex>>& vertices);
   Mesh(const std::string& asset_name, const uint64_t& asset_ID,

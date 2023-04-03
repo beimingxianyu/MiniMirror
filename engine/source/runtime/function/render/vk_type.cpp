@@ -1,6 +1,6 @@
 #include "runtime/function/render/vk_type.h"
 
-#include "vk_engine.h"
+#include "runtime/function/render/vk_engine.h"
 
 bool MM::RenderSystem::QueueFamilyIndices::isComplete() const {
   return graphics_family_.has_value() && present_family_.has_value() &&
@@ -8,67 +8,108 @@ bool MM::RenderSystem::QueueFamilyIndices::isComplete() const {
 }
 
 
-MM::RenderSystem::VertexInputInfo::VertexInputInfo()
-    : vertex_bind_{0, sizeof(MM::AssetType::Vertex),
-                   VK_VERTEX_INPUT_RATE_VERTEX},
-      vertex_attributes_{5},
-      instance_binds_(),
-      instance_attributes_() {
-  
+void MM::RenderSystem::ImageInfo::Reset() {
+  image_extent_ = {0, 0, 0};
+  image_size_ = 0;
+  image_format_ = VK_FORMAT_UNDEFINED;
+  image_layout_ = VK_IMAGE_LAYOUT_UNDEFINED;
+  mipmap_levels = 1;
+  can_mapped_ = false;
 }
 
-MM::RenderSystem::VertexInputInfo::VertexInputInfo(
+void MM::RenderSystem::BufferInfo::Reset() {
+  buffer_size_ = 0;
+  offset_ = 0;
+  dynamic_offset_ = 0;
+  can_mapped_ = 0;
+}
+
+MM::RenderSystem::VertexInputState::VertexInputState()
+    : vertex_bind_(),
+      vertex_buffer_offset_(0),
+      vertex_attributes_(),
+      instance_binds_(),
+      instance_buffer_offset_(),
+      instance_attributes_() {}
+
+MM::RenderSystem::VertexInputState::VertexInputState(
+    const VkDeviceSize& vertex_buffer_offset)
+    : vertex_bind_{0, sizeof(AssetType::Vertex), VK_VERTEX_INPUT_RATE_VERTEX},
+      vertex_buffer_offset_(vertex_buffer_offset),
+      vertex_attributes_(),
+      instance_binds_(),
+      instance_buffer_offset_(),
+      instance_attributes_() {
+  InitDefaultVertexInput();
+}
+
+MM::RenderSystem::VertexInputState::VertexInputState(
+    const VkDeviceSize& vertex_buffer_offset,
     const std::vector<VkVertexInputBindingDescription>& instance_binds,
+    const std::vector<VkDeviceSize>& instance_buffer_offset,
     const std::vector<VkVertexInputAttributeDescription>& instance_attributes)
-  : vertex_bind_{0, sizeof(MM::AssetType::Vertex),
-                 VK_VERTEX_INPUT_RATE_VERTEX},
-    vertex_attributes_{5},
-    instance_binds_(instance_binds),
+    : vertex_bind_{0, sizeof(MM::AssetType::Vertex),
+                   VK_VERTEX_INPUT_RATE_VERTEX},
+      vertex_buffer_offset_(vertex_buffer_offset),
+      vertex_attributes_{5},
+      instance_binds_(instance_binds),
+      instance_buffer_offset_(instance_buffer_offset),
     instance_attributes_(instance_attributes) {
   std::string error_message;
   if (!CheckLayoutIsCorrect(error_message)) {
-    LOG_ERROR(error_message);
+    LOG_ERROR(error_message)
     Reset();
+    return;
   }
-  
+  InitDefaultVertexInput();
 }
 
-MM::RenderSystem::VertexInputInfo::VertexInputInfo(
-    VertexInputInfo&& other) noexcept
+MM::RenderSystem::VertexInputState::VertexInputState(
+    VertexInputState&& other) noexcept
   : vertex_bind_(other.vertex_bind_),
+    vertex_buffer_offset_(other.vertex_buffer_offset_),
     vertex_attributes_(std::move(other.vertex_attributes_)),
     instance_binds_(std::move(other.instance_binds_)),
-    instance_attributes_(std::move(other.instance_attributes_)) {}
+    instance_buffer_offset_(std::move(other.instance_buffer_offset_)),
+    instance_attributes_(std::move(other.instance_attributes_)) {
+  other.vertex_bind_.stride = 0;
+  vertex_buffer_offset_ = 0;
+}
 
-MM::RenderSystem::VertexInputInfo& MM::RenderSystem::VertexInputInfo::operator=(
-    const VertexInputInfo& other) {
+MM::RenderSystem::VertexInputState& MM::RenderSystem::VertexInputState::operator=(
+    const VertexInputState& other) {
   if (&other == this) {
     return *this;    
   }
   vertex_bind_ = other.vertex_bind_;
+  vertex_buffer_offset_ = other.vertex_buffer_offset_;
   vertex_attributes_ = other.vertex_attributes_;
   instance_binds_ = other.instance_binds_;
+  instance_buffer_offset_ = other.instance_buffer_offset_;
   instance_attributes_ = other.instance_attributes_;
 
   return *this;
 }
 
-MM::RenderSystem::VertexInputInfo& MM::RenderSystem::VertexInputInfo::operator=(
-    VertexInputInfo&& other) noexcept {
+MM::RenderSystem::VertexInputState& MM::RenderSystem::VertexInputState::operator=(
+    VertexInputState&& other) noexcept {
   if (&other == this) {
     return *this;
   }
   vertex_bind_ = other.vertex_bind_;
+  vertex_buffer_offset_ = other.vertex_buffer_offset_;
   vertex_attributes_ = std::move(other.vertex_attributes_);
   instance_binds_ = std::move(other.instance_binds_);
+  instance_buffer_offset_ = std::move(other.instance_buffer_offset_);
   instance_attributes_ = std::move(other.instance_attributes_);
 
   vertex_bind_.stride = 0;
+  vertex_buffer_offset_ = 0;
 
   return *this;
 }
 
-void MM::RenderSystem::VertexInputInfo::InitDefaultVertexInput() {
+void MM::RenderSystem::VertexInputState::InitDefaultVertexInput() {
   vertex_attributes_[0].binding = 0;
   vertex_attributes_[0].location = 0;
   vertex_attributes_[0].format = VK_FORMAT_R32G32B32_SFLOAT;
@@ -100,19 +141,27 @@ void MM::RenderSystem::VertexInputInfo::InitDefaultVertexInput() {
       static_cast<uint32_t>(MM::AssetType::Vertex::GetOffsetOfBiTangent());
 }
 
-bool MM::RenderSystem::VertexInputInfo::IsValid() const {
+bool MM::RenderSystem::VertexInputState::IsValid() const {
   return vertex_bind_.stride != 0;
 }
 
-void MM::RenderSystem::VertexInputInfo::Reset() {
+void MM::RenderSystem::VertexInputState::Reset() {
   vertex_bind_.stride = 0;
+  vertex_buffer_offset_ = 0;
   vertex_attributes_.clear();
   instance_binds_.clear();
+  instance_buffer_offset_.clear();
   instance_attributes_.clear();
 }
 
-bool MM::RenderSystem::VertexInputInfo::CheckLayoutIsCorrect(
+bool MM::RenderSystem::VertexInputState::CheckLayoutIsCorrect(
     std::string& error_message) const {
+  if (instance_buffer_offset_.size() != instance_binds_.size()) {
+    error_message =
+        "The number of offset values is not equal to the number of instance "
+        "bind.";
+    return false;
+  }
   std::map<uint32_t, VkDeviceSize> binds_info;
   for (const auto& bind: instance_binds_) {
     if (bind.binding == 0) {
@@ -162,27 +211,37 @@ bool MM::RenderSystem::VertexInputInfo::CheckLayoutIsCorrect(
   return true;
 }
 
-bool MM::RenderSystem::VertexInputInfo::CheckLayoutIsCorrect() const {
+bool MM::RenderSystem::VertexInputState::CheckLayoutIsCorrect() const {
   std::string temp;
   return CheckLayoutIsCorrect(temp);
 }
 
-const VkVertexInputBindingDescription& MM::RenderSystem::VertexInputInfo::
+const VkVertexInputBindingDescription& MM::RenderSystem::VertexInputState::
 GetVertexBind() const { return vertex_bind_;
 }
 
+const VkDeviceSize& MM::RenderSystem::VertexInputState::
+GetVertexBufferOffset() const {
+  return vertex_buffer_offset_;
+}
+
 const std::vector<VkVertexInputAttributeDescription>& MM::RenderSystem::
-VertexInputInfo::GetVertexAttributes() const {
+VertexInputState::GetVertexAttributes() const {
   return vertex_attributes_;
 }
 
 const std::vector<VkVertexInputBindingDescription>& MM::RenderSystem::
-VertexInputInfo::GetInstanceBinds() {
+VertexInputState::GetInstanceBinds() const {
   return instance_binds_;
 }
 
+const std::vector<VkDeviceSize>& MM::RenderSystem::VertexInputState::
+GetInstanceBufferOffset() const {
+  return instance_buffer_offset_;
+}
+
 const std::vector<VkVertexInputAttributeDescription>& MM::RenderSystem::
-VertexInputInfo::GetInstanceAttributes() {
+VertexInputState::GetInstanceAttributes() const {
   return instance_attributes_;
 }
 
@@ -242,9 +301,17 @@ const VkFence& MM::RenderSystem::AllocatedCommandBuffer::GetFence() const {
 
 bool MM::RenderSystem::AllocatedCommandBuffer::RecordAndSubmitCommand(
     const std::function<void(VkCommandBuffer& cmd)>& function,
-    const bool& auto_start_end_submit, const bool& record_new_command,
+    const bool& auto_start_end_submit, const bool& record_new_commands,
     const std::shared_ptr<VkSubmitInfo>& submit_info_ptr) {
-  return wrapper_->RecordAndSubmitCommand(function, auto_start_end_submit, record_new_command, submit_info_ptr);
+  return wrapper_->RecordAndSubmitCommand(function, auto_start_end_submit, record_new_commands, submit_info_ptr);
+}
+
+bool MM::RenderSystem::AllocatedCommandBuffer::RecordAndSubmitCommand(
+    const std::function<bool(VkCommandBuffer& cmd)>& function,
+    const bool& auto_start_end_submit, const bool& record_new_commands,
+    const std::shared_ptr<VkSubmitInfo>& submit_info_ptr) {
+  return wrapper_->RecordAndSubmitCommand(function, auto_start_end_submit,
+                                          record_new_commands, submit_info_ptr);
 }
 
 bool MM::RenderSystem::AllocatedCommandBuffer::IsValid() const {
@@ -380,6 +447,65 @@ bool MM::RenderSystem::AllocatedCommandBuffer::AllocatedCommandBufferWrapper::
     VK_CHECK(vkQueueSubmit(queue_, 1, submit_info_ptr.get(), command_fence_),
              LOG_ERROR("Faild to record and submit command buffer!(can't submit "
                        "command buffer)");
+        return false;)
+  }
+  return true;
+}
+
+bool MM::RenderSystem::AllocatedCommandBuffer::AllocatedCommandBufferWrapper::
+RecordAndSubmitCommand(
+    const std::function<bool(VkCommandBuffer& cmd)>& function,
+    const bool& auto_start_end_submit, const bool& record_new_command,
+    std::shared_ptr<VkSubmitInfo> submit_info_ptr) {
+  if (submit_info_ptr == nullptr) {
+    submit_info_ptr = std::make_shared<VkSubmitInfo>(
+        VkSubmitInfo{Utils::GetCommandSubmitInfo(command_buffer_)});
+  }
+  VK_CHECK(
+      vkWaitForFences(engine_->device_, 1, &command_fence_, true, 99999999999),
+      LOG_FATAL("The wait time for VkFence timed out.An error is expected in "
+                "the program, and the render system will be restarted."))
+
+  if (!record_new_command) {
+    VK_CHECK(
+        vkQueueSubmit(queue_, 1, submit_info_ptr.get(), command_fence_),
+        LOG_ERROR("Faild to record and submit command buffer!(can't submit "
+                  "command buffer)");
+        return false;)
+    return true;
+  }
+
+  vkResetFences(engine_->device_, 1, &command_fence_);
+  std::lock_guard<std::mutex> guard{record_mutex_};
+  if (!ResetCommandBuffer()) {
+    LOG_ERROR("Faild to record and submit command buffer!");
+    return false;
+  }
+
+  if (auto_start_end_submit) {
+    const VkCommandBufferBeginInfo command_buffer_begin_info =
+        MM::RenderSystem::Utils::GetCommandBufferBeginInfo();
+    VK_CHECK(vkBeginCommandBuffer(command_buffer_, &command_buffer_begin_info),
+             LOG_ERROR("Faild to record and submit command buffer!(can't begin "
+                       "command buffer)");
+             return false;)
+  }
+
+  if (!function(command_buffer_)) {
+    LOG_ERROR("Failed to excute function that pass to RecordAndSubmitCommand")
+    return false;
+  }
+
+  if (auto_start_end_submit) {
+    VK_CHECK(vkEndCommandBuffer(command_buffer_),
+             LOG_ERROR("Faild to record and submit command buffer!(can't end "
+                       "command buffer)");
+             return false;)
+
+    VK_CHECK(
+        vkQueueSubmit(queue_, 1, submit_info_ptr.get(), command_fence_),
+        LOG_ERROR("Faild to record and submit command buffer!(can't submit "
+                  "command buffer)");
         return false;)
   }
   return true;
@@ -573,4 +699,117 @@ GetAllocation() const {
 
 bool MM::RenderSystem::AllocatedImage::AllocatedImageWrapper::IsValid() const {
   return allocator_ != nullptr && image_ != nullptr && allocation_ != nullptr;
+}
+
+MM::RenderSystem::BufferChunkInfo::BufferChunkInfo(
+    const VkDeviceSize& start_offset, const VkDeviceSize& end_offset)
+      : start_offset_(start_offset), end_offset_(end_offset) {}
+
+MM::RenderSystem::BufferChunkInfo& MM::RenderSystem::BufferChunkInfo::operator=(
+    const BufferChunkInfo& other) noexcept {
+  if (&other == this) {
+    return *this;
+  }
+  start_offset_ = other.start_offset_;
+  end_offset_ = other.end_offset_;
+
+  return *this;
+}
+
+MM::RenderSystem::BufferChunkInfo& MM::RenderSystem::BufferChunkInfo::operator=(
+    BufferChunkInfo&& other) noexcept {
+  if (&other == this) {
+    return *this;
+  }
+  start_offset_ = other.start_offset_;
+  end_offset_ = other.end_offset_;
+
+  other.start_offset_ = 0;
+  other.end_offset_ = 0;
+
+  return *this;
+}
+
+const VkDeviceSize& MM::RenderSystem::BufferChunkInfo::GetStartOffset() const {
+  return start_offset_;
+}
+
+const VkDeviceSize& MM::RenderSystem::BufferChunkInfo::GetEndOffset() const {
+  return end_offset_;
+}
+
+MM::RenderSystem::VertexAndIndexBuffer::VertexAndIndexBuffer(
+    RenderEngine* engine) {
+  if (engine == nullptr) {
+    return;
+  }
+  vertex_buffer_info_.offset_ = 0;
+  vertex_buffer_info_.dynamic_offset_ = 0;
+  vertex_buffer_info_.buffer_size_ =
+      std::stoull(CONFIG_SYSTEM->GetConfig("init_vertex_buffer_size"));
+  vertex_buffer_info_.can_mapped_ = false;
+
+  index_buffer_info_.offset_ = 0;
+  index_buffer_info_.dynamic_offset_ = 0;
+  index_buffer_info_.buffer_size_ =
+      std::stoull(CONFIG_SYSTEM->GetConfig("init_index_buffer_size"));
+  index_buffer_info_.can_mapped_ = false;
+
+  vertex_buffer_ = engine->CreateBuffer(
+      vertex_buffer_info_.buffer_size_,
+      VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT |
+          VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+      VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE, 0);
+  if (!vertex_buffer_.IsValid()) {
+    Release();
+    LOG_ERROR("Failed to create vertex total buffer.")
+  }
+
+  index_buffer_ = engine->CreateBuffer(
+      index_buffer_info_.buffer_size_,
+      VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT |
+          VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+      VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE, 0);
+  if (!index_buffer_.IsValid()) {
+    Release();
+    LOG_ERROR("Failed to create index total buffer.")
+  }
+}
+
+bool MM::RenderSystem::VertexAndIndexBuffer::IsValid() const {
+  return vertex_buffer_info_.buffer_size_ != 0 &&
+         index_buffer_info_.buffer_size_ != 0;
+}
+
+const MM::RenderSystem::AllocatedBuffer& MM::RenderSystem::VertexAndIndexBuffer
+::GetVertexBuffer() const {
+  return vertex_buffer_;
+}
+
+const MM::RenderSystem::AllocatedBuffer& MM::RenderSystem::VertexAndIndexBuffer
+::GetIndexBuffer() const {
+  return index_buffer_;
+}
+
+const MM::RenderSystem::BufferInfo& MM::RenderSystem::VertexAndIndexBuffer::
+GetVertexBufferInfo() const {
+  return vertex_buffer_info_;
+}
+
+const MM::RenderSystem::BufferInfo& MM::RenderSystem::VertexAndIndexBuffer::
+GetIndexBufferInfo() const {
+  return index_buffer_info_;
+}
+
+void MM::RenderSystem::VertexAndIndexBuffer::Release() {
+  vertex_buffer_.Release();
+  index_buffer_.Release();
+  vertex_buffer_info_.Reset();
+  index_buffer_info_.Reset();
+  vertex_buffer_chunks_info.clear();
+  index_buffer_chunks_info.clear();
+}
+
+bool MM::RenderSystem::VertexAndIndexBuffer::Reserve() {
+
 }

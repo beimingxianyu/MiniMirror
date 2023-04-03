@@ -1163,6 +1163,10 @@ bool MM::RenderSystem::RenderResourceBuffer::CheckInitParameter(
       LOG_ERROR("The buffer_usage and descriptor_type do not match.")
       return false;
     }
+    if (render_engine_->gpu_properties_.limits.maxUniformBufferRange < size) {
+      LOG_ERROR("The uniform buffer you want to create is too large.")
+      return false;
+    }
   } else if (buffer_usage & VK_BUFFER_USAGE_STORAGE_TEXEL_BUFFER_BIT) {
     if (descriptor_type != VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER) {
       LOG_ERROR("The buffer_usage and descriptor_type do not match.")
@@ -1172,6 +1176,10 @@ bool MM::RenderSystem::RenderResourceBuffer::CheckInitParameter(
     if (descriptor_type != VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER &&
         descriptor_type != VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC) {
       LOG_ERROR("The buffer_usage and descriptor_type do not match.")
+      return false;
+    }
+    if (render_engine_->gpu_properties_.limits.maxUniformBufferRange < size) {
+      LOG_ERROR("The uniform buffer you want to create is too large.")
       return false;
     }
   } else if (buffer_usage & VK_BUFFER_USAGE_STORAGE_BUFFER_BIT) {
@@ -1336,6 +1344,7 @@ bool MM::RenderSystem::RenderResourceBuffer::InitSemaphore() {
 bool MM::RenderSystem::RenderResourceBuffer::OffsetIsAlignment(
     const RenderEngine* engine, const VkDescriptorType& descriptor_type,
     const VkDeviceSize& offset, const VkDeviceSize& dynamic_offset) const {
+  render_engine_->gpu_properties_.limits.maxStorageBufferRange
   switch (descriptor_type) {
     case VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER:
     case VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER:
@@ -1378,6 +1387,74 @@ bool MM::RenderSystem::RenderResourceBuffer::OffsetIsAlignment(
           "The type referred to by descriptor_type is not currently supported.")
       return false;
   }
+}
+
+MM::RenderSystem::RenderResourceMesh::RenderResourceMesh(
+    const std::string& resource_name, RenderEngine* engine,
+    const std::vector<AssetType::Mesh>& meshes)
+      : RenderResourceBase(resource_name), render_engine_(engine), vertex_input_state_(0){
+
+}
+
+MM::RenderSystem::RenderResourceMesh::RenderResourceMesh(
+    RenderResourceMesh&& other) noexcept
+  : RenderResourceBase(std::move(other)),
+    render_engine_(other.render_engine_),
+    vertex_input_state_(std::move(other.vertex_input_state_)),
+    index_buffer_(std::move(other.index_buffer_)),
+    index_buffer_info(other.index_buffer_info),
+    vertex_buffer_(std::move(other.vertex_buffer_)),
+    vertex_buffer_info(other.vertex_buffer_info),
+    instance_buffers_(std::move(other.instance_buffers_)),
+    instance_buffers_info(std::move(other.instance_buffers_info)) {}
+
+MM::RenderSystem::RenderResourceMesh& MM::RenderSystem::RenderResourceMesh::
+operator=(const RenderResourceMesh& other) {
+  if (&other == this) {
+    return *this;
+  }
+  RenderResourceBase::operator=(other);
+  render_engine_ = other.render_engine_;
+  vertex_input_state_ = other.vertex_input_state_;
+  index_buffer_ = other.index_buffer_;
+  index_buffer_info = other.index_buffer_info;
+  vertex_buffer_ = other.vertex_buffer_;
+  vertex_buffer_info = other.vertex_buffer_info;
+  instance_buffers_ = other.instance_buffers_;
+  instance_buffers_info = other.instance_buffers_info;
+
+  return *this;
+}
+
+MM::RenderSystem::RenderResourceMesh& MM::RenderSystem::RenderResourceMesh::
+operator=(RenderResourceMesh&& other) noexcept {
+  if (&other == this) {
+    return *this;
+  }
+  RenderResourceBase::operator=(std::move(other));
+  render_engine_ = other.render_engine_;
+  vertex_input_state_ = std::move(other.vertex_input_state_);
+  index_buffer_ = std::move(other.index_buffer_);
+  index_buffer_info = other.index_buffer_info;
+  vertex_buffer_ = std::move(other.vertex_buffer_);
+  vertex_buffer_info = other.vertex_buffer_info;
+  instance_buffers_ = std::move(other.instance_buffers_);
+  instance_buffers_info = std::move(other.instance_buffers_info);
+
+  other.render_engine_ = nullptr;
+  other.index_buffer_info.Reset();
+  other.vertex_buffer_info.Reset();
+
+  return *this;
+}
+
+bool MM::RenderSystem::RenderResourceMesh::IsValid() const {
+  if (render_engine_ == nullptr || !vertex_input_state_.IsValid() ||
+      !index_buffer_.IsValid() || index_buffer_info.buffer_size_ == 0 ||
+      !vertex_buffer_.IsValid() || vertex_buffer_info.buffer_size_ == 0) {
+    return false;
+  }
+  return true;
 }
 
 // void MM::RenderSystem::RenderResourceTexture::RenderResourceTextureWrapper::

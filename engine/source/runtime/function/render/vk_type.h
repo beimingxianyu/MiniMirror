@@ -40,6 +40,8 @@ struct ImageInfo {
   VkImageLayout image_layout_{VK_IMAGE_LAYOUT_UNDEFINED};
   uint32_t mipmap_levels{1};
   bool can_mapped_{false};
+
+  void Reset();
 };
 
 struct BufferInfo {
@@ -47,20 +49,29 @@ struct BufferInfo {
   VkDeviceSize offset_{0};
   VkDeviceSize dynamic_offset_{0};
   bool can_mapped_{false};
+
+  void Reset();
 };
 
-class VertexInputInfo {
+class VertexInputState {
  public:
-  VertexInputInfo();
-  ~VertexInputInfo() = default;
-  VertexInputInfo(
+  VertexInputState();
+  ~VertexInputState() = default;
+  /**
+   * \brief Construct object with a vertex buffer offset.(No instance description)
+   * \param vertex_buffer_offset The offset of vertex buffer.
+   */
+  VertexInputState(const VkDeviceSize& vertex_buffer_offset);
+  VertexInputState(
+      const VkDeviceSize& vertex_buffer_offset,
       const std::vector<VkVertexInputBindingDescription>& instance_binds,
+      const std::vector<VkDeviceSize>& instance_buffer_offset,
       const std::vector<VkVertexInputAttributeDescription>&
           instance_attributes);
-  VertexInputInfo(const VertexInputInfo& other) = default;
-  VertexInputInfo(VertexInputInfo&& other) noexcept;
-  VertexInputInfo& operator=(const VertexInputInfo& other);
-  VertexInputInfo& operator=(VertexInputInfo&& other) noexcept;
+  VertexInputState(const VertexInputState& other) = default;
+  VertexInputState(VertexInputState&& other) noexcept;
+  VertexInputState& operator=(const VertexInputState& other);
+  VertexInputState& operator=(VertexInputState&& other) noexcept;
 
  public:
   bool IsValid() const;
@@ -77,21 +88,27 @@ class VertexInputInfo {
 
   const VkVertexInputBindingDescription& GetVertexBind() const;
 
+  const VkDeviceSize& GetVertexBufferOffset() const;
+
   const std::vector<VkVertexInputAttributeDescription>& GetVertexAttributes()
       const;
 
-  const std::vector<VkVertexInputBindingDescription>& GetInstanceBinds();
+  const std::vector<VkVertexInputBindingDescription>& GetInstanceBinds() const;
 
-  const std::vector<VkVertexInputAttributeDescription>& GetInstanceAttributes();
+  const std::vector<VkDeviceSize>& GetInstanceBufferOffset() const;
+
+  const std::vector<VkVertexInputAttributeDescription>& GetInstanceAttributes() const;
 
  private:
   void InitDefaultVertexInput();
 
  private:
-  VkVertexInputBindingDescription vertex_bind_;
+  VkVertexInputBindingDescription vertex_bind_{};
+  VkDeviceSize vertex_buffer_offset_{0};
   std::vector<VkVertexInputAttributeDescription> vertex_attributes_{5};
-  std::vector<VkVertexInputBindingDescription> instance_binds_;
-  std::vector<VkVertexInputAttributeDescription> instance_attributes_;
+  std::vector<VkVertexInputBindingDescription> instance_binds_{};
+  std::vector<VkDeviceSize> instance_buffer_offset_{};
+  std::vector<VkVertexInputAttributeDescription> instance_attributes_{};
 };
 
 class AllocatedCommandBuffer {
@@ -120,11 +137,12 @@ class AllocatedCommandBuffer {
   /**
    * \brief Record commands in the command buffer.
    * \param function A function that contains the record operations you want to
-   * perform. \param auto_start_end_submit If this item is true, the start
+   * perform.
+   * \param auto_start_end_submit If this item is true, the start
    * command, end command, and submit command (etc.) are automatically recorded.
    * The default value is false. If this item is true, please do not perform
-   * automatically completed work in the function again. \param
-   * record_new_command Whether to not use the last submitted command buffer.
+   * automatically completed work in the function again.
+   * \param record_new_commands Whether to not use the last submitted command buffer.
    * The default value is true.
    * \param submit_info_ptr Custom VkSubmitInfo.
    * \return If there are no errors in the entire recording and submission
@@ -137,7 +155,19 @@ class AllocatedCommandBuffer {
   bool RecordAndSubmitCommand(
       const std::function<void(VkCommandBuffer& cmd)>& function,
       const bool& auto_start_end_submit = false,
-      const bool& record_new_command = true,
+      const bool& record_new_commands = true,
+      const std::shared_ptr<VkSubmitInfo>& submit_info_ptr = nullptr);
+
+  /**
+   * \remark This function is mostly the same as \ref RecordAndSubmitCommand,
+   * except that the \ref function can return a value point out the \ref function
+   * execute result.If the \ref function return true specifies execution succeeded,
+   * otherwise return false.
+   */
+ bool RecordAndSubmitCommand(
+      const std::function<bool(VkCommandBuffer& cmd)>& function,
+      const bool& auto_start_end_submit = false,
+      const bool& record_new_commands = true,
       const std::shared_ptr<VkSubmitInfo>& submit_info_ptr = nullptr);
 
   bool IsValid() const;
@@ -172,6 +202,12 @@ class AllocatedCommandBuffer {
 
     bool RecordAndSubmitCommand(
         const std::function<void(VkCommandBuffer& cmd)>& function,
+        const bool& auto_start_end_submit = false,
+        const bool& record_new_command = true,
+        std::shared_ptr<VkSubmitInfo> submit_info_ptr = nullptr);
+
+    bool RecordAndSubmitCommand(
+        const std::function<bool(VkCommandBuffer& cmd)>& function,
         const bool& auto_start_end_submit = false,
         const bool& record_new_command = true,
         std::shared_ptr<VkSubmitInfo> submit_info_ptr = nullptr);
@@ -311,6 +347,67 @@ class AllocatedImage {
 
  private:
   std::shared_ptr<const AllocatedImageWrapper> wrapper_{nullptr};
+};
+
+class BufferChunkInfo {
+public:
+  BufferChunkInfo() = delete;
+ ~BufferChunkInfo() = default;
+  BufferChunkInfo(const VkDeviceSize& start_offset,
+                  const VkDeviceSize& end_offset);
+  BufferChunkInfo(const BufferChunkInfo& other) = default;
+ BufferChunkInfo(BufferChunkInfo&& other) noexcept = default;
+  BufferChunkInfo& operator=(const BufferChunkInfo& other) noexcept;
+ BufferChunkInfo& operator=(BufferChunkInfo&& other) noexcept;
+
+public:
+ const VkDeviceSize& GetStartOffset() const;
+
+  const VkDeviceSize& GetEndOffset() const;
+
+private:
+  VkDeviceSize start_offset_{};
+  VkDeviceSize end_offset_{};
+};
+
+class VertexAndIndexBuffer {
+public:
+  VertexAndIndexBuffer() = delete;
+ ~VertexAndIndexBuffer() = default;
+  VertexAndIndexBuffer(RenderEngine* engine);
+  VertexAndIndexBuffer(const VertexAndIndexBuffer& other) = delete;
+ VertexAndIndexBuffer(VertexAndIndexBuffer&& other) = delete;
+  VertexAndIndexBuffer& operator=(const VertexAndIndexBuffer& other) = delete;
+ VertexAndIndexBuffer& operator=(VertexAndIndexBuffer&& other) = delete;
+
+public:
+ bool IsValid() const;
+
+ const AllocatedBuffer& GetVertexBuffer() const;
+
+ const AllocatedBuffer& GetIndexBuffer() const;
+
+  const BufferInfo& GetVertexBufferInfo() const;
+
+  const BufferInfo& GetIndexBufferInfo() const;
+
+  bool AllocateBuffer(
+      const std::vector<AssetType::Vertex>& vertices,
+      const std::vector<uint32_t>& indexes,
+      const std::shared_ptr<BufferChunkInfo>& output_buffer_chunk_info);
+
+  void Release();
+
+private:
+  bool Reserve();
+
+private:
+ AllocatedBuffer vertex_buffer_{};
+ AllocatedBuffer index_buffer_{};
+ BufferInfo vertex_buffer_info_{};
+ BufferInfo index_buffer_info_{};
+ std::list<std::shared_ptr<BufferChunkInfo>> vertex_buffer_chunks_info{};
+ std::list<std::shared_ptr<BufferChunkInfo>> index_buffer_chunks_info{};
 };
 }  // namespace RenderSystem
 }  // namespace MM

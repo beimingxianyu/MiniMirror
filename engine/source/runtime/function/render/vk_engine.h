@@ -14,7 +14,7 @@
 #include <vector>
 
 #include "runtime/core/log/log_system.h"
-#include "runtime/function/render/import_other_system.h"
+#include "runtime/function/render/pre_header.h"
 #include "runtime/function/render/vk_type.h"
 #include "runtime/function/render/vk_utils.h"
 #include "runtime/platform/config_system/config_system.h"
@@ -97,6 +97,19 @@ class RenderEngine {
       const std::shared_ptr<VkSubmitInfo>& submit_info_ptr = nullptr);
 
   /**
+   * \remark This function is mostly the same as \ref RecordAndSubmitCommand,
+   * except that the \ref function can return a value point out the \ref
+   * function execute result.If the \ref function return true specifies
+   * execution succeeded, otherwise return false.
+   */
+  bool RecordAndSubmitCommand(
+      const CommandBufferType& command_buffer_type,
+      const std::function<bool(VkCommandBuffer& cmd)>& function,
+      const bool& auto_start_end_submit = false,
+      const bool& record_new_command = true,
+      const std::shared_ptr<VkSubmitInfo>& submit_info_ptr = nullptr);
+
+  /**
    * \remark This function is mostly the same as \ref RecordAndSubmitCommand, except that
    * when \ref auto_start_end_submit_wait is false, you can create a VkFence in the
    * function and wait it.
@@ -106,9 +119,35 @@ class RenderEngine {
       const std::function<void(VkCommandBuffer& cmd)>& function,
       const bool& auto_start_end_submit_wait = false);
 
+  /**
+   * \remark This function is mostly the same as \ref RecordAndSubmitSingleTimeCommand,
+   * except that the \ref function can return a value point out the \ref
+   * function execute result.If the \ref function return true specifies
+   * execution succeeded, otherwise return false.
+   */
+  bool RecordAndSubmitSingleTimeCommand(
+      const CommandBufferType& command_buffer_type,
+      const std::function<bool(VkCommandBuffer& cmd)>& function,
+      const bool& auto_start_end_submit_wait = false);
+
+  bool CopyBuffer(AllocatedBuffer& src_buffer, AllocatedBuffer& dest_buffer,
+                  const VkDeviceSize& src_offset,
+                  const VkDeviceSize& dest_offset, const VkDeviceSize& size);
+
+  bool CopyBuffer(AllocatedBuffer& src_buffer, AllocatedBuffer& dest_buffer,
+                  const std::vector<VkDeviceSize>& src_offsets,
+                  const std::vector<VkDeviceSize>& dest_offsets,
+                  const std::vector<VkDeviceSize>& sizes);
+
+  const VkPhysicalDeviceFeatures& GetPhysicalDeviceFeatures() const;
+
+  const VkPhysicalDeviceProperties& GetPhysicalDeviceProperties() const;
+
   uint32_t GetCurrentFrame() const;
 
   VkSampleCountFlagBits GetMultiSampleCount() const;
+
+  bool SupportMultiDrawIndirect() const;
 
  private:
   void InitGlfw();
@@ -120,6 +159,7 @@ class RenderEngine {
   void InitSurface();
   void InitPhysicalDevice();
   void InitGpuProperties();
+  void InitGpuFeatures();
   void InitLogicalDevice();
   void InitAllocator();
   void InitSwapChain();
@@ -127,7 +167,7 @@ class RenderEngine {
   // void InitCommandPool();
   // void InitCommandBuffers();
   void InitCommandExecutors();
-  void InitMultiSampleCount();
+  
 
   std::vector<VkExtensionProperties> GetExtensionProperties();
   bool CheckExtensionSupport(const std::string& extension_name);
@@ -151,6 +191,7 @@ class RenderEngine {
   VkPresentModeKHR ChooseSwapPresentMode(
       const std::vector<VkPresentModeKHR>& available_present_modes);
   VkExtent2D ChooseSwapExtent(const VkSurfaceCapabilitiesKHR& capabilities);
+  void ChooseMultiSampleCount();
 
  private:
   bool is_initialized_{false};
@@ -183,6 +224,7 @@ class RenderEngine {
   VkInstance instance_{nullptr};
   VkPhysicalDevice physical_device_{nullptr};
   VkPhysicalDeviceProperties gpu_properties_;
+  VkPhysicalDeviceFeatures gpu_features_;
   VkDevice device_{nullptr};
   VmaAllocator allocator_{nullptr};
   VkQueue graphics_queue_{nullptr};
@@ -200,6 +242,7 @@ class RenderEngine {
   // std::vector<std::mutex> compute_command_record_mutex_{3};
   std::vector<AllocatedCommandBuffer> graph_command_executors_{};
   std::vector<AllocatedCommandBuffer> compute_command_executors_{};
+  
   RenderEngineInfo render_engine_info_{};
 };
 }  // namespace RenderSystem

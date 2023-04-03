@@ -77,6 +77,7 @@ MM::ConfigSystem::ConfigSystem::GetInstance() {
       config_data_base_["config_dir"] = CONFIG_DIR;
       config_system_->LoadConfigFromIni(config_data_base_["config_dir"] + "/init_config.ini");
     }
+    CheckInit();
   }
   return config_system_;
 }
@@ -174,8 +175,100 @@ bool MM::ConfigSystem::ConfigSystem::Destroy() {
   return false;
   }
 
+void MM::ConfigSystem::ConfigSystem::CheckInit() {
+  if (!CheckAllNeedConfigLoaded()) {
+    throw std::runtime_error("The required settings are not loaded. Please reset init config file.");
+  }
+  if (!CheckInitVertexAndIndexBuffer()) {
+    throw std::runtime_error(
+        "The setting for vertex_buffer_size and index_buffer_size are "
+        "incorrect. Please reset init config file.");  
+  }
+}
+
+bool MM::ConfigSystem::ConfigSystem::CheckAllNeedConfigLoaded() {
+  if (config_data_base_.size() != 16) {
+    return false;
+  }
+  if (config_data_base_.find("version_major") == config_data_base_.end()) {
+    return false;
+  }
+  if (config_data_base_.find("version_minor") == config_data_base_.end()) {
+    return false;
+  }
+  if (config_data_base_.find("version_patch") == config_data_base_.end()) {
+    return false;
+  }
+  if (config_data_base_.find("engine_dir") == config_data_base_.end()) {
+    return false;
+  }
+  if (config_data_base_.find("config_dir") == config_data_base_.end()) {
+    return false;
+  }
+  if (config_data_base_.find("bin_dir") == config_data_base_.end()) {
+    return false;
+  }
+  if (config_data_base_.find("asset_dir") == config_data_base_.end()) {
+    return false;
+  }
+  if (config_data_base_.find("asset_dir_std") == config_data_base_.end()) {
+    return false;
+  }
+  if (config_data_base_.find("asset_dir_user") == config_data_base_.end()) {
+    return false;
+  }
+  if (config_data_base_.find("window_extent_width") ==
+      config_data_base_.end()) {
+    return false;
+  }
+  if (config_data_base_.find("window_extent_height") ==
+      config_data_base_.end()) {
+    return false;
+  }
+  if (config_data_base_.find("multi_sample_count") == config_data_base_.end()) {
+    return false;
+  }
+  if (config_data_base_.find("init_vertex_buffer_size") ==
+      config_data_base_.end()) {
+    return false;
+  }
+  if (config_data_base_.find("max_vertex_buffer_size") ==
+      config_data_base_.end()) {
+    return false;
+  }
+  if (config_data_base_.find("init_index_buffer_size") ==
+      config_data_base_.end()) {
+    return false;
+  }
+  if (config_data_base_.find("max_index_buffer_size") ==
+      config_data_base_.end()) {
+    return false;
+  }
+  return true;
+}
+
+bool MM::ConfigSystem::ConfigSystem::CheckInitVertexAndIndexBuffer() {
+  const std::string init_vertex_buffer_size =
+      config_data_base_.find("init_vertex_buffer_size")->second;
+  const std::string max_vertex_buffer_size =
+      config_data_base_.find("max_vertex_buffer_size")->second;
+  if (std::stoul(init_vertex_buffer_size) > std::stoul(max_vertex_buffer_size)) {
+    return false;
+  }
+
+  const std::string init_index_buffer_size =
+      config_data_base_.find("init_index_buffer_size")->second;
+  const std::string max_index_buffer_size =
+      config_data_base_.find("max_index_buffer_size")->second;
+  if (std::stoul(init_index_buffer_size) > std::stoul(max_index_buffer_size)) {
+    return false;
+  }
+
+  return true;
+}
+
 void MM::ConfigSystem::ConfigSystem::SetConfig(const std::string& key,
-                                   const std::string& data) {
+                                               const std::string& data) {
   config_data_base_[key] = data;
 }
 

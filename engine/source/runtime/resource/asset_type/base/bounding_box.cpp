@@ -15,14 +15,14 @@ MM::AssetType::BoundingBox& MM::AssetType::BoundingBox::operator=(
   return *this;
 }
 
-MM::AssetType::AABBBox::AABBBox(const Math::vec3& left_bottom_forward,
+MM::AssetType::RectangleBox::RectangleBox(const Math::vec3& left_bottom_forward,
     const Math::vec3& right_top_back)
   : left_bottom_forward(left_bottom_forward),
     right_top_back(right_top_back) {
 }
 
-MM::AssetType::AABBBox& MM::AssetType::AABBBox::operator
-=(const AABBBox& other) {
+MM::AssetType::RectangleBox& MM::AssetType::RectangleBox::operator
+=(const RectangleBox& other) {
   if (&other == this) {
     return *this;
   }
@@ -32,8 +32,8 @@ MM::AssetType::AABBBox& MM::AssetType::AABBBox::operator
   return *this;
 }
 
-MM::AssetType::AABBBox& MM::AssetType::AABBBox::operator=(
-    AABBBox&& other) noexcept {
+MM::AssetType::RectangleBox& MM::AssetType::RectangleBox::operator=(
+    RectangleBox&& other) noexcept {
   if (&other == this) {
     return *this;
   }
@@ -46,92 +46,92 @@ MM::AssetType::AABBBox& MM::AssetType::AABBBox::operator=(
   return *this;
 }
 
-float& MM::AssetType::AABBBox::GetTop() { return right_top_back.y; }
+float& MM::AssetType::RectangleBox::GetTop() { return right_top_back.y; }
 
-const float& MM::AssetType::AABBBox::GetTop() const { return right_top_back.y; }
+const float& MM::AssetType::RectangleBox::GetTop() const { return right_top_back.y; }
 
-void MM::AssetType::AABBBox::SetTop(const float& new_top) {
+void MM::AssetType::RectangleBox::SetTop(const float& new_top) {
   right_top_back.y = new_top;
 }
 
-float& MM::AssetType::AABBBox::GetBottom() { return left_bottom_forward.y; }
+float& MM::AssetType::RectangleBox::GetBottom() { return left_bottom_forward.y; }
 
-const float& MM::AssetType::AABBBox::GetBottom() const {
+const float& MM::AssetType::RectangleBox::GetBottom() const {
   return left_bottom_forward.y;
 }
 
-void MM::AssetType::AABBBox::SetBottom(const float& new_bottom) {
+void MM::AssetType::RectangleBox::SetBottom(const float& new_bottom) {
   left_bottom_forward.y = new_bottom;
 }
 
-float& MM::AssetType::AABBBox::GetLeft() { return left_bottom_forward.x; }
+float& MM::AssetType::RectangleBox::GetLeft() { return left_bottom_forward.x; }
 
-const float& MM::AssetType::AABBBox::GetLeft() const {
+const float& MM::AssetType::RectangleBox::GetLeft() const {
   return left_bottom_forward.x;
 }
 
-void MM::AssetType::AABBBox::SetLeft(const float& new_left) {
+void MM::AssetType::RectangleBox::SetLeft(const float& new_left) {
   left_bottom_forward.x = new_left;
 }
 
-float& MM::AssetType::AABBBox::GetRight() { return right_top_back.x; }
+float& MM::AssetType::RectangleBox::GetRight() { return right_top_back.x; }
 
-const float& MM::AssetType::AABBBox::GetRight() const {
+const float& MM::AssetType::RectangleBox::GetRight() const {
   return right_top_back.x;
 }
 
-void MM::AssetType::AABBBox::SetRight(const float& new_right) {
+void MM::AssetType::RectangleBox::SetRight(const float& new_right) {
   right_top_back.x = new_right;
 }
 
-float& MM::AssetType::AABBBox::GetForward() { return left_bottom_forward.z; }
+float& MM::AssetType::RectangleBox::GetForward() { return left_bottom_forward.z; }
 
-const float& MM::AssetType::AABBBox::GetForward() const {
+const float& MM::AssetType::RectangleBox::GetForward() const {
   return left_bottom_forward.z;
 }
 
-void MM::AssetType::AABBBox::SetForward(const float& new_forward) {
+void MM::AssetType::RectangleBox::SetForward(const float& new_forward) {
   left_bottom_forward.z = new_forward;
 }
 
-float& MM::AssetType::AABBBox::GetBack() { return right_top_back.z; }
+float& MM::AssetType::RectangleBox::GetBack() { return right_top_back.z; }
 
-const float& MM::AssetType::AABBBox::GetBack() const {
+const float& MM::AssetType::RectangleBox::GetBack() const {
   return right_top_back.z;
 }
 
-void MM::AssetType::AABBBox::SetBack(const float& new_back) {
+void MM::AssetType::RectangleBox::SetBack(const float& new_back) {
   right_top_back.z = new_back;
 }
 
-MM::Math::vec3& MM::AssetType::AABBBox::GetLeftBottomForward() {
+MM::Math::vec3& MM::AssetType::RectangleBox::GetLeftBottomForward() {
   return left_bottom_forward;
 }
 
-const MM::Math::vec3& MM::AssetType::AABBBox::GetLeftBottomForward() const {
+const MM::Math::vec3& MM::AssetType::RectangleBox::GetLeftBottomForward() const {
   return left_bottom_forward;
 }
 
-void MM::AssetType::AABBBox::SetLeftBottomForward(
+void MM::AssetType::RectangleBox::SetLeftBottomForward(
     const Math::vec3& new_left_bottom_forward) {
   left_bottom_forward = new_left_bottom_forward;
 }
 
-MM::Math::vec3& MM::AssetType::AABBBox::GetRightTopBack() {
+MM::Math::vec3& MM::AssetType::RectangleBox::GetRightTopBack() {
   return right_top_back;
 }
 
-const MM::Math::vec3& MM::AssetType::AABBBox::GetRightTopBack() const {
+const MM::Math::vec3& MM::AssetType::RectangleBox::GetRightTopBack() const {
   return right_top_back;
 }
 
-void MM::AssetType::AABBBox::SetRightTopBack(
+void MM::AssetType::RectangleBox::SetRightTopBack(
     const Math::vec3& new_right_top_back) {
   right_top_back = new_right_top_back;
 }
 
 
-bool MM::AssetType::AABBBox::IsValid() const {
+bool MM::AssetType::RectangleBox::IsValid() const {
   if (left_bottom_forward.x > right_top_back.x) {
     return false;
   }
@@ -144,7 +144,7 @@ bool MM::AssetType::AABBBox::IsValid() const {
   return true;
 }
 
-MM::AssetType::BoundingBox::BoundingBoxType MM::AssetType::AABBBox::
+MM::AssetType::BoundingBox::BoundingBoxType MM::AssetType::RectangleBox::
 GetBoundingType() const {
   return BoundingBoxType::AABB;
 }
@@ -201,8 +201,8 @@ void MM::AssetType::CapsuleBox::SetBottom(const float& new_bottom) {
   bottom_ = new_bottom;
 }
 
-MM::AssetType::AABBBox MM::AssetType::CapsuleBox::GetAABBBoxFormThis() const {
-  return AABBBox{{-radius_, bottom_ - radius_, -radius_},
+MM::AssetType::RectangleBox MM::AssetType::CapsuleBox::GetRectangleBoxFormThis() const {
+  return RectangleBox{{-radius_, bottom_ - radius_, -radius_},
                  {radius_, top_ + radius_, radius_}};
 }
 

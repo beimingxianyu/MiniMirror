@@ -1,9 +1,9 @@
 #include <string>
 
 #include "runtime/function/render/vk_utils.h"
-#include "runtime/function/render/import_other_system.h"
+#include "runtime/function/render/pre_header.h"
 #include "runtime/function/render/vk_type.h"
-#include "runtime/function/render/render.h"
+#include "runtime/function/render/vk_engine.h"
 #include "utils/marco.h"
 
 VkCommandPoolCreateInfo MM::RenderSystem::Utils::GetCommandPoolCreateInfo(
@@ -525,7 +525,7 @@ VkBufferCopy2 MM::RenderSystem::Utils::GetCopyBufferRegion(
 
 VkCopyBufferInfo2 MM::RenderSystem::Utils::GetCopyBufferInfo(
     const AllocatedBuffer& src_buffer, const AllocatedBuffer& dest_buffer,
-    std::vector<VkBufferCopy2>& regions) {
+    const std::vector<VkBufferCopy2>& regions) {
   VkCopyBufferInfo2 copy_buffer_info{};
   copy_buffer_info.sType = VK_STRUCTURE_TYPE_COPY_BUFFER_INFO_2;
   copy_buffer_info.pNext = nullptr;

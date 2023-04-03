@@ -30,12 +30,8 @@ AddMoudle("math" "${CMAKE_CURRENT_SOURCE_DIR}/core/math")
 target_link_libraries(math PUBLIC glm)
 
 ########## task_flow ##########
-add_library(task_flow INTERFACE IMPORTED)
-set_target_properties(task_flow PROPERTIES
-  INTERFACE_COMPILE_FEATURES "cxx_std_17"
-  INTERFACE_INCLUDE_DIRECTORIES "${source_third_party_dir}/TaskFlow/include"
-  INTERFACE_LINK_LIBRARIES "Threads::Threads"
-)
+AddMoudle("task_flow" "${CMAKE_CURRENT_SOURCE_DIR}/core/task_flow")
+target_link_libraries(task_flow PUBLIC Taskflow_lib)
 
 #####################################################
 #####################  resource  ####################
@@ -57,4 +53,4 @@ target_link_libraries(asset_system PUBLIC file_system config_system log_system a
 
 ##########  render  ##########
 AddMoudle("render" "${CMAKE_CURRENT_SOURCE_DIR}/function/render")
-target_link_libraries(render PUBLIC math color log_system config_system file_system asset_system vulkan_lib glfw stb)
+target_link_libraries(render PUBLIC math color log_system config_system file_system asset_system vulkan_lib glfw stb task_flow)
