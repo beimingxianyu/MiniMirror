@@ -19,7 +19,6 @@ class ConfigSystem {
   friend std::shared_ptr<ConfigSystem>;
 
 public:
-  ~ConfigSystem();
   ConfigSystem(const ConfigSystem&) = delete;
   ConfigSystem(ConfigSystem&&) = delete;
   ConfigSystem& operator=(const ConfigSystem&) = delete;
@@ -30,7 +29,7 @@ public:
    * \brief Create instance.
    * \return A ConfigSystem instance.
    */
-  static std::shared_ptr<MM::ConfigSystem::ConfigSystem> GetInstance();
+  static MM::ConfigSystem::ConfigSystem* GetInstance();
 
   /**
    * \brief Modified the value.
@@ -124,13 +123,23 @@ public:
    * \return If it is successfully
    * destroyed, it returns true, otherwise it returns false.
    */
-  bool Destroy();
+  
 
 protected:
   ConfigSystem() = default;
-  static std::shared_ptr<ConfigSystem> config_system_;
+  static ConfigSystem* config_system_;
 
 private:
+  ~ConfigSystem();
+
+  /**
+   * \brief Destroy the instance. If it is successfully destroyed, it returns
+   * true, otherwise it returns false.
+   * \return If it is successfully
+   * destroyed, it returns true, otherwise it returns false.
+   */
+  bool Destroy();
+
   static void CheckInit();
 
   static bool CheckAllNeedConfigLoaded();

@@ -1344,7 +1344,6 @@ bool MM::RenderSystem::RenderResourceBuffer::InitSemaphore() {
 bool MM::RenderSystem::RenderResourceBuffer::OffsetIsAlignment(
     const RenderEngine* engine, const VkDescriptorType& descriptor_type,
     const VkDeviceSize& offset, const VkDeviceSize& dynamic_offset) const {
-  render_engine_->gpu_properties_.limits.maxStorageBufferRange
   switch (descriptor_type) {
     case VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER:
     case VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER:

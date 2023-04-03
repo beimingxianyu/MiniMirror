@@ -8,10 +8,28 @@ namespace Utils {
 
 #define MM_CAT(a, b) MM_CAT_IMP(a, b)
 
+#define CONFIG_SYSTEM config_system
+
+#define IMPORT_CONFIG_SYSTEM                            \
+  inline MM::ConfigSystem::ConfigSystem* CONFIG_SYSTEM{ \
+      MM::ConfigSystem::ConfigSystem::GetInstance()};
+
+#define FILE_SYSTEM file_system
+
+#define IMPORT_FILE_SYSTEM                        \
+  inline MM::FileSystem::FileSystem* FILE_SYSTEM{ \
+      MM::FileSystem::FileSystem::GetInstance()};
+
+#define TASK_SYSTEM task_system
+
+#define IMPORT_TASK_SYSTEM                        \
+  inline MM::TaskSystem::TaskSystem* TASK_SYSTEM{ \
+      MM::TaskSystem::TaskSystem::GetInstance()};
+
 #define LOG_SYSTEM log_system
 
-#define IMPORT_LOG_SYSTEM                                      \
-  inline std::shared_ptr<MM::LogSystem::LogSystem> LOG_SYSTEM{ \
+#define IMPORT_LOG_SYSTEM                      \
+  inline MM::LogSystem::LogSystem* LOG_SYSTEM{ \
       MM::LogSystem::LogSystem::GetInstance()};
 
 #define LOG(log_level, ...)                                                 \
@@ -33,27 +51,15 @@ namespace Utils {
 #define LOG_FATAL(...) \
   LOG(MM::LogSystem::LogSystem::LogLevel::Fatal, __VA_ARGS__);
 
-#define CONFIG_SYSTEM config_system
-
-#define IMPORT_CONFIG_SYSTEM                                            \
-  inline std::shared_ptr<MM::ConfigSystem::ConfigSystem> CONFIG_SYSTEM{ \
-      MM::ConfigSystem::ConfigSystem::GetInstance()};
-
-#define FILE_SYSTEM file_system
-
-#define IMPORT_FILE_SYSTEM                                        \
-  inline std::shared_ptr<MM::FileSystem::FileSystem> FILE_SYSTEM{ \
-      MM::FileSystem::FileSystem::GetInstance()};
-
 #define ASSET_SYSTEM asset_system
 
-#define IMPORT_ASSET_SYSTEM                                          \
-  inline std::shared_ptr<MM::AssetSystem::AssetSystem> ASSET_SYSTEM{ \
+#define IMPORT_ASSET_SYSTEM                          \
+  inline MM::AssetSystem::AssetSystem* ASSET_SYSTEM{ \
       MM::AssetSystem::AssetSystem::GetInstance()};
 
 // TODO 添加对各种情况的警告（如内存不足）
 #define VK_CHECK(vk_executor, failed_callback) \
-  if (vk_executor != VK_SUCCESS) {                           \
+  if (vk_executor != VK_SUCCESS) {             \
     failed_callback;                           \
   }
 

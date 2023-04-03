@@ -1,7 +1,7 @@
 #include "runtime/platform/config_system/config_system.h"
 
 std::mutex MM::ConfigSystem::ConfigSystem::sync_flag_{std::mutex()};
-std::shared_ptr<MM::ConfigSystem::ConfigSystem> MM::ConfigSystem::ConfigSystem::config_system_{nullptr};
+MM::ConfigSystem::ConfigSystem* MM::ConfigSystem::ConfigSystem::config_system_{nullptr};
 std::unordered_map<std::string, std::string> MM::ConfigSystem::ConfigSystem::config_data_base_{};
 
 std::string MM::ConfigSystem::LoadOneConfigFromIni(const MM::FileSystem::Path& file_path,
@@ -67,13 +67,13 @@ std::unordered_map<std::string, std::string> MM::ConfigSystem::LoadConfigFromIni
 
 MM::ConfigSystem::ConfigSystem::~ConfigSystem() { config_system_ = nullptr; }
 
-std::shared_ptr<MM::ConfigSystem::ConfigSystem>
-MM::ConfigSystem::ConfigSystem::GetInstance() {
+MM::ConfigSystem::ConfigSystem
+* MM::ConfigSystem::ConfigSystem::GetInstance() {
   if (config_system_) {
   } else {
     std::lock_guard<std::mutex> guard(sync_flag_);
     if (!config_system_) {
-      config_system_.reset(new ConfigSystem{});
+      config_system_ = new ConfigSystem{};
       config_data_base_["config_dir"] = CONFIG_DIR;
       config_system_->LoadConfigFromIni(config_data_base_["config_dir"] + "/init_config.ini");
     }
@@ -166,11 +166,13 @@ const size_t MM::ConfigSystem::ConfigSystem::Size() {
 }
 
 bool MM::ConfigSystem::ConfigSystem::Destroy() {
+  std::lock_guard<std::mutex> guard{sync_flag_};
   if (config_system_) {
-    if (config_system_.use_count() == 1) {
-      config_system_.reset();
-      return true;
-    }
+    delete config_system_;
+    config_data_base_.clear();
+    config_system_ = nullptr;
+
+    return true;
   }
   return false;
   }

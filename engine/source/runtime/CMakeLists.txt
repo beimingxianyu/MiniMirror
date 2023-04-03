@@ -29,16 +29,16 @@ AddMoudle("reflection" "${CMAKE_CURRENT_SOURCE_DIR}/core/reflection")
 AddMoudle("math" "${CMAKE_CURRENT_SOURCE_DIR}/core/math")
 target_link_libraries(math PUBLIC glm)
 
-########## task_flow ##########
-AddMoudle("task_flow" "${CMAKE_CURRENT_SOURCE_DIR}/core/task_flow")
-target_link_libraries(task_flow PUBLIC Taskflow_lib)
+########## task_system ##########
+AddMoudle("task_system" "${CMAKE_CURRENT_SOURCE_DIR}/core/task_system")
+target_link_libraries(task_system PUBLIC Taskflow_lib)
 
 #####################################################
 #####################  resource  ####################
 #####################################################
 ########## asset_type ##########
 AddMoudle("asset_type" "${CMAKE_CURRENT_SOURCE_DIR}/resource/asset_type")
-target_link_libraries(asset_type PUBLIC math assimp_lib stb)
+target_link_libraries(asset_type PUBLIC math assimp_lib stb task_system)
 
 ########## resource_system ##########
 AddMoudle("asset_system" "${CMAKE_CURRENT_SOURCE_DIR}/resource/asset_system")
@@ -53,4 +53,4 @@ target_link_libraries(asset_system PUBLIC file_system config_system log_system a
 
 ##########  render  ##########
 AddMoudle("render" "${CMAKE_CURRENT_SOURCE_DIR}/function/render")
-target_link_libraries(render PUBLIC math color log_system config_system file_system asset_system vulkan_lib glfw stb task_flow)
+target_link_libraries(render PUBLIC math color log_system config_system file_system asset_system vulkan_lib glfw stb task_system)

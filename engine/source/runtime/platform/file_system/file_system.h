@@ -129,7 +129,6 @@ class FileSystem {
   friend std::shared_ptr<FileSystem> std::make_shared();
 
 public:
-  ~FileSystem();
   FileSystem(const FileSystem&) = delete;
   FileSystem(const FileSystem&&) = delete;
   FileSystem& operator=(const FileSystem&) = delete;
@@ -326,19 +325,20 @@ public:
    */
   std::vector<Path> GetAll(const Path& path) const;
 
+private:
+  ~FileSystem();
+
   /**
    * \brief Destroy the instance. If it is successfully destroyed, it returns
    * true, otherwise it returns false.
-   * \remark Only when no other module uses
-   * this system can it be destroyed successfully.
    * \return If it is successfully
    * destroyed, it returns true, otherwise it returns false.
    */
-  bool Destroy();
+  static bool Destroy();
 
 protected:
   FileSystem() = default;
-  static std::shared_ptr<FileSystem> file_system_;
+  static FileSystem* file_system_;
 
 private:
   static std::mutex sync_flag_;

@@ -8,7 +8,7 @@ const std::string MM::RenderSystem::RenderEngine::validation_layers_name{
 void MM::RenderSystem::RenderEngine::Init() {
   InitGlfw();
   InitVulkan();
-  
+  InitInfo();
 
   is_initialized_ = true;
 }

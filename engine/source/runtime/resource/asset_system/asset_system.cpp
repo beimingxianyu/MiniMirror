@@ -1,13 +1,13 @@
 #include "runtime/resource/asset_system/asset_system.h"
 
-std::shared_ptr<MM::AssetSystem::AssetManager>
+MM::AssetSystem::AssetManager*
     MM::AssetSystem::AssetManager::asset_manager_{nullptr};
 std::atomic_uint32_t MM::AssetSystem::AssetManager::increase_ID_{0};
 std::mutex MM::AssetSystem::AssetManager::sync_flag_{};
 std::set<std::string> MM::AssetSystem::AssetManager::support_image_format{
     {"jpg", "png"}};
 
-std::shared_ptr<MM::AssetSystem::AssetSystem>
+MM::AssetSystem::AssetSystem*
     MM::AssetSystem::AssetSystem::asset_system_{nullptr};
 std::mutex MM::AssetSystem::AssetSystem::sync_flag_{};
 
@@ -96,30 +96,58 @@ bool MM::AssetSystem::AssetManager::ChangeAssetName(
   return false;
 }
 
-std::shared_ptr<MM::AssetSystem::AssetManager> MM::AssetSystem::AssetManager::
+bool MM::AssetSystem::AssetManager::Destroy() {
+  std::lock_guard<std::mutex> guard{sync_flag_};
+  if (asset_manager_) {
+    delete asset_manager_;
+    asset_manager_ = nullptr;
+
+    return true;
+  }
+
+  return true;
+}
+
+MM::AssetSystem::AssetManager* MM::AssetSystem::AssetManager::
 GetInstance() {
   if (asset_manager_) {
   } else {
     std::lock_guard<std::mutex> guard{sync_flag_};
     if (!asset_manager_) {
-      asset_manager_.reset(new AssetManager{});
+      asset_manager_ = new AssetManager{};
     }
   }
   return asset_manager_;
 }
 
-std::shared_ptr<MM::AssetSystem::AssetManager> MM::AssetSystem::AssetSystem::
+MM::AssetSystem::AssetManager& MM::AssetSystem::AssetSystem::
 GetAssetManager() const {
-  return assert_manager_;
+  return *assert_manager_;
 }
 
-std::shared_ptr<MM::AssetSystem::AssetSystem> MM::AssetSystem::AssetSystem::
+MM::AssetSystem::AssetSystem::~AssetSystem() {
+  MM::AssetSystem::AssetSystem::Destroy();
+}
+
+bool MM::AssetSystem::AssetSystem::Destroy() {
+  std::lock_guard<std::mutex> guard{sync_flag_};
+  if (asset_system_) {
+    delete asset_system_;
+    asset_system_ = nullptr;
+
+    return true;
+  }
+
+  return true;
+}
+
+MM::AssetSystem::AssetSystem* MM::AssetSystem::AssetSystem::
 GetInstance() {
   if (asset_system_) {
   } else {
     std::lock_guard<std::mutex> guard{sync_flag_};
     if (!asset_system_) {
-      asset_system_.reset(new AssetSystem{});
+      asset_system_ = new AssetSystem{};
     }
   }
   return asset_system_;

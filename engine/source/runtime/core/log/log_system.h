@@ -16,7 +16,6 @@ public:
   enum class LogLevel : uint8_t { Trace, Info, Debug, Warn, Error, Fatal };
 
 public:
-  ~LogSystem();
   LogSystem(const LogSystem& other) = delete;
   LogSystem(LogSystem&& other) = delete;
   LogSystem& operator=(const LogSystem& other) = delete;
@@ -24,33 +23,12 @@ public:
 
 
 public:
-  static std::shared_ptr<LogSystem> GetInstance();
+  static LogSystem* GetInstance();
 
-  void SetLevel(const LogLevel& level) {
-    switch (level) {
-      case LogLevel::Trace:
-        logger_->set_level(spdlog::level::trace);
-        break;
-      case LogLevel::Info:
-        logger_->set_level(spdlog::level::info);
-        break;
-      case LogLevel::Debug:
-        logger_->set_level(spdlog::level::debug);
-        break;
-      case LogLevel::Warn:
-        logger_->set_level(spdlog::level::warn);
-        break;
-      case LogLevel::Error:
-        logger_->set_level(spdlog::level::err);
-        break;
-      case LogLevel::Fatal:
-        logger_->set_level(spdlog::level::critical);
-        break;
-    }
-  }
+  void SetLevel(const LogLevel& level);
 
   template <typename... ARGS>
-  void Log(const LogLevel& level, ARGS&&... args) {
+  void Log(const LogLevel& level, ARGS&&... args) const {
     switch (level) {
       case LogLevel::Trace:
         LogSystem::logger_->trace(std::forward<ARGS>(args)...);
@@ -77,52 +55,54 @@ public:
   }
 
   template<typename ...ARGS>
-  void LogTrace(ARGS&&... args) {
+  void LogTrace(ARGS&&... args) const {
     logger_->trace(std::forward<ARGS>(args)...);
   }
 
   template<typename  ...ARGS>
-  void LogInfo(ARGS&&... args) {
+  void LogInfo(ARGS&&... args) const {
     logger_->info(std::forward<ARGS>(args)...);
   }
 
   template<typename ...ARGS>
-  void LogDebug(ARGS&&... args) {
+  void LogDebug(ARGS&&... args) const {
     logger_->debug(std::forward<ARGS>(args)...);
   }
 
   template<typename ...ARGS>
-  void LogWarn(ARGS&&... args) {
+  void LogWarn(ARGS&&... args) const {
     logger_->warn(std::forward<ARGS>(args)...);
   }
 
   template<typename ...ARGS>
-  void LogError(ARGS&&... args) {
+  void LogError(ARGS&&... args) const {
     logger_->error(std::forward<ARGS>(args)...);
   }
 
   template<typename ...ARGS>
-  void LogFatal(ARGS&&... args) {
+  void LogFatal(ARGS&&... args) const {
     logger_->critical(std::forward<ARGS>(args)...);
     FatalCallback(std::forward<ARGS>(args)...);
   }
 
   template <typename... Targets>
-  void FatalCallback(Targets&&... args) {
+  void FatalCallback(Targets&&... args) const {
     const std::string format_str = fmt::format(std::forward<Targets>(args)...);
     throw std::runtime_error(format_str);
   }
 
+private:
+  ~LogSystem();
+
   /**
    * \brief Destroy the instance. If it is successfully destroyed, it returns true, otherwise it returns false.
-   * \remark Only when no other module uses this system can it be destroyed successfully.
    * \return If it is successfully destroyed, it returns true, otherwise it returns false.
    */
-  bool Destroy();
+  static bool Destroy();
 
 protected:
   LogSystem() = default;
-  static std::shared_ptr<LogSystem> log_system_;
+  static LogSystem* log_system_;
 
 private:
   static std::mutex sync_flag_;

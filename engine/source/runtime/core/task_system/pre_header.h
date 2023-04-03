@@ -3,5 +3,7 @@
 #include <taskflow/taskflow.hpp>
 
 namespace MM {
-namespace TaskFlow = tf;
+namespace TaskSystem {
+using namespace tf;
+}
 }

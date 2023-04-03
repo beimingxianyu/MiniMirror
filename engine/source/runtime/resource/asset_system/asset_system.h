@@ -20,15 +20,20 @@ IMPORT_CONFIG_SYSTEM
 IMPORT_FILE_SYSTEM
 IMPORT_LOG_SYSTEM
 
+class AssetSystem;
+
 class AssetManager {
+  friend class AssetSystem;
+
  public:
-  ~AssetManager() = default;
   AssetManager(const AssetManager& other) = delete;
   AssetManager(AssetManager&& other) = delete;
   AssetManager& operator=(const AssetManager& other) = delete;
   AssetManager& operator=(AssetManager&& other) = delete;
 
  public:
+  static AssetManager* GetInstance();
+
   bool LoadImage(const std::string& asset_name,
                  const FileSystem::Path& image_path,
                  const int& desired_channels = STBI_rgb_alpha);
@@ -43,11 +48,14 @@ class AssetManager {
   bool ChangeAssetName(const uint32_t& asset_ID,
                        const std::string& new_asset_name);
 
-  static std::shared_ptr<AssetManager> GetInstance();
+private:
+  ~AssetManager() = default;
+
+  static bool Destroy();
 
  protected:
   AssetManager() = default;
-  static std::shared_ptr<AssetManager> asset_manager_;
+  static AssetManager* asset_manager_;
 
  private:
   std::multimap<std::string, uint32_t> asset_name_to_asset_ID_{};
@@ -61,23 +69,27 @@ class AssetManager {
 
 class AssetSystem {
  public:
-  ~AssetSystem() = default;
   AssetSystem(const AssetSystem& other) = delete;
   AssetSystem(AssetSystem&& other) noexcept = delete;
   AssetSystem& operator=(const AssetSystem& other) = delete;
   AssetSystem& operator=(AssetSystem&& other) = delete;
 
  public:
-  std::shared_ptr<AssetManager> GetAssetManager() const;
+  static AssetSystem* GetInstance();
+  AssetManager& GetAssetManager() const;
 
-  static std::shared_ptr<AssetSystem> GetInstance();
+private:
+  ~AssetSystem();
+
+  static bool Destroy();
 
  protected:
   AssetSystem();
-  static std::shared_ptr<AssetSystem> asset_system_;
+
+  static AssetSystem* asset_system_;
 
  private:
-  std::shared_ptr<AssetManager> assert_manager_{nullptr};
+  AssetManager* assert_manager_;
   static std::mutex sync_flag_;
 };
 }  // namespace AssetSystem

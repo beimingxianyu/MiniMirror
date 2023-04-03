@@ -1,7 +1,7 @@
 #include <runtime/platform/file_system/file_system.h>
 
 std::mutex MM::FileSystem::FileSystem::sync_flag_{};
-std::shared_ptr<MM::FileSystem::FileSystem> MM::FileSystem::FileSystem::file_system_{nullptr};
+MM::FileSystem::FileSystem* MM::FileSystem::FileSystem::file_system_{nullptr};
 
 
 MM::FileSystem::Path::Path(const Path& other)
@@ -418,11 +418,12 @@ std::vector<MM::FileSystem::Path> MM::FileSystem::FileSystem::GetAll(
 }
 
 bool MM::FileSystem::FileSystem::Destroy() {
+  std::lock_guard<std::mutex> guard{sync_flag_};
   if (file_system_) {
-    if (file_system_.use_count()) {
-      file_system_.reset();
-      return true;
-    }
+    delete file_system_;
+    file_system_ = nullptr;
+
+    return true;
   }
   return false;
 }

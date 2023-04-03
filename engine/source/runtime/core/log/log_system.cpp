@@ -2,7 +2,7 @@
 
 #include <cstdint>
 
-std::shared_ptr<MM::LogSystem::LogSystem> MM::LogSystem::LogSystem::log_system_{nullptr};
+MM::LogSystem::LogSystem* MM::LogSystem::LogSystem::log_system_{nullptr};
 std::mutex MM::LogSystem::LogSystem::sync_flag_{};
 
 MM::LogSystem::LogSystem::~LogSystem() {
@@ -11,12 +11,12 @@ MM::LogSystem::LogSystem::~LogSystem() {
   log_system_ = nullptr;
 }
 
-std::shared_ptr<MM::LogSystem::LogSystem> MM::LogSystem::LogSystem::GetInstance() {
+MM::LogSystem::LogSystem* MM::LogSystem::LogSystem::GetInstance() {
   if (log_system_) {
   } else {
     std::lock_guard<std::mutex> guard{sync_flag_};
     if (!log_system_) {
-      log_system_.reset(new LogSystem{});
+      log_system_ = new LogSystem{};
 
       auto console_sink =
           std::make_shared<spdlog::sinks::stdout_color_sink_mt>();
@@ -39,12 +39,36 @@ std::shared_ptr<MM::LogSystem::LogSystem> MM::LogSystem::LogSystem::GetInstance(
   return log_system_;
 }
 
+void MM::LogSystem::LogSystem::SetLevel(const LogLevel& level) {
+  switch (level) {
+    case LogLevel::Trace:
+      logger_->set_level(spdlog::level::trace);
+      break;
+    case LogLevel::Info:
+      logger_->set_level(spdlog::level::info);
+      break;
+    case LogLevel::Debug:
+      logger_->set_level(spdlog::level::debug);
+      break;
+    case LogLevel::Warn:
+      logger_->set_level(spdlog::level::warn);
+      break;
+    case LogLevel::Error:
+      logger_->set_level(spdlog::level::err);
+      break;
+    case LogLevel::Fatal:
+      logger_->set_level(spdlog::level::critical);
+      break;
+  }
+}
+
 bool MM::LogSystem::LogSystem::Destroy() {
+  std::lock_guard<std::mutex> guard(sync_flag_);
   if (log_system_) {
-    if (log_system_.use_count() == 1) {
-      log_system_.reset();
-      return true;
-    }
+    delete log_system_;
+    log_system_ = nullptr;
+
+    return true;
   }
   return false;
 }

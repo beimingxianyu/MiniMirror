@@ -44,22 +44,22 @@ bool IsNormalize(const dvec3& dvec);
 
 bool IsNormalize(const dvec4& dvec);
 
-template <int L, typename T, Qualifier Q = Qualifier::defaultp>
+template <int L, typename T, qualifier Q = qualifier::defaultp>
 vec<L, T, Q> Normalize(const vec<L, T, Q>& vec) {
   return glm::normalize(vec);
 }
 
-template <int L, typename T, Qualifier Q = Qualifier::defaultp>
+template <int L, typename T, qualifier Q = qualifier::defaultp>
 vec<L, T, Q> Transpose(const vec<L, T, Q>& vec) {
   return glm::transpose(vec);
 }
 
-template <int C, int R, typename T, Qualifier Q = Qualifier::defaultp>
+template <int C, int R, typename T, qualifier Q = qualifier::defaultp>
 mat<C, R, T, Q> Transpose(const mat<C, R, T, Q>& mat) {
   return glm::transpose(mat);
 }
 
-template <int C, int R, typename T, Qualifier Q = Qualifier::defaultp>
+template <int C, int R, typename T, qualifier Q = qualifier::defaultp>
 mat<C, R, T, Q> Inverse(const mat<C, R, T, Q>& mat) {
   return glm::inverse(mat);
 }
