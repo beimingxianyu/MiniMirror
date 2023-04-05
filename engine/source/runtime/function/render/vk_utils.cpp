@@ -289,7 +289,7 @@ void MM::RenderSystem::Utils::AddTransferImageCommands(VkCommandBuffer& command_
     AllocatedImage& image, const ImageTransferMode& transfer_mode,
     const VkDependencyFlags& flags) {
   auto image_barrier = Utils::GetImageTransferBarrier(image, transfer_mode);
-  auto image_transfer_dependency = Utils::GetImageDependencyInfo(image_barrier, flags);
+  const auto image_transfer_dependency = Utils::GetImageDependencyInfo(image_barrier, flags);
 
   vkCmdPipelineBarrier2(command_buffer, &image_transfer_dependency);
 }
@@ -472,6 +472,14 @@ bool MM::RenderSystem::Utils::DescriptorTypeIsStorageBuffer(
   }
 }
 
+bool MM::RenderSystem::Utils::DescriptorTypeIsStorageImage(
+    const VkDescriptorType& descriptor_type) {
+  if (!DescriptorTypeIsImage(descriptor_type)) {
+    return false;
+  }
+  return descriptor_type & VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+}
+
 bool MM::RenderSystem::Utils::DescriptorTypeIsUniformBuffer(
     const VkDescriptorType& descriptor_type) {
   return !DescriptorTypeIsStorageBuffer(descriptor_type);
@@ -536,4 +544,35 @@ VkCopyBufferInfo2 MM::RenderSystem::Utils::GetCopyBufferInfo(
   copy_buffer_info.pRegions = regions.data();
 
   return copy_buffer_info;
+}
+
+bool MM::RenderSystem::Utils::IsTransformSrcBuffer(const VkBufferUsageFlags& flags) {
+  return flags & VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
+}
+
+bool MM::RenderSystem::Utils::IsTransformDestBuffer(const VkBufferUsageFlags& flags) {
+  return flags & VK_BUFFER_USAGE_TRANSFER_DST_BIT;
+}
+
+bool MM::RenderSystem::Utils::IsTransformSrcImage(
+    const VkImageUsageFlags& flags) {
+  return flags & VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
+}
+
+bool MM::RenderSystem::Utils::IsTransformDestImage(
+    const VkImageUsageFlags& flags) {
+  return flags & VK_IMAGE_USAGE_TRANSFER_DST_BIT;
+}
+
+bool MM::RenderSystem::Utils::ResourceImageCanWrite(
+    const VkDescriptorType& descriptor_type) {
+  return Utils::DescriptorTypeIsStorageImage(descriptor_type);
+}
+
+bool MM::RenderSystem::Utils::ResourceBufferCanWrite(
+    const VkDescriptorType& descriptor_type) {
+  if (!DescriptorTypeIsBuffer(descriptor_type)) {
+    return false;
+  }
+  return DescriptorTypeIsStorageBuffer(descriptor_type);
 }

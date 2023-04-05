@@ -53,6 +53,7 @@ class RenderEngine {
 
   void CleanUp();
 
+
   public:
   /**
    * \brief Judge whether the object is valid (if the object is initialized, it
@@ -139,6 +140,18 @@ class RenderEngine {
                   const std::vector<VkDeviceSize>& dest_offsets,
                   const std::vector<VkDeviceSize>& sizes);
 
+  bool CopyDataToBuffer(AllocatedBuffer& dest_buffer, const void* data,
+                        const VkDeviceSize& copy_offset,
+                        const VkDeviceSize& copy_size);
+
+  bool RemoveBufferFragmentation(
+      AllocatedBuffer& buffer,
+      std::vector<BufferChunkInfo>& buffer_chunks_info) const;
+
+  bool RemoveBufferFragmentation(
+      AllocatedBuffer& buffer,
+      std::list<BufferChunkInfo>& buffer_chunks_info) const;
+
   const VkPhysicalDeviceFeatures& GetPhysicalDeviceFeatures() const;
 
   const VkPhysicalDeviceProperties& GetPhysicalDeviceProperties() const;
@@ -195,7 +208,7 @@ class RenderEngine {
 
  private:
   bool is_initialized_{false};
-  uint32_t flight_frame_number_{3};
+  uint32_t flight_frame_number_{1};
   VkExtent2D window_extent_{1920, 1080};
   bool enable_point_light_shadow_{true};
   std::vector<const char*> enable_layer_;

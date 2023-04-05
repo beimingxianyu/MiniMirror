@@ -9,7 +9,7 @@ namespace MM {
 namespace TaskSystem {
 enum class TaskType {
   Total,
-  Logic,
+  Common,
   Render,
   Physical
 };

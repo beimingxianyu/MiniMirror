@@ -79,13 +79,11 @@ class AssetSystem {
   AssetManager& GetAssetManager() const;
 
 private:
-  ~AssetSystem();
-
   static bool Destroy();
 
  protected:
+  ~AssetSystem();
   AssetSystem();
-
   static AssetSystem* asset_system_;
 
  private:

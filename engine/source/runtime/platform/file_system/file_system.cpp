@@ -228,13 +228,13 @@ void MM::FileSystem::Path::ReplacePath(const std::string& other_path) {
   path_ = std::make_unique<std::filesystem::path>(other_path);
 };
 
-std::shared_ptr<MM::FileSystem::FileSystem>
+MM::FileSystem::FileSystem*
 MM::FileSystem::FileSystem::GetInstance() {
   if (file_system_) {
   } else {
     std::lock_guard<std::mutex> guard(sync_flag_);
     if (!file_system_) {
-      file_system_.reset(new FileSystem{});
+      file_system_ = new FileSystem{};
     }
   }
   return file_system_;

@@ -127,11 +127,10 @@ public:
 
 protected:
   ConfigSystem() = default;
+  ~ConfigSystem();
   static ConfigSystem* config_system_;
 
 private:
-  ~ConfigSystem();
-
   /**
    * \brief Destroy the instance. If it is successfully destroyed, it returns
    * true, otherwise it returns false.

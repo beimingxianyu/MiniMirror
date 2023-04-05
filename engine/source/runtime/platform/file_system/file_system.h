@@ -139,7 +139,7 @@ public:
    * \brief Create Instance.
    * \return A FileSystem pointer.
    */
-  static std::shared_ptr<MM::FileSystem::FileSystem> GetInstance();
+  static MM::FileSystem::FileSystem* GetInstance();
 
   /**
    * \brief Checks whether path refers to existing file system object.
@@ -326,8 +326,6 @@ public:
   std::vector<Path> GetAll(const Path& path) const;
 
 private:
-  ~FileSystem();
-
   /**
    * \brief Destroy the instance. If it is successfully destroyed, it returns
    * true, otherwise it returns false.
@@ -338,6 +336,7 @@ private:
 
 protected:
   FileSystem() = default;
+  ~FileSystem();
   static FileSystem* file_system_;
 
 private:

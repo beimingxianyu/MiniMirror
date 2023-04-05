@@ -92,8 +92,6 @@ public:
   }
 
 private:
-  ~LogSystem();
-
   /**
    * \brief Destroy the instance. If it is successfully destroyed, it returns true, otherwise it returns false.
    * \return If it is successfully destroyed, it returns true, otherwise it returns false.
@@ -102,6 +100,7 @@ private:
 
 protected:
   LogSystem() = default;
+  ~LogSystem();
   static LogSystem* log_system_;
 
 private:

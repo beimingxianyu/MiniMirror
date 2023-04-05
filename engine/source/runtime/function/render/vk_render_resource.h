@@ -23,63 +23,122 @@ namespace RenderSystem {
 class RenderEngine;
 class RenderResourceBase;
 
-class RenderResourceManager {
-  friend class RenderResourceBase;
+// TODO RenderSystem memory collection
+class RenderResourceManager : public RenderManageBase<RenderResourceBase> {
+  public:
+   RenderResourceManager(const RenderResourceManager& other) = delete;
+   RenderResourceManager(RenderResourceManager&& other) = delete;
+  RenderResourceManager& operator=(const RenderResourceManager& other) = delete;
+   RenderResourceManager& operator=(RenderResourceManager&& other) = delete;
+
 
  public:
-  static std::shared_ptr<RenderResourceManager> GetInstance();
+  static RenderResourceManager* GetInstance();
+
+  bool IsUseToWrite(const std::string& resource_name, bool& result) const;
+
+  bool IsUseToWrite(const std::uint32_t& resource_ID) const;
+
+  bool IsStage(const std::string& resource_name, bool& result) const;
+
+  bool IsStage(const std::uint32_t& resource_ID) const;
+
+  bool HaveResource(const std::uint32_t& resource_ID) const;
+
+  uint64_t GetAssetIDFromResourceID(const uint32_t& resource_id) const;
+
+  bool GetAssetIDFromResourceID(const uint32_t& resource_id,
+                                std::uint64_t& output_asset_ID) const;
+
+  bool HaveAsset(const std::uint64_t& asset_ID) const;
+
+  uint32_t GetResourceIDFromName(const std::string& resource_name) const;
+
+  const std::string& GetResourceNameFromID(
+      const std::uint32_t& resource_ID) const;
+
+  bool GetResourceIDsFromAssetID(
+      const uint64_t& asset_ID,
+      std::vector<uint32_t>& output_resource_IDs) const;
+
+   std::uint32_t GetDeepCopy(const std::string& new_name_of_object,
+       const std::string& object_name) override;
+
+   std::uint32_t GetDeepCopy(const std::string& new_name_of_object,
+       const std::uint32_t& object_ID) override;
+
+   std::uint32_t GetLightCopy(const std::string& new_name_of_object,
+       const std::string& object_name) override;
+
+   std::uint32_t GetLightCopy(const std::string& new_name_of_object,
+       const std::uint32_t& object_ID) override;
+
+   std::uint32_t SaveData(std::unique_ptr<RenderResourceBase>&& object) override;
+
+   std::uint32_t SaveData(std::unique_ptr<RenderResourceBase>&& object,
+                          const RenderResourceManageInfo& manage_info,
+                          const uint64_t& asset_ID = 0);
+
+  std::uint32_t UseToWrite(const std::string& new_name_of_object,
+                            const std::string& object_name,
+                            const bool& is_stage = false);
+
+  std::uint32_t UseToWrite(const std::string& new_name_of_object,
+                           const std::uint32_t& resource_ID,
+                           const bool& is_stage = false);
+
+   void AddUse(const std::uint32_t& object_ID) override;
+
+   bool AddUse(const std::string& object_name) override;
+
+   void ReleaseUse(const std::uint32_t& object_id) override;
 
  protected:
-  RenderResourceManager() = default;
-  static std::shared_ptr<RenderResourceManager> render_resource_manager_;
+  RenderResourceManager();
+  ~RenderResourceManager() = default;
+  static RenderResourceManager* render_resource_manager_;
 
- private:
-  static std::mutex sync_flag;
-  static std::atomic_uint32_t increase_index;
+private:
+  static bool Destroy();
 
-  std::unordered_map<uint32_t, RenderResourceBase> resources_;
+private:
+  static std::mutex sync_flag_;
+
+  mutable std::shared_mutex resource_lock_{};
+  std::unordered_map<uint64_t, std::vector<uint32_t>> asset_ID_to_resource_IDs_{};
+  std::unordered_map<uint32_t, uint64_t> resource_ID_to_asset_ID_{};
+  std::unordered_map<uint32_t, RenderResourceManageInfo>
+      resource_ID_to_manage_info{};
 };
 
-class RenderResourceBase {
+class RenderResourceBase : ManagedObjectBase {
+  friend class RenderResourceTexture;
+  friend class RenderResourceBuffer;
+  friend class RenderResourceMesh;
+  friend class RenderResourceFrameBuffer;
+  template <typename ConstantType>
+  friend class RenderResourceConstants;
+
  public:
   RenderResourceBase();
-  virtual ~RenderResourceBase() = default;
+  virtual ~RenderResourceBase() override = default;
   RenderResourceBase(const std::string& resource_name);
   RenderResourceBase(const RenderResourceBase& other) = default;
   RenderResourceBase(RenderResourceBase&& other) noexcept;
   RenderResourceBase& operator=(const RenderResourceBase& other);
   RenderResourceBase& operator=(RenderResourceBase&& other) noexcept;
 
-  friend bool operator==(const RenderResourceBase& lhs,
-                         const RenderResourceBase& rhs) {
-    return lhs.resource_ID_ == rhs.resource_ID_;
-  }
-
-  friend bool operator!=(const RenderResourceBase& lhs,
-                         const RenderResourceBase& rhs) {
-    return !(lhs == rhs);
-  }
-
  public:
   const std::string& GetResourceName() const;
-  RenderResourceBase& SetResourceName(const std::string& new_resource_name);
 
   const uint32_t& GetResourceID() const;
-
-  std::shared_ptr<std::unordered_set<uint32_t>> GetReadPassSet();
-  std::shared_ptr<const std::unordered_set<uint32_t>> GetReadPassSet() const;
-  RenderResourceBase& AddReadPass(const uint32_t& read_pass_index);
-
-  std::shared_ptr<std::unordered_set<uint32_t>> GetWritePassSet();
-  std::shared_ptr<const std::unordered_set<uint32_t>> GetWritePassSet() const;
-  RenderResourceBase& AddWritePass(const uint32_t& write_pass_index);
 
   virtual bool IsValid() const = 0;
 
   /**
    * \brief Release ownership of the resources held.
    */
-  virtual void Release();
+  void Release() override;
 
   /**
    * \brief replaces the managed object
@@ -110,36 +169,23 @@ class RenderResourceBase {
    */
   virtual bool IsArray() const = 0;
 
- private:
-  std::string resource_name_{};
-  uint32_t resource_ID_{0};
-  std::shared_ptr<std::unordered_set<uint32_t>> read_pass_set_{};
-  std::shared_ptr<std::unordered_set<uint32_t>> write_pass_set{};
+  virtual bool CanWrite() const = 0;
+
+  virtual std::unique_ptr<RenderResourceBase> GetLightCopy(const std::string& new_name_of_copy_resource) const;
+
+  virtual std::unique_ptr<RenderResourceBase> GetDeepCopy(const std::string& new_name_of_copy_resource) const;
+
+protected:
+  void SetResourceName(const std::string& new_resource_name);
+
+  void SetResourceID(const std::uint32_t& new_resource_ID);
 };
 
 class RenderResourceTexture final : public RenderResourceBase {
  public:
   RenderResourceTexture() = default;
   ~RenderResourceTexture() override = default;
-  RenderResourceTexture(
-      const std::string& resource_name, RenderEngine* engine,
-      const VkDescriptorType& descriptor_type,
-      const std::shared_ptr<AssetType::Image>& image, VkImageUsageFlags usages,
-      const VkImageLayout& image_layout, const uint32_t mipmap_levels& = 1,
-      const VmaMemoryUsage& memory_usage = VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE,
-      const VmaAllocationCreateFlags& allocation_flags = 0);
-  /**
-   * \remark This constructor does not check the correctness of parameters, so
-   * exceptions may be thrown. Therefore, please use this function with caution.
-   */
-  RenderResourceTexture(const std::string& resource_name, RenderEngine* engine,
-                        const VkDescriptorSetLayoutBinding& bind,
-                        const AllocatedImage& image,
-                        const ImageInfo& image_info,
-                        const std::shared_ptr<VkImageView>& image_view,
-                        const std::shared_ptr<VkSampler>& sampler,
-                        const std::shared_ptr<VkSemaphore>& semaphore);
-  RenderResourceTexture(const RenderResourceTexture& other) = default;
+  RenderResourceTexture(const RenderResourceTexture& other);
   RenderResourceTexture(RenderResourceTexture&& other) noexcept;
   RenderResourceTexture& operator=(const RenderResourceTexture& other);
   RenderResourceTexture& operator=(RenderResourceTexture&& other) noexcept;
@@ -162,7 +208,6 @@ class RenderResourceTexture final : public RenderResourceBase {
       const VkSamplerCreateInfo& sampler_create_info);
 
   RenderResourceTexture GetCopyWithNewImageView(
-      const VkFormat& image_format, const VkImageLayout& image_layout,
       const std::shared_ptr<VkImageView>& image_view);
 
   RenderResourceTexture GetCopyWithNewSampler(
@@ -179,6 +224,12 @@ class RenderResourceTexture final : public RenderResourceBase {
   bool HaveSample() const;
 
   bool IsValid() const override;
+
+  std::unique_ptr<RenderResourceBase> GetLightCopy(
+      const std::string& new_name_of_copy_resource) const override;
+
+  std::unique_ptr<RenderResourceBase> GetDeepCopy(
+      const std::string& new_name_of_copy_resource) const override;
 
   /**
    * \brief Release ownership of the resources held.
@@ -204,7 +255,25 @@ class RenderResourceTexture final : public RenderResourceBase {
 
   bool IsArray() const override;
 
- private:
+  bool CanWrite() const override;
+
+ protected:
+  RenderResourceTexture(
+      const std::string& resource_name, RenderEngine* engine,
+      const VkDescriptorType& descriptor_type,
+      const std::shared_ptr<AssetType::Image>& image, VkImageUsageFlags usages,
+      const VkImageLayout& image_layout, const uint32_t mipmap_levels& = 1,
+      const VmaMemoryUsage& memory_usage = VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE,
+      const VmaAllocationCreateFlags& allocation_flags = 0);
+  /**
+   * \remark This constructor does not check the correctness of parameters, so
+   * exceptions may be thrown. Therefore, please use this function with caution.
+   */
+  RenderResourceTexture(const std::string& resource_name, RenderEngine* engine,
+                        const AllocatedImage& image,
+                        const ImageBindInfo& image_bind_info);
+
+private:
   bool CheckInitParameter(const RenderEngine* engine,
                           const VkDescriptorType& descriptor_type,
                           const std::shared_ptr<AssetType::Image>& image,
@@ -212,12 +281,13 @@ class RenderResourceTexture final : public RenderResourceBase {
                           VkImageUsageFlags usages) const;
 
   bool LoadImageToStageBuffer(const std::shared_ptr<AssetType::Image>& image,
-                              AllocatedBuffer& stage_buffer);
+                              AllocatedBuffer& stage_buffer, MM::RenderSystem::ImageInfo& image_info);
 
   bool InitImage(
       const AllocatedBuffer& stage_buffer, VkImageUsageFlags usages,
       const VmaMemoryUsage& memory_usage = VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE,
-      const VmaAllocationCreateFlags& allocation_flags = 0);
+      const VmaAllocationCreateFlags& allocation_flags = 0, const ImageInfo&
+      image_info);
 
   bool GenerateMipmap();
 
@@ -229,43 +299,15 @@ class RenderResourceTexture final : public RenderResourceBase {
 
  private:
   RenderEngine* render_engine_{nullptr};
-  VkDescriptorSetLayoutBinding bind_{};
   AllocatedImage image_{};
-  ImageInfo image_info_;
-  std::shared_ptr<VkImageView> image_view_{nullptr};
-  std::shared_ptr<VkSampler> sampler_{nullptr};
-  std::shared_ptr<VkSemaphore> semaphore_{nullptr};
+  ImageBindInfo image_bind_info_{};
 };
 
 class RenderResourceBuffer final : public RenderResourceBase {
+  // TODO add friend class RenderResourceManage
  public:
-  RenderResourceBuffer() = default;
+  RenderResourceBuffer() = delete;
   ~RenderResourceBuffer() override = default;
-  /**
-   * \remrak If the type of \ref descriptor_type is not one of dynamic buffer
-   * type, the \ref dynamic_offset parameter is invalid. \remark If the \ref
-   * data is nullptr, the \ref copy_size and \ref dynamic_offset parameters is
-   * invalid. \remark The \ref copy_offset is the offset of the buffer that this
-   * object hold will be
-   */
-  RenderResourceBuffer(
-      const std::string& resource_name, RenderEngine* engine,
-      const VkDescriptorType& descriptor_type, VkBufferUsageFlags buffer_usage,
-      const VkDeviceSize& size, const VkDeviceSize& offset,
-      const VkDeviceSize& dynamic_offset = 0, void* data = nullptr,
-      const VkDeviceSize& copy_offset = 0, const VkDeviceSize& copy_size = size,
-      const VkBufferCreateFlags& buffer_flags = 0,
-      const VmaMemoryUsage& memory_usage = VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE,
-      const VmaAllocationCreateFlags& allocation_flags = 0);
-  /**
-   * \remark This constructor does not check the correctness of parameters, so
-   * exceptions may be thrown. Therefore, please use this function with caution.
-   */
-  RenderResourceBuffer(const std::string& resource_name, RenderEngine* engine,
-                       const VkDescriptorSetLayoutBinding& bind,
-                       const BufferInfo& buffer_info,
-                       const AllocatedBuffer& buffer,
-                       const std::shared_ptr<VkSemaphore>& semaphore);
   RenderResourceBuffer(const RenderResourceBuffer& other) = default;
   RenderResourceBuffer(RenderResourceBuffer&& other) noexcept;
   RenderResourceBuffer& operator=(const RenderResourceBuffer& other);
@@ -273,8 +315,6 @@ class RenderResourceBuffer final : public RenderResourceBase {
 
  public:
   const VkDescriptorType& GetDescriptorType() const;
-
-  RenderResourceBuffer GetCopy() const;
 
   /**
    * \remark Returns a RenderResourceBuffer with an offset value of \ref
@@ -334,7 +374,7 @@ class RenderResourceBuffer final : public RenderResourceBase {
 
   const bool& CanMapped() const;
 
-  const BufferInfo& GetBufferInfo() const;
+  const BufferBindInfo& GetBufferInfo() const;
 
   bool IsValid() const override;
 
@@ -350,20 +390,44 @@ class RenderResourceBuffer final : public RenderResourceBase {
 
   bool IsArray() const override;
 
- private:
+  bool CanWrite() const override;
+
+ protected:
+  /**
+   * \remrak If the type of \ref descriptor_type is not one of dynamic buffer
+   * type, the \ref dynamic_offset parameter is invalid.
+   */
+  RenderResourceBuffer(
+      const std::string& resource_name, RenderEngine* engine,
+      const VkDescriptorType& descriptor_type, VkBufferUsageFlags buffer_usage,
+      const VkDeviceSize& size, const VkDeviceSize& offset, const VkDeviceSize& size_range = VK_WHOLE_SIZE,
+      const VkDeviceSize& dynamic_offset = 0, const DataToBufferInfo& data_info,
+      const VkBufferCreateFlags& buffer_flags = 0,
+      const VmaMemoryUsage& memory_usage = VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE,
+      const VmaAllocationCreateFlags& allocation_flags = 0);
+  /**
+   * \remark This constructor does not check the correctness of parameters, so
+   * exceptions may be thrown. Therefore, please use this function with caution.
+   */
+  RenderResourceBuffer(const std::string& resource_name, RenderEngine* engine,
+                       const BufferBindInfo& buffer_info,
+                       const AllocatedBuffer& buffer);
+
+private:
   bool CheckInitParameter(const RenderEngine* engine,
                           const VkDescriptorType& descriptor_type,
                           const VkBufferUsageFlags& buffer_usage,
-                          const VkDeviceSize& size, const VkDeviceSize& offset,
-                          const VkDeviceSize& dynamic_offset, const void* data,
-                          const VkDeviceSize& copy_offset,
-                          const VkDeviceSize& copy_size) const;
+                          const VkDeviceSize& size, const VkDeviceSize& range_size,
+                          const VkDeviceSize& offset, const VkDeviceSize& dynamic_offset,
+                          const void* data,
+                          const VkDeviceSize& copy_offset, const VkDeviceSize& copy_size) const;
 
   bool InitBuffer(
+      const VkDeviceSize&
+      size,
       const VkBufferUsageFlags& buffer_usage,
       const VkBufferCreateFlags& buffer_flags,
-      const VmaMemoryUsage& memory_usage = VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE,
-      const VmaAllocationCreateFlags& allocation_flags = 0);
+      const VmaMemoryUsage& memory_usage = VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE, const VmaAllocationCreateFlags& allocation_flags = 0);
 
   /**
    * \remark Returns true if the \ref data is nullptr or the data is
@@ -381,18 +445,15 @@ class RenderResourceBuffer final : public RenderResourceBase {
 
  private:
   RenderEngine* render_engine_{nullptr};
-  VkDescriptorSetLayoutBinding bind_{};
-  BufferInfo buffer_info_{};
+  BufferBindInfo buffer_bind_info_{};
   AllocatedBuffer buffer_{};
-  std::shared_ptr<VkSemaphore> semaphore_{nullptr};
+  // std::shared_ptr<VkSemaphore> semaphore_{nullptr};
 };
 
 class RenderResourceMesh final : public RenderResourceBase {
 public:
   RenderResourceMesh() = default;
   ~RenderResourceMesh() override = default;
-  RenderResourceMesh(const std::string& resource_name, RenderEngine* engine,
-                     const std::vector<AssetType::Mesh>& meshes);
   RenderResourceMesh(const RenderResourceMesh& other) = default;
   RenderResourceMesh(RenderResourceMesh&& other) noexcept;
   RenderResourceMesh& operator=(const RenderResourceMesh& other);
@@ -400,16 +461,27 @@ public:
 
 public:
   bool IsValid() const override;
+  void Release() override;
+  void Reset(MM::RenderSystem::RenderResourceBase* other) override;
+  uint32_t UseCount() const override;
+  ResourceType GetResourceType() const override;
+  const VkDeviceSize& GetSize() const override;
+  bool IsArray() const override;
+  bool CanWrite() const override;
+
+protected:
+  RenderResourceMesh(const std::string& resource_name, RenderEngine* engine,
+                     const std::vector<AssetType::Mesh>& meshes);
 
 private:
   RenderEngine* render_engine_{nullptr};
   VertexInputState vertex_input_state_{};
   AllocatedBuffer index_buffer_{};
-  BufferInfo index_buffer_info{};
+  BufferBindInfo index_buffer_info{};
   AllocatedBuffer vertex_buffer_{};
-  BufferInfo vertex_buffer_info{};
+  BufferBindInfo vertex_buffer_info{};
   std::vector<AllocatedBuffer> instance_buffers_{};
-  std::vector<BufferInfo> instance_buffers_info{};
+  std::vector<BufferBindInfo> instance_buffers_info{};
 };
 
 class RenderResourceFrameBuffer final : public RenderResourceBase {
@@ -475,6 +547,8 @@ class RenderResourceConstants final : public RenderResourceBase {
   uint32_t UseCount() const override;
 
   bool IsArray() const override;
+
+  bool CanWrite() const override;
 
  private:
   uint32_t offset_{0};
@@ -626,6 +700,11 @@ uint32_t RenderResourceConstants<ConstantType>::UseCount() const {
 
 template <typename ConstantType>
 bool RenderResourceConstants<ConstantType>::IsArray() const {
+  return false;
+}
+
+template <typename ConstantType>
+auto RenderResourceConstants<ConstantType>::CanWrite() const -> bool {
   return false;
 }
 }  // namespace RenderSystem

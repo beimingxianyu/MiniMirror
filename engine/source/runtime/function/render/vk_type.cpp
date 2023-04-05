@@ -7,6 +7,114 @@ bool MM::RenderSystem::QueueFamilyIndices::isComplete() const {
          compute_family_.has_value();
 }
 
+MM::RenderSystem::ManagedObjectBase::ManagedObjectBase(
+    const std::string& object_name, const std::uint32_t& object_ID) :
+object_name_(object_name), object_ID_(object_ID){}
+
+MM::RenderSystem::ManagedObjectBase::ManagedObjectBase(
+    ManagedObjectBase&& other) noexcept : object_name_(std::move(other.object_name_)), object_ID_(other.object_ID_){
+  other.object_ID_ = 0;
+}
+
+MM::RenderSystem::ManagedObjectBase& MM::RenderSystem::ManagedObjectBase::
+operator=(const ManagedObjectBase& other) {
+  if (&other == this) {
+    return *this;
+  }
+  object_name_ = other.object_name_;
+  object_ID_ = other.object_ID_;
+
+  return *this;
+}
+
+MM::RenderSystem::ManagedObjectBase& MM::RenderSystem::ManagedObjectBase::
+operator=(ManagedObjectBase&& other) noexcept {
+  if (&other == this) {
+    return *this;
+  }
+  object_name_ = std::move(other.object_name_);
+  object_ID_ = other.object_ID_;
+
+  other.object_ID_ = 0;
+
+  return *this;
+}
+
+const std::string& MM::RenderSystem::ManagedObjectBase::GetObjectName() const {
+  return object_name_;
+}
+
+const std::uint32_t& MM::RenderSystem::ManagedObjectBase::GetObjectID() const {
+  return object_ID_;
+}
+
+void MM::RenderSystem::ManagedObjectBase::Release() {
+  object_name_ = std::string{};
+  object_ID_ = 0;
+}
+
+void MM::RenderSystem::ManagedObjectBase::SetObjectName(
+    const std::string& new_object_name) {
+  object_name_ = new_object_name;
+}
+
+void MM::RenderSystem::ManagedObjectBase::SetObjectID(
+    const std::uint32_t& new_object_ID) {
+  object_ID_ = new_object_ID;
+}
+
+
+MM::RenderSystem::ImageBindInfo::ImageBindInfo(ImageBindInfo&& other) noexcept
+  : bind_(other.bind_),
+    image_view_(std::move(other.image_view_)),
+    sampler_(std::move(other.sampler_)),
+    semaphore_(std::move(other.semaphore_)) {
+  other.Reset();
+}
+
+MM::RenderSystem::ImageBindInfo& MM::RenderSystem::ImageBindInfo::operator=(
+    const ImageBindInfo& other)
+{
+  if (&other == this) {
+    return *this;
+  }
+  bind_ = other.bind_;
+  image_view_ = other.image_view_;
+  sampler_ = other.sampler_;
+  semaphore_ = other.semaphore_;
+
+  return *this;
+}
+
+MM::RenderSystem::ImageBindInfo& MM::RenderSystem::ImageBindInfo::operator=(
+    ImageBindInfo&& other) noexcept {
+  if (&other == this) {
+    return *this;
+  }
+  bind_ = other.bind_;
+  image_view_ = std::move(other.image_view_);
+  sampler_ = std::move(other.sampler_);
+  semaphore_ = std::move(other.semaphore_);
+
+  other.Reset();
+
+  return *this;
+}
+
+bool MM::RenderSystem::ImageBindInfo::IsValid() const {
+  if (bind_.descriptorCount == 0 || image_view_ == nullptr ||
+      sampler_ == nullptr || semaphore_ == nullptr) {
+    return false;
+  }
+  return true;
+}
+
+void MM::RenderSystem::ImageBindInfo::Reset() {
+  bind_.descriptorCount = 0;
+  sampler_.reset();
+  image_view_.reset();
+  semaphore_.reset();
+}
 
 void MM::RenderSystem::ImageInfo::Reset() {
   image_extent_ = {0, 0, 0};
@@ -17,12 +125,76 @@ void MM::RenderSystem::ImageInfo::Reset() {
   can_mapped_ = false;
 }
 
-void MM::RenderSystem::BufferInfo::Reset() {
-  buffer_size_ = 0;
+bool MM::RenderSystem::ImageInfo::IsValid() const {
+  if (image_size_ == 0 || image_format_ == VK_FORMAT_UNDEFINED ||
+      image_layout_ == VK_IMAGE_LAYOUT_UNDEFINED || mipmap_levels == 0 ||
+      image_extent_.width == 0 || image_extent_.height == 0 ||
+      image_extent_.depth == 0) {
+    return false;
+  }
+  return true;
+}
+
+MM::RenderSystem::BufferBindInfo::BufferBindInfo(
+    BufferBindInfo&& other) noexcept
+  : bind_(other.bind_),
+    range_size_(other.range_size_),
+    offset_(other.offset_),
+    dynamic_offset_(other.dynamic_offset_),
+    semaphore_(std::move(other.semaphore_)) {
+  other.Reset();
+}
+
+MM::RenderSystem::BufferBindInfo& MM::RenderSystem::BufferBindInfo::operator=(
+    const BufferBindInfo& other) {
+  if (&other == this) {
+    return *this;
+  }
+  bind_ = other.bind_;
+  range_size_ = other.range_size_;
+  offset_ = other.offset_;
+  dynamic_offset_ = other.dynamic_offset_;
+  semaphore_ = other.semaphore_;
+
+  return *this;
+}
+
+MM::RenderSystem::BufferBindInfo& MM::RenderSystem::BufferBindInfo::operator=(
+    BufferBindInfo&& other) noexcept {
+  if (&other == this) {
+    return *this;
+  }
+  bind_ = other.bind_;
+  range_size_ = other.range_size_;
+  offset_ = other.offset_;
+  dynamic_offset_ = other.dynamic_offset_;
+  semaphore_ = std::move(other.semaphore_);
+
+  other.Reset();
+
+  return *this;
+}
+
+void MM::RenderSystem::BufferBindInfo::Reset() {
+  range_size_ = 0;
   offset_ = 0;
   dynamic_offset_ = 0;
-  can_mapped_ = 0;
+  semaphore_.reset();
 }
+
+bool MM::RenderSystem::BufferBindInfo::IsValid() const {
+  return range_size_ != 0 && dynamic_offset_ < range_size_ &&
+             bind_.descriptorCount != 0 && semaphore_ != nullptr;
+}
+
+void MM::RenderSystem::BufferInfo::Reset() {
+  buffer_size_ = 0;
+  can_mapped_ = false;
+  is_transform_src = false;
+  is_transform_dest = false;
+}
+
+bool MM::RenderSystem::BufferInfo::IsValid() const { return buffer_size_ != 0; }
 
 MM::RenderSystem::VertexInputState::VertexInputState()
     : vertex_bind_(),
@@ -528,16 +700,23 @@ bool MM::RenderSystem::AllocatedCommandBuffer::AllocatedCommandBufferWrapper::
 
 MM::RenderSystem::AllocatedBuffer::AllocatedBuffer(
     const VmaAllocator& allocator, const VkBuffer& buffer,
-    const VmaAllocation& allocation) : wrapper_(std::make_shared<AllocatedBufferWrapper>(allocator, buffer, allocation)){}
+    const VmaAllocation& allocation, const BufferInfo& buffer_info)
+  : buffer_info_(buffer_info),
+    wrapper_(
+        std::make_shared<AllocatedBufferWrapper>(
+            allocator, buffer, allocation)) {
+}
 
 MM::RenderSystem::AllocatedBuffer::AllocatedBuffer(
-    AllocatedBuffer&& other) noexcept : wrapper_(std::move(other.wrapper_)){}
+    AllocatedBuffer&& other) noexcept : buffer_info_(other.buffer_info_), wrapper_(std::move(other.wrapper_)){}
 
 MM::RenderSystem::AllocatedBuffer& MM::RenderSystem::AllocatedBuffer::operator=(
     const AllocatedBuffer& other) {
   if (&other == this) {
     return *this;
   }
+
+  buffer_info_ = other.buffer_info_;
   wrapper_ = other.wrapper_;
 
   return *this;
@@ -548,9 +727,31 @@ MM::RenderSystem::AllocatedBuffer& MM::RenderSystem::AllocatedBuffer::operator=(
   if (&other == this) {
     return *this;
   }
+  buffer_info_ = other.buffer_info_;
   wrapper_ = std::move(other.wrapper_);
 
   return *this;
+}
+
+const VkDeviceSize& MM::RenderSystem::AllocatedBuffer::GetBufferSize() const {
+  return buffer_info_.buffer_size_;
+}
+
+bool MM::RenderSystem::AllocatedBuffer::CanMapped() const {
+  return buffer_info_.can_mapped_;
+}
+
+bool MM::RenderSystem::AllocatedBuffer::IsTransformSrc() const {
+  return buffer_info_.is_transform_src;
+}
+
+bool MM::RenderSystem::AllocatedBuffer::IsTransformDest() const {
+  return buffer_info_.is_transform_dest;
+}
+
+const MM::RenderSystem::BufferInfo& MM::RenderSystem::AllocatedBuffer::
+GetBufferInfo() const {
+  return buffer_info_;
 }
 
 const VmaAllocator& MM::RenderSystem::AllocatedBuffer::GetAllocator() const {
@@ -565,7 +766,10 @@ const VmaAllocation& MM::RenderSystem::AllocatedBuffer::GetAllocation() const {
   return wrapper_->GetAllocation();
 }
 
-void MM::RenderSystem::AllocatedBuffer::Release() { wrapper_.reset(); }
+void MM::RenderSystem::AllocatedBuffer::Release() {
+  buffer_info_.Reset();
+  wrapper_.reset();
+}
 
 uint32_t MM::RenderSystem::AllocatedBuffer::UseCount() const {
   return wrapper_.use_count();
@@ -614,8 +818,13 @@ IsValid() const {
 
 MM::RenderSystem::AllocatedImage::AllocatedImage(
     const VmaAllocator& allocator, const VkImage& image,
-    const VmaAllocation& allocation)
-    : wrapper_(std::make_shared<AllocatedImageWrapper>(allocator, image, allocation)) {}
+    const VmaAllocation& allocation, const ImageInfo& image_info)
+    : image_info_(image_info), wrapper_(std::make_shared<AllocatedImageWrapper>(allocator, image, allocation)) {
+  if (!image_info_.IsValid()) {
+    image_info_.Reset();
+    wrapper_.reset();
+  }
+}
 
 
 MM::RenderSystem::AllocatedImage::AllocatedImage(
@@ -640,6 +849,43 @@ MM::RenderSystem::AllocatedImage& MM::RenderSystem::AllocatedImage::operator=(
   return *this;
 }
 
+const VkExtent3D& MM::RenderSystem::AllocatedImage::GetImageExtent() const {
+  return image_info_.image_extent_;
+}
+
+const VkDeviceSize& MM::RenderSystem::AllocatedImage::GetImageSize() const {
+  return image_info_.image_size_;
+}
+
+const VkFormat& MM::RenderSystem::AllocatedImage::GetImageFormat() const {
+  return image_info_.image_format_;
+}
+
+const VkImageLayout& MM::RenderSystem::AllocatedImage::GetImageLayout() const {
+  return image_info_.image_layout_;
+}
+
+const uint32_t& MM::RenderSystem::AllocatedImage::GetMipmapLevels() const {
+  return image_info_.mipmap_levels;
+}
+
+const bool& MM::RenderSystem::AllocatedImage::CanMapped() const {
+  return image_info_.can_mapped_;
+}
+
+const bool& MM::RenderSystem::AllocatedImage::IsTransformSrc() const {
+  return image_info_.is_transform_src_;
+}
+
+const bool& MM::RenderSystem::AllocatedImage::IsTransformDest() const {
+  return image_info_.is_transform_dest_;
+}
+
+const MM::RenderSystem::ImageInfo& MM::RenderSystem::AllocatedImage::
+GetImageInfo() const {
+  return image_info_;
+}
+
 const VmaAllocator& MM::RenderSystem::AllocatedImage::GetAllocator() const {
   return wrapper_->GetAllocator();
 }
@@ -659,7 +905,7 @@ uint32_t MM::RenderSystem::AllocatedImage::UseCount() const {
 }
 
 bool MM::RenderSystem::AllocatedImage::IsValid() const {
-  return wrapper_ != nullptr && wrapper_->IsValid();
+  return wrapper_ != nullptr && wrapper_->IsValid() && image_info_.IsValid();
 }
 
 MM::RenderSystem::AllocatedImage::AllocatedImageWrapper::~
@@ -675,7 +921,7 @@ MM::RenderSystem::AllocatedImage::AllocatedImageWrapper::AllocatedImageWrapper(
     const VmaAllocation& allocation)
   : allocator_(allocator),
     image_(image),
-    allocation_(allocation) {
+    allocation_(allocation){
   if (allocator_ == nullptr || image_ == nullptr || allocation_ == nullptr) {
     allocator_ = nullptr;
     image_ = nullptr;
@@ -774,6 +1020,8 @@ MM::RenderSystem::VertexAndIndexBuffer::VertexAndIndexBuffer(
     Release();
     LOG_ERROR("Failed to create index total buffer.")
   }
+
+  accessible_ = true;
 }
 
 bool MM::RenderSystem::VertexAndIndexBuffer::IsValid() const {
@@ -791,14 +1039,28 @@ const MM::RenderSystem::AllocatedBuffer& MM::RenderSystem::VertexAndIndexBuffer
   return index_buffer_;
 }
 
-const MM::RenderSystem::BufferInfo& MM::RenderSystem::VertexAndIndexBuffer::
+const MM::RenderSystem::BufferBindInfo& MM::RenderSystem::VertexAndIndexBuffer::
 GetVertexBufferInfo() const {
   return vertex_buffer_info_;
 }
 
-const MM::RenderSystem::BufferInfo& MM::RenderSystem::VertexAndIndexBuffer::
+const MM::RenderSystem::BufferBindInfo& MM::RenderSystem::VertexAndIndexBuffer::
 GetIndexBufferInfo() const {
   return index_buffer_info_;
+}
+
+bool MM::RenderSystem::VertexAndIndexBuffer::Accessible() const {
+  return accessible_;
+}
+
+bool MM::RenderSystem::VertexAndIndexBuffer::AllocateBuffer(
+    const std::vector<AssetType::Vertex>& vertices,
+    const std::vector<uint32_t>& indexes,
+    const std::shared_ptr<BufferChunkInfo>& output_buffer_chunk_info) {
+  VkDeviceSize vertices_size = sizeof(AssetType::Vertex) * vertices.size();
+  VkDeviceSize indexes_size = sizeof(uint32_t) * indexes.size();
+
+
 }
 
 void MM::RenderSystem::VertexAndIndexBuffer::Release() {
@@ -810,6 +1072,35 @@ void MM::RenderSystem::VertexAndIndexBuffer::Release() {
   index_buffer_chunks_info.clear();
 }
 
-bool MM::RenderSystem::VertexAndIndexBuffer::Reserve() {
+bool MM::RenderSystem::VertexAndIndexBuffer::ReserveVertexBuffer() {
 
+}
+
+bool MM::RenderSystem::VertexAndIndexBuffer::Reserve() {
+  TaskSystem::Taskflow task_flow;
+  bool buffer_result = false, index_result = false;
+  task_flow.emplace(
+      [object = this, &buffer_result]() {
+        buffer_result = (*object).ReserveVertexBuffer();
+      },
+      [object = this, &index_result]() {
+        index_result = (*object).ReserveIndexBuffer();
+      });
+
+  TASK_SYSTEM->RunAndWait(TaskSystem::TaskType::Render, task_flow);
+
+  if (buffer_result & index_result) {
+    return true;  
+  }
+  return false;
+}
+
+bool MM::RenderSystem::operator==(const ManagedObjectBase& lhs,
+    const ManagedObjectBase& rhs) {
+  return lhs.object_ID_ == rhs.object_ID_;
+}
+
+bool MM::RenderSystem::operator!=(const ManagedObjectBase& lhs,
+    const ManagedObjectBase& rhs) {
+  return !(lhs == rhs);
 }

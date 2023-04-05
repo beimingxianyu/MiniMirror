@@ -170,6 +170,8 @@ VkDeviceSize GetMinAlignmentSizeFromOriginalSize(const VkDeviceSize& min_alignme
 
 bool DescriptorTypeIsStorageBuffer(const VkDescriptorType& descriptor_type);
 
+bool DescriptorTypeIsStorageImage(const VkDescriptorType& descriptor_type);
+
 bool DescriptorTypeIsUniformBuffer(const VkDescriptorType& descriptor_type);
 
 bool DescriptorTypeIsTexel(const VkDescriptorType& descriptor_type);
@@ -187,6 +189,18 @@ VkBufferCopy2 GetCopyBufferRegion(const VkDeviceSize& size,
 VkCopyBufferInfo2 GetCopyBufferInfo(const AllocatedBuffer& src_buffer,
                                     const AllocatedBuffer& dest_buffer,
                                     const std::vector<VkBufferCopy2>& regions);
+
+bool IsTransformSrcBuffer(const VkBufferUsageFlags& flags);
+
+bool IsTransformDestBuffer(const VkBufferUsageFlags& flags);
+
+bool IsTransformSrcImage(const VkImageUsageFlags& flags);
+
+bool IsTransformDestImage(const VkImageUsageFlags& flags);
+
+bool ResourceImageCanWrite(const VkDescriptorType& descriptor_type);
+
+bool ResourceBufferCanWrite(const VkDescriptorType& descriptor_type);
 }
 }
 }

@@ -15,8 +15,10 @@ void MM::RenderSystem::RenderEngine::Init() {
 
 void MM::RenderSystem::RenderEngine::Run() {
   while (!glfwWindowShouldClose(window_)) {
+    // TODO Update resource
+    // TODO Update render graph
     // Draw();
-    glfwPollEvents();
+    glfwPollEvents();  
   }
 }
 
@@ -266,9 +268,32 @@ bool MM::RenderSystem::RenderEngine::RecordAndSubmitSingleTimeCommand(
 bool MM::RenderSystem::RenderEngine::CopyBuffer(AllocatedBuffer& src_buffer,
                                                 AllocatedBuffer& dest_buffer, const VkDeviceSize& src_offset,
                                                 const VkDeviceSize& dest_offset, const VkDeviceSize& size) {
+  if (!src_buffer.IsValid()) {
+    LOG_ERROR("Src_buffer is invalid.")
+    return false;
+  }
+
+  if (!dest_buffer.IsValid()) {
+    LOG_ERROR("Dest_buffer is invalid.")
+    return false;
+  }
+
+  if (!src_buffer.IsTransformSrc() || !dest_buffer.IsTransformDest()) {
+    LOG_ERROR(
+        "Src_buffer or dest_buffer is not Transform src buffer or Transform "
+        "dest buffer.")
+    return false;
+  }
+
   if (size == 0) {
     return true;
   }
+
+  if (src_offset + size > src_buffer.GetBufferSize() || dest_offset + size > dest_buffer.GetBufferSize()) {
+    LOG_ERROR("The sum of size and src_offset/dest_offset is too large.")
+    return false;
+  }
+  
   if (dest_buffer.GetBuffer() == src_buffer.GetBuffer() && dest_offset - src_offset < size) {
     const auto stage_buffer = CreateBuffer(
         size,
@@ -284,18 +309,35 @@ bool MM::RenderSystem::RenderEngine::CopyBuffer(AllocatedBuffer& src_buffer,
     if (!RecordAndSubmitSingleTimeCommand(CommandBufferType::GRAPH, [&copy_info = src_to_stage_buffer_copy_info](VkCommandBuffer& cmd) {
               vkCmdCopyBuffer2(cmd, &copy_info);
     }, true)) {
-      LOG_ERROR("Failed to copy data form src_buffer to dest_buffer.")
+      LOG_ERROR("Failed to copy data form src_buffer to stage_buffer.")
+      return false;
+    }
+
+    const auto stage_to_dest_buffer_copy_region =
+        Utils::GetCopyBufferRegion(size, 0, dest_offset);
+    const auto stage_to_dest_buffer_copy_info = Utils::GetCopyBufferInfo(
+        stage_buffer, dest_buffer,
+        std::vector<VkBufferCopy2>{stage_to_dest_buffer_copy_region});
+
+    if (!RecordAndSubmitSingleTimeCommand(
+            CommandBufferType::GRAPH,
+            [&copy_info = stage_to_dest_buffer_copy_info](
+                VkCommandBuffer& cmd) {
+              vkCmdCopyBuffer2(cmd, &copy_info);
+            },
+            true)) {
+      LOG_ERROR("Failed to copy data form stage_buffer to dest_buffer.")
       return false;
     }
 
     return true;
   }
 
-  const auto src_to_stage_buffer_copy_region =
+  const auto src_to_dest_buffer_copy_region =
       Utils::GetCopyBufferRegion(size, src_offset, dest_offset);
   const auto src_to_stage_buffer_copy_info = Utils::GetCopyBufferInfo(
       src_buffer, dest_buffer,
-      std::vector<VkBufferCopy2>{src_to_stage_buffer_copy_region});
+      std::vector<VkBufferCopy2>{src_to_dest_buffer_copy_region});
 
   if (!RecordAndSubmitSingleTimeCommand(
           CommandBufferType::GRAPH,
@@ -314,6 +356,10 @@ bool MM::RenderSystem::RenderEngine::CopyBuffer(AllocatedBuffer& src_buffer,
     AllocatedBuffer& dest_buffer, const std::vector<VkDeviceSize>& src_offsets,
     const std::vector<VkDeviceSize>& dest_offsets,
     const std::vector<VkDeviceSize>& sizes) {
+  if (!src_buffer.IsTransformSrc() || !dest_buffer.IsTransformDest()) {
+    return false;
+  }
+
   if (src_offsets.size() != dest_offsets.size() || dest_offsets.size() != sizes.size()) {
     LOG_ERROR(
         "The size of src_offsets,dest_offsets and sizes vector is not equal.")
@@ -328,6 +374,37 @@ bool MM::RenderSystem::RenderEngine::CopyBuffer(AllocatedBuffer& src_buffer,
       return false;
     }
   }
+
+  return true;
+}
+
+bool MM::RenderSystem::RenderEngine::CopyDataToBuffer(
+    AllocatedBuffer& dest_buffer, const void* data,
+    const VkDeviceSize& copy_offset, const VkDeviceSize& copy_size) {
+  if (!dest_buffer.IsValid()) {
+    LOG_ERROR("Dest_buffer is invalid.")
+    return false;
+  }
+
+  if (!dest_buffer.CanMapped()) {
+    LOG_ERROR("Dest_buffer can not mapped.")
+    return false;
+  }
+
+  if (data == nullptr) {
+    LOG_ERROR("data is nullptr.")
+  }
+
+  if (copy_offset + copy_size > dest_buffer.GetBufferSize()) {
+    LOG_ERROR("The sum of copy_offset and copy_size is too large.")
+  }
+
+  char* map_data;
+  vmaMapMemory(dest_buffer.GetAllocator(), dest_buffer.GetAllocation(),
+               reinterpret_cast<void**>(&map_data));
+  map_data += copy_offset;
+  memcpy(map_data, data, copy_size);
+  vmaUnmapMemory(dest_buffer.GetAllocator(), dest_buffer.GetAllocation());
 
   return true;
 }

@@ -89,7 +89,7 @@ bool MM::TaskSystem::TaskSystem::Destroy() {
 tf::Executor& MM::TaskSystem::TaskSystem::ChooseExecutor(
     const TaskType& task_type) {
   switch (task_type) {
-    case TaskType::Logic:
+    case TaskType::Common:
       return logic_executor_;
     case TaskType::Render:
       return render_executor_;
@@ -105,7 +105,7 @@ tf::Executor& MM::TaskSystem::TaskSystem::ChooseExecutor(
 const tf::Executor& MM::TaskSystem::TaskSystem::ChooseExecutor(
     const TaskType& task_type) const {
   switch(task_type) {
-    case TaskType::Logic:
+    case TaskType::Common:
       return logic_executor_;
     case TaskType::Render:
       return render_executor_;

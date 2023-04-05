@@ -127,13 +127,14 @@ void MM::AssetType::Mesh::ProcessMesh(const aiMesh& mesh) {
 
   const bool have_normal = mesh.HasNormals();
   const bool have_Tangent = mesh.HasTangentsAndBitangents();
+  const bool have_texture_coord = mesh.mTextureCoords[0] != nullptr;
 
   Vertex temp;
   for (unsigned i = 0; i < mesh.mNumVertices; ++i) {
     temp.Reset();
     temp.SetPosition({mesh.mVertices->x, mesh.mVertices->y, mesh.mVertices->z});
     // TODO Added support for vertex multi texture coordinates.
-    if (mesh.mTextureCoords[0]) {
+    if (have_texture_coord) {
       temp.SetTextureCoord(
           Math::vec2{mesh.mTextureCoords[0][i].x, mesh.mTextureCoords[0][i].y});
     }
@@ -147,6 +148,7 @@ void MM::AssetType::Mesh::ProcessMesh(const aiMesh& mesh) {
       temp.SetBiTangent(Math::vec3{mesh.mBitangents[i].x, mesh.mBitangents[i].y,
                                    mesh.mBitangents[i].z});
     }
+    vertices_->push_back(temp);
   }
 
   // Generally, unsigned does not overflow.
