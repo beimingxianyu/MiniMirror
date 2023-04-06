@@ -10,6 +10,7 @@
 #include <unordered_map>
 #include <unordered_set>
 
+#include "vk_render_resource.h"
 #include "runtime/core/log/log_system.h"
 #include "runtime/function/render/pre_header.h"
 #include "runtime/function/render/vk_type.h"
@@ -79,22 +80,22 @@ class RenderResourceManager : public RenderManageBase<RenderResourceBase> {
 
    std::uint32_t SaveData(std::unique_ptr<RenderResourceBase>&& resource) override;
 
-   std::uint32_t SaveData(std::unique_ptr<RenderResourceBase>&& object,
+   std::uint32_t SaveData(std::unique_ptr<RenderResourceBase>&& resource,
                           const RenderResourceManageInfo& manage_info,
                           const uint64_t& asset_ID = 0);
 
   // Only when build the render graph will UseWrite be called.
-  std::uint32_t UseToWrite(const std::string& new_name_of_object,
-                           const std::string& object_name,
-                           const bool& is_stage = false, const bool& is_shared = false);
+  std::uint32_t AddUseToWrite(const std::string& new_name_of_resource,
+                              const std::string& resource_name,
+                              const bool& is_shared = false);
 
-  std::uint32_t UseToWrite(const std::string& new_name_of_object,
-                           const std::uint32_t& resource_ID,
-                           const bool& is_stage = false, const bool& is_shared = false);
+  std::uint32_t AddUseToWrite(const std::string& new_name_of_resource,
+                              const std::uint32_t& resource_ID,
+                              const bool& is_shared = false);
 
-   void AddUse(const std::uint32_t& object_ID) override;
+   bool AddUse(const std::uint32_t& resource_ID) override;
 
-   bool AddUse(const std::string& object_name) override;
+   bool AddUse(const std::string& resource_name) override;
 
    void ReleaseUse(const std::uint32_t& object_id) override;
 
@@ -489,6 +490,8 @@ private:
   std::vector<AllocatedBuffer> instance_buffers_{};
   std::vector<BufferBindInfo> instance_buffers_info{};
 };
+
+class RenderResourceStageBuffer final : public RenderResourceBase {};
 
 class RenderResourceFrameBuffer final : public RenderResourceBase {
  public:

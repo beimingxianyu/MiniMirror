@@ -34,7 +34,6 @@ struct SwapChainSupportDetails {
 
 struct RenderResourceManageInfo {
   bool use_to_write{false};
-  bool is_stage_{false};
   bool is_shared_{true};
 };
 
@@ -137,7 +136,7 @@ class RenderManageBase {
 
   virtual std::uint32_t SaveData(std::unique_ptr<ObjectType>&& object);
 
-  virtual void AddUse(const std::uint32_t& object_id);
+  virtual bool AddUse(const std::uint32_t& object_id);
 
   virtual bool AddUse(const std::string& object_name);
 
@@ -437,10 +436,11 @@ std::uint32_t RenderManageBase<ObjectType>::SaveData(
 }
 
 template <typename ObjectType>
-void RenderManageBase<ObjectType>::AddUse(const std::uint32_t& object_id) {
+bool RenderManageBase<ObjectType>::AddUse(const std::uint32_t& object_id) {
   assert(HaveData(object_id));
   std::unique_lock<std::shared_mutex> guard{data_lock_};
   ++(object_ID_to_object_.at(object_id).use_count_);
+  return true;
 }
 
 template <typename ObjectType>
@@ -940,13 +940,13 @@ public:
  BufferChunkInfo& operator=(BufferChunkInfo&& other) noexcept;
 
 public:
- const VkDeviceSize& GetStartOffset() const;
+ const VkDeviceSize& GetOffset() const;
 
-  const VkDeviceSize& GetEndOffset() const;
+  const VkDeviceSize& GetSize() const;
 
 private:
-  VkDeviceSize start_offset_{};
-  VkDeviceSize end_offset_{};
+  VkDeviceSize offset_{};
+  VkDeviceSize size_{};
 };
 
 class VertexAndIndexBuffer {

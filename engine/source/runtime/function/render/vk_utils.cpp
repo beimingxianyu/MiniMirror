@@ -576,3 +576,16 @@ bool MM::RenderSystem::Utils::ResourceBufferCanWrite(
   }
   return DescriptorTypeIsStorageBuffer(descriptor_type);
 }
+
+bool MM::RenderSystem::Utils::GetImageUsageFromDescriptorType(
+    const VkDescriptorType& descriptor_type,
+    VkImageUsageFlags& output_image_usage) {
+  if (DescriptorTypeIsImage(descriptor_type)) {
+    if (DescriptorTypeIsImageSampler(descriptor_type)) {
+      output_image_usage = VK_IMAGE_USAGE_SAMPLED_BIT;
+    }
+    output_image_usage = VK_IMAGE_USAGE_STORAGE_BIT;
+    return true;
+  }
+  return false;
+}

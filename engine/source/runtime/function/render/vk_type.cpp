@@ -949,15 +949,15 @@ bool MM::RenderSystem::AllocatedImage::AllocatedImageWrapper::IsValid() const {
 
 MM::RenderSystem::BufferChunkInfo::BufferChunkInfo(
     const VkDeviceSize& start_offset, const VkDeviceSize& end_offset)
-      : start_offset_(start_offset), end_offset_(end_offset) {}
+      : offset_(start_offset), size_(end_offset) {}
 
 MM::RenderSystem::BufferChunkInfo& MM::RenderSystem::BufferChunkInfo::operator=(
     const BufferChunkInfo& other) noexcept {
   if (&other == this) {
     return *this;
   }
-  start_offset_ = other.start_offset_;
-  end_offset_ = other.end_offset_;
+  offset_ = other.offset_;
+  size_ = other.size_;
 
   return *this;
 }
@@ -967,21 +967,21 @@ MM::RenderSystem::BufferChunkInfo& MM::RenderSystem::BufferChunkInfo::operator=(
   if (&other == this) {
     return *this;
   }
-  start_offset_ = other.start_offset_;
-  end_offset_ = other.end_offset_;
+  offset_ = other.offset_;
+  size_ = other.size_;
 
-  other.start_offset_ = 0;
-  other.end_offset_ = 0;
+  other.offset_ = 0;
+  other.size_ = 0;
 
   return *this;
 }
 
-const VkDeviceSize& MM::RenderSystem::BufferChunkInfo::GetStartOffset() const {
-  return start_offset_;
+const VkDeviceSize& MM::RenderSystem::BufferChunkInfo::GetOffset() const {
+  return offset_;
 }
 
-const VkDeviceSize& MM::RenderSystem::BufferChunkInfo::GetEndOffset() const {
-  return end_offset_;
+const VkDeviceSize& MM::RenderSystem::BufferChunkInfo::GetSize() const {
+  return size_;
 }
 
 MM::RenderSystem::VertexAndIndexBuffer::VertexAndIndexBuffer(

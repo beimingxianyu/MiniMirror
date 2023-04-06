@@ -31,6 +31,7 @@ enum class ResourceType {
   VERTEX_BUFFER,
   FRAME_BUFFER,
   CONSTANTS,
+  STAGE_BUFFER,
   UNDEFINED
 };
 
@@ -201,6 +202,10 @@ bool IsTransformDestImage(const VkImageUsageFlags& flags);
 bool ResourceImageCanWrite(const VkDescriptorType& descriptor_type);
 
 bool ResourceBufferCanWrite(const VkDescriptorType& descriptor_type);
+
+bool GetImageUsageFromDescriptorType(
+    const VkDescriptorType& descriptor_type, VkImageUsageFlags&
+    output_image_usage);
 }
 }
 }
