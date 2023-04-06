@@ -35,6 +35,7 @@ struct SwapChainSupportDetails {
 struct RenderResourceManageInfo {
   bool use_to_write{false};
   bool is_stage_{false};
+  bool is_shared_{true};
 };
 
 struct DataToBufferInfo {

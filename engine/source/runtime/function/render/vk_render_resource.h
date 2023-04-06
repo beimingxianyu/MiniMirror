@@ -43,6 +43,10 @@ class RenderResourceManager : public RenderManageBase<RenderResourceBase> {
 
   bool IsStage(const std::uint32_t& resource_ID) const;
 
+  bool IsShared(const std::string& resource_name, bool& result) const;
+
+  bool IsShared(const std::uint32_t& resource_ID) const;
+
   bool HaveResource(const std::uint32_t& resource_ID) const;
 
   uint64_t GetAssetIDFromResourceID(const uint32_t& resource_id) const;
@@ -61,31 +65,32 @@ class RenderResourceManager : public RenderManageBase<RenderResourceBase> {
       const uint64_t& asset_ID,
       std::vector<uint32_t>& output_resource_IDs) const;
 
-   std::uint32_t GetDeepCopy(const std::string& new_name_of_object,
-       const std::string& object_name) override;
+   std::uint32_t GetDeepCopy(const std::string& new_name_of_resource,
+       const std::string& resource_name) override;
 
-   std::uint32_t GetDeepCopy(const std::string& new_name_of_object,
-       const std::uint32_t& object_ID) override;
+   std::uint32_t GetDeepCopy(const std::string& new_name_of_resource,
+       const std::uint32_t& resource_ID) override;
 
-   std::uint32_t GetLightCopy(const std::string& new_name_of_object,
-       const std::string& object_name) override;
+   std::uint32_t GetLightCopy(const std::string& new_name_of_resource,
+       const std::string& resource_name) override;
 
-   std::uint32_t GetLightCopy(const std::string& new_name_of_object,
-       const std::uint32_t& object_ID) override;
+   std::uint32_t GetLightCopy(const std::string& new_name_of_resource,
+       const std::uint32_t& resource_ID) override;
 
-   std::uint32_t SaveData(std::unique_ptr<RenderResourceBase>&& object) override;
+   std::uint32_t SaveData(std::unique_ptr<RenderResourceBase>&& resource) override;
 
    std::uint32_t SaveData(std::unique_ptr<RenderResourceBase>&& object,
                           const RenderResourceManageInfo& manage_info,
                           const uint64_t& asset_ID = 0);
 
+  // Only when build the render graph will UseWrite be called.
   std::uint32_t UseToWrite(const std::string& new_name_of_object,
-                            const std::string& object_name,
-                            const bool& is_stage = false);
+                           const std::string& object_name,
+                           const bool& is_stage = false, const bool& is_shared = false);
 
   std::uint32_t UseToWrite(const std::string& new_name_of_object,
                            const std::uint32_t& resource_ID,
-                           const bool& is_stage = false);
+                           const bool& is_stage = false, const bool& is_shared = false);
 
    void AddUse(const std::uint32_t& object_ID) override;
 
@@ -106,6 +111,7 @@ private:
 
   mutable std::shared_mutex resource_lock_{};
   std::unordered_map<uint64_t, std::vector<uint32_t>> asset_ID_to_resource_IDs_{};
+  // TODO Merge resource_ID_to_asset_ID_ and resource_ID_to_manage_info
   std::unordered_map<uint32_t, uint64_t> resource_ID_to_asset_ID_{};
   std::unordered_map<uint32_t, RenderResourceManageInfo>
       resource_ID_to_manage_info{};

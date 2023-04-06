@@ -51,6 +51,25 @@ bool MM::RenderSystem::RenderResourceManager::IsStage(
   return resource_ID_to_manage_info.at(resource_ID).is_stage_;
 }
 
+bool MM::RenderSystem::RenderResourceManager::IsShared(
+    const std::string& resource_name, bool& result) const {
+  std::shared_lock<std::shared_mutex> guard{resource_lock_};
+  const auto ID = GetResourceIDFromName(resource_name);
+  if (ID == 0) {
+    return false;
+  }
+
+  result = resource_ID_to_manage_info.at(ID).is_shared_;
+
+  return true;
+}
+
+bool MM::RenderSystem::RenderResourceManager::IsShared(
+    const std::uint32_t& resource_ID) const {
+  std::shared_lock<std::shared_mutex> guard{resource_lock_};
+  return resource_ID_to_manage_info.at(resource_ID).is_shared_;
+}
+
 bool MM::RenderSystem::RenderResourceManager::HaveResource(
     const std::uint32_t& resource_ID) const {
   return HaveData(resource_ID);
@@ -106,11 +125,40 @@ bool MM::RenderSystem::RenderResourceManager::GetResourceIDsFromAssetID(
 }
 
 std::uint32_t MM::RenderSystem::RenderResourceManager::GetDeepCopy(
-    const std::string& new_name_of_object, const std::string& object_name) {
+    const std::string& new_name_of_resource, const std::string& resource_name) {
+  const auto mapped_ID = GetResourceIDFromName(resource_name);
+  if (mapped_ID == 0) {
+    LOG_ERROR(std::string("Render resource " + resource_name + "is not exist."))
+    return 0;
+  }
+
   const auto ID = RenderManageBase<RenderResourceBase>::GetDeepCopy(
-      new_name_of_object, object_name);
+      new_name_of_resource, mapped_ID);
+  
+  const auto asset_id = GetAssetIDFromResourceID(ID);
+  std::unique_lock<std::shared_mutex> guard{resource_lock_};
+  if (asset_id != 0) {
+    asset_ID_to_resource_IDs_.at(asset_id).push_back(ID);
+    resource_ID_to_asset_ID_.emplace(ID, asset_id);
+    resource_ID_to_manage_info.emplace(
+        ID, resource_ID_to_manage_info.at(mapped_ID));
+
+    return ID;
+  }
+
+  resource_ID_to_manage_info.emplace(
+      ID, resource_ID_to_manage_info.at(mapped_ID));
+
+  return ID;
+}
+
+std::uint32_t MM::RenderSystem::RenderResourceManager::GetDeepCopy(
+    const std::string& new_name_of_resource, const std::uint32_t& resource_ID) {
+  auto ID = RenderManageBase<RenderResourceBase>::GetDeepCopy(
+      new_name_of_resource, resource_ID);
+
   if (ID == 0) {
-    LOG_ERROR(std::string("Render resource " + object_name + "is not exist."))
+    LOG_ERROR(std::string("Render resource " + GetResourceNameFromID(resource_ID) + "is not exist."))
     return 0;
   }
   const auto asset_id = GetAssetIDFromResourceID(ID);
@@ -119,101 +167,78 @@ std::uint32_t MM::RenderSystem::RenderResourceManager::GetDeepCopy(
     asset_ID_to_resource_IDs_.at(asset_id).push_back(ID);
     resource_ID_to_asset_ID_.emplace(ID, asset_id);
     resource_ID_to_manage_info.emplace(
-        ID, resource_ID_to_manage_info.at(GetResourceIDFromName(object_name)));
+        ID, resource_ID_to_manage_info.at(resource_ID));
 
     return ID;
   }
 
   resource_ID_to_manage_info.emplace(
-      ID, resource_ID_to_manage_info.at(GetResourceIDFromName(object_name)));
-
-  return ID;
-}
-
-std::uint32_t MM::RenderSystem::RenderResourceManager::GetDeepCopy(
-    const std::string& new_name_of_object, const std::uint32_t& object_ID) {
-  auto ID = RenderManageBase<RenderResourceBase>::GetDeepCopy(
-      new_name_of_object, object_ID);
-
-  if (ID == 0) {
-    LOG_ERROR(std::string("Render resource " + GetResourceNameFromID(object_ID) + "is not exist."))
-    return 0;
-  }
-  const auto asset_id = GetAssetIDFromResourceID(ID);
-  if (asset_id != 0) {
-    std::unique_lock<std::shared_mutex> guard{resource_lock_};
-    asset_ID_to_resource_IDs_.at(asset_id).push_back(ID);
-    resource_ID_to_asset_ID_.emplace(ID, asset_id);
-    resource_ID_to_manage_info.emplace(
-        ID, resource_ID_to_manage_info.at(object_ID));
-
-    return ID;
-  }
-
-  resource_ID_to_manage_info.emplace(
-      ID, resource_ID_to_manage_info.at(object_ID));
+      ID, resource_ID_to_manage_info.at(resource_ID));
 
   return ID;
 }
 
 std::uint32_t MM::RenderSystem::RenderResourceManager::GetLightCopy(
-    const std::string& new_name_of_object, const std::string& object_name) {
-  auto ID = RenderManageBase<RenderResourceBase>::GetLightCopy(
-      new_name_of_object, object_name);
-  if (ID == 0) {
-    LOG_ERROR(std::string("Render resource " + object_name + "is not exist."))
+    const std::string& new_name_of_resource, const std::string& resource_name) {
+  const auto mapped_ID = GetResourceIDFromName(resource_name);
+  if (mapped_ID == 0) {
+    LOG_ERROR(std::string("Render resource " + resource_name + "is not exist."))
     return 0;
   }
+
+  auto ID = RenderManageBase<RenderResourceBase>::GetLightCopy(
+      new_name_of_resource, mapped_ID);
+  
   const auto asset_id = GetAssetIDFromResourceID(ID);
+  std::unique_lock<std::shared_mutex> guard{resource_lock_};
   if (asset_id != 0) {
-    std::unique_lock<std::shared_mutex> guard{resource_lock_};
     asset_ID_to_resource_IDs_.at(asset_id).push_back(ID);
     resource_ID_to_asset_ID_.emplace(ID, asset_id);
     resource_ID_to_manage_info.emplace(
-        ID, resource_ID_to_manage_info.at(GetResourceIDFromName(object_name)));
+        ID, resource_ID_to_manage_info.at(GetResourceIDFromName(resource_name)));
 
     return ID;
   }
 
   resource_ID_to_manage_info.emplace(
-      ID, resource_ID_to_manage_info.at(GetResourceIDFromName(object_name)));
+      ID, resource_ID_to_manage_info.at(GetResourceIDFromName(resource_name)));
 
   return ID;
 }
 
 std::uint32_t MM::RenderSystem::RenderResourceManager::GetLightCopy(
-    const std::string& new_name_of_object, const std::uint32_t& object_ID) {
+    const std::string& new_name_of_resource, const std::uint32_t& resource_ID) {
   auto ID = RenderManageBase<RenderResourceBase>::GetLightCopy(
-      new_name_of_object, object_ID);
+      new_name_of_resource, resource_ID);
   if (ID == 0) {
-    LOG_ERROR(std::string("Render resource " + GetResourceNameFromID(object_ID) + "is not exist."))
+    LOG_ERROR(std::string("Render resource " + GetResourceNameFromID(resource_ID) + "is not exist."))
     return 0;
   }
   const auto asset_id = GetAssetIDFromResourceID(ID);
+  std::unique_lock<std::shared_mutex> guard{resource_lock_};
   if (asset_id != 0) {
-    std::unique_lock<std::shared_mutex> guard{resource_lock_};
     asset_ID_to_resource_IDs_.at(asset_id).push_back(ID);
     resource_ID_to_asset_ID_.emplace(ID, asset_id);
     resource_ID_to_manage_info.emplace(
-        ID, resource_ID_to_manage_info.at(object_ID));
+        ID, resource_ID_to_manage_info.at(resource_ID));
 
     return ID;
   }
 
   resource_ID_to_manage_info.emplace(
-      ID, resource_ID_to_manage_info.at(object_ID));
+      ID, resource_ID_to_manage_info.at(resource_ID));
 
   return ID;
 }
 
 std::uint32_t MM::RenderSystem::RenderResourceManager::SaveData(
-    std::unique_ptr<RenderResourceBase>&& object) {
-  auto resource_ID = object->GetResourceID();
+    std::unique_ptr<RenderResourceBase>&& resource) {
+  auto resource_ID = resource->GetResourceID();
 
-  RenderManageBase<RenderResourceBase>::SaveData(std::move(object));
+  RenderManageBase<RenderResourceBase>::SaveData(std::move(resource));
 
   std::unique_lock<std::shared_mutex> guard(resource_lock_);
-  resource_ID_to_manage_info.emplace(resource_ID, RenderResourceManageInfo{false, false});
+  resource_ID_to_manage_info.emplace(resource_ID, RenderResourceManageInfo{false, false, true});
 
   return resource_ID;
 }
@@ -238,12 +263,13 @@ std::uint32_t MM::RenderSystem::RenderResourceManager::SaveData(
     resource_ID_to_asset_ID_.emplace(resource_ID, asset_ID);
   }
 
+  resource_ID_to_manage_info.emplace(resource_ID, manage_info);
   return resource_ID;
 }
 
 std::uint32_t MM::RenderSystem::RenderResourceManager::UseToWrite(
     const std::string& new_name_of_object, const std::string& object_name,
-    const bool& is_stage) {
+    const bool& is_stage, const bool& is_shared) {
   const auto ID = RenderManageBase<RenderResourceBase>::GetDeepCopy(
       new_name_of_object, object_name);
   if (ID == 0) {
@@ -260,7 +286,7 @@ std::uint32_t MM::RenderSystem::RenderResourceManager::UseToWrite(
 
 std::uint32_t MM::RenderSystem::RenderResourceManager::UseToWrite(
     const std::string& new_name_of_object, const std::uint32_t& resource_ID,
-    const bool& is_stage) {
+    const bool& is_stage, const bool& is_shared) {
   const auto ID = RenderManageBase<RenderResourceBase>::GetDeepCopy(
       new_name_of_object, resource_ID);
   if (ID == 0) {
