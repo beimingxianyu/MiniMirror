@@ -40,7 +40,7 @@ enum class ResourceType {
  */
 enum class MemoryOperate { READ, WRITE, READ_AND_WRITE, UNDEFINED };
 
-enum class CommandBufferType { GRAPH, COMPUTE };
+enum class CommandBufferType { GRAPH, COMPUTE, TRANSFORM };
 
 namespace Utils {
 // TODO Add default value annotations for various functions that obtain creation information, such as the \ref GetSamplerCreateInfo function.
@@ -187,8 +187,8 @@ VkBufferCopy2 GetCopyBufferRegion(const VkDeviceSize& size,
                                   const VkDeviceSize& src_offset = 0,
                                   const VkDeviceSize& dest_offset = 0);
 
-VkCopyBufferInfo2 GetCopyBufferInfo(const AllocatedBuffer& src_buffer,
-                                    const AllocatedBuffer& dest_buffer,
+VkCopyBufferInfo2 GetCopyBufferInfo(AllocatedBuffer& src_buffer,
+                                    AllocatedBuffer& dest_buffer,
                                     const std::vector<VkBufferCopy2>& regions);
 
 bool IsTransformSrcBuffer(const VkBufferUsageFlags& flags);
@@ -206,6 +206,27 @@ bool ResourceBufferCanWrite(const VkDescriptorType& descriptor_type);
 bool GetImageUsageFromDescriptorType(
     const VkDescriptorType& descriptor_type, VkImageUsageFlags&
     output_image_usage);
+
+bool ImageRegionIsOverlap(const VkOffset3D& src_offset,
+                        const VkOffset3D& dest_offset,
+                        const VkExtent3D& extent);
+
+bool ImageRegionAreaLessThanImageExtent(const VkOffset3D& offset,
+                                        const VkExtent3D& extent,
+                                        const AllocatedImage& image);
+
+VkImageSubresourceLayers GetImageSubResourceLayers(
+    const VkImageAspectFlags& aspect, const std::uint32_t& mipmap_level,
+    const std::uint32_t& base_array_layer,
+    const std::uint32_t& array_layer_count);
+
+VkImageCopy2 GetImageCopy(const VkImageSubresourceLayers& src_sub_resource,
+                          const VkImageSubresourceLayers& dest_sub_resource,
+                          const VkOffset3D& src_offset,
+                          const VkOffset3D& dest_offset,
+                          const VkExtent3D& extent);
+
+VkCopyImageInfo2 GetCopyImageInfo(AllocatedImage& src_image, AllocatedImage& dest_image, const VkImageLayout& src_layout, const VkImageLayout& dest_layout, const std::vector<VkImageCopy2>& copy_regions);
 }
 }
 }

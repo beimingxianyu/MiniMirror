@@ -4,9 +4,10 @@
 
 std::mutex MM::RenderSystem::RenderResourceManager::sync_flag_{};
 
-MM::RenderSystem::RenderResourceManager* MM::RenderSystem::RenderResourceManager
-::GetInstance() {
-  if (render_resource_manager_) {} else {
+MM::RenderSystem::RenderResourceManager*
+MM::RenderSystem::RenderResourceManager ::GetInstance() {
+  if (render_resource_manager_) {
+  } else {
     std::lock_guard<std::mutex> guard{sync_flag_};
     if (!render_resource_manager_) {
       render_resource_manager_ = new RenderResourceManager{};
@@ -78,7 +79,8 @@ bool MM::RenderSystem::RenderResourceManager::HaveResource(
 uint64_t MM::RenderSystem::RenderResourceManager::GetAssetIDFromResourceID(
     const std::uint32_t& resource_ID) const {
   std::shared_lock<std::shared_mutex> guard{resource_lock_};
-  if (resource_ID_to_asset_ID_.count(resource_ID) == 0 || IsUseToWrite(resource_ID)) {
+  if (resource_ID_to_asset_ID_.count(resource_ID) == 0 ||
+      IsUseToWrite(resource_ID)) {
     return 0;
   }
 
@@ -106,8 +108,9 @@ uint32_t MM::RenderSystem::RenderResourceManager::GetResourceIDFromName(
   return GetObjectIDFromName(resource_name);
 }
 
-const std::string& MM::RenderSystem::RenderResourceManager::
-GetResourceNameFromID(const std::uint32_t& resource_ID) const {
+const std::string&
+MM::RenderSystem::RenderResourceManager::GetResourceNameFromID(
+    const std::uint32_t& resource_ID) const {
   return GetObjectNameFromID(resource_ID);
 }
 
@@ -134,7 +137,13 @@ std::uint32_t MM::RenderSystem::RenderResourceManager::GetDeepCopy(
 
   const auto ID = RenderManageBase<RenderResourceBase>::GetDeepCopy(
       new_name_of_resource, mapped_ID);
-  
+
+  if (ID == 0) {
+    LOG_ERROR(
+        std::string("Failed to deep copy render resource " + resource_name))
+    return 0;
+  }
+
   const auto asset_id = GetAssetIDFromResourceID(ID);
   std::unique_lock<std::shared_mutex> guard{resource_lock_};
   if (asset_id != 0) {
@@ -146,8 +155,8 @@ std::uint32_t MM::RenderSystem::RenderResourceManager::GetDeepCopy(
     return ID;
   }
 
-  resource_ID_to_manage_info.emplace(
-      ID, resource_ID_to_manage_info.at(mapped_ID));
+  resource_ID_to_manage_info.emplace(ID,
+                                     resource_ID_to_manage_info.at(mapped_ID));
 
   return ID;
 }
@@ -158,9 +167,11 @@ std::uint32_t MM::RenderSystem::RenderResourceManager::GetDeepCopy(
       new_name_of_resource, resource_ID);
 
   if (ID == 0) {
-    LOG_ERROR(std::string("Render resource " + GetResourceNameFromID(resource_ID) + "is not exist."))
+    LOG_ERROR(std::string("Render resource " +
+                          GetResourceNameFromID(resource_ID) + "is not exist."))
     return 0;
   }
+
   const auto asset_id = GetAssetIDFromResourceID(ID);
   std::unique_lock<std::shared_mutex> guard{resource_lock_};
   if (asset_id != 0) {
@@ -188,14 +199,21 @@ std::uint32_t MM::RenderSystem::RenderResourceManager::GetLightCopy(
 
   auto ID = RenderManageBase<RenderResourceBase>::GetLightCopy(
       new_name_of_resource, mapped_ID);
-  
+
+  if (ID == 0) {
+    LOG_ERROR(
+        std::string("Failed to deep copy render resource " + resource_name))
+    return 0;
+  }
+
   const auto asset_id = GetAssetIDFromResourceID(ID);
   std::unique_lock<std::shared_mutex> guard{resource_lock_};
   if (asset_id != 0) {
     asset_ID_to_resource_IDs_.at(asset_id).push_back(ID);
     resource_ID_to_asset_ID_.emplace(ID, asset_id);
     resource_ID_to_manage_info.emplace(
-        ID, resource_ID_to_manage_info.at(GetResourceIDFromName(resource_name)));
+        ID,
+        resource_ID_to_manage_info.at(GetResourceIDFromName(resource_name)));
 
     return ID;
   }
@@ -211,7 +229,8 @@ std::uint32_t MM::RenderSystem::RenderResourceManager::GetLightCopy(
   auto ID = RenderManageBase<RenderResourceBase>::GetLightCopy(
       new_name_of_resource, resource_ID);
   if (ID == 0) {
-    LOG_ERROR(std::string("Render resource " + GetResourceNameFromID(resource_ID) + "is not exist."))
+    LOG_ERROR(std::string("Render resource " +
+                          GetResourceNameFromID(resource_ID) + "is not exist."))
     return 0;
   }
   const auto asset_id = GetAssetIDFromResourceID(ID);
@@ -241,7 +260,8 @@ std::uint32_t MM::RenderSystem::RenderResourceManager::SaveData(
   RenderManageBase<RenderResourceBase>::SaveData(std::move(resource));
 
   std::unique_lock<std::shared_mutex> guard(resource_lock_);
-  resource_ID_to_manage_info.emplace(resource_ID, RenderResourceManageInfo{false, true});
+  resource_ID_to_manage_info.emplace(resource_ID,
+                                     RenderResourceManageInfo{false, true});
 
   return resource_ID;
 }
@@ -282,29 +302,16 @@ std::uint32_t MM::RenderSystem::RenderResourceManager::AddUseToWrite(
     return 0;
   }
 
-  if (is_shared && IsShared(mapped_ID)) {
-    AddUse(mapped_ID);
-    std::unique_lock<std::shared_mutex> guard{resource_lock_};
-    resource_ID_to_manage_info.at(mapped_ID).use_to_write = true;
-    const auto have_asset = resource_ID_to_manage_info.count(mapped_ID);
-    if (have_asset) {
-      const auto asset_ID = resource_ID_to_asset_ID_.at(mapped_ID);
-      resource_ID_to_asset_ID_.erase(mapped_ID);
-      auto& asset_to_resource_IDs = asset_ID_to_resource_IDs_.at(asset_ID);
-      const auto del_itr = std::find(asset_to_resource_IDs.begin(),
-                                     asset_to_resource_IDs.end(), mapped_ID);
-      asset_to_resource_IDs.erase(del_itr);
-    }
-
-    return mapped_ID;
+  if (is_shared && IsShared(mapped_ID) && IsUseToWrite(mapped_ID)) {
+    return RenderManageBase::AddUse(mapped_ID);
   }
 
   const auto ID = RenderManageBase<RenderResourceBase>::GetDeepCopy(
       new_name_of_resource, mapped_ID);
 
   std::unique_lock<std::shared_mutex> guard{resource_lock_};
-  resource_ID_to_manage_info.emplace(
-      ID, RenderResourceManageInfo{true, is_shared});
+  resource_ID_to_manage_info.emplace(ID,
+                                     RenderResourceManageInfo{true, is_shared});
 
   return ID;
 }
@@ -312,29 +319,16 @@ std::uint32_t MM::RenderSystem::RenderResourceManager::AddUseToWrite(
 std::uint32_t MM::RenderSystem::RenderResourceManager::AddUseToWrite(
     const std::string& new_name_of_resource, const std::uint32_t& resource_ID,
     const bool& is_shared) {
-  if (is_shared && IsShared(resource_ID)) {
-    AddUse(resource_ID);
-    std::unique_lock<std::shared_mutex> guard{resource_lock_};
-    resource_ID_to_manage_info.at(resource_ID).use_to_write = true;
-    const auto have_asset = resource_ID_to_manage_info.count(resource_ID);
-    if (have_asset) {
-      const auto asset_ID = resource_ID_to_asset_ID_.at(resource_ID);
-      resource_ID_to_asset_ID_.erase(resource_ID);
-      auto& asset_to_resource_IDs = asset_ID_to_resource_IDs_.at(asset_ID);
-      const auto del_itr = std::find(asset_to_resource_IDs.begin(),
-                                     asset_to_resource_IDs.end(), resource_ID);
-      asset_to_resource_IDs.erase(del_itr);
-    }
-
-    return resource_ID;
+  if (is_shared && IsShared(resource_ID) && IsUseToWrite(resource_ID)) {
+    return RenderManageBase::AddUse(resource_ID);
   }
 
   const auto ID = RenderManageBase<RenderResourceBase>::GetDeepCopy(
       new_name_of_resource, resource_ID);
 
   std::unique_lock<std::shared_mutex> guard{resource_lock_};
-  resource_ID_to_manage_info.emplace(
-      ID, RenderResourceManageInfo{true, is_shared});
+  resource_ID_to_manage_info.emplace(ID,
+                                     RenderResourceManageInfo{true, is_shared});
 
   return ID;
 }
@@ -362,25 +356,51 @@ bool MM::RenderSystem::RenderResourceManager::AddUse(
 
 void MM::RenderSystem::RenderResourceManager::ReleaseUse(
     const std::uint32_t& object_id) {
-  RenderManageBase<RenderResourceBase>::ReleaseUse(object_id);
   std::unique_lock<std::shared_mutex> guard(resource_lock_);
   const auto asset_ID = GetAssetIDFromResourceID(object_id);
   if (asset_ID) {
     resource_ID_to_asset_ID_.erase(object_id);
-    const auto itr = std::find(asset_ID_to_resource_IDs_.at(asset_ID).begin(),
-                               asset_ID_to_resource_IDs_.at(asset_ID).end(), object_id);
-    asset_ID_to_resource_IDs_.at(asset_ID).erase(static_cast<std::vector<unsigned>::const_iterator>(itr));
+    const auto itr =
+        std::find(asset_ID_to_resource_IDs_.at(asset_ID).begin(),
+                  asset_ID_to_resource_IDs_.at(asset_ID).end(), object_id);
+    asset_ID_to_resource_IDs_.at(asset_ID).erase(
+        static_cast<std::vector<unsigned>::const_iterator>(itr));
   }
 
   resource_ID_to_manage_info.erase(object_id);
+
+  RenderManageBase<RenderResourceBase>::ReleaseUse(object_id);
+}
+
+void MM::RenderSystem::RenderResourceManager::ReleaseUse(
+    const std::string& resource_name) {
+  const auto mapped_ID = GetResourceIDFromName(resource_name);
+  if (mapped_ID == 0) {
+    return;
+  }
+
+  std::unique_lock<std::shared_mutex> guard(resource_lock_);
+  const auto asset_ID = GetAssetIDFromResourceID(mapped_ID);
+  if (asset_ID) {
+    resource_ID_to_asset_ID_.erase(mapped_ID);
+    const auto itr =
+        std::find(asset_ID_to_resource_IDs_.at(asset_ID).begin(),
+                  asset_ID_to_resource_IDs_.at(asset_ID).end(), mapped_ID);
+    asset_ID_to_resource_IDs_.at(asset_ID).erase(
+        static_cast<std::vector<unsigned>::const_iterator>(itr));
+  }
+
+  resource_ID_to_manage_info.erase(mapped_ID);
+
+  RenderManageBase<RenderResourceBase>::ReleaseUse(resource_name);
 }
 
 MM::RenderSystem::RenderResourceManager::RenderResourceManager()
-  : RenderManageBase<MM::RenderSystem::RenderResourceBase>(),
-    resource_lock_(),
-    asset_ID_to_resource_IDs_(),
-    resource_ID_to_asset_ID_(),
-    resource_ID_to_manage_info() {}
+    : RenderManageBase<MM::RenderSystem::RenderResourceBase>(),
+      resource_lock_(),
+      asset_ID_to_resource_IDs_(),
+      resource_ID_to_asset_ID_(),
+      resource_ID_to_manage_info() {}
 
 bool MM::RenderSystem::RenderResourceManager::Destroy() {
   std::lock_guard<std::mutex> guard{sync_flag_};
@@ -400,12 +420,13 @@ MM::RenderSystem::RenderResourceBase::RenderResourceBase()
 
 MM::RenderSystem::RenderResourceBase::RenderResourceBase(
     const std::string& resource_name)
-    : ManagedObjectBase(resource_name, RenderResourceManager::GetInstance()->GetIncreaseIndex()) {}
+    : ManagedObjectBase(
+          resource_name,
+          RenderResourceManager::GetInstance()->GetIncreaseIndex()) {}
 
 MM::RenderSystem::RenderResourceBase::RenderResourceBase(
     RenderResourceBase&& other) noexcept
-    : ManagedObjectBase(std::move(other))
-       {}
+    : ManagedObjectBase(std::move(other)) {}
 
 MM::RenderSystem::RenderResourceBase&
 MM::RenderSystem::RenderResourceBase::operator=(
@@ -429,8 +450,8 @@ MM::RenderSystem::RenderResourceBase::operator=(
   return *this;
 }
 
-const std::string& MM::RenderSystem::RenderResourceBase::
-GetResourceName() const {
+const std::string& MM::RenderSystem::RenderResourceBase::GetResourceName()
+    const {
   return GetObjectName();
 }
 
@@ -443,15 +464,14 @@ MM::RenderSystem::RenderResourceBase::GetResourceType() const {
   return ResourceType::UNDEFINED;
 }
 
-std::unique_ptr<MM::RenderSystem::RenderResourceBase> MM::RenderSystem::
-RenderResourceBase::GetLightCopy(
+std::unique_ptr<MM::RenderSystem::RenderResourceBase>
+MM::RenderSystem::RenderResourceBase::GetLightCopy(
     const std::string& new_name_of_copy_resource) const {
-  return 
-      std::make_unique<RenderResourceBase>(new_name_of_copy_resource);
+  return std::make_unique<RenderResourceBase>(new_name_of_copy_resource);
 }
 
-std::unique_ptr<MM::RenderSystem::RenderResourceBase> MM::RenderSystem::
-RenderResourceBase::GetDeepCopy(
+std::unique_ptr<MM::RenderSystem::RenderResourceBase>
+MM::RenderSystem::RenderResourceBase::GetDeepCopy(
     const std::string& new_name_of_copy_resource) const {
   return std::make_unique<RenderResourceBase>(new_name_of_copy_resource);
 }
@@ -468,8 +488,7 @@ void MM::RenderSystem::RenderResourceBase::SetResourceID(
 
 MM::RenderSystem::RenderResourceBase::RenderResourceBase(
     const std::string& resource_name, const std::uint32_t& new_resource_ID)
-  : ManagedObjectBase(resource_name, new_resource_ID) {
-}
+    : ManagedObjectBase(resource_name, new_resource_ID) {}
 
 void MM::RenderSystem::RenderResourceBase::Release() {
   ManagedObjectBase::Release();
@@ -508,7 +527,8 @@ MM::RenderSystem::RenderResourceTexture::RenderResourceTexture(
 
   ImageInfo temp_info{};
   temp_info.image_extent_.width = static_cast<uint32_t>(image->GetImageWidth());
-  temp_info.image_extent_.height = static_cast<uint32_t>(image->GetImageHeight());
+  temp_info.image_extent_.height =
+      static_cast<uint32_t>(image->GetImageHeight());
   temp_info.image_extent_.depth = 1;
   temp_info.image_layout_ = image_layout;
   temp_info.can_mapped_ = Utils::CanBeMapped(memory_usage, allocation_flags);
@@ -563,8 +583,7 @@ MM::RenderSystem::RenderResourceTexture::RenderResourceTexture(
 
 MM::RenderSystem::RenderResourceTexture::RenderResourceTexture(
     const std::string& resource_name, RenderEngine* engine,
-    const AllocatedImage& image, const ImageBindInfo& image_bind_info
-    )
+    const AllocatedImage& image, const ImageBindInfo& image_bind_info)
     : RenderResourceBase(resource_name),
       render_engine_(engine),
       image_(image),
@@ -572,18 +591,17 @@ MM::RenderSystem::RenderResourceTexture::RenderResourceTexture(
 
 MM::RenderSystem::RenderResourceTexture::RenderResourceTexture(
     const RenderResourceTexture& other)
-  : RenderResourceBase(other),
-    render_engine_(other.render_engine_),
-    image_(other.image_),
-    image_bind_info_(other.image_bind_info_) {
-}
+    : RenderResourceBase(other),
+      render_engine_(other.render_engine_),
+      image_(other.image_),
+      image_bind_info_(other.image_bind_info_) {}
 
 MM::RenderSystem::RenderResourceTexture::RenderResourceTexture(
     RenderResourceTexture&& other) noexcept
     : RenderResourceBase(std::move(other)),
       render_engine_(other.render_engine_),
       image_(std::move(std::move(other.image_))),
-      image_bind_info_(std::move(other.image_bind_info_)){
+      image_bind_info_(std::move(other.image_bind_info_)) {
   other.Release();
 }
 
@@ -649,17 +667,18 @@ MM::RenderSystem::RenderResourceTexture::GetCopyWithNewImageView(
   vkCreateImageView(render_engine_->device_, &image_view_create_info, nullptr,
                     &temp_image_view);
 
-  new_texture.image_bind_info_.image_view_ = MM::Utils::MakeSharedWithDestructor<VkImageView>(
-      [&engine = render_engine_](VkImageView* value) {
-        if (value == nullptr) {
-          return;
-        }
-        vkDestroyImageView(engine->device_, *value, nullptr);
+  new_texture.image_bind_info_.image_view_ =
+      MM::Utils::MakeSharedWithDestructor<VkImageView>(
+          [&engine = render_engine_](VkImageView* value) {
+            if (value == nullptr) {
+              return;
+            }
+            vkDestroyImageView(engine->device_, *value, nullptr);
 
-        delete value;
-        value = nullptr;
-      },
-      temp_image_view);
+            delete value;
+            value = nullptr;
+          },
+          temp_image_view);
 
   return new_texture;
 }
@@ -672,17 +691,18 @@ MM::RenderSystem::RenderResourceTexture ::GetCopyWithNewSampler(
   vkCreateSampler(render_engine_->device_, &sampler_create_info, nullptr,
                   &temp_sample);
 
-  new_texture.image_bind_info_.sampler_ = MM::Utils::MakeSharedWithDestructor<VkSampler>(
-      [&engine = render_engine_](VkSampler* value) {
-        if (value == nullptr) {
-          return;
-        }
-        vkDestroySampler(engine->device_, *value, nullptr);
+  new_texture.image_bind_info_.sampler_ =
+      MM::Utils::MakeSharedWithDestructor<VkSampler>(
+          [&engine = render_engine_](VkSampler* value) {
+            if (value == nullptr) {
+              return;
+            }
+            vkDestroySampler(engine->device_, *value, nullptr);
 
-        delete value;
-        value = nullptr;
-      },
-      temp_sample);
+            delete value;
+            value = nullptr;
+          },
+          temp_sample);
 
   return new_texture;
 }
@@ -714,7 +734,11 @@ VkDescriptorType MM::RenderSystem::RenderResourceTexture::GetDescriptorType()
 
 std::shared_ptr<VkSemaphore>
 MM::RenderSystem::RenderResourceTexture::GetSemaphore() const {
-  return image_bind_info_.semaphore_;
+  if (image_bind_info_.semaphore_) {
+    return image_bind_info_.semaphore_;
+  }
+
+  return nullptr;
 }
 
 bool MM::RenderSystem::RenderResourceTexture::CanMapped() const {
@@ -722,7 +746,8 @@ bool MM::RenderSystem::RenderResourceTexture::CanMapped() const {
 }
 
 bool MM::RenderSystem::RenderResourceTexture::IsStorage() const {
-  return image_bind_info_.bind_.descriptorType == VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+  return image_bind_info_.bind_.descriptorType ==
+         VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
 }
 
 bool MM::RenderSystem::RenderResourceTexture::HaveSample() const {
@@ -730,16 +755,18 @@ bool MM::RenderSystem::RenderResourceTexture::HaveSample() const {
 }
 
 bool MM::RenderSystem::RenderResourceTexture::IsValid() const {
-  bool result = render_engine_ != nullptr && image_bind_info_.bind_.descriptorCount != 0 &&
+  bool result = render_engine_ != nullptr &&
+                image_bind_info_.bind_.descriptorCount != 0 &&
                 image_.IsValid() && image_bind_info_.image_view_ != nullptr;
-  if (Utils::DescriptorTypeIsImageSampler(image_bind_info_.bind_.descriptorType)) {
+  if (Utils::DescriptorTypeIsImageSampler(
+          image_bind_info_.bind_.descriptorType)) {
     result = result && image_bind_info_.sampler_ != nullptr;
   }
   return result;
 }
 
-std::unique_ptr<MM::RenderSystem::RenderResourceBase> MM::RenderSystem::
-RenderResourceTexture::GetLightCopy(
+std::unique_ptr<MM::RenderSystem::RenderResourceBase>
+MM::RenderSystem::RenderResourceTexture::GetLightCopy(
     const std::string& new_name_of_copy_resource) const {
   auto new_resource = std::make_unique<RenderResourceTexture>(*this);
   new_resource->SetResourceName(new_name_of_copy_resource);
@@ -750,10 +777,40 @@ RenderResourceTexture::GetLightCopy(
   return new_resource;
 }
 
-std::unique_ptr<MM::RenderSystem::RenderResourceBase> MM::RenderSystem::
-RenderResourceTexture::GetDeepCopy(
+std::unique_ptr<MM::RenderSystem::RenderResourceBase>
+MM::RenderSystem::RenderResourceTexture::GetDeepCopy(
     const std::string& new_name_of_copy_resource) const {
-  VkImageCreateInfo new_image_create_info = Utils::GetImageCreateInfo(image_.GetImageFormat(), )
+  VkImageUsageFlags new_image_usage;
+  assert(Utils::GetImageUsageFromDescriptorType(
+      image_bind_info_.bind_.descriptorType, new_image_usage));
+  const VkImageCreateInfo new_image_create_info = Utils::GetImageCreateInfo(
+      image_.GetImageFormat(),
+      new_image_usage | VK_IMAGE_USAGE_TRANSFER_DST_BIT,
+      image_.GetImageExtent());
+
+  const VmaAllocationCreateInfo new_allocation_create_info =
+      Utils::GetVmaAllocationCreateInfo(
+          VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE,
+          image_.CanMapped() ? VMA_ALLOCATION_CREATE_HOST_ACCESS_RANDOM_BIT
+                             : 0);
+
+  VkImage new_image{nullptr};
+  VmaAllocation new_allocation{nullptr};
+
+  VK_CHECK(vmaCreateImage(render_engine_->GetAllocator(),
+                          &new_image_create_info, &new_allocation_create_info,
+                          &new_image, &new_allocation, nullptr),
+           LOG_ERROR("Failed to deep copy texture.");
+           return std::unique_ptr<RenderResourceBase>();)
+
+  std::shared_ptr<AllocatedImage> new_allocated_image{
+      std::make_shared<AllocatedImage>(render_engine_->GetAllocator(),
+                                       new_image, new_allocation,
+                                       GetImageInfo())};
+
+  VkImageCopy image;
+
+  render_engine_->CopyImage(image_, new_allocated_image, GetImageLayout(), GetImageLayout(), )
 }
 
 void MM::RenderSystem::RenderResourceTexture::Release() {
@@ -905,7 +962,7 @@ bool MM::RenderSystem::RenderResourceTexture::InitImage(
     const AllocatedBuffer& stage_buffer, VkImageUsageFlags usages,
     const VmaMemoryUsage& memory_usage,
     const VmaAllocationCreateFlags& allocation_flags,
-const ImageInfo& image_info) {
+    const ImageInfo& image_info) {
   VkImageCreateInfo image_create_info =
       MM::RenderSystem::Utils::GetImageCreateInfo(
           image_info.image_format_, usages, image_info.image_extent_);
@@ -920,7 +977,8 @@ const ImageInfo& image_info) {
   VmaAllocation temp_allocation{nullptr};
 
   usages |= VK_IMAGE_USAGE_TRANSFER_DST_BIT;
-  if (Utils::DescriptorTypeIsImageSampler(image_bind_info_.bind_.descriptorType)) {
+  if (Utils::DescriptorTypeIsImageSampler(
+          image_bind_info_.bind_.descriptorType)) {
     usages |= VK_IMAGE_USAGE_SAMPLED_BIT;
   }
   VK_CHECK(vmaCreateImage(render_engine_->allocator_, &image_create_info,
@@ -943,9 +1001,8 @@ const ImageInfo& image_info) {
             const auto copy_region = Utils::GetBufferToImageCopyRegion(
                 VK_IMAGE_ASPECT_COLOR_BIT, image_extent);
 
-            vkCmdCopyBufferToImage(cmd, stage.GetBuffer(),
-                                   image.GetImage(), image_layout, 1,
-                                   &copy_region);
+            vkCmdCopyBufferToImage(cmd, stage.GetBuffer(), image.GetImage(),
+                                   image_layout, 1, &copy_region);
           },
           true)) {
     LOG_ERROR("Copying image data to the GPU failed.")
@@ -970,8 +1027,7 @@ bool MM::RenderSystem::RenderResourceTexture::GenerateMipmap() {
 
         const auto dependency_info = Utils::GetImageDependencyInfo(barrier);
 
-        int32_t mip_width =
-            static_cast<int32_t>(image_.GetImageExtent().width);
+        int32_t mip_width = static_cast<int32_t>(image_.GetImageExtent().width);
         int32_t mip_height =
             static_cast<int32_t>(image_.GetImageExtent().height);
 
@@ -1056,25 +1112,25 @@ bool MM::RenderSystem::RenderResourceTexture::InitImageView() {
       image_, image_.GetImageFormat(), VK_IMAGE_VIEW_TYPE_2D,
       VK_IMAGE_ASPECT_COLOR_BIT);
   image_view_create_info.subresourceRange.baseMipLevel = 0;
-  image_view_create_info.subresourceRange.levelCount =
-      image_.GetMipmapLevels();
+  image_view_create_info.subresourceRange.levelCount = image_.GetMipmapLevels();
 
   VkImageView temp_image_view{nullptr};
   VK_CHECK(vkCreateImageView(render_engine_->device_, &image_view_create_info,
                              nullptr, &temp_image_view),
            LOG_ERROR("failed to create VkImageView。");
            RenderResourceTexture::Release(); return false;)
-  image_bind_info_.image_view_ = MM::Utils::MakeSharedWithDestructor<VkImageView>(
-      [&engine = render_engine_](VkImageView* value) {
-        if (value == nullptr) {
-          return;
-        }
-        vkDestroyImageView(engine->device_, *value, nullptr);
+  image_bind_info_.image_view_ =
+      MM::Utils::MakeSharedWithDestructor<VkImageView>(
+          [&engine = render_engine_](VkImageView* value) {
+            if (value == nullptr) {
+              return;
+            }
+            vkDestroyImageView(engine->device_, *value, nullptr);
 
-        delete value;
-        value = nullptr;
-      },
-      temp_image_view);
+            delete value;
+            value = nullptr;
+          },
+          temp_image_view);
 
   return true;
 }
@@ -1118,18 +1174,19 @@ bool MM::RenderSystem::RenderResourceTexture::InitSemaphore() {
            LOG_ERROR("Failed to create VkSemaphore.");
            return false;)
 
-  image_bind_info_.semaphore_ = MM::Utils::MakeSharedWithDestructor<VkSemaphore>(
-      [&engine = render_engine_](VkSemaphore* value) {
-        if (value == nullptr) {
-          return;
-        }
+  image_bind_info_.semaphore_ =
+      MM::Utils::MakeSharedWithDestructor<VkSemaphore>(
+          [&engine = render_engine_](VkSemaphore* value) {
+            if (value == nullptr) {
+              return;
+            }
 
-        vkDestroySemaphore(engine->device_, *value, nullptr);
+            vkDestroySemaphore(engine->device_, *value, nullptr);
 
-        delete value;
-        value = nullptr;
-      },
-      temp_semaphore);
+            delete value;
+            value = nullptr;
+          },
+          temp_semaphore);
   return true;
 }
 
@@ -1137,18 +1194,18 @@ MM::RenderSystem::RenderResourceBuffer::RenderResourceBuffer(
     const std::string& resource_name, RenderEngine* engine,
     const VkDescriptorType& descriptor_type, VkBufferUsageFlags buffer_usage,
     const VkDeviceSize& size, const VkDeviceSize& offset,
-    const VkDeviceSize& size_range,
-    const VkDeviceSize& dynamic_offset, const DataToBufferInfo& data_info,
-    const VkBufferCreateFlags& buffer_flags, const VmaMemoryUsage& memory_usage,
+    const VkDeviceSize& size_range, const VkDeviceSize& dynamic_offset,
+    const DataToBufferInfo& data_info, const VkBufferCreateFlags& buffer_flags,
+    const VmaMemoryUsage& memory_usage,
     const VmaAllocationCreateFlags& allocation_flags)
-    : RenderResourceBase(resource_name),
-      render_engine_(engine)
-{
+    : RenderResourceBase(resource_name), render_engine_(engine) {
   if (size_range == VK_WHOLE_SIZE) {
     buffer_bind_info_.range_size_ = size - offset;
   }
-  if (!CheckInitParameter(engine, descriptor_type, buffer_usage, size, buffer_bind_info_.range_size_,
-                          offset, dynamic_offset, data_info.data_, data_info.copy_offset_, data_info.copy_offset_)) {
+  if (!CheckInitParameter(engine, descriptor_type, buffer_usage, size,
+                          buffer_bind_info_.range_size_, offset, dynamic_offset,
+                          data_info.data_, data_info.copy_offset_,
+                          data_info.copy_offset_)) {
     RenderResourceBuffer::Release();
     return;
   }
@@ -1167,7 +1224,8 @@ MM::RenderSystem::RenderResourceBuffer::RenderResourceBuffer(
     buffer_usage |= VK_BUFFER_USAGE_TRANSFER_DST_BIT;
   }
 
-  if (!InitBuffer(size, buffer_usage, buffer_flags, memory_usage,allocation_flags)) {
+  if (!InitBuffer(size, buffer_usage, buffer_flags, memory_usage,
+                  allocation_flags)) {
     RenderResourceBuffer::Release();
     return;
   }
@@ -1185,8 +1243,7 @@ MM::RenderSystem::RenderResourceBuffer::RenderResourceBuffer(
 
 MM::RenderSystem::RenderResourceBuffer::RenderResourceBuffer(
     const std::string& resource_name, RenderEngine* engine,
-     const BufferBindInfo& buffer_info,
-    const AllocatedBuffer& buffer)
+    const BufferBindInfo& buffer_info, const AllocatedBuffer& buffer)
     : RenderResourceBase(resource_name),
       render_engine_(engine),
       buffer_bind_info_(buffer_info),
@@ -1299,7 +1356,8 @@ MM::RenderSystem::RenderResourceBuffer::GetCopyWithNewOffsetAndDynamicOffset(
   if (IsDynamic()) {
     if (new_offset_in > UINT64_MAX - buffer_bind_info_.dynamic_offset_) {
       LOG_WARN("The sum of new offset and new dynamic offset is too large.")
-      new_offset_in = buffer_.GetBufferSize()- buffer_bind_info_.dynamic_offset_;
+      new_offset_in =
+          buffer_.GetBufferSize() - buffer_bind_info_.dynamic_offset_;
       new_dynamic_offset_in = buffer_bind_info_.dynamic_offset_;
     }
     if (new_offset_in + new_dynamic_offset_in > buffer_.GetBufferSize()) {
@@ -1338,9 +1396,11 @@ MM::RenderSystem::RenderResourceBuffer::GetCopyWithDynamicBuffer(
 
   auto new_buffer = GetLightCopy();
   if (IsStorage()) {
-    new_buffer.buffer_bind_info_.bind_.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC;
+    new_buffer.buffer_bind_info_.bind_.descriptorType =
+        VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC;
   } else {
-    new_buffer.buffer_bind_info_.bind_.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC;
+    new_buffer.buffer_bind_info_.bind_.descriptorType =
+        VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC;
   }
 
   if (new_offset < UINT64_MAX - new_dynamic_offset &&
@@ -1353,15 +1413,18 @@ MM::RenderSystem::RenderResourceBuffer::GetCopyWithDynamicBuffer(
 }
 
 bool MM::RenderSystem::RenderResourceBuffer::IsDynamic() const {
-  return Utils::DescriptorTypeIsDynamicBuffer(buffer_bind_info_.bind_.descriptorType);
+  return Utils::DescriptorTypeIsDynamicBuffer(
+      buffer_bind_info_.bind_.descriptorType);
 }
 
 bool MM::RenderSystem::RenderResourceBuffer::IsStorage() const {
-  return Utils::DescriptorTypeIsStorageBuffer(buffer_bind_info_.bind_.descriptorType);
+  return Utils::DescriptorTypeIsStorageBuffer(
+      buffer_bind_info_.bind_.descriptorType);
 }
 
 bool MM::RenderSystem::RenderResourceBuffer::IsUniform() const {
-  return Utils::DescriptorTypeIsUniformBuffer(buffer_bind_info_.bind_.descriptorType);
+  return Utils::DescriptorTypeIsUniformBuffer(
+      buffer_bind_info_.bind_.descriptorType);
 }
 
 bool MM::RenderSystem::RenderResourceBuffer::IsTexel() const {
@@ -1467,8 +1530,10 @@ bool MM::RenderSystem::RenderResourceBuffer::CheckInitParameter(
       LOG_ERROR("The buffer_usage and descriptor_type do not match.")
       return false;
     }
-    if (render_engine_->gpu_properties_.limits.maxUniformBufferRange < range_size) {
-      LOG_ERROR("The uniform buffer range size you want to create is too large.")
+    if (render_engine_->gpu_properties_.limits.maxUniformBufferRange <
+        range_size) {
+      LOG_ERROR(
+          "The uniform buffer range size you want to create is too large.")
       return false;
     }
   } else if (buffer_usage & VK_BUFFER_USAGE_STORAGE_TEXEL_BUFFER_BIT) {
@@ -1539,11 +1604,11 @@ bool MM::RenderSystem::RenderResourceBuffer::CheckInitParameter(
 }
 
 bool MM::RenderSystem::RenderResourceBuffer::InitBuffer(
-    const VkDeviceSize& size,
-    const VkBufferUsageFlags& buffer_usage, const VkBufferCreateFlags& buffer_flags,
-    const VmaMemoryUsage& memory_usage, const VmaAllocationCreateFlags& allocation_flags) {
-  const auto buffer_create_info = Utils::GetBufferCreateInfo(
-      size, buffer_usage, buffer_flags);
+    const VkDeviceSize& size, const VkBufferUsageFlags& buffer_usage,
+    const VkBufferCreateFlags& buffer_flags, const VmaMemoryUsage& memory_usage,
+    const VmaAllocationCreateFlags& allocation_flags) {
+  const auto buffer_create_info =
+      Utils::GetBufferCreateInfo(size, buffer_usage, buffer_flags);
   const auto allocation_create_info =
       Utils::GetVmaAllocationCreateInfo(memory_usage, allocation_flags);
 
@@ -1561,10 +1626,11 @@ bool MM::RenderSystem::RenderResourceBuffer::InitBuffer(
   temp_buffer_info.can_mapped_ =
       Utils::CanBeMapped(memory_usage, allocation_flags);
   temp_buffer_info.is_transform_src = Utils::IsTransformSrcBuffer(buffer_flags);
-  temp_buffer_info.is_transform_dest = Utils::IsTransformDestBuffer(buffer_flags);
+  temp_buffer_info.is_transform_dest =
+      Utils::IsTransformDestBuffer(buffer_flags);
 
-  buffer_ =
-      AllocatedBuffer{render_engine_->allocator_, temp_buffer, temp_allocation, temp_buffer_info};
+  buffer_ = AllocatedBuffer{render_engine_->allocator_, temp_buffer,
+                            temp_allocation, temp_buffer_info};
 
   return false;
 }
@@ -1590,7 +1656,7 @@ bool MM::RenderSystem::RenderResourceBuffer::CopyDataToBuffer(
     return true;
   }
 
-  const auto stage_buffer = render_engine_->CreateBuffer(
+  auto stage_buffer = render_engine_->CreateBuffer(
       size,
       VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
       VMA_MEMORY_USAGE_AUTO_PREFER_HOST,
@@ -1639,16 +1705,17 @@ bool MM::RenderSystem::RenderResourceBuffer::InitSemaphore() {
            LOG_ERROR("Failed to create VkSemaphore.");
            return false;)
 
-  buffer_bind_info_.semaphore_ = MM::Utils::MakeSharedWithDestructor<VkSemaphore>(
-      [engine = render_engine_](VkSampler* value) {
-        if (value == nullptr) {
-          return;
-        }
-        vkDestroySampler(engine->device_, *value, nullptr);
-        delete value;
-        value = nullptr;
-      },
-      temp_semaphore);
+  buffer_bind_info_.semaphore_ =
+      MM::Utils::MakeSharedWithDestructor<VkSemaphore>(
+          [engine = render_engine_](VkSampler* value) {
+            if (value == nullptr) {
+              return;
+            }
+            vkDestroySampler(engine->device_, *value, nullptr);
+            delete value;
+            value = nullptr;
+          },
+          temp_semaphore);
 
   return true;
 }
@@ -1703,24 +1770,25 @@ bool MM::RenderSystem::RenderResourceBuffer::OffsetIsAlignment(
 MM::RenderSystem::RenderResourceMesh::RenderResourceMesh(
     const std::string& resource_name, RenderEngine* engine,
     const std::vector<AssetType::Mesh>& meshes)
-      : RenderResourceBase(resource_name), render_engine_(engine), vertex_input_state_(0){
-
-}
+    : RenderResourceBase(resource_name),
+      render_engine_(engine),
+      vertex_input_state_(0) {}
 
 MM::RenderSystem::RenderResourceMesh::RenderResourceMesh(
     RenderResourceMesh&& other) noexcept
-  : RenderResourceBase(std::move(other)),
-    render_engine_(other.render_engine_),
-    vertex_input_state_(std::move(other.vertex_input_state_)),
-    index_buffer_(std::move(other.index_buffer_)),
-    index_buffer_info(other.index_buffer_info),
-    vertex_buffer_(std::move(other.vertex_buffer_)),
-    vertex_buffer_info(other.vertex_buffer_info),
-    instance_buffers_(std::move(other.instance_buffers_)),
-    instance_buffers_info(std::move(other.instance_buffers_info)) {}
+    : RenderResourceBase(std::move(other)),
+      render_engine_(other.render_engine_),
+      vertex_input_state_(std::move(other.vertex_input_state_)),
+      index_buffer_(std::move(other.index_buffer_)),
+      index_buffer_info(other.index_buffer_info),
+      vertex_buffer_(std::move(other.vertex_buffer_)),
+      vertex_buffer_info(other.vertex_buffer_info),
+      instance_buffers_(std::move(other.instance_buffers_)),
+      instance_buffers_info(std::move(other.instance_buffers_info)) {}
 
-MM::RenderSystem::RenderResourceMesh& MM::RenderSystem::RenderResourceMesh::
-operator=(const RenderResourceMesh& other) {
+MM::RenderSystem::RenderResourceMesh&
+MM::RenderSystem::RenderResourceMesh::operator=(
+    const RenderResourceMesh& other) {
   if (&other == this) {
     return *this;
   }
@@ -1737,8 +1805,9 @@ operator=(const RenderResourceMesh& other) {
   return *this;
 }
 
-MM::RenderSystem::RenderResourceMesh& MM::RenderSystem::RenderResourceMesh::
-operator=(RenderResourceMesh&& other) noexcept {
+MM::RenderSystem::RenderResourceMesh&
+MM::RenderSystem::RenderResourceMesh::operator=(
+    RenderResourceMesh&& other) noexcept {
   if (&other == this) {
     return *this;
   }

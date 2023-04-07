@@ -510,11 +510,17 @@ MM::RenderSystem::AllocatedBuffer MM::RenderSystem::Utils::CreateBuffer(
   VkBuffer temp_buffer{};
   VmaAllocation temp_allocation{};
 
-  VK_CHECK(vmaCreateBuffer(engine->GetAllocator(), &buffer_Info, &vma_alloc_info,
-                           &temp_buffer, &temp_allocation, nullptr),
-           LOG_ERROR("Failed to create buffer."))
+  VK_CHECK(
+      vmaCreateBuffer(engine->GetAllocator(), &buffer_Info, &vma_alloc_info,
+                      &temp_buffer, &temp_allocation, nullptr),
+      LOG_ERROR("Failed to create buffer."))
 
-  return AllocatedBuffer(engine->GetAllocator(), temp_buffer, temp_allocation);
+  const BufferInfo temp_buffer_info{
+      alloc_size, Utils::CanBeMapped(memory_usage, allocation_flags),
+      static_cast<bool>(usage & VK_BUFFER_USAGE_TRANSFER_SRC_BIT),
+      static_cast<bool>(usage & VK_BUFFER_USAGE_TRANSFER_DST_BIT)};
+
+  return AllocatedBuffer(engine->GetAllocator(), temp_buffer, temp_allocation, temp_buffer_info);
 }
 
 VkBufferCopy2 MM::RenderSystem::Utils::GetCopyBufferRegion(
@@ -588,4 +594,72 @@ bool MM::RenderSystem::Utils::GetImageUsageFromDescriptorType(
     return true;
   }
   return false;
+}
+
+bool MM::RenderSystem::Utils::ImageRegionIsOverlap(const VkOffset3D& src_offset,
+    const VkOffset3D& dest_offset, const VkExtent3D& extent) {
+  if (((dest_offset.x > src_offset.x &&
+       dest_offset.x < src_offset.x + extent.width) ||
+      (dest_offset.x + extent.width > src_offset.x &&
+       dest_offset.x + extent.width < src_offset.x + extent.width)) &&
+      ((dest_offset.y > src_offset.y &&
+        dest_offset.y < src_offset.y + extent.height) ||
+       (dest_offset.y + extent.height > src_offset.y &&
+        dest_offset.y + extent.height < src_offset.y + extent.height)) &&
+      ((dest_offset.z > src_offset.z &&
+        dest_offset.z < src_offset.z + extent.width) ||
+       (dest_offset.z + extent.width > src_offset.z &&
+        dest_offset.z + extent.width < src_offset.z + extent.width))) {
+    return true;
+  }
+
+  return false;
+}
+
+bool MM::RenderSystem::Utils::ImageRegionAreaLessThanImageExtent(
+    const VkOffset3D& offset, const VkExtent3D& extent,
+    const AllocatedImage& image) {
+  const VkExtent3D& image_extent = image.GetImageExtent();
+  if (offset.x + extent.width < image_extent.width && offset.y + extent.height <
+      image_extent.height && offset.z + extent.depth < image_extent.height) {
+    return true;
+  }
+
+  return false;
+}
+
+VkImageSubresourceLayers MM::RenderSystem::Utils::GetImageSubResourceLayers(
+    const VkImageAspectFlags& aspect, const std::uint32_t& mipmap_level,
+    const std::uint32_t& base_array_layer,
+    const std::uint32_t& array_layer_count) {
+  return VkImageSubresourceLayers{aspect, mipmap_level, base_array_layer,
+                                  array_layer_count};
+}
+
+VkImageCopy2 MM::RenderSystem::Utils::GetImageCopy(
+    const VkImageSubresourceLayers& src_sub_resource,
+    const VkImageSubresourceLayers& dest_sub_resource,
+    const VkOffset3D& src_offset, const VkOffset3D& dest_offset,
+    const VkExtent3D& extent) {
+  return VkImageCopy2{VK_STRUCTURE_TYPE_BUFFER_IMAGE_COPY_2,
+                      nullptr,
+                      src_sub_resource,
+                      src_offset,
+                      dest_sub_resource,
+                      dest_offset,
+                      extent};
+}
+
+VkCopyImageInfo2 MM::RenderSystem::Utils::GetCopyImageInfo(
+    AllocatedImage& src_image, AllocatedImage& dest_image,
+    const VkImageLayout& src_layout, const VkImageLayout& dest_layout,
+    const std::vector<VkImageCopy2>& copy_regions) {
+  return VkCopyImageInfo2{VK_STRUCTURE_TYPE_COPY_IMAGE_INFO_2,
+                          nullptr,
+                          src_image.GetImage(),
+                          src_layout,
+                          dest_image.GetImage(),
+                          dest_layout,
+                          static_cast<uint32_t>(copy_regions.size()),
+                          copy_regions.data()};
 }

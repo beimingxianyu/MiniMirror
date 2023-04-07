@@ -131,14 +131,37 @@ class RenderEngine {
       const std::function<bool(VkCommandBuffer& cmd)>& function,
       const bool& auto_start_end_submit_wait = false);
 
+  /**
+   * \remark The range specified by \ref regions cannot overlap.
+  */
   bool CopyBuffer(AllocatedBuffer& src_buffer, AllocatedBuffer& dest_buffer,
-                  const VkDeviceSize& src_offset,
-                  const VkDeviceSize& dest_offset, const VkDeviceSize& size);
+                  const std::vector<VkBufferCopy2>& regions);
 
+  /**
+   * \remark The areas specified for each \ref VkBufferCopy2 in the vector cannot overlap,
+   * but the areas specified between each \ref VkBufferCopy2 can overlap.
+   */
   bool CopyBuffer(AllocatedBuffer& src_buffer, AllocatedBuffer& dest_buffer,
-                  const std::vector<VkDeviceSize>& src_offsets,
-                  const std::vector<VkDeviceSize>& dest_offsets,
-                  const std::vector<VkDeviceSize>& sizes);
+                  const std::vector<std::vector<VkBufferCopy2>>& regions_vector);
+
+  /**
+   * \remark The range specified by \ref regions cannot overlap.
+   */
+  bool CopyImage(AllocatedImage& src_image, AllocatedImage& dest_image,
+                 const VkImageLayout& src_layout,
+                 const VkImageLayout& dest_layout,
+                 const std::vector<VkImageCopy2>& regions);
+
+  /**
+   * \remark The areas specified for each \ref VkImageCopy in the vector
+   * cannot overlap, but the areas specified between each \ref VkImageCopy can
+   * overlap.
+   */
+  bool CopyImage(AllocatedImage& src_image, AllocatedImage& dest_image,
+                 const VkImageLayout& src_layout,
+                 const VkImageLayout& dest_layout,
+                 const std::vector<std::vector<VkImageCopy2>&>& regions_vector);
+
 
   bool CopyDataToBuffer(AllocatedBuffer& dest_buffer, const void* data,
                         const VkDeviceSize& copy_offset,

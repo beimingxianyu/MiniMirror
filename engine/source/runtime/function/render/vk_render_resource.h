@@ -10,14 +10,11 @@
 #include <unordered_map>
 #include <unordered_set>
 
-#include "vk_render_resource.h"
-#include "runtime/core/log/log_system.h"
+#include "runtime/function/render/vk_render_resource.h"
 #include "runtime/function/render/pre_header.h"
 #include "runtime/function/render/vk_type.h"
 #include "runtime/function/render/vk_utils.h"
 #include "utils/utils.h"
-
-extern std::shared_ptr<MM::LogSystem::LogSystem> log_system;
 
 namespace MM {
 namespace RenderSystem {
@@ -26,12 +23,11 @@ class RenderResourceBase;
 
 // TODO RenderSystem memory collection
 class RenderResourceManager : public RenderManageBase<RenderResourceBase> {
-  public:
-   RenderResourceManager(const RenderResourceManager& other) = delete;
-   RenderResourceManager(RenderResourceManager&& other) = delete;
+ public:
+  RenderResourceManager(const RenderResourceManager& other) = delete;
+  RenderResourceManager(RenderResourceManager&& other) = delete;
   RenderResourceManager& operator=(const RenderResourceManager& other) = delete;
-   RenderResourceManager& operator=(RenderResourceManager&& other) = delete;
-
+  RenderResourceManager& operator=(RenderResourceManager&& other) = delete;
 
  public:
   static RenderResourceManager* GetInstance();
@@ -66,23 +62,24 @@ class RenderResourceManager : public RenderManageBase<RenderResourceBase> {
       const uint64_t& asset_ID,
       std::vector<uint32_t>& output_resource_IDs) const;
 
-   std::uint32_t GetDeepCopy(const std::string& new_name_of_resource,
-       const std::string& resource_name) override;
+  std::uint32_t GetDeepCopy(const std::string& new_name_of_resource,
+                            const std::string& resource_name) override;
 
-   std::uint32_t GetDeepCopy(const std::string& new_name_of_resource,
-       const std::uint32_t& resource_ID) override;
+  std::uint32_t GetDeepCopy(const std::string& new_name_of_resource,
+                            const std::uint32_t& resource_ID) override;
 
-   std::uint32_t GetLightCopy(const std::string& new_name_of_resource,
-       const std::string& resource_name) override;
+  std::uint32_t GetLightCopy(const std::string& new_name_of_resource,
+                             const std::string& resource_name) override;
 
-   std::uint32_t GetLightCopy(const std::string& new_name_of_resource,
-       const std::uint32_t& resource_ID) override;
+  std::uint32_t GetLightCopy(const std::string& new_name_of_resource,
+                             const std::uint32_t& resource_ID) override;
 
-   std::uint32_t SaveData(std::unique_ptr<RenderResourceBase>&& resource) override;
+  std::uint32_t SaveData(
+      std::unique_ptr<RenderResourceBase>&& resource) override;
 
-   std::uint32_t SaveData(std::unique_ptr<RenderResourceBase>&& resource,
-                          const RenderResourceManageInfo& manage_info,
-                          const uint64_t& asset_ID = 0);
+  std::uint32_t SaveData(std::unique_ptr<RenderResourceBase>&& resource,
+                         const RenderResourceManageInfo& manage_info,
+                         const uint64_t& asset_ID = 0);
 
   // Only when build the render graph will UseWrite be called.
   std::uint32_t AddUseToWrite(const std::string& new_name_of_resource,
@@ -93,25 +90,28 @@ class RenderResourceManager : public RenderManageBase<RenderResourceBase> {
                               const std::uint32_t& resource_ID,
                               const bool& is_shared = false);
 
-   bool AddUse(const std::uint32_t& resource_ID) override;
+  bool AddUse(const std::uint32_t& resource_ID) override;
 
-   bool AddUse(const std::string& resource_name) override;
+  bool AddUse(const std::string& resource_name) override;
 
-   void ReleaseUse(const std::uint32_t& object_id) override;
+  void ReleaseUse(const std::uint32_t& object_id) override;
+
+  void ReleaseUse(const std::string& resource_name) override;
 
  protected:
   RenderResourceManager();
   ~RenderResourceManager() = default;
   static RenderResourceManager* render_resource_manager_;
 
-private:
+ private:
   static bool Destroy();
 
-private:
+ private:
   static std::mutex sync_flag_;
 
   mutable std::shared_mutex resource_lock_{};
-  std::unordered_map<uint64_t, std::vector<uint32_t>> asset_ID_to_resource_IDs_{};
+  std::unordered_map<uint64_t, std::vector<uint32_t>>
+      asset_ID_to_resource_IDs_{};
   // TODO Merge resource_ID_to_asset_ID_ and resource_ID_to_manage_info
   std::unordered_map<uint32_t, uint64_t> resource_ID_to_asset_ID_{};
   std::unordered_map<uint32_t, RenderResourceManageInfo>
@@ -178,11 +178,13 @@ class RenderResourceBase : ManagedObjectBase {
 
   virtual bool CanWrite() const = 0;
 
-  virtual std::unique_ptr<RenderResourceBase> GetLightCopy(const std::string& new_name_of_copy_resource) const;
+  virtual std::unique_ptr<RenderResourceBase> GetLightCopy(
+      const std::string& new_name_of_copy_resource) const;
 
-  virtual std::unique_ptr<RenderResourceBase> GetDeepCopy(const std::string& new_name_of_copy_resource) const;
+  virtual std::unique_ptr<RenderResourceBase> GetDeepCopy(
+      const std::string& new_name_of_copy_resource) const;
 
-protected:
+ protected:
   void SetResourceName(const std::string& new_resource_name);
 
   void SetResourceID(const std::uint32_t& new_resource_ID);
@@ -280,7 +282,7 @@ class RenderResourceTexture final : public RenderResourceBase {
                         const AllocatedImage& image,
                         const ImageBindInfo& image_bind_info);
 
-private:
+ private:
   bool CheckInitParameter(const RenderEngine* engine,
                           const VkDescriptorType& descriptor_type,
                           const std::shared_ptr<AssetType::Image>& image,
@@ -288,13 +290,14 @@ private:
                           VkImageUsageFlags usages) const;
 
   bool LoadImageToStageBuffer(const std::shared_ptr<AssetType::Image>& image,
-                              AllocatedBuffer& stage_buffer, MM::RenderSystem::ImageInfo& image_info);
+                              AllocatedBuffer& stage_buffer,
+                              MM::RenderSystem::ImageInfo& image_info);
 
   bool InitImage(
       const AllocatedBuffer& stage_buffer, VkImageUsageFlags usages,
       const VmaMemoryUsage& memory_usage = VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE,
-      const VmaAllocationCreateFlags& allocation_flags = 0, const ImageInfo&
-      image_info);
+      const VmaAllocationCreateFlags& allocation_flags = 0,
+      const ImageInfo& image_info);
 
   bool GenerateMipmap();
 
@@ -407,7 +410,8 @@ class RenderResourceBuffer final : public RenderResourceBase {
   RenderResourceBuffer(
       const std::string& resource_name, RenderEngine* engine,
       const VkDescriptorType& descriptor_type, VkBufferUsageFlags buffer_usage,
-      const VkDeviceSize& size, const VkDeviceSize& offset, const VkDeviceSize& size_range = VK_WHOLE_SIZE,
+      const VkDeviceSize& size, const VkDeviceSize& offset,
+      const VkDeviceSize& size_range = VK_WHOLE_SIZE,
       const VkDeviceSize& dynamic_offset = 0, const DataToBufferInfo& data_info,
       const VkBufferCreateFlags& buffer_flags = 0,
       const VmaMemoryUsage& memory_usage = VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE,
@@ -420,21 +424,19 @@ class RenderResourceBuffer final : public RenderResourceBase {
                        const BufferBindInfo& buffer_info,
                        const AllocatedBuffer& buffer);
 
-private:
-  bool CheckInitParameter(const RenderEngine* engine,
-                          const VkDescriptorType& descriptor_type,
-                          const VkBufferUsageFlags& buffer_usage,
-                          const VkDeviceSize& size, const VkDeviceSize& range_size,
-                          const VkDeviceSize& offset, const VkDeviceSize& dynamic_offset,
-                          const void* data,
-                          const VkDeviceSize& copy_offset, const VkDeviceSize& copy_size) const;
+ private:
+  bool CheckInitParameter(
+      const RenderEngine* engine, const VkDescriptorType& descriptor_type,
+      const VkBufferUsageFlags& buffer_usage, const VkDeviceSize& size,
+      const VkDeviceSize& range_size, const VkDeviceSize& offset,
+      const VkDeviceSize& dynamic_offset, const void* data,
+      const VkDeviceSize& copy_offset, const VkDeviceSize& copy_size) const;
 
   bool InitBuffer(
-      const VkDeviceSize&
-      size,
-      const VkBufferUsageFlags& buffer_usage,
+      const VkDeviceSize& size, const VkBufferUsageFlags& buffer_usage,
       const VkBufferCreateFlags& buffer_flags,
-      const VmaMemoryUsage& memory_usage = VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE, const VmaAllocationCreateFlags& allocation_flags = 0);
+      const VmaMemoryUsage& memory_usage = VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE,
+      const VmaAllocationCreateFlags& allocation_flags = 0);
 
   /**
    * \remark Returns true if the \ref data is nullptr or the data is
@@ -458,7 +460,7 @@ private:
 };
 
 class RenderResourceMesh final : public RenderResourceBase {
-public:
+ public:
   RenderResourceMesh() = default;
   ~RenderResourceMesh() override = default;
   RenderResourceMesh(const RenderResourceMesh& other) = default;
@@ -466,7 +468,7 @@ public:
   RenderResourceMesh& operator=(const RenderResourceMesh& other);
   RenderResourceMesh& operator=(RenderResourceMesh&& other) noexcept;
 
-public:
+ public:
   bool IsValid() const override;
   void Release() override;
   void Reset(MM::RenderSystem::RenderResourceBase* other) override;
@@ -476,11 +478,11 @@ public:
   bool IsArray() const override;
   bool CanWrite() const override;
 
-protected:
+ protected:
   RenderResourceMesh(const std::string& resource_name, RenderEngine* engine,
                      const std::vector<AssetType::Mesh>& meshes);
 
-private:
+ private:
   RenderEngine* render_engine_{nullptr};
   VertexInputState vertex_input_state_{};
   AllocatedBuffer index_buffer_{};

@@ -142,6 +142,8 @@ class RenderManageBase {
 
   virtual void ReleaseUse(const std::uint32_t& object_id);
 
+  virtual void ReleaseUse(const std::string& object_name);
+
  protected:
   RenderManageBase() = default;
   ~RenderManageBase() = default;
@@ -466,6 +468,21 @@ void RenderManageBase<ObjectType>::ReleaseUse(const std::uint32_t& object_id) {
         object_ID_to_object_.at(object_id).GetData().GetObjectName());
     object_ID_to_object_.erase(object_id);
   } }
+
+template <typename ObjectType>
+void RenderManageBase<ObjectType>::ReleaseUse(const std::string& object_name) {
+  const auto mapped_ID = GetObjectIDFromName(object_name);
+  if (mapped_ID == 0) {
+    return;
+  }
+
+  std::unique_lock<std::shared_mutex> guard{data_lock_};
+  auto user_count = --object_ID_to_object_.at(mapped_ID).use_count_;
+  if (user_count == 0) {
+    object_name_to_ID_.erase(object_name);
+    object_ID_to_object_.erase(mapped_ID);
+  }
+}
 
 template <typename ObjectType>
 bool RenderManageBase<ObjectType>::DestroyBase() {
@@ -799,11 +816,11 @@ class AllocatedBuffer {
 
   const BufferInfo& GetBufferInfo() const;
 
-  const VmaAllocator& GetAllocator() const;
+  VmaAllocator GetAllocator() const;
 
-  const VkBuffer& GetBuffer() const;
+  VkBuffer GetBuffer() const;
 
-  const VmaAllocation& GetAllocation() const;
+  VmaAllocation GetAllocation() const;
 
   void Release();
 
@@ -848,6 +865,36 @@ class AllocatedBuffer {
   std::shared_ptr<AllocatedBufferWrapper> wrapper_{nullptr};
 };
 
+class ImageChunkInfo {
+public:
+  ImageChunkInfo() = default;
+ ~ImageChunkInfo() = default;
+  ImageChunkInfo(const VkOffset3D& offset, const VkExtent3D& extent);
+  ImageChunkInfo(const ImageChunkInfo& other) = default;
+ ImageChunkInfo(ImageChunkInfo&& other) noexcept = default;
+  ImageChunkInfo& operator=(const ImageChunkInfo& other);
+ ImageChunkInfo& operator=(ImageChunkInfo&& other) noexcept;
+
+public:
+ VkOffset3D& GetOffset();
+ const VkOffset3D& GetOffset() const;
+
+  VkExtent3D& GetExtent();
+ const VkExtent3D& GetExtent() const;
+
+  void SetOffset(const VkOffset3D& new_offset);
+
+  void SetExtent(const VkExtent3D& new_extent);
+
+ void Reset();
+
+  bool IsValid() const;
+
+private:
+ VkOffset3D offset_{0, 0, 0};
+ VkExtent3D extent_{0, 0, 0};
+};
+
 class AllocatedImage {
   friend class RenderResourceTexture;
 
@@ -880,11 +927,11 @@ class AllocatedImage {
 
   const ImageInfo& GetImageInfo() const;
 
-  const VmaAllocator& GetAllocator() const;
+  VmaAllocator GetAllocator() const;
 
-  const VkImage& GetImage() const;
+  VkImage GetImage() const;
 
-  const VmaAllocation& GetAllocation() const;
+  VmaAllocation GetAllocation() const;
 
   void Release();
 
@@ -930,7 +977,7 @@ class AllocatedImage {
 
 class BufferChunkInfo {
 public:
-  BufferChunkInfo() = delete;
+  BufferChunkInfo()= default;
  ~BufferChunkInfo() = default;
   BufferChunkInfo(const VkDeviceSize& start_offset,
                   const VkDeviceSize& end_offset);
@@ -940,14 +987,25 @@ public:
  BufferChunkInfo& operator=(BufferChunkInfo&& other) noexcept;
 
 public:
+ VkDeviceSize& GetOffset();
  const VkDeviceSize& GetOffset() const;
 
+  VkDeviceSize& GetSize();
   const VkDeviceSize& GetSize() const;
 
+  void SetOffset(const VkDeviceSize& new_offset);
+
+  void SetSize(const VkDeviceSize& new_size);
+
+  void Reset();
+
+  bool IsValid() const;
+
 private:
-  VkDeviceSize offset_{};
-  VkDeviceSize size_{};
+  VkDeviceSize offset_{0};
+  VkDeviceSize size_{0};
 };
+
 
 class VertexAndIndexBuffer {
 public:

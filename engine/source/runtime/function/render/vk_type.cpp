@@ -754,16 +754,28 @@ GetBufferInfo() const {
   return buffer_info_;
 }
 
-const VmaAllocator& MM::RenderSystem::AllocatedBuffer::GetAllocator() const {
-  return wrapper_->GetAllocator();
+VmaAllocator MM::RenderSystem::AllocatedBuffer::GetAllocator() const {
+  if (wrapper_) {
+    return wrapper_->GetAllocator();
+  }
+
+  return nullptr;
 }
 
-const VkBuffer& MM::RenderSystem::AllocatedBuffer::GetBuffer() const {
-  return wrapper_->GetBuffer();
+VkBuffer MM::RenderSystem::AllocatedBuffer::GetBuffer() const {
+  if (wrapper_) {
+    return wrapper_->GetBuffer();
+  }
+
+  return nullptr;
 }
 
-const VmaAllocation& MM::RenderSystem::AllocatedBuffer::GetAllocation() const {
-  return wrapper_->GetAllocation();
+VmaAllocation MM::RenderSystem::AllocatedBuffer::GetAllocation() const {
+  if (wrapper_) {
+    return wrapper_->GetAllocation();
+  }
+
+  return nullptr;
 }
 
 void MM::RenderSystem::AllocatedBuffer::Release() {
@@ -772,7 +784,10 @@ void MM::RenderSystem::AllocatedBuffer::Release() {
 }
 
 uint32_t MM::RenderSystem::AllocatedBuffer::UseCount() const {
-  return wrapper_.use_count();
+  if (wrapper_) {
+    return wrapper_.use_count();
+  }
+  return 0;
 }
 
 bool MM::RenderSystem::AllocatedBuffer::IsValid() const {
@@ -814,6 +829,65 @@ GetAllocation() const {
 bool MM::RenderSystem::AllocatedBuffer::AllocatedBufferWrapper::
 IsValid() const {
   return allocator_ != nullptr && buffer_ != nullptr && allocation_ != nullptr;
+}
+
+MM::RenderSystem::ImageChunkInfo::ImageChunkInfo(const VkOffset3D& offset,
+    const VkExtent3D& extent) : offset_(offset), extent_(extent){}
+
+MM::RenderSystem::ImageChunkInfo& MM::RenderSystem::ImageChunkInfo::operator=(
+    const ImageChunkInfo& other) {
+  if (&other == this) {
+    return *this;
+  }
+
+  offset_ = other.offset_;
+  extent_ = other.extent_;
+
+  return *this;
+}
+
+MM::RenderSystem::ImageChunkInfo& MM::RenderSystem::ImageChunkInfo::operator=(
+    ImageChunkInfo&& other) noexcept {
+  if (&other == this) {
+    return *this;
+  }
+
+  offset_ = other.offset_;
+  extent_ = other.extent_;
+
+  other.Reset();
+
+  return *this;
+}
+
+VkOffset3D& MM::RenderSystem::ImageChunkInfo::GetOffset() { return offset_; }
+
+const VkOffset3D& MM::RenderSystem::ImageChunkInfo::GetOffset() const { return offset_; }
+
+VkExtent3D& MM::RenderSystem::ImageChunkInfo::GetExtent() { return extent_; }
+
+const VkExtent3D& MM::RenderSystem::ImageChunkInfo::GetExtent() const {
+  return extent_;
+}
+
+void MM::RenderSystem::ImageChunkInfo::SetOffset(const VkOffset3D& new_offset) {
+  offset_ = new_offset;
+}
+
+void MM::RenderSystem::ImageChunkInfo::SetExtent(const VkExtent3D& new_extent) {
+  extent_ = new_extent;
+}
+
+void MM::RenderSystem::ImageChunkInfo::Reset() {
+  offset_ = VkOffset3D{0, 0, 0};
+  extent_ = VkExtent3D{0, 0, 0};
+}
+
+bool MM::RenderSystem::ImageChunkInfo::IsValid() const {
+  if (extent_.width == 0 || extent_.depth == 0 || extent_.height == 0) {
+    return false;
+  }
+  return true;
 }
 
 MM::RenderSystem::AllocatedImage::AllocatedImage(
@@ -886,22 +960,34 @@ GetImageInfo() const {
   return image_info_;
 }
 
-const VmaAllocator& MM::RenderSystem::AllocatedImage::GetAllocator() const {
-  return wrapper_->GetAllocator();
+VmaAllocator MM::RenderSystem::AllocatedImage::GetAllocator() const {
+  if (wrapper_) {
+    return wrapper_->GetAllocator();
+  }
+  return nullptr;
 }
 
-const VkImage& MM::RenderSystem::AllocatedImage::GetImage() const {
-  return wrapper_->GetImage();
+VkImage MM::RenderSystem::AllocatedImage::GetImage() const {
+  if (wrapper_) {
+    return wrapper_->GetImage();
+  }
+  return nullptr;
 }
 
-const VmaAllocation& MM::RenderSystem::AllocatedImage::GetAllocation() const {
-  return wrapper_->GetAllocation();
+VmaAllocation MM::RenderSystem::AllocatedImage::GetAllocation() const {
+  if (wrapper_) {
+    return wrapper_->GetAllocation();
+  }
+  return nullptr;
 }
 
 void MM::RenderSystem::AllocatedImage::Release() { wrapper_.reset(); }
 
 uint32_t MM::RenderSystem::AllocatedImage::UseCount() const {
-  return wrapper_.use_count();
+  if (wrapper_) {
+    return wrapper_.use_count();
+  }
+  return 0;
 }
 
 bool MM::RenderSystem::AllocatedImage::IsValid() const {
@@ -976,13 +1062,33 @@ MM::RenderSystem::BufferChunkInfo& MM::RenderSystem::BufferChunkInfo::operator=(
   return *this;
 }
 
+VkDeviceSize& MM::RenderSystem::BufferChunkInfo::GetOffset() { return offset_; }
+
 const VkDeviceSize& MM::RenderSystem::BufferChunkInfo::GetOffset() const {
   return offset_;
 }
 
+VkDeviceSize& MM::RenderSystem::BufferChunkInfo::GetSize() { return size_; }
+
 const VkDeviceSize& MM::RenderSystem::BufferChunkInfo::GetSize() const {
   return size_;
 }
+
+void MM::RenderSystem::BufferChunkInfo::SetOffset(
+    const VkDeviceSize& new_offset) {
+  offset_ = new_offset;
+}
+
+void MM::RenderSystem::BufferChunkInfo::SetSize(const VkDeviceSize& new_size) {
+  size_ = new_size;
+}
+
+void MM::RenderSystem::BufferChunkInfo::Reset() {
+  offset_ = 0;
+  size_ = 0;
+}
+
+bool MM::RenderSystem::BufferChunkInfo::IsValid() const { return size_ != 0; }
 
 MM::RenderSystem::VertexAndIndexBuffer::VertexAndIndexBuffer(
     RenderEngine* engine) {
