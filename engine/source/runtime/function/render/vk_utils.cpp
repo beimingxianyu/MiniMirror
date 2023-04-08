@@ -485,7 +485,7 @@ bool MM::RenderSystem::Utils::DescriptorTypeIsUniformBuffer(
   return !DescriptorTypeIsStorageBuffer(descriptor_type);
 }
 
-bool MM::RenderSystem::Utils::DescriptorTypeIsTexel(
+bool MM::RenderSystem::Utils::DescriptorTypeIsTexelBuffer(
     const VkDescriptorType& descriptor_type) {
   switch (descriptor_type) {
     case VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER:
@@ -523,7 +523,7 @@ MM::RenderSystem::AllocatedBuffer MM::RenderSystem::Utils::CreateBuffer(
   return AllocatedBuffer(engine->GetAllocator(), temp_buffer, temp_allocation, temp_buffer_info);
 }
 
-VkBufferCopy2 MM::RenderSystem::Utils::GetCopyBufferRegion(
+VkBufferCopy2 MM::RenderSystem::Utils::GetBufferCopy(
     const VkDeviceSize& size, const VkDeviceSize& src_offset,
     const VkDeviceSize& dest_offset) {
   VkBufferCopy2 buffer_copy_region{};
@@ -538,7 +538,22 @@ VkBufferCopy2 MM::RenderSystem::Utils::GetCopyBufferRegion(
 }
 
 VkCopyBufferInfo2 MM::RenderSystem::Utils::GetCopyBufferInfo(
-    const AllocatedBuffer& src_buffer, const AllocatedBuffer& dest_buffer,
+    AllocatedBuffer& src_buffer, AllocatedBuffer& dest_buffer,
+    const std::vector<VkBufferCopy2>& regions) {
+  VkCopyBufferInfo2 copy_buffer_info{};
+  copy_buffer_info.sType = VK_STRUCTURE_TYPE_COPY_BUFFER_INFO_2;
+  copy_buffer_info.pNext = nullptr;
+
+  copy_buffer_info.srcBuffer = src_buffer.GetBuffer();
+  copy_buffer_info.dstBuffer = dest_buffer.GetBuffer();
+  copy_buffer_info.regionCount = static_cast<uint32_t>(regions.size());
+  copy_buffer_info.pRegions = regions.data();
+
+  return copy_buffer_info;
+}
+
+VkCopyBufferInfo2 MM::RenderSystem::Utils::GetCopyBufferInfo(
+    const AllocatedBuffer& src_buffer, AllocatedBuffer& dest_buffer,
     const std::vector<VkBufferCopy2>& regions) {
   VkCopyBufferInfo2 copy_buffer_info{};
   copy_buffer_info.sType = VK_STRUCTURE_TYPE_COPY_BUFFER_INFO_2;
@@ -596,19 +611,41 @@ bool MM::RenderSystem::Utils::GetImageUsageFromDescriptorType(
   return false;
 }
 
+bool MM::RenderSystem::Utils::GetBufferUsageFromDescriptorType(
+    const VkDescriptorType& descriptor_type,
+    VkImageUsageFlags& output_buffer_usage) {
+  if (DescriptorTypeIsUniformBuffer(descriptor_type)) {
+    if (DescriptorTypeIsTexelBuffer(descriptor_type)) {
+      output_buffer_usage = VK_BUFFER_USAGE_UNIFORM_TEXEL_BUFFER_BIT;
+      return true;
+    }
+    output_buffer_usage = VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT;
+    return true;
+  }
+  if (DescriptorTypeIsStorageBuffer(descriptor_type)) {
+    if (DescriptorTypeIsTexelBuffer(descriptor_type)) {
+      output_buffer_usage = VK_BUFFER_USAGE_STORAGE_TEXEL_BUFFER_BIT;
+      return true;
+    }
+    output_buffer_usage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
+    return true;
+  }
+  return false;
+}
+
 bool MM::RenderSystem::Utils::ImageRegionIsOverlap(const VkOffset3D& src_offset,
-    const VkOffset3D& dest_offset, const VkExtent3D& extent) {
+                                                   const VkOffset3D& dest_offset, const VkExtent3D& extent) {
   if (((dest_offset.x > src_offset.x &&
-       dest_offset.x < src_offset.x + extent.width) ||
-      (dest_offset.x + extent.width > src_offset.x &&
+       static_cast<std::uint32_t>(dest_offset.x) < src_offset.x + extent.width) ||
+      (dest_offset.x + static_cast<std::int32_t>(extent.width) > src_offset.x &&
        dest_offset.x + extent.width < src_offset.x + extent.width)) &&
       ((dest_offset.y > src_offset.y &&
-        dest_offset.y < src_offset.y + extent.height) ||
-       (dest_offset.y + extent.height > src_offset.y &&
+        dest_offset.y < src_offset.y + static_cast<std::int32_t>(extent.height)) ||
+       (dest_offset.y + static_cast<std::int32_t>(extent.height) > src_offset.y &&
         dest_offset.y + extent.height < src_offset.y + extent.height)) &&
       ((dest_offset.z > src_offset.z &&
-        dest_offset.z < src_offset.z + extent.width) ||
-       (dest_offset.z + extent.width > src_offset.z &&
+        dest_offset.z < src_offset.z + static_cast<std::int32_t>(extent.width)) ||
+       (dest_offset.z + static_cast<std::int32_t>(extent.width) > src_offset.z &&
         dest_offset.z + extent.width < src_offset.z + extent.width))) {
     return true;
   }
@@ -652,6 +689,20 @@ VkImageCopy2 MM::RenderSystem::Utils::GetImageCopy(
 
 VkCopyImageInfo2 MM::RenderSystem::Utils::GetCopyImageInfo(
     AllocatedImage& src_image, AllocatedImage& dest_image,
+    const VkImageLayout& src_layout, const VkImageLayout& dest_layout,
+    const std::vector<VkImageCopy2>& copy_regions) {
+  return VkCopyImageInfo2{VK_STRUCTURE_TYPE_COPY_IMAGE_INFO_2,
+                          nullptr,
+                          src_image.GetImage(),
+                          src_layout,
+                          dest_image.GetImage(),
+                          dest_layout,
+                          static_cast<uint32_t>(copy_regions.size()),
+                          copy_regions.data()};
+}
+
+VkCopyImageInfo2 MM::RenderSystem::Utils::GetCopyImageInfo(
+    const AllocatedImage& src_image, AllocatedImage& dest_image,
     const VkImageLayout& src_layout, const VkImageLayout& dest_layout,
     const std::vector<VkImageCopy2>& copy_regions) {
   return VkCopyImageInfo2{VK_STRUCTURE_TYPE_COPY_IMAGE_INFO_2,

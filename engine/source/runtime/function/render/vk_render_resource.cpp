@@ -511,10 +511,13 @@ MM::RenderSystem::RenderResourceTexture::RenderResourceTexture(
     const VmaMemoryUsage& memory_usage,
     const VmaAllocationCreateFlags& allocation_flags)
     : RenderResourceBase(resource_name), render_engine_(engine) {
+#ifdef CHECK_PARAMETERS
   if (!CheckInitParameter(engine, descriptor_type, image, mipmap_levels,
                           usages)) {
     return;
   }
+#endif
+
   render_engine_ = engine;
 
   // wrapper_->bind_->binding = 0; binding will be determined when binding to
@@ -543,6 +546,7 @@ MM::RenderSystem::RenderResourceTexture::RenderResourceTexture(
   temp_info.mipmap_levels = mipmap_levels > recommend_mipmap_level
                                 ? recommend_mipmap_level
                                 : mipmap_levels;
+  temp_info.array_layers = 1;
 
   AllocatedBuffer stage_buffer;
   if (!LoadImageToStageBuffer(image, stage_buffer, temp_info)) {
@@ -648,9 +652,24 @@ const VkImageLayout& MM::RenderSystem::RenderResourceTexture::GetImageLayout()
   return image_.GetImageLayout();
 }
 
+const std::uint32_t& MM::RenderSystem::RenderResourceTexture::
+GetMipmapLevels() const {
+  return image_.GetMipmapLevels();
+}
+
+const std::uint32_t& MM::RenderSystem::RenderResourceTexture::
+GetArrayLayers() const {
+  return image_.GetArrayLayers();
+}
+
 const MM::RenderSystem::ImageInfo&
 MM::RenderSystem::RenderResourceTexture::GetImageInfo() const {
   return image_.GetImageInfo();
+}
+
+const MM::RenderSystem::ImageBindInfo& MM::RenderSystem::RenderResourceTexture::
+GetImageBindInfo() const {
+  return image_bind_info_;
 }
 
 MM::RenderSystem::RenderResourceTexture
@@ -783,6 +802,9 @@ MM::RenderSystem::RenderResourceTexture::GetDeepCopy(
   VkImageUsageFlags new_image_usage;
   assert(Utils::GetImageUsageFromDescriptorType(
       image_bind_info_.bind_.descriptorType, new_image_usage));
+  if (image_.IsTransformSrc()) {
+    new_image_usage |= VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
+  }
   const VkImageCreateInfo new_image_create_info = Utils::GetImageCreateInfo(
       image_.GetImageFormat(),
       new_image_usage | VK_IMAGE_USAGE_TRANSFER_DST_BIT,
@@ -791,7 +813,7 @@ MM::RenderSystem::RenderResourceTexture::GetDeepCopy(
   const VmaAllocationCreateInfo new_allocation_create_info =
       Utils::GetVmaAllocationCreateInfo(
           VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE,
-          image_.CanMapped() ? VMA_ALLOCATION_CREATE_HOST_ACCESS_RANDOM_BIT
+          image_.CanMapped() ? VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT
                              : 0);
 
   VkImage new_image{nullptr};
@@ -803,14 +825,38 @@ MM::RenderSystem::RenderResourceTexture::GetDeepCopy(
            LOG_ERROR("Failed to deep copy texture.");
            return std::unique_ptr<RenderResourceBase>();)
 
-  std::shared_ptr<AllocatedImage> new_allocated_image{
-      std::make_shared<AllocatedImage>(render_engine_->GetAllocator(),
-                                       new_image, new_allocation,
-                                       GetImageInfo())};
+  ImageInfo new_image_info = GetImageInfo();
+  new_image_info.is_transform_dest_ = true;
 
-  VkImageCopy image;
+  AllocatedImage new_allocated_image{render_engine_->GetAllocator(), new_image,
+                                     new_allocation, new_image_info};
 
-  render_engine_->CopyImage(image_, new_allocated_image, GetImageLayout(), GetImageLayout(), )
+  std::vector<VkImageSubresourceLayers> sub_resource_vector(
+      static_cast<std::vector<VkImageSubresourceLayers>::size_type>(
+        image_.GetMipmapLevels() * image_.GetArrayLayers()));
+  for (std::uint32_t i = 0; i < image_.GetMipmapLevels(); ++i) {
+    VkImageSubresourceLayers temp_src_region = Utils::GetImageSubResourceLayers(
+        VK_IMAGE_ASPECT_COLOR_BIT, i + 1, 1,
+        image_.GetArrayLayers());
+    sub_resource_vector.push_back(temp_src_region);
+  }
+
+  const std::vector<VkImageCopy2> image_region_vector;
+  for (const auto& sub_resource: sub_resource_vector) {
+    VkImageCopy2 temp_image_copy =
+        Utils::GetImageCopy(sub_resource, sub_resource, VkOffset3D{0, 0, 0},
+                            VkOffset3D{0, 0, 0}, image_.GetImageExtent());
+  }
+
+  if (!render_engine_->CopyImage(const_cast<AllocatedImage&>(image_), new_allocated_image, GetImageLayout(),
+                            GetImageLayout(), image_region_vector)) {
+    LOG_ERROR("Failed to copy imager to new image.")
+    return std::unique_ptr<RenderResourceBase>();
+  }
+
+  return std::make_unique<RenderResourceTexture>(
+      new_name_of_copy_resource, render_engine_, new_allocated_image,
+      image_bind_info_);
 }
 
 void MM::RenderSystem::RenderResourceTexture::Release() {
@@ -1202,6 +1248,7 @@ MM::RenderSystem::RenderResourceBuffer::RenderResourceBuffer(
   if (size_range == VK_WHOLE_SIZE) {
     buffer_bind_info_.range_size_ = size - offset;
   }
+#ifdef CHECK_PARAMETERS
   if (!CheckInitParameter(engine, descriptor_type, buffer_usage, size,
                           buffer_bind_info_.range_size_, offset, dynamic_offset,
                           data_info.data_, data_info.copy_offset_,
@@ -1209,6 +1256,7 @@ MM::RenderSystem::RenderResourceBuffer::RenderResourceBuffer(
     RenderResourceBuffer::Release();
     return;
   }
+#endif
 
   render_engine_ = engine;
 
@@ -1428,7 +1476,25 @@ bool MM::RenderSystem::RenderResourceBuffer::IsUniform() const {
 }
 
 bool MM::RenderSystem::RenderResourceBuffer::IsTexel() const {
-  return Utils::DescriptorTypeIsTexel(buffer_bind_info_.bind_.descriptorType);
+  return Utils::DescriptorTypeIsTexelBuffer(buffer_bind_info_.bind_.descriptorType);
+}
+
+bool MM::RenderSystem::RenderResourceBuffer::IsTransformSrc() const {
+  return buffer_.IsTransformSrc();
+}
+
+bool MM::RenderSystem::RenderResourceBuffer::IsTransformDest() const {
+  return buffer_.IsTransformDest();
+}
+
+MM::RenderSystem::BufferInfo
+MM::RenderSystem::RenderResourceBuffer::GetBufferInfo() const {
+  return buffer_.GetBufferInfo();
+}
+
+const VkDeviceSize& MM::RenderSystem::RenderResourceBuffer::
+GetBufferSize() const {
+  return buffer_.GetBufferSize();
 }
 
 const VkDeviceSize& MM::RenderSystem::RenderResourceBuffer::GetOffset() const {
@@ -1440,12 +1506,17 @@ const VkDeviceSize& MM::RenderSystem::RenderResourceBuffer::GetDynamicOffset()
   return buffer_bind_info_.dynamic_offset_;
 }
 
-const bool& MM::RenderSystem::RenderResourceBuffer::CanMapped() const {
+const VkDeviceSize& MM::RenderSystem::RenderResourceBuffer::
+GetRangeSize() const {
+  return buffer_bind_info_.range_size_;
+}
+
+bool MM::RenderSystem::RenderResourceBuffer::CanMapped() const {
   return buffer_.CanMapped();
 }
 
 const MM::RenderSystem::BufferBindInfo&
-MM::RenderSystem::RenderResourceBuffer::GetBufferInfo() const {
+MM::RenderSystem::RenderResourceBuffer::GetBufferBindInfo() const {
   return buffer_bind_info_;
 }
 
@@ -1497,6 +1568,66 @@ bool MM::RenderSystem::RenderResourceBuffer::IsArray() const { return false; }
 
 bool MM::RenderSystem::RenderResourceBuffer::CanWrite() const {
   return Utils::ResourceBufferCanWrite(buffer_bind_info_.bind_.descriptorType);
+}
+
+std::unique_ptr<MM::RenderSystem::RenderResourceBase> MM::RenderSystem::
+RenderResourceBuffer::GetLightCopy(
+    const std::string& new_name_of_copy_resource) const {
+  auto new_buffer = std::make_unique<RenderResourceBuffer>(*this);
+  new_buffer->SetResourceID(
+      RenderResourceManager::GetInstance()->GetIncreaseIndex());
+  new_buffer->SetResourceName(new_name_of_copy_resource);
+
+  return new_buffer;
+}
+
+std::unique_ptr<MM::RenderSystem::RenderResourceBase> MM::RenderSystem::
+RenderResourceBuffer::GetDeepCopy(
+    const std::string& new_name_of_copy_resource) const {
+  VkBufferUsageFlags new_buffer_usage;
+  assert(Utils::GetBufferUsageFromDescriptorType(
+      GetDescriptorType(), new_buffer_usage));
+
+  if (IsTransformSrc()) {
+    new_buffer_usage |= VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
+  }
+  new_buffer_usage |= VK_BUFFER_USAGE_TRANSFER_DST_BIT;
+
+  const VkBufferCreateInfo new_buffer_create_info =
+      Utils::GetBufferCreateInfo(GetBufferSize(), new_buffer_usage, 0);
+
+  const VmaAllocationCreateInfo new_allocation_create_info =
+      Utils::GetVmaAllocationCreateInfo(VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE,
+                                        CanMapped()
+                                          ? VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT
+                                          : 0);
+  VkBuffer new_buffer{nullptr};
+  VmaAllocation new_allocation{nullptr};
+
+  VK_CHECK(vmaCreateBuffer(render_engine_->GetAllocator(),
+                           &new_buffer_create_info, &new_allocation_create_info,
+                           &new_buffer, &new_allocation, nullptr),
+           LOG_ERROR("Failed to create buffer.") return std::unique_ptr<
+               RenderResourceBuffer>())
+
+  BufferInfo new_buffer_info = GetBufferInfo();
+  new_buffer_info.is_transform_dest = true;
+
+  AllocatedBuffer new_allocated_buffer{render_engine_->GetAllocator(),
+                                       new_buffer, new_allocation,
+                                       new_buffer_info};
+
+  const VkBufferCopy2 buffer_copy = Utils::GetBufferCopy(GetBufferSize(), 0, 0);
+
+  if (!render_engine_->CopyBuffer(buffer_, new_allocated_buffer,
+                                 std::vector<VkBufferCopy2>{buffer_copy})) {
+    LOG_ERROR("Failed to copy buffer.")
+    return std::unique_ptr<RenderResourceBuffer>{};
+  }
+
+  return std::make_unique<RenderResourceBuffer>(
+      new_name_of_copy_resource, render_engine_, buffer_bind_info_,
+      new_allocated_buffer);
 }
 
 bool MM::RenderSystem::RenderResourceBuffer::CheckInitParameter(
@@ -1667,7 +1798,7 @@ bool MM::RenderSystem::RenderResourceBuffer::CopyDataToBuffer(
     return false;
   }
 
-  const auto buffer_copy_region = Utils::GetCopyBufferRegion(size, 0, offset);
+  const auto buffer_copy_region = Utils::GetBufferCopy(size, 0, offset);
   std::vector<VkBufferCopy2> buffer_copy_regions{buffer_copy_region};
   auto buffer_copy_info =
       Utils::GetCopyBufferInfo(stage_buffer, buffer_, buffer_copy_regions);

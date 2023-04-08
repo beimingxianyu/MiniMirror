@@ -175,7 +175,7 @@ bool DescriptorTypeIsStorageImage(const VkDescriptorType& descriptor_type);
 
 bool DescriptorTypeIsUniformBuffer(const VkDescriptorType& descriptor_type);
 
-bool DescriptorTypeIsTexel(const VkDescriptorType& descriptor_type);
+bool DescriptorTypeIsTexelBuffer(const VkDescriptorType& descriptor_type);
 
 AllocatedBuffer CreateBuffer(
     const RenderEngine* engine,
@@ -183,11 +183,15 @@ AllocatedBuffer CreateBuffer(
     const VmaMemoryUsage& memory_usage,
     const VmaAllocationCreateFlags& allocation_flags = 0);
 
-VkBufferCopy2 GetCopyBufferRegion(const VkDeviceSize& size,
+VkBufferCopy2 GetBufferCopy(const VkDeviceSize& size,
                                   const VkDeviceSize& src_offset = 0,
                                   const VkDeviceSize& dest_offset = 0);
 
 VkCopyBufferInfo2 GetCopyBufferInfo(AllocatedBuffer& src_buffer,
+                                    AllocatedBuffer& dest_buffer,
+                                    const std::vector<VkBufferCopy2>& regions);
+
+VkCopyBufferInfo2 GetCopyBufferInfo(const AllocatedBuffer& src_buffer,
                                     AllocatedBuffer& dest_buffer,
                                     const std::vector<VkBufferCopy2>& regions);
 
@@ -206,6 +210,9 @@ bool ResourceBufferCanWrite(const VkDescriptorType& descriptor_type);
 bool GetImageUsageFromDescriptorType(
     const VkDescriptorType& descriptor_type, VkImageUsageFlags&
     output_image_usage);
+
+bool GetBufferUsageFromDescriptorType(const VkDescriptorType& descriptor_type,
+                                      VkImageUsageFlags& output_buffer_usage);
 
 bool ImageRegionIsOverlap(const VkOffset3D& src_offset,
                         const VkOffset3D& dest_offset,
@@ -226,7 +233,17 @@ VkImageCopy2 GetImageCopy(const VkImageSubresourceLayers& src_sub_resource,
                           const VkOffset3D& dest_offset,
                           const VkExtent3D& extent);
 
-VkCopyImageInfo2 GetCopyImageInfo(AllocatedImage& src_image, AllocatedImage& dest_image, const VkImageLayout& src_layout, const VkImageLayout& dest_layout, const std::vector<VkImageCopy2>& copy_regions);
+VkCopyImageInfo2 GetCopyImageInfo(AllocatedImage& src_image,
+                                  AllocatedImage& dest_image,
+                                  const VkImageLayout& src_layout,
+                                  const VkImageLayout& dest_layout,
+                                  const std::vector<VkImageCopy2>&
+                                  copy_regions);
+
+VkCopyImageInfo2 GetCopyImageInfo(
+    const AllocatedImage& src_image, AllocatedImage& dest_image,
+    const VkImageLayout& src_layout, const VkImageLayout& dest_layout,
+    const std::vector<VkImageCopy2>& copy_regions);
 }
 }
 }

@@ -129,7 +129,6 @@ class RenderResourceBase : ManagedObjectBase {
  public:
   RenderResourceBase();
   virtual ~RenderResourceBase() override = default;
-  RenderResourceBase(const std::string& resource_name);
   RenderResourceBase(const RenderResourceBase& other) = default;
   RenderResourceBase(RenderResourceBase&& other) noexcept;
   RenderResourceBase& operator=(const RenderResourceBase& other);
@@ -185,6 +184,11 @@ class RenderResourceBase : ManagedObjectBase {
       const std::string& new_name_of_copy_resource) const;
 
  protected:
+  RenderResourceBase(const std::string& resource_name);
+
+  RenderResourceBase(const std::string& resource_name,
+                     const std::uint32_t& resource_ID);
+  
   void SetResourceName(const std::string& new_resource_name);
 
   void SetResourceID(const std::uint32_t& new_resource_ID);
@@ -206,7 +210,13 @@ class RenderResourceTexture final : public RenderResourceBase {
 
   const VkImageLayout& GetImageLayout() const;
 
+  const std::uint32_t& GetMipmapLevels() const;
+
+  const std::uint32_t& GetArrayLayers() const;
+
   const ImageInfo& GetImageInfo() const;
+
+  const ImageBindInfo& GetImageBindInfo() const;
 
   RenderResourceTexture GetCopy() const;
 
@@ -378,13 +388,23 @@ class RenderResourceBuffer final : public RenderResourceBase {
 
   bool IsTexel() const;
 
+  bool IsTransformSrc() const;
+
+  bool IsTransformDest() const;
+
+  BufferInfo GetBufferInfo() const;
+
+  const VkDeviceSize& GetBufferSize() const;
+
   const VkDeviceSize& GetOffset() const;
 
   const VkDeviceSize& GetDynamicOffset() const;
 
-  const bool& CanMapped() const;
+  const VkDeviceSize& GetRangeSize() const;
 
-  const BufferBindInfo& GetBufferInfo() const;
+  bool CanMapped() const;
+
+  const BufferBindInfo& GetBufferBindInfo() const;
 
   bool IsValid() const override;
 
@@ -402,7 +422,13 @@ class RenderResourceBuffer final : public RenderResourceBase {
 
   bool CanWrite() const override;
 
- protected:
+  std::unique_ptr<RenderResourceBase> GetLightCopy(
+      const std::string& new_name_of_copy_resource) const override;
+
+  std::unique_ptr<RenderResourceBase> GetDeepCopy(
+      const std::string& new_name_of_copy_resource) const override;
+
+protected:
   /**
    * \remrak If the type of \ref descriptor_type is not one of dynamic buffer
    * type, the \ref dynamic_offset parameter is invalid.

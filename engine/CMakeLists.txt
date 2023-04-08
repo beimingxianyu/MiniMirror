@@ -1,3 +1,7 @@
+if (${CMAKE_BUILD_TYPE} STREQUAL "Debug")
+	add_compile_definitions("CHECK_PARAMETERS")
+endif()
+
 add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/asset")
 
 add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/config")

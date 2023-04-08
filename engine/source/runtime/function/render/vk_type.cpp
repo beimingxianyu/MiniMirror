@@ -8,11 +8,15 @@ bool MM::RenderSystem::QueueFamilyIndices::isComplete() const {
 }
 
 MM::RenderSystem::ManagedObjectBase::ManagedObjectBase(
-    const std::string& object_name, const std::uint32_t& object_ID) :
-object_name_(object_name), object_ID_(object_ID){}
+    const std::string& object_name, const std::uint32_t& object_ID)
+  : object_name_(object_name),
+    object_ID_(object_ID) {
+}
 
 MM::RenderSystem::ManagedObjectBase::ManagedObjectBase(
-    ManagedObjectBase&& other) noexcept : object_name_(std::move(other.object_name_)), object_ID_(other.object_ID_){
+    ManagedObjectBase&& other) noexcept
+  : object_name_(std::move(other.object_name_)),
+    object_ID_(other.object_ID_) {
   other.object_ID_ = 0;
 }
 
@@ -73,8 +77,7 @@ MM::RenderSystem::ImageBindInfo::ImageBindInfo(ImageBindInfo&& other) noexcept
 }
 
 MM::RenderSystem::ImageBindInfo& MM::RenderSystem::ImageBindInfo::operator=(
-    const ImageBindInfo& other)
-{
+    const ImageBindInfo& other) {
   if (&other == this) {
     return *this;
   }
@@ -122,6 +125,7 @@ void MM::RenderSystem::ImageInfo::Reset() {
   image_format_ = VK_FORMAT_UNDEFINED;
   image_layout_ = VK_IMAGE_LAYOUT_UNDEFINED;
   mipmap_levels = 1;
+  array_layers = 1;
   can_mapped_ = false;
 }
 
@@ -129,7 +133,7 @@ bool MM::RenderSystem::ImageInfo::IsValid() const {
   if (image_size_ == 0 || image_format_ == VK_FORMAT_UNDEFINED ||
       image_layout_ == VK_IMAGE_LAYOUT_UNDEFINED || mipmap_levels == 0 ||
       image_extent_.width == 0 || image_extent_.height == 0 ||
-      image_extent_.depth == 0) {
+      image_extent_.depth == 0 || array_layers == 0) {
     return false;
   }
   return true;
@@ -184,7 +188,7 @@ void MM::RenderSystem::BufferBindInfo::Reset() {
 
 bool MM::RenderSystem::BufferBindInfo::IsValid() const {
   return range_size_ != 0 && dynamic_offset_ < range_size_ &&
-             bind_.descriptorCount != 0 && semaphore_ != nullptr;
+         bind_.descriptorCount != 0 && semaphore_ != nullptr;
 }
 
 void MM::RenderSystem::BufferInfo::Reset() {
@@ -197,21 +201,22 @@ void MM::RenderSystem::BufferInfo::Reset() {
 bool MM::RenderSystem::BufferInfo::IsValid() const { return buffer_size_ != 0; }
 
 MM::RenderSystem::VertexInputState::VertexInputState()
-    : vertex_bind_(),
-      vertex_buffer_offset_(0),
-      vertex_attributes_(),
-      instance_binds_(),
-      instance_buffer_offset_(),
-      instance_attributes_() {}
+  : vertex_bind_(),
+    vertex_buffer_offset_(0),
+    vertex_attributes_(),
+    instance_binds_(),
+    instance_buffer_offset_(),
+    instance_attributes_() {
+}
 
 MM::RenderSystem::VertexInputState::VertexInputState(
     const VkDeviceSize& vertex_buffer_offset)
-    : vertex_bind_{0, sizeof(AssetType::Vertex), VK_VERTEX_INPUT_RATE_VERTEX},
-      vertex_buffer_offset_(vertex_buffer_offset),
-      vertex_attributes_(),
-      instance_binds_(),
-      instance_buffer_offset_(),
-      instance_attributes_() {
+  : vertex_bind_{0, sizeof(AssetType::Vertex), VK_VERTEX_INPUT_RATE_VERTEX},
+    vertex_buffer_offset_(vertex_buffer_offset),
+    vertex_attributes_(),
+    instance_binds_(),
+    instance_buffer_offset_(),
+    instance_attributes_() {
   InitDefaultVertexInput();
 }
 
@@ -220,12 +225,12 @@ MM::RenderSystem::VertexInputState::VertexInputState(
     const std::vector<VkVertexInputBindingDescription>& instance_binds,
     const std::vector<VkDeviceSize>& instance_buffer_offset,
     const std::vector<VkVertexInputAttributeDescription>& instance_attributes)
-    : vertex_bind_{0, sizeof(MM::AssetType::Vertex),
-                   VK_VERTEX_INPUT_RATE_VERTEX},
-      vertex_buffer_offset_(vertex_buffer_offset),
-      vertex_attributes_{5},
-      instance_binds_(instance_binds),
-      instance_buffer_offset_(instance_buffer_offset),
+  : vertex_bind_{0, sizeof(MM::AssetType::Vertex),
+                 VK_VERTEX_INPUT_RATE_VERTEX},
+    vertex_buffer_offset_(vertex_buffer_offset),
+    vertex_attributes_{5},
+    instance_binds_(instance_binds),
+    instance_buffer_offset_(instance_buffer_offset),
     instance_attributes_(instance_attributes) {
   std::string error_message;
   if (!CheckLayoutIsCorrect(error_message)) {
@@ -248,10 +253,11 @@ MM::RenderSystem::VertexInputState::VertexInputState(
   vertex_buffer_offset_ = 0;
 }
 
-MM::RenderSystem::VertexInputState& MM::RenderSystem::VertexInputState::operator=(
+MM::RenderSystem::VertexInputState& MM::RenderSystem::VertexInputState::operator
+=(
     const VertexInputState& other) {
   if (&other == this) {
-    return *this;    
+    return *this;
   }
   vertex_bind_ = other.vertex_bind_;
   vertex_buffer_offset_ = other.vertex_buffer_offset_;
@@ -263,7 +269,8 @@ MM::RenderSystem::VertexInputState& MM::RenderSystem::VertexInputState::operator
   return *this;
 }
 
-MM::RenderSystem::VertexInputState& MM::RenderSystem::VertexInputState::operator=(
+MM::RenderSystem::VertexInputState& MM::RenderSystem::VertexInputState::operator
+=(
     VertexInputState&& other) noexcept {
   if (&other == this) {
     return *this;
@@ -335,7 +342,7 @@ bool MM::RenderSystem::VertexInputState::CheckLayoutIsCorrect(
     return false;
   }
   std::map<uint32_t, VkDeviceSize> binds_info;
-  for (const auto& bind: instance_binds_) {
+  for (const auto& bind : instance_binds_) {
     if (bind.binding == 0) {
       error_message =
           "The binding of instance input description is 0.0 is the exclusive binding slot of Vertex input description.";
@@ -360,7 +367,7 @@ bool MM::RenderSystem::VertexInputState::CheckLayoutIsCorrect(
     binds_info.emplace(bind.binding, bind.stride);
   }
 
-  for (const auto& attribute: instance_attributes_) {
+  for (const auto& attribute : instance_attributes_) {
     if (attribute.location < 5) {
       error_message =
           "The instance attribute location less than 5.0 to 4 is the exclusive "
@@ -389,7 +396,8 @@ bool MM::RenderSystem::VertexInputState::CheckLayoutIsCorrect() const {
 }
 
 const VkVertexInputBindingDescription& MM::RenderSystem::VertexInputState::
-GetVertexBind() const { return vertex_bind_;
+GetVertexBind() const {
+  return vertex_bind_;
 }
 
 const VkDeviceSize& MM::RenderSystem::VertexInputState::
@@ -426,7 +434,9 @@ MM::RenderSystem::AllocatedCommandBuffer::AllocatedCommandBuffer(
 }
 
 MM::RenderSystem::AllocatedCommandBuffer::AllocatedCommandBuffer(
-    AllocatedCommandBuffer&& other) noexcept : wrapper_(std::move(other.wrapper_)){}
+    AllocatedCommandBuffer&& other) noexcept
+  : wrapper_(std::move(other.wrapper_)) {
+}
 
 MM::RenderSystem::AllocatedCommandBuffer& MM::RenderSystem::
 AllocatedCommandBuffer::operator=(const AllocatedCommandBuffer& other) {
@@ -475,7 +485,8 @@ bool MM::RenderSystem::AllocatedCommandBuffer::RecordAndSubmitCommand(
     const std::function<void(VkCommandBuffer& cmd)>& function,
     const bool& auto_start_end_submit, const bool& record_new_commands,
     const std::shared_ptr<VkSubmitInfo>& submit_info_ptr) {
-  return wrapper_->RecordAndSubmitCommand(function, auto_start_end_submit, record_new_commands, submit_info_ptr);
+  return wrapper_->RecordAndSubmitCommand(function, auto_start_end_submit,
+                                          record_new_commands, submit_info_ptr);
 }
 
 bool MM::RenderSystem::AllocatedCommandBuffer::RecordAndSubmitCommand(
@@ -503,27 +514,28 @@ AllocatedCommandBufferWrapper() {
 }
 
 MM::RenderSystem::AllocatedCommandBuffer::AllocatedCommandBufferWrapper::
-    AllocatedCommandBufferWrapper(RenderEngine* engine, const VkQueue& queue,
-                                  const VkCommandPool& command_pool,
-                                  const VkCommandBuffer& command_buffer)
-    : engine_(engine),
-      queue_(queue),
-      command_pool_(
-          MM::Utils::MakeSharedWithDestructor<VkCommandPool>([device = engine_->device_](
-                                                                 VkCommandPool *
-                                                                 value) {
-            if (value == nullptr) {
-              return;
-            }
-            vkDestroyCommandPool(device, *value, nullptr);
+AllocatedCommandBufferWrapper(RenderEngine* engine, const VkQueue& queue,
+                              const VkCommandPool& command_pool,
+                              const VkCommandBuffer& command_buffer)
+  : engine_(engine),
+    queue_(queue),
+    command_pool_(
+        MM::Utils::MakeSharedWithDestructor<VkCommandPool>(
+            [device = engine_->device_](
+            VkCommandPool*
+            value) {
+              if (value == nullptr) {
+                return;
+              }
+              vkDestroyCommandPool(device, *value, nullptr);
 
-            delete value;
-            *value = nullptr;
-          }, command_pool)),
-  command_buffer_(command_buffer),
-  command_fence_(nullptr),
-  record_mutex_() {
-  if (engine_ == nullptr || queue_ == nullptr|| command_pool_ == nullptr ||
+              delete value;
+              *value = nullptr;
+            }, command_pool)),
+    command_buffer_(command_buffer),
+    command_fence_(nullptr),
+    record_mutex_() {
+  if (engine_ == nullptr || queue_ == nullptr || command_pool_ == nullptr ||
       command_buffer_ == nullptr) {
     engine_ = nullptr;
     queue_ = nullptr;
@@ -570,25 +582,27 @@ AllocatedCommandBufferWrapper::GetFence() const {
 }
 
 bool MM::RenderSystem::AllocatedCommandBuffer::AllocatedCommandBufferWrapper::
-    RecordAndSubmitCommand(const std::function<void(VkCommandBuffer& cmd)>&
-                               function,
-                           const bool& auto_start_end_submit, 
-                           const bool& record_new_command,
-                           std::shared_ptr<VkSubmitInfo> submit_info_ptr) {
+RecordAndSubmitCommand(const std::function<void(VkCommandBuffer& cmd)>&
+                       function,
+                       const bool& auto_start_end_submit,
+                       const bool& record_new_command,
+                       std::shared_ptr<VkSubmitInfo> submit_info_ptr) {
   if (submit_info_ptr == nullptr) {
     submit_info_ptr = std::make_shared<VkSubmitInfo>(
         VkSubmitInfo{Utils::GetCommandSubmitInfo(command_buffer_)});
   }
   VK_CHECK(
       vkWaitForFences(engine_->device_, 1, &command_fence_, true, 99999999999),
-      LOG_FATAL("The wait time for VkFence timed out.An error is expected in the program, and the render system will be restarted.")
-  )
+      LOG_FATAL(
+        "The wait time for VkFence timed out.An error is expected in the program, and the render system will be restarted."
+      )
+      )
 
   if (!record_new_command) {
     VK_CHECK(
         vkQueueSubmit(queue_, 1, submit_info_ptr.get(), command_fence_),
         LOG_ERROR("Faild to record and submit command buffer!(can't submit "
-                  "command buffer)");
+          "command buffer)");
         return false;)
     return true;
   }
@@ -604,22 +618,25 @@ bool MM::RenderSystem::AllocatedCommandBuffer::AllocatedCommandBufferWrapper::
     const VkCommandBufferBeginInfo command_buffer_begin_info =
         MM::RenderSystem::Utils::GetCommandBufferBeginInfo();
     VK_CHECK(vkBeginCommandBuffer(command_buffer_, &command_buffer_begin_info),
-             LOG_ERROR("Faild to record and submit command buffer!(can't begin command buffer)");
+             LOG_ERROR(
+               "Faild to record and submit command buffer!(can't begin command buffer)"
+             );
              return false;)
   }
-  
+
   function(command_buffer_);
 
   if (auto_start_end_submit) {
     VK_CHECK(vkEndCommandBuffer(command_buffer_),
              LOG_ERROR("Faild to record and submit command buffer!(can't end "
-                       "command buffer)");
+               "command buffer)");
              return false;)
 
     VK_CHECK(vkQueueSubmit(queue_, 1, submit_info_ptr.get(), command_fence_),
-             LOG_ERROR("Faild to record and submit command buffer!(can't submit "
-                       "command buffer)");
-        return false;)
+             LOG_ERROR(
+               "Faild to record and submit command buffer!(can't submit "
+               "command buffer)");
+             return false;)
   }
   return true;
 }
@@ -636,13 +653,13 @@ RecordAndSubmitCommand(
   VK_CHECK(
       vkWaitForFences(engine_->device_, 1, &command_fence_, true, 99999999999),
       LOG_FATAL("The wait time for VkFence timed out.An error is expected in "
-                "the program, and the render system will be restarted."))
+        "the program, and the render system will be restarted."))
 
   if (!record_new_command) {
     VK_CHECK(
         vkQueueSubmit(queue_, 1, submit_info_ptr.get(), command_fence_),
         LOG_ERROR("Faild to record and submit command buffer!(can't submit "
-                  "command buffer)");
+          "command buffer)");
         return false;)
     return true;
   }
@@ -659,7 +676,7 @@ RecordAndSubmitCommand(
         MM::RenderSystem::Utils::GetCommandBufferBeginInfo();
     VK_CHECK(vkBeginCommandBuffer(command_buffer_, &command_buffer_begin_info),
              LOG_ERROR("Faild to record and submit command buffer!(can't begin "
-                       "command buffer)");
+               "command buffer)");
              return false;)
   }
 
@@ -671,13 +688,13 @@ RecordAndSubmitCommand(
   if (auto_start_end_submit) {
     VK_CHECK(vkEndCommandBuffer(command_buffer_),
              LOG_ERROR("Faild to record and submit command buffer!(can't end "
-                       "command buffer)");
+               "command buffer)");
              return false;)
 
     VK_CHECK(
         vkQueueSubmit(queue_, 1, submit_info_ptr.get(), command_fence_),
         LOG_ERROR("Faild to record and submit command buffer!(can't submit "
-                  "command buffer)");
+          "command buffer)");
         return false;)
   }
   return true;
@@ -690,11 +707,11 @@ IsValid() const {
 }
 
 bool MM::RenderSystem::AllocatedCommandBuffer::AllocatedCommandBufferWrapper::
-    ResetCommandBuffer() {
+ResetCommandBuffer() {
   VK_CHECK(vkResetCommandBuffer(command_buffer_, 0),
            LOG_ERROR("Faild to reset command buffer!");
            return false;
-  )
+      )
   return true;
 }
 
@@ -708,7 +725,10 @@ MM::RenderSystem::AllocatedBuffer::AllocatedBuffer(
 }
 
 MM::RenderSystem::AllocatedBuffer::AllocatedBuffer(
-    AllocatedBuffer&& other) noexcept : buffer_info_(other.buffer_info_), wrapper_(std::move(other.wrapper_)){}
+    AllocatedBuffer&& other) noexcept
+  : buffer_info_(other.buffer_info_),
+    wrapper_(std::move(other.wrapper_)) {
+}
 
 MM::RenderSystem::AllocatedBuffer& MM::RenderSystem::AllocatedBuffer::operator=(
     const AllocatedBuffer& other) {
@@ -804,12 +824,16 @@ AllocatedBufferWrapper() {
 
 MM::RenderSystem::AllocatedBuffer::AllocatedBufferWrapper::
 AllocatedBufferWrapper(const VmaAllocator& allocator, const VkBuffer& buffer,
-    const VmaAllocation& allocation) : allocator_(allocator), buffer_(buffer), allocation_(allocation) {
+                       const VmaAllocation& allocation)
+  : allocator_(allocator),
+    buffer_(buffer),
+    allocation_(allocation) {
   if (allocator_ == nullptr || buffer_ == nullptr || allocation_ == nullptr) {
     allocator_ = nullptr;
     buffer_ = nullptr;
     allocation_ = nullptr;
-  } }
+  }
+}
 
 const VmaAllocator& MM::RenderSystem::AllocatedBuffer::AllocatedBufferWrapper::
 GetAllocator() const {
@@ -832,7 +856,10 @@ IsValid() const {
 }
 
 MM::RenderSystem::ImageChunkInfo::ImageChunkInfo(const VkOffset3D& offset,
-    const VkExtent3D& extent) : offset_(offset), extent_(extent){}
+                                                 const VkExtent3D& extent)
+  : offset_(offset),
+    extent_(extent) {
+}
 
 MM::RenderSystem::ImageChunkInfo& MM::RenderSystem::ImageChunkInfo::operator=(
     const ImageChunkInfo& other) {
@@ -862,7 +889,9 @@ MM::RenderSystem::ImageChunkInfo& MM::RenderSystem::ImageChunkInfo::operator=(
 
 VkOffset3D& MM::RenderSystem::ImageChunkInfo::GetOffset() { return offset_; }
 
-const VkOffset3D& MM::RenderSystem::ImageChunkInfo::GetOffset() const { return offset_; }
+const VkOffset3D& MM::RenderSystem::ImageChunkInfo::GetOffset() const {
+  return offset_;
+}
 
 VkExtent3D& MM::RenderSystem::ImageChunkInfo::GetExtent() { return extent_; }
 
@@ -893,7 +922,9 @@ bool MM::RenderSystem::ImageChunkInfo::IsValid() const {
 MM::RenderSystem::AllocatedImage::AllocatedImage(
     const VmaAllocator& allocator, const VkImage& image,
     const VmaAllocation& allocation, const ImageInfo& image_info)
-    : image_info_(image_info), wrapper_(std::make_shared<AllocatedImageWrapper>(allocator, image, allocation)) {
+  : image_info_(image_info),
+    wrapper_(
+        std::make_shared<AllocatedImageWrapper>(allocator, image, allocation)) {
   if (!image_info_.IsValid()) {
     image_info_.Reset();
     wrapper_.reset();
@@ -902,7 +933,9 @@ MM::RenderSystem::AllocatedImage::AllocatedImage(
 
 
 MM::RenderSystem::AllocatedImage::AllocatedImage(
-    AllocatedImage&& other) noexcept : wrapper_(std::move(other.wrapper_)) {}
+    AllocatedImage&& other) noexcept
+  : wrapper_(std::move(other.wrapper_)) {
+}
 
 MM::RenderSystem::AllocatedImage& MM::RenderSystem::AllocatedImage::operator=(
     const AllocatedImage& other) {
@@ -941,6 +974,10 @@ const VkImageLayout& MM::RenderSystem::AllocatedImage::GetImageLayout() const {
 
 const uint32_t& MM::RenderSystem::AllocatedImage::GetMipmapLevels() const {
   return image_info_.mipmap_levels;
+}
+
+const uint32_t& MM::RenderSystem::AllocatedImage::GetArrayLayers() const {
+  return image_info_.array_layers;
 }
 
 const bool& MM::RenderSystem::AllocatedImage::CanMapped() const {
@@ -1007,12 +1044,13 @@ MM::RenderSystem::AllocatedImage::AllocatedImageWrapper::AllocatedImageWrapper(
     const VmaAllocation& allocation)
   : allocator_(allocator),
     image_(image),
-    allocation_(allocation){
+    allocation_(allocation) {
   if (allocator_ == nullptr || image_ == nullptr || allocation_ == nullptr) {
     allocator_ = nullptr;
     image_ = nullptr;
     allocation_ = nullptr;
-  } }
+  }
+}
 
 const VmaAllocator& MM::RenderSystem::AllocatedImage::AllocatedImageWrapper::
 GetAllocator() const {
@@ -1035,7 +1073,9 @@ bool MM::RenderSystem::AllocatedImage::AllocatedImageWrapper::IsValid() const {
 
 MM::RenderSystem::BufferChunkInfo::BufferChunkInfo(
     const VkDeviceSize& start_offset, const VkDeviceSize& end_offset)
-      : offset_(start_offset), size_(end_offset) {}
+  : offset_(start_offset),
+    size_(end_offset) {
+}
 
 MM::RenderSystem::BufferChunkInfo& MM::RenderSystem::BufferChunkInfo::operator=(
     const BufferChunkInfo& other) noexcept {
@@ -1095,33 +1135,28 @@ MM::RenderSystem::VertexAndIndexBuffer::VertexAndIndexBuffer(
   if (engine == nullptr) {
     return;
   }
-  vertex_buffer_info_.offset_ = 0;
-  vertex_buffer_info_.dynamic_offset_ = 0;
-  vertex_buffer_info_.buffer_size_ =
+
+  const auto vertex_buffer_size =
       std::stoull(CONFIG_SYSTEM->GetConfig("init_vertex_buffer_size"));
-  vertex_buffer_info_.can_mapped_ = false;
 
-  index_buffer_info_.offset_ = 0;
-  index_buffer_info_.dynamic_offset_ = 0;
-  index_buffer_info_.buffer_size_ =
+  const auto index_buffer_size =
       std::stoull(CONFIG_SYSTEM->GetConfig("init_index_buffer_size"));
-  index_buffer_info_.can_mapped_ = false;
 
-  vertex_buffer_ = engine->CreateBuffer(
-      vertex_buffer_info_.buffer_size_,
-      VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT |
-          VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-      VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE, 0);
+  vertex_buffer_ = engine->CreateBuffer(vertex_buffer_size,
+                                        VK_BUFFER_USAGE_VERTEX_BUFFER_BIT |
+                                        VK_BUFFER_USAGE_TRANSFER_DST_BIT |
+                                        VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+                                        VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE, 0);
   if (!vertex_buffer_.IsValid()) {
     Release();
     LOG_ERROR("Failed to create vertex total buffer.")
   }
 
-  index_buffer_ = engine->CreateBuffer(
-      index_buffer_info_.buffer_size_,
-      VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT |
-          VK_BUFFER_USAGE_TRANSFER_DST_BIT,
-      VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE, 0);
+  index_buffer_ = engine->CreateBuffer(index_buffer_size,
+                                       VK_BUFFER_USAGE_INDEX_BUFFER_BIT |
+                                       VK_BUFFER_USAGE_TRANSFER_SRC_BIT |
+                                       VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+                                       VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE, 0);
   if (!index_buffer_.IsValid()) {
     Release();
     LOG_ERROR("Failed to create index total buffer.")
@@ -1131,8 +1166,8 @@ MM::RenderSystem::VertexAndIndexBuffer::VertexAndIndexBuffer(
 }
 
 bool MM::RenderSystem::VertexAndIndexBuffer::IsValid() const {
-  return vertex_buffer_info_.buffer_size_ != 0 &&
-         index_buffer_info_.buffer_size_ != 0;
+  return vertex_buffer_.GetBufferSize() != 0 &&
+         index_buffer_.GetBufferSize() != 0;
 }
 
 const MM::RenderSystem::AllocatedBuffer& MM::RenderSystem::VertexAndIndexBuffer
@@ -1145,14 +1180,14 @@ const MM::RenderSystem::AllocatedBuffer& MM::RenderSystem::VertexAndIndexBuffer
   return index_buffer_;
 }
 
-const MM::RenderSystem::BufferBindInfo& MM::RenderSystem::VertexAndIndexBuffer::
+const MM::RenderSystem::BufferInfo& MM::RenderSystem::VertexAndIndexBuffer::
 GetVertexBufferInfo() const {
-  return vertex_buffer_info_;
+  return vertex_buffer_.GetBufferInfo();
 }
 
-const MM::RenderSystem::BufferBindInfo& MM::RenderSystem::VertexAndIndexBuffer::
+const MM::RenderSystem::BufferInfo& MM::RenderSystem::VertexAndIndexBuffer::
 GetIndexBufferInfo() const {
-  return index_buffer_info_;
+  return index_buffer_.GetBufferInfo();
 }
 
 bool MM::RenderSystem::VertexAndIndexBuffer::Accessible() const {
@@ -1166,14 +1201,98 @@ bool MM::RenderSystem::VertexAndIndexBuffer::AllocateBuffer(
   VkDeviceSize vertices_size = sizeof(AssetType::Vertex) * vertices.size();
   VkDeviceSize indexes_size = sizeof(uint32_t) * indexes.size();
 
+  VkDeviceSize vertex_end_size = 0;
+  if (!vertex_buffer_chunks_info.empty()) {
+    auto end_element = --vertex_buffer_chunks_info.end();
+    while (end_element->use_count() == 1) {
+      end_element = vertex_buffer_chunks_info.erase(end_element);
+      if (end_element == vertex_buffer_chunks_info.begin()) {
+        break;
+      }
+    }
+    if (end_element == vertex_buffer_chunks_info.begin()) {
+      if (end_element->use_count() == 1) {
+        vertex_end_size = vertex_buffer_.GetBufferSize();
+      } else {
+        vertex_end_size = vertex_buffer_.GetBufferSize() -
+                   (*end_element)->GetOffset() - (*end_element)->GetSize();
+      }
+    } else {
+      vertex_end_size = vertex_buffer_.GetBufferSize() - (*end_element)->GetOffset() -
+                 (*end_element)->GetSize();
+    }
+  } else {
+    vertex_end_size = vertex_buffer_.GetBufferSize();
+  }
+  BufferChunkInfo new_buffer_chunk{};
+  if (vertex_end_size < vertices_size) {
+    const auto vertex_buffet_chunks_info_end =
+        --vertex_buffer_chunks_info.end();
+    auto vertex_buffer_chunk_info1 = vertex_buffer_chunks_info.begin();
+    auto vertex_buffer_chunk_info2 = ++vertex_buffer_chunks_info.begin();
+    VkDeviceSize vertex_remaining_space = 0;
+    for (; vertex_buffer_chunk_info1 != vertex_buffet_chunks_info_end;
+         ++vertex_buffer_chunk_info1) {
+      if (vertex_buffer_chunk_info1 == vertex_buffer_chunks_info.begin() &&
+          vertices_size < (*vertex_buffer_chunk_info1)->GetOffset()) {
+        new_buffer_chunk = BufferChunkInfo{0, vertices_size};
+        break;
+      }
+      if ((*vertex_buffer_chunk_info2)->GetOffset -
+              (*vertex_buffer_chunk_info1)->GetOffset() -
+              (*vertex_buffer_chunk_info1)->GetSize() >
+          vertices_size) {
+        new_buffer_chunk =
+            BufferChunkInfo{(*vertex_buffer_chunk_info1)->GetOffset() +
+                                (*vertex_buffer_chunk_info1)->GetSize(),
+                            vertices_size};
+        break;
+      }
+    }
+    if (vertex_buffer_chunk_info2 == vertex_buffer_chunks_info.end() &&
+        vertices_size < (*vertex_buffer_chunk_info1)->GetOffset()) {
+      new_buffer_chunk = BufferChunkInfo{0, vertices_size};
+    }
+  } else {
+    
+  }
+  
 
+  if (!new_buffer_chunk.IsValid()) {
+    ReserveVertexBuffer()
+    LOG_ERROR("There is no space to allocate.")
+    return false;
+  }
+
+  VkDeviceSize index_end_size = 0;
+  if (!index_buffer_chunks_info.empty()) {
+    auto end_element = --index_buffer_chunks_info.end();
+    while (end_element->use_count() == 1) {
+      end_element = index_buffer_chunks_info.erase(end_element);
+      if (end_element == index_buffer_chunks_info.begin()) {
+        break;
+      }
+    }
+    if (end_element == index_buffer_chunks_info.begin()) {
+      if (end_element->use_count() == 1) {
+        index_end_size = index_buffer_.GetBufferSize();
+      } else {
+        index_end_size = index_buffer_.GetBufferSize() -
+                   (*end_element)->GetOffset() - (*end_element)->GetSize();
+      }
+    } else {
+      index_end_size = index_buffer_.GetBufferSize() - (*end_element)->GetOffset() -
+                 (*end_element)->GetSize();
+    }
+  } else {
+    index_end_size = index_buffer_.GetBufferSize();
+  }
+  
 }
 
 void MM::RenderSystem::VertexAndIndexBuffer::Release() {
   vertex_buffer_.Release();
   index_buffer_.Release();
-  vertex_buffer_info_.Reset();
-  index_buffer_info_.Reset();
   vertex_buffer_chunks_info.clear();
   index_buffer_chunks_info.clear();
 }
@@ -1195,18 +1314,18 @@ bool MM::RenderSystem::VertexAndIndexBuffer::Reserve() {
 
   TASK_SYSTEM->RunAndWait(TaskSystem::TaskType::Render, task_flow);
 
-  if (buffer_result & index_result) {
-    return true;  
+  if (buffer_result && index_result) {
+    return true;
   }
   return false;
 }
 
 bool MM::RenderSystem::operator==(const ManagedObjectBase& lhs,
-    const ManagedObjectBase& rhs) {
+                                  const ManagedObjectBase& rhs) {
   return lhs.object_ID_ == rhs.object_ID_;
 }
 
 bool MM::RenderSystem::operator!=(const ManagedObjectBase& lhs,
-    const ManagedObjectBase& rhs) {
+                                  const ManagedObjectBase& rhs) {
   return !(lhs == rhs);
 }

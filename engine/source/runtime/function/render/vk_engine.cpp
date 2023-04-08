@@ -18,7 +18,7 @@ void MM::RenderSystem::RenderEngine::Run() {
     // TODO Update resource
     // TODO Update render graph
     // Draw();
-    glfwPollEvents();  
+    glfwPollEvents();
   }
 }
 
@@ -26,7 +26,7 @@ void MM::RenderSystem::RenderEngine::CleanUp() {
   if (is_initialized_) {
     // vkDestroyCommandPool(device_, compute_command_pool_, nullptr);
     // vkDestroyCommandPool(device_, graph_command_pool_, nullptr);
-    
+
     for (VkImageView swapchain_image_view : swapchain_image_views_) {
       vkDestroyImageView(device_, swapchain_image_view, nullptr);
     }
@@ -69,7 +69,8 @@ MM::RenderSystem::AllocatedBuffer MM::RenderSystem::RenderEngine::CreateBuffer(
     const size_t& alloc_size, const VkBufferUsageFlags& usage,
     const VmaMemoryUsage& memory_usage,
     const VmaAllocationCreateFlags& allocation_flags) const {
-  return Utils::CreateBuffer(this, alloc_size, usage, memory_usage, allocation_flags);
+  return Utils::CreateBuffer(this, alloc_size, usage, memory_usage,
+                             allocation_flags);
 }
 
 const VmaAllocator& MM::RenderSystem::RenderEngine::GetAllocator() const {
@@ -127,8 +128,8 @@ bool MM::RenderSystem::RenderEngine::RecordAndSubmitSingleTimeCommand(
   }
   AllocatedCommandBuffer command_executor =
       command_buffer_type == CommandBufferType::GRAPH
-          ? graph_command_executors_[GetCurrentFrame()]
-          : compute_command_executors_[GetCurrentFrame()];
+        ? graph_command_executors_[GetCurrentFrame()]
+        : compute_command_executors_[GetCurrentFrame()];
   const VkCommandBufferAllocateInfo allocInfo =
       Utils::GetCommandBufferAllocateInfo(command_executor.GetCommandPool(), 1);
 
@@ -144,7 +145,7 @@ bool MM::RenderSystem::RenderEngine::RecordAndSubmitSingleTimeCommand(
     VK_CHECK(vkBeginCommandBuffer(command_buffer, &beginInfo),
              LOG_ERROR("Failed to begin single time command buffer.");
              vkFreeCommandBuffers(device_, command_executor.GetCommandPool(), 1,
-                                  &command_buffer);
+               &command_buffer);
              return false;)
   }
 
@@ -154,7 +155,7 @@ bool MM::RenderSystem::RenderEngine::RecordAndSubmitSingleTimeCommand(
     VK_CHECK(vkEndCommandBuffer(command_buffer),
              LOG_ERROR("Failed to end single time command buffer.");
              vkFreeCommandBuffers(device_, command_executor.GetCommandPool(), 1,
-                                  &command_buffer);
+               &command_buffer);
              return false;)
 
     const VkSubmitInfo submit_info =
@@ -165,21 +166,21 @@ bool MM::RenderSystem::RenderEngine::RecordAndSubmitSingleTimeCommand(
     VK_CHECK(vkCreateFence(device_, &fence_create_info, nullptr, &temp_fence),
              LOG_ERROR("Failed to create VkFence.");
              vkFreeCommandBuffers(device_, command_executor.GetCommandPool(), 1,
-                                  &command_buffer);
+               &command_buffer);
              return false;)
 
     VK_CHECK(
         vkWaitForFences(device_, 1, &temp_fence, VK_FALSE, 99999999999),
         LOG_FATAL(
-            "The wait time for VkFence timed out.An error is expected in the "
-            "program, and the render system will be restarted.(single "
-            "buffer)");)
+          "The wait time for VkFence timed out.An error is expected in the "
+          "program, and the render system will be restarted.(single "
+          "buffer)");)
 
     VK_CHECK(
         vkQueueSubmit(command_executor.GetQueue(), 1, &submit_info, temp_fence),
         LOG_ERROR("Failed to submit single time command buffer.");
         vkFreeCommandBuffers(device_, command_executor.GetCommandPool(), 1,
-                             &command_buffer);
+          &command_buffer);
         return false;)
   }
 
@@ -198,8 +199,8 @@ bool MM::RenderSystem::RenderEngine::RecordAndSubmitSingleTimeCommand(
   }
   AllocatedCommandBuffer command_executor =
       command_buffer_type == CommandBufferType::GRAPH
-          ? graph_command_executors_[GetCurrentFrame()]
-          : compute_command_executors_[GetCurrentFrame()];
+        ? graph_command_executors_[GetCurrentFrame()]
+        : compute_command_executors_[GetCurrentFrame()];
   const VkCommandBufferAllocateInfo allocInfo =
       Utils::GetCommandBufferAllocateInfo(command_executor.GetCommandPool(), 1);
 
@@ -215,7 +216,7 @@ bool MM::RenderSystem::RenderEngine::RecordAndSubmitSingleTimeCommand(
     VK_CHECK(vkBeginCommandBuffer(command_buffer, &beginInfo),
              LOG_ERROR("Failed to begin single time command buffer.");
              vkFreeCommandBuffers(device_, command_executor.GetCommandPool(), 1,
-                                  &command_buffer);
+               &command_buffer);
              return false;)
   }
 
@@ -230,7 +231,7 @@ bool MM::RenderSystem::RenderEngine::RecordAndSubmitSingleTimeCommand(
     VK_CHECK(vkEndCommandBuffer(command_buffer),
              LOG_ERROR("Failed to end single time command buffer.");
              vkFreeCommandBuffers(device_, command_executor.GetCommandPool(), 1,
-                                  &command_buffer);
+               &command_buffer);
              return false;)
 
     const VkSubmitInfo submit_info =
@@ -241,21 +242,21 @@ bool MM::RenderSystem::RenderEngine::RecordAndSubmitSingleTimeCommand(
     VK_CHECK(vkCreateFence(device_, &fence_create_info, nullptr, &temp_fence),
              LOG_ERROR("Failed to create VkFence.");
              vkFreeCommandBuffers(device_, command_executor.GetCommandPool(), 1,
-                                  &command_buffer);
+               &command_buffer);
              return false;)
 
     VK_CHECK(
         vkWaitForFences(device_, 1, &temp_fence, VK_FALSE, 99999999999),
         LOG_FATAL(
-            "The wait time for VkFence timed out.An error is expected in the "
-            "program, and the render system will be restarted.(single "
-            "buffer)");)
+          "The wait time for VkFence timed out.An error is expected in the "
+          "program, and the render system will be restarted.(single "
+          "buffer)");)
 
     VK_CHECK(
         vkQueueSubmit(command_executor.GetQueue(), 1, &submit_info, temp_fence),
         LOG_ERROR("Failed to submit single time command buffer.");
         vkFreeCommandBuffers(device_, command_executor.GetCommandPool(), 1,
-                             &command_buffer);
+          &command_buffer);
         return false;)
   }
 
@@ -266,7 +267,9 @@ bool MM::RenderSystem::RenderEngine::RecordAndSubmitSingleTimeCommand(
 }
 
 bool MM::RenderSystem::RenderEngine::CopyBuffer(AllocatedBuffer& src_buffer,
-    AllocatedBuffer& dest_buffer, const std::vector<VkBufferCopy2>& regions) {
+                                                AllocatedBuffer& dest_buffer,
+                                                const std::vector<VkBufferCopy2>
+                                                & regions) {
 #ifndef DO_NOT_CHECK_PARAMETERS
   if (!src_buffer.IsValid()) {
     LOG_ERROR("Src_buffer is invalid.")
@@ -299,7 +302,7 @@ bool MM::RenderSystem::RenderEngine::CopyBuffer(AllocatedBuffer& src_buffer,
   if (src_buffer.GetBuffer() == dest_buffer.GetBuffer()) {
     std::list<BufferChunkInfo> write_areas{};
     // Check for any overlap and over size.
-    for (const auto& region: regions) {
+    for (const auto& region : regions) {
       if (region.srcOffset + region.size > src_buffer.GetBufferSize() ||
           region.dstOffset + region.size > dest_buffer.GetBufferSize()) {
         LOG_ERROR("The sum of size and src_offset/dest_offset is too large.")
@@ -336,8 +339,8 @@ bool MM::RenderSystem::RenderEngine::CopyBuffer(AllocatedBuffer& src_buffer,
         write_areas.emplace_back(region.dstOffset, region.size);
       }
     }
-    for (const auto& region: regions) {
-      for (const auto& write_area: write_areas) {
+    for (const auto& region : regions) {
+      for (const auto& write_area : write_areas) {
         if (region.srcOffset <= write_area.GetOffset()) {
           if (region.srcOffset + region.size >= write_area.GetOffset()) {
             LOG_ERROR(
@@ -350,7 +353,7 @@ bool MM::RenderSystem::RenderEngine::CopyBuffer(AllocatedBuffer& src_buffer,
       }
     }
   } else {
-    for (const auto& region: regions) {
+    for (const auto& region : regions) {
       if (region.srcOffset + region.size > src_buffer.GetBufferSize() ||
           region.dstOffset + region.size > dest_buffer.GetBufferSize()) {
         LOG_ERROR("The sum of size and src_offset/dest_offset is too large.")
@@ -363,18 +366,103 @@ bool MM::RenderSystem::RenderEngine::CopyBuffer(AllocatedBuffer& src_buffer,
       Utils::GetCopyBufferInfo(src_buffer, dest_buffer, regions);
 #endif
 
-  RecordAndSubmitSingleTimeCommand(CommandBufferType::TRANSFORM,
-                                   [&copy_buffer](VkCommandBuffer& cmd) {
-                                     vkCmdCopyBuffer2(cmd, &copy_buffer);
-                                   }, true);
+  if (!RecordAndSubmitSingleTimeCommand(
+          CommandBufferType::TRANSFORM,
+          [&copy_buffer](VkCommandBuffer& cmd) {
+            vkCmdCopyBuffer2(cmd, &copy_buffer);
+          },
+          true)) {
+    LOG_ERROR("Failed to copy buffer.")
+    return false;
+  }
+
+  return true;
+}
+
+bool MM::RenderSystem::RenderEngine::CopyBuffer(
+    const AllocatedBuffer& src_buffer, AllocatedBuffer& dest_buffer,
+    const std::vector<VkBufferCopy2>& regions) {
+#ifndef DO_NOT_CHECK_PARAMETERS
+  if (!src_buffer.IsValid()) {
+    LOG_ERROR("Src_buffer is invalid.")
+    return false;
+  }
+
+  if (!dest_buffer.IsValid()) {
+    LOG_ERROR("Dest_buffer is invalid.")
+    return false;
+  }
+
+  if (!src_buffer.IsTransformSrc() || !dest_buffer.IsTransformDest()) {
+    LOG_ERROR(
+        "Src_buffer or dest_buffer is not Transform src buffer or Transform "
+        "dest buffer.")
+    return false;
+  }
+
+  if (regions.empty()) {
+    return true;
+  }
+
+  for (const auto& region : regions) {
+    if (region.size == 0) {
+      LOG_ERROR("VkBufferCopy2::size must greater than 0.")
+      return false;
+    }
+  }
+
+  if (src_buffer.GetBuffer() == dest_buffer.GetBuffer()) {
+    LOG_ERROR(
+        "Src_buffer can not equal to dest_buffer.You can call  "
+        "MM::RenderSystem::RenderEngine::CopyBuffer(const AllocatedBuffer& "
+        "src_buffer,AllocatedBuffer& dest_buffer, const "
+        "std::vector<VkBufferCopy2>& regions) to instead.")
+    return false;
+  }
+
+  for (const auto& region : regions) {
+    if (region.srcOffset + region.size > src_buffer.GetBufferSize() ||
+        region.dstOffset + region.size > dest_buffer.GetBufferSize()) {
+      LOG_ERROR("The sum of size and src_offset/dest_offset is too large.")
+      return false;
+    }
+  }
+
+  VkCopyBufferInfo2 copy_buffer =
+      Utils::GetCopyBufferInfo(src_buffer, dest_buffer, regions);
+#endif
+
+  if (!RecordAndSubmitSingleTimeCommand(
+          CommandBufferType::TRANSFORM,
+          [&copy_buffer](VkCommandBuffer& cmd) {
+            vkCmdCopyBuffer2(cmd, &copy_buffer);
+          },
+          true)) {
+    LOG_ERROR("Failed to copy buffer.")
+    return false;
+  }
 
   return true;
 }
 
 bool MM::RenderSystem::RenderEngine::CopyBuffer(AllocatedBuffer& src_buffer,
-    AllocatedBuffer& dest_buffer,
+                                                AllocatedBuffer& dest_buffer,
+                                                const std::vector<std::vector<
+                                                  VkBufferCopy2>>&
+                                                regions_vector) {
+  for (const auto& regions : regions_vector) {
+    if (!CopyBuffer(src_buffer, dest_buffer, regions)) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+bool MM::RenderSystem::RenderEngine::CopyBuffer(
+    const AllocatedBuffer& src_buffer, AllocatedBuffer& dest_buffer,
     const std::vector<std::vector<VkBufferCopy2>>& regions_vector) {
-  for (const auto& regions: regions_vector) {
+  for (const auto& regions : regions_vector) {
     if (!CopyBuffer(src_buffer, dest_buffer, regions)) {
       return false;
     }
@@ -384,10 +472,13 @@ bool MM::RenderSystem::RenderEngine::CopyBuffer(AllocatedBuffer& src_buffer,
 }
 
 bool MM::RenderSystem::RenderEngine::CopyImage(AllocatedImage& src_image,
-    AllocatedImage& dest_image, const VkImageLayout& src_layout,
-    const VkImageLayout& dest_layout, const std::vector<VkImageCopy2>& regions) {
-// TODO Add "#ifndef DO_NOT_CHECK_PARAMETERS" to all parameter check.
-#ifndef DO_NOT_CHECK_PARAMETERS
+                                               AllocatedImage& dest_image,
+                                               const VkImageLayout& src_layout,
+                                               const VkImageLayout& dest_layout,
+                                               const std::vector<VkImageCopy2>&
+                                               regions) {
+  // TODO Add "#ifdef CHECK_PARAMETERS" to all parameter check.
+#ifdef CHECK_PARAMETERS
   if (!src_image.IsValid()) {
     LOG_ERROR("Src_image is invalid.")
     return false;
@@ -397,7 +488,7 @@ bool MM::RenderSystem::RenderEngine::CopyImage(AllocatedImage& src_image,
     LOG_ERROR("Dest_image is invalid.")
     return false;
   }
-  
+
   if (!src_image.IsTransformSrc() || !dest_image.IsTransformDest()) {
     LOG_ERROR(
         "Src_buffer or dest_buffer is not Transform src buffer or Transform "
@@ -409,9 +500,11 @@ bool MM::RenderSystem::RenderEngine::CopyImage(AllocatedImage& src_image,
     return true;
   }
 
-  std::vector<ImageChunkInfo> image_write_areas;
+  std::unordered_map<std::uint64_t, std::vector<ImageChunkInfo>>
+      image_write_areas;
   for (const auto& region : regions) {
-    if (region.extent.width == 0 || region.extent.height == 0 || region.extent.depth == 0) {
+    if (region.extent.width == 0 || region.extent.height == 0 || region.extent.
+        depth == 0) {
       LOG_ERROR("VkImageCopy::extent::width/height/depth must greater than 0.")
       return false;
     }
@@ -475,28 +568,37 @@ bool MM::RenderSystem::RenderEngine::CopyImage(AllocatedImage& src_image,
       return false;
     }
 
-    if (!Utils::ImageRegionAreaLessThanImageExtent(region.srcOffset, region.extent, src_image) ||
-        !Utils::ImageRegionAreaLessThanImageExtent(region.dstOffset, region.extent, dest_image)) {
+    if (!Utils::ImageRegionAreaLessThanImageExtent(
+            region.srcOffset, region.extent, src_image) ||
+        !Utils::ImageRegionAreaLessThanImageExtent(
+            region.dstOffset, region.extent, dest_image)) {
       LOG_ERROR("The specified area is lager than src_image/dest_image extent.")
       return false;
     }
 
-    if (image_write_areas.empty()) {
-      image_write_areas.emplace_back(region.dstOffset, region.extent);
-    }
-    for (const auto& image_write_area: image_write_areas) {
-      if (Utils::ImageRegionIsOverlap(region.srcOffset,
-                                      image_write_area.GetOffset(),
-                                      image_write_area.GetExtent())) {
-        LOG_ERROR("During the buffer copy process, there is an overlap in the "
-                  "specified copy area.")
-        return false;
+    if (src_image.GetImage() == dest_image.GetImage()) {
+      std::uint64_t hash_value =
+          Math::Hash(region.dstSubresource.mipLevel) +
+          (Math::Hash(region.dstSubresource.baseArrayLayer) << 8);
+      for (const auto& image_write_area : image_write_areas[hash_value]) {
+        if (Utils::ImageRegionIsOverlap(region.srcOffset,
+                                        image_write_area.GetOffset(),
+                                        image_write_area.GetExtent())) {
+          LOG_ERROR(
+              "During the buffer copy process, there is an overlap in the "
+              "specified copy area.")
+          return false;
+        }
       }
-      image_write_areas.emplace_back(region.dstOffset, region.extent);
+      image_write_areas[hash_value].emplace_back(
+          region.dstOffset, region.extent);
     }
   }
-  for (const auto& region: regions) {
-    for (const auto& image_write_area: image_write_areas) {
+  for (const auto& region : regions) {
+    std::uint64_t hash_value =
+        Math::Hash(region.dstSubresource.mipLevel) +
+        (Math::Hash(region.dstSubresource.baseArrayLayer) << 8);
+    for (const auto& image_write_area : image_write_areas[hash_value]) {
       if (Utils::ImageRegionIsOverlap(region.srcOffset,
                                       image_write_area.GetOffset(),
                                       image_write_area.GetExtent())) {
@@ -510,22 +612,166 @@ bool MM::RenderSystem::RenderEngine::CopyImage(AllocatedImage& src_image,
 
 #endif
 
-  VkCopyImageInfo2 copy_image_info;
-  copy_image_info.sType
-  RecordAndSubmitSingleTimeCommand(
-      CommandBufferType::TRANSFORM,
-      [&regions, &src_image, &dest_image, &src_layout,
-       &dest_layout](VkCommandBuffer& cmd) {
-        vkCmdCopyImage(cmd, src_image.GetImage(), src_layout,
-                       dest_image.GetImage(), dest_layout, regions.size(),
-                       regions.data());
-      });
+  VkCopyImageInfo2 copy_image_info = Utils::GetCopyImageInfo(
+      src_image, dest_image, src_layout, dest_layout, regions);
+  if (!RecordAndSubmitSingleTimeCommand(
+          CommandBufferType::TRANSFORM,
+          [&copy_image_info](VkCommandBuffer& cmd) {
+            vkCmdCopyImage2(cmd, &copy_image_info);
+          })) {
+    LOG_ERROR("Failed to copy image.")
+    return false;
+  }
+
+  return true;
+}
+
+bool MM::RenderSystem::RenderEngine::CopyImage(const AllocatedImage& src_image,
+                                               AllocatedImage& dest_image,
+                                               const VkImageLayout& src_layout,
+                                               const VkImageLayout& dest_layout,
+                                               const std::vector<VkImageCopy2>&
+                                               regions) {
+  // TODO Add "#ifdef CHECK_PARAMETERS" to all parameter check.
+#ifdef CHECK_PARAMETERS
+  if (!src_image.IsValid()) {
+    LOG_ERROR("Src_image is invalid.")
+    return false;
+  }
+
+  if (!dest_image.IsValid()) {
+    LOG_ERROR("Dest_image is invalid.")
+    return false;
+  }
+
+  if (!src_image.IsTransformSrc() || !dest_image.IsTransformDest()) {
+    LOG_ERROR(
+        "Src_buffer or dest_buffer is not Transform src buffer or Transform "
+        "dest buffer.")
+    return false;
+  }
+
+  if (src_image.GetImage() == dest_image.GetImage()) {
+    LOG_ERROR(
+        "Src_buffer can not equal to dest_buffer.Call "
+        "MM::RenderSystem::RenderEngine::CopyImage(AllocatedImage& src_image, "
+        "AllocatedImage & dest_image, const VkImageLayout& src_layout, const "
+        "VkImageLayout& dest_layout, const std::vector<VkImageCopy2>& regions)")
+    return false;
+  }
+
+  if (regions.empty()) {
+    return true;
+  }
+
+  std::unordered_map<std::uint64_t, std::vector<ImageChunkInfo>>
+      image_write_areas;
+  for (const auto& region : regions) {
+    if (region.extent.width == 0 || region.extent.height == 0 ||
+        region.extent.depth == 0) {
+      LOG_ERROR("VkImageCopy::extent::width/height/depth must greater than 0.")
+      return false;
+    }
+
+    if (region.dstSubresource.aspectMask != region.srcSubresource.aspectMask) {
+      LOG_ERROR("Src_image aspect mask not equal dest_image aspect mask.")
+      return false;
+    }
+
+    if (region.srcSubresource.aspectMask & VK_IMAGE_ASPECT_METADATA_BIT ||
+        region.dstSubresource.aspectMask & VK_IMAGE_ASPECT_METADATA_BIT) {
+      LOG_ERROR(
+          "Src_image or dest_image include "
+          "VK_IMAGE_ASPECT_METADATA_BIT.aspectMask must not contain "
+          "VK_IMAGE_ASPECT_METADATA_BIT.")
+      return false;
+    }
+
+    if (region.srcSubresource.aspectMask & VK_IMAGE_ASPECT_COLOR_BIT &&
+        (region.srcSubresource.aspectMask & VK_IMAGE_ASPECT_COLOR_BIT ||
+         region.srcSubresource.aspectMask & VK_IMAGE_ASPECT_STENCIL_BIT)) {
+      LOG_ERROR(
+          "If aspectMask contains VK_IMAGE_ASPECT_COLOR_BIT, it must not "
+          "contain either of VK_IMAGE_ASPECT_DEPTH_BIT or "
+          "VK_IMAGE_ASPECT_STENCIL_BIT.")
+      return false;
+    }
+
+    if (region.dstSubresource.aspectMask & VK_IMAGE_ASPECT_COLOR_BIT &&
+        (region.dstSubresource.aspectMask & VK_IMAGE_ASPECT_COLOR_BIT ||
+         region.dstSubresource.aspectMask & VK_IMAGE_ASPECT_STENCIL_BIT)) {
+      LOG_ERROR(
+          "If aspectMask contains VK_IMAGE_ASPECT_COLOR_BIT, it must not "
+          "contain either of VK_IMAGE_ASPECT_DEPTH_BIT or "
+          "VK_IMAGE_ASPECT_STENCIL_BIT.")
+      return false;
+    }
+
+    if (region.srcSubresource.mipLevel > src_image.GetMipmapLevels() ||
+        region.dstSubresource.mipLevel > dest_image.GetMipmapLevels()) {
+      LOG_ERROR(
+          "The specified number of mipmap level is greater than the number of "
+          "mipmap level contained in the image itself.")
+      return false;
+    }
+
+    if (region.srcSubresource.layerCount != region.dstSubresource.layerCount) {
+      LOG_ERROR(
+          "The array layer number of src_image and dest_image if different.")
+      return false;
+    }
+
+    if (region.srcSubresource.baseArrayLayer +
+        region.srcSubresource.layerCount >
+        src_image.GetImageLayout() ||
+        region.dstSubresource.baseArrayLayer +
+        region.dstSubresource.layerCount >
+        dest_image.GetImageLayout()) {
+      LOG_ERROR(
+          "The specified number of array level is greater than the number of "
+          "array level contained in the image itself.")
+      return false;
+    }
+
+    if (!Utils::ImageRegionAreaLessThanImageExtent(region.srcOffset,
+                                                   region.extent, src_image) ||
+        !Utils::ImageRegionAreaLessThanImageExtent(region.dstOffset,
+                                                   region.extent, dest_image)) {
+      LOG_ERROR("The specified area is lager than src_image/dest_image extent.")
+      return false;
+    }
+  }
+#endif
+
+  VkCopyImageInfo2 copy_image_info = Utils::GetCopyImageInfo(
+      src_image, dest_image, src_layout, dest_layout, regions);
+  if (RecordAndSubmitSingleTimeCommand(
+          CommandBufferType::TRANSFORM,
+          [&copy_image_info](VkCommandBuffer& cmd) {
+            vkCmdCopyImage2(cmd, &copy_image_info);
+          })) {
+    LOG_ERROR("Failed to copy image.")
+    return false;
+  }
 
   return true;
 }
 
 bool MM::RenderSystem::RenderEngine::CopyImage(
     AllocatedImage& src_image, AllocatedImage& dest_image,
+    const VkImageLayout& src_layout, const VkImageLayout& dest_layout,
+    const std::vector<std::vector<VkImageCopy2>&>& regions_vector) {
+  for (const auto& regions : regions_vector) {
+    if (!CopyImage(src_image, dest_image, src_layout, dest_layout, regions)) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+bool MM::RenderSystem::RenderEngine::CopyImage(
+    const AllocatedImage& src_image, AllocatedImage& dest_image,
     const VkImageLayout& src_layout, const VkImageLayout& dest_layout,
     const std::vector<std::vector<VkImageCopy2>&>& regions_vector) {
   for (const auto& regions : regions_vector) {
@@ -568,6 +814,197 @@ bool MM::RenderSystem::RenderEngine::CopyDataToBuffer(
   return true;
 }
 
+bool MM::RenderSystem::RenderEngine::RemoveBufferFragmentation(
+    AllocatedBuffer& buffer,
+    std::vector<BufferChunkInfo>& buffer_chunks_info) {
+#ifdef CHECK_PARAMETERS
+  if (!buffer.IsValid()) {
+    LOG_ERROR("buffer is invalid.")
+    return false;
+  }
+  if (buffer_chunks_info.empty()) {
+    return true;
+  }
+#endif
+
+  // Used to mark buffer chunk that will be moved to the stage buffer
+  std::vector<int> stage_flag(buffer_chunks_info.size(), 0);
+  VkDeviceSize pre_valid_size = 0;
+  VkDeviceSize stage_buffer_size = 0;
+  std::vector<VkBufferCopy2> self_copy_regions;
+  std::vector<VkBufferCopy2> self_copy_to_stage_regions;
+  std::vector<VkBufferCopy2> stage_copy_to_self_regions;
+
+  for (std::size_t i = 0; i < buffer_chunks_info.size(); ++i) {
+    if (pre_valid_size + buffer_chunks_info[i].GetSize() >=
+        buffer_chunks_info[i].GetOffset()) {
+      stage_flag[i] = 1;
+      self_copy_to_stage_regions.push_back(Utils::GetBufferCopy(
+          buffer_chunks_info[i].GetSize(), buffer_chunks_info[i].GetOffset(),
+          stage_buffer_size));
+      stage_copy_to_self_regions.push_back(Utils::GetBufferCopy(
+          buffer_chunks_info[i].GetSize(), stage_buffer_size, pre_valid_size));
+      pre_valid_size += buffer_chunks_info[i].GetSize();
+      stage_buffer_size += buffer_chunks_info[i].GetSize();
+      continue;
+    }
+
+    // TODO Optimize to binary search.
+    const VkDeviceSize new_offset =
+        buffer_chunks_info[i].GetOffset() - pre_valid_size;
+    for (std::size_t j = 0; j < i; ++j) {
+      if (stage_flag[j] != 1) {
+        if (new_offset <=
+            buffer_chunks_info[j].GetOffset() + buffer_chunks_info[j].GetSize()) {
+          if (new_offset +
+                  buffer_chunks_info[i].GetSize() >=
+              buffer_chunks_info[j].GetOffset()) {
+            stage_flag[i] = 1;
+            self_copy_to_stage_regions.push_back(Utils::GetBufferCopy(
+                buffer_chunks_info[i].GetSize(),
+                buffer_chunks_info[i].GetOffset(), stage_buffer_size));
+            stage_copy_to_self_regions.push_back(
+                Utils::GetBufferCopy(buffer_chunks_info[i].GetSize(),
+                                     stage_buffer_size, pre_valid_size));
+            pre_valid_size += buffer_chunks_info[i].GetSize();
+            stage_buffer_size += buffer_chunks_info[i].GetSize();
+            continue;
+          }
+        }
+      }
+    }
+
+    self_copy_regions.push_back(Utils::GetBufferCopy(
+        buffer_chunks_info[i].GetSize(), buffer_chunks_info[i].GetOffset(),
+        buffer_chunks_info[i].GetOffset() - pre_valid_size));
+    pre_valid_size += buffer_chunks_info[i].GetSize();
+  }
+
+  AllocatedBuffer stage_buffer = CreateBuffer(
+      stage_buffer_size,
+      VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+      VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE);
+
+  auto self_copy_info = Utils::GetCopyBufferInfo(buffer, buffer, self_copy_regions);
+  auto self_copy_to_stage_info = Utils::GetCopyBufferInfo(buffer, stage_buffer, self_copy_to_stage_regions);
+  auto stage_copy_to_self_info = Utils::GetCopyBufferInfo(stage_buffer, buffer, stage_copy_to_self_regions);
+
+  if (RecordAndSubmitSingleTimeCommand(
+          CommandBufferType::TRANSFORM,
+          [&self_copy_info, &self_copy_to_stage_info,
+           stage_copy_to_self_info](VkCommandBuffer& cmd) {
+            vkCmdCopyBuffer2(cmd, &self_copy_info);
+            vkCmdCopyBuffer2(cmd, &self_copy_to_stage_info);
+            vkCmdCopyBuffer2(cmd, &stage_copy_to_self_info);
+          },
+          true)) {
+    LOG_ERROR(
+        "An error occurred during buffer move while removing the fragmentation "
+        "buffer.")
+    return false;
+  }
+
+  return true;
+}
+
+bool MM::RenderSystem::RenderEngine::RemoveBufferFragmentation(
+    AllocatedBuffer& buffer,
+    std::list<BufferChunkInfo>& buffer_chunks_info) {
+#ifdef CHECK_PARAMETERS
+  if (!buffer.IsValid()) {
+    LOG_ERROR("buffer is invalid.")
+    return false;
+  }
+  if (buffer_chunks_info.empty()) {
+    return true;
+  }
+#endif
+
+  // Used to mark buffer chunk that will be moved to the stage buffer
+  std::vector<int> stage_flag(buffer_chunks_info.size(), 0);
+  VkDeviceSize pre_valid_size = 0;
+  VkDeviceSize stage_buffer_size = 0;
+  std::vector<VkBufferCopy2> self_copy_regions;
+  std::vector<VkBufferCopy2> self_copy_to_stage_regions;
+  std::vector<VkBufferCopy2> stage_copy_to_self_regions;
+
+  std::uint32_t index = 0;
+  for (auto buffer_chunk_info = buffer_chunks_info.begin();
+       buffer_chunk_info != buffer_chunks_info.end(); ++buffer_chunk_info, ++index) {
+    if (pre_valid_size + buffer_chunk_info->GetSize() >=
+        buffer_chunk_info->GetOffset()) {
+      stage_flag[index] = 1;
+      self_copy_to_stage_regions.push_back(Utils::GetBufferCopy(
+          buffer_chunk_info->GetSize(), buffer_chunk_info->GetOffset(),
+          stage_buffer_size));
+      stage_copy_to_self_regions.push_back(Utils::GetBufferCopy(
+          buffer_chunk_info->GetSize(), stage_buffer_size, pre_valid_size));
+      pre_valid_size += buffer_chunk_info->GetSize();
+      stage_buffer_size += buffer_chunk_info->GetSize();
+      continue;
+    }
+
+    // TODO Optimize to binary search.
+    const VkDeviceSize new_offset =
+        buffer_chunk_info->GetOffset() - pre_valid_size;
+    std::uint32_t index2 = 0;
+    for (auto buffer_chunk_info2 = buffer_chunks_info.begin(); buffer_chunk_info2 != buffer_chunk_info; ++buffer_chunk_info2, ++index2) {
+      if (stage_flag[index2] != 1) {
+        if (new_offset <=
+            buffer_chunk_info2->GetOffset() + buffer_chunk_info2->GetSize()) {
+          if (new_offset + buffer_chunk_info->GetSize() >=
+              buffer_chunk_info2->GetOffset()) {
+            stage_flag[index] = 1;
+            self_copy_to_stage_regions.push_back(Utils::GetBufferCopy(
+                buffer_chunk_info->GetSize(), buffer_chunk_info->GetOffset(),
+                stage_buffer_size));
+            stage_copy_to_self_regions.push_back(
+                Utils::GetBufferCopy(buffer_chunk_info->GetSize(),
+                                     stage_buffer_size, pre_valid_size));
+            pre_valid_size += buffer_chunk_info->GetSize();
+            stage_buffer_size += buffer_chunk_info->GetSize();
+            continue;
+          }
+        }
+      }
+    }
+
+    self_copy_regions.push_back(Utils::GetBufferCopy(
+        buffer_chunk_info->GetSize(), buffer_chunk_info->GetOffset(),
+        buffer_chunk_info->GetOffset() - pre_valid_size));
+    pre_valid_size += buffer_chunk_info->GetSize();
+  }
+
+  AllocatedBuffer stage_buffer = CreateBuffer(
+      stage_buffer_size,
+      VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+      VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE);
+
+  auto self_copy_info =
+      Utils::GetCopyBufferInfo(buffer, buffer, self_copy_regions);
+  auto self_copy_to_stage_info = Utils::GetCopyBufferInfo(
+      buffer, stage_buffer, self_copy_to_stage_regions);
+  auto stage_copy_to_self_info = Utils::GetCopyBufferInfo(
+      stage_buffer, buffer, stage_copy_to_self_regions);
+
+  if (RecordAndSubmitSingleTimeCommand(
+          CommandBufferType::TRANSFORM,
+          [&self_copy_info, &self_copy_to_stage_info,
+           stage_copy_to_self_info](VkCommandBuffer& cmd) {
+            vkCmdCopyBuffer2(cmd, &self_copy_info);
+            vkCmdCopyBuffer2(cmd, &self_copy_to_stage_info);
+            vkCmdCopyBuffer2(cmd, &stage_copy_to_self_info);
+          },
+          true)) {
+    LOG_ERROR(
+        "An error occurred during buffer move while removing the fragmentation "
+        "buffer.")
+    return false;
+  }
+
+  return true;
+}
+
 const VkPhysicalDeviceFeatures& MM::RenderSystem::RenderEngine::
 GetPhysicalDeviceFeatures() const {
   return gpu_features_;
@@ -582,7 +1019,8 @@ uint32_t MM::RenderSystem::RenderEngine::GetCurrentFrame() const {
   return rendered_frame_count_ % flight_frame_number_;
 }
 
-VkSampleCountFlagBits MM::RenderSystem::RenderEngine::GetMultiSampleCount() const {
+VkSampleCountFlagBits
+MM::RenderSystem::RenderEngine::GetMultiSampleCount() const {
   return render_engine_info_.multi_sample_count_;
 }
 
@@ -593,8 +1031,8 @@ bool MM::RenderSystem::RenderEngine::SupportMultiDrawIndirect() const {
 void MM::RenderSystem::RenderEngine::ChooseMultiSampleCount() {
   uint32_t count{0};
   auto max_sample_count = static_cast<VkSampleCountFlagBits>(
-      gpu_properties_.limits.framebufferColorSampleCounts &
-                           gpu_properties_.limits.framebufferDepthSampleCounts);
+    gpu_properties_.limits.framebufferColorSampleCounts &
+    gpu_properties_.limits.framebufferDepthSampleCounts);
   if (max_sample_count & VK_SAMPLE_COUNT_64_BIT) {
     max_sample_count = VK_SAMPLE_COUNT_64_BIT;
   } else if (max_sample_count & VK_SAMPLE_COUNT_32_BIT) {
@@ -770,12 +1208,12 @@ void MM::RenderSystem::RenderEngine::InitLogicalDevice() {
 
   const float queue_priority = 1.0f;
   std::vector<VkDeviceQueueCreateInfo>
-      queue_create_infos;  // all queues that need to be created
+      queue_create_infos; // all queues that need to be created
   const std::set<uint32_t> queue_families{
       queue_family_indices_.graphics_family_.value(),
       queue_family_indices_.compute_family_.value(),
       queue_family_indices_.present_family_.value()};
-  for (const uint32_t queue_family : queue_families)  // for every queue family
+  for (const uint32_t queue_family : queue_families) // for every queue family
   {
     // queue create info
     VkDeviceQueueCreateInfo queue_create_info{};
@@ -989,7 +1427,7 @@ void MM::RenderSystem::RenderEngine::InitCommandExecutors() {
           queue_family_indices_.graphics_family_.value(),
           VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT);
   VK_CHECK(vkCreateCommandPool(device_, &graph_command_pool_create_info,
-                               nullptr, &graph_command_pool),
+             nullptr, &graph_command_pool),
            LOG_FATAL("Failed to create graph command pool!"))
 
   // compute command pool
@@ -998,7 +1436,7 @@ void MM::RenderSystem::RenderEngine::InitCommandExecutors() {
           queue_family_indices_.compute_family_.value(),
           VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT);
   VK_CHECK(vkCreateCommandPool(device_, &compute_command_pool_create_info,
-                               nullptr, &compute_command_pool),
+             nullptr, &compute_command_pool),
            LOG_FATAL("Failed to create compute pool!"))
 
   graph_command_executors_.resize(flight_frame_number_);
@@ -1042,7 +1480,7 @@ void MM::RenderSystem::RenderEngine::SetUpDebugMessenger() {
   PopulateDebugMessengerCreateInfo(createInfo);
 
   auto func = reinterpret_cast<PFN_vkCreateDebugUtilsMessengerEXT>(
-      vkGetInstanceProcAddr(instance_, "vkCreateDebugUtilsMessengerEXT"));
+    vkGetInstanceProcAddr(instance_, "vkCreateDebugUtilsMessengerEXT"));
   if (func) {
     if (func(instance_, &createInfo, nullptr, &debug_messenger_) !=
         VK_SUCCESS) {
@@ -1175,7 +1613,7 @@ void MM::RenderSystem::RenderEngine::DestroyDebugUtilsMessengerEXT(
     VkInstance instance, VkDebugUtilsMessengerEXT debug_messenger,
     const VkAllocationCallbacks* allocator) {
   const auto func = reinterpret_cast<PFN_vkDestroyDebugUtilsMessengerEXT>(
-      vkGetInstanceProcAddr(instance, "vkDestroyDebugUtilsMessengerEXT"));
+    vkGetInstanceProcAddr(instance, "vkDestroyDebugUtilsMessengerEXT"));
   if (func != nullptr) {
     func(instance, debug_messenger, allocator);
   }
@@ -1216,7 +1654,7 @@ int MM::RenderSystem::RenderEngine::RateDeviceSuitability(
   score += device_properties.limits.maxImageDimension2D;
 
   score += device_properties.limits.framebufferColorSampleCounts +
-           device_properties.limits.framebufferDepthSampleCounts;
+      device_properties.limits.framebufferDepthSampleCounts;
 
   if (device_properties.limits.maxUniformBufferRange != 0) {
     score += 20;

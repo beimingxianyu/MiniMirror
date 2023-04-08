@@ -7,7 +7,7 @@ include_directories("${CMAKE_CURRENT_SOURCE_DIR}/../")
 #####################################################
 ##########  file_system  ##########
 AddMoudle("file_system" "${CMAKE_CURRENT_SOURCE_DIR}/platform/file_system")
-target_compile_definitions(file_system PUBLIC "-DBIN_DIR=\"${CMAKE_RUNTIME_OUTPUT_DIRECTORY}\"")
+target_compile_definitions(file_system PUBLIC "BIN_DIR=\"${CMAKE_RUNTIME_OUTPUT_DIRECTORY}\"")
 
 ##########  config_system  ##########
 AddMoudle("config_system" "${CMAKE_CURRENT_SOURCE_DIR}/platform/config_system")

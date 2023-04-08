@@ -138,6 +138,13 @@ class RenderEngine {
                   const std::vector<VkBufferCopy2>& regions);
 
   /**
+   * \remark The range specified by \ref regions cannot overlap and src_buffer can equal to dest_buffer.
+   */
+  bool CopyBuffer(const AllocatedBuffer& src_buffer,
+                  AllocatedBuffer& dest_buffer,
+                  const std::vector<VkBufferCopy2>& regions);
+
+  /**
    * \remark The areas specified for each \ref VkBufferCopy2 in the vector cannot overlap,
    * but the areas specified between each \ref VkBufferCopy2 can overlap.
    */
@@ -145,9 +152,26 @@ class RenderEngine {
                   const std::vector<std::vector<VkBufferCopy2>>& regions_vector);
 
   /**
+   * \remark The areas specified for each \ref VkBufferCopy2 in the vector
+   * cannot overlap, but the areas specified between each \ref VkBufferCopy2 can
+   * overlap.
+   */
+  bool CopyBuffer(
+      const AllocatedBuffer& src_buffer, AllocatedBuffer& dest_buffer,
+      const std::vector<std::vector<VkBufferCopy2>>& regions_vector);
+
+  /**
    * \remark The range specified by \ref regions cannot overlap.
    */
   bool CopyImage(AllocatedImage& src_image, AllocatedImage& dest_image,
+                 const VkImageLayout& src_layout,
+                 const VkImageLayout& dest_layout,
+                 const std::vector<VkImageCopy2>& regions);
+
+  /**
+   * \remark The range specified by \ref regions cannot overlap and src_image can not equal to dest_image.
+   */
+  bool CopyImage(const AllocatedImage& src_image, AllocatedImage& dest_image,
                  const VkImageLayout& src_layout,
                  const VkImageLayout& dest_layout,
                  const std::vector<VkImageCopy2>& regions);
@@ -162,6 +186,16 @@ class RenderEngine {
                  const VkImageLayout& dest_layout,
                  const std::vector<std::vector<VkImageCopy2>&>& regions_vector);
 
+  /**
+   * \remark The areas specified for each \ref VkImageCopy in the vector
+   * cannot overlap, but the areas specified between each \ref VkImageCopy can
+   * overlap.Src_image can not equal to dest_image.
+   */
+  bool CopyImage(const AllocatedImage& src_image, AllocatedImage& dest_image,
+                 const VkImageLayout& src_layout,
+                 const VkImageLayout& dest_layout,
+                 const std::vector<std::vector<VkImageCopy2>&>& regions_vector);
+
 
   bool CopyDataToBuffer(AllocatedBuffer& dest_buffer, const void* data,
                         const VkDeviceSize& copy_offset,
@@ -169,11 +203,11 @@ class RenderEngine {
 
   bool RemoveBufferFragmentation(
       AllocatedBuffer& buffer,
-      std::vector<BufferChunkInfo>& buffer_chunks_info) const;
+      std::vector<BufferChunkInfo>& buffer_chunks_info);
 
   bool RemoveBufferFragmentation(
       AllocatedBuffer& buffer,
-      std::list<BufferChunkInfo>& buffer_chunks_info) const;
+      std::list<BufferChunkInfo>& buffer_chunks_info);
 
   const VkPhysicalDeviceFeatures& GetPhysicalDeviceFeatures() const;
 
