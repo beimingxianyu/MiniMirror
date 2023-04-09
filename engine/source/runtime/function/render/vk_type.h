@@ -1043,34 +1043,52 @@ public:
 
   const MM::RenderSystem::BufferInfo& GetIndexBufferInfo() const;
 
-  /**
-   * \brief Determine whether the buffer is accessible at this time.
-   * (The buffer is in an unreadable state during the expansion process)
-   * \return If the buffer is accessible at this time, it returns true,
-   * otherwise it returns false.
-   */
-  bool Accessible() const;
-
   bool AllocateBuffer(
       const std::vector<AssetType::Vertex>& vertices,
       const std::vector<uint32_t>& indexes,
-      const std::shared_ptr<BufferChunkInfo>& output_buffer_chunk_info);
+      const std::shared_ptr<BufferChunkInfo>& output_vertex_buffer_chunk_info, const
+      std::shared_ptr<BufferChunkInfo>
+      output_index_buffer_chunk_info);
 
   void Release();
 
 private:
-  bool ReserveVertexBuffer();
+  enum class BufferType {
+    VERTEX,
+    INDEX
+  };
+ bool ChooseVertexBufferReserveSize(const VkDeviceSize& require_size, VkDeviceSize& output_reserve_size);
 
-  bool ReserveIndexBuffer();
+ bool ChooseIndexBufferReserveSize(const VkDeviceSize& require_size,
+                                    VkDeviceSize& output_reserve_size);
 
-  bool Reserve();
+ bool ChooseReserveSize(const BufferType& buffer_type,
+                        const VkDeviceSize& require_size, VkDeviceSize& output_reserve_size);
+
+  void GetEndSizeAndOffset(
+      const AllocatedBuffer& buffer, std::list<std::shared_ptr<BufferChunkInfo>>& buffer_chunks_info,
+      VkDeviceSize& output_end_size,
+      VkDeviceSize& output_offset);
+
+  bool ScanBufferToFindSuitableArea(AllocatedBuffer& buffer,
+                                    std::list<std::shared_ptr<BufferChunkInfo>>&
+                                    buffer_chunks_info,
+                                    const VkDeviceSize& require_size,
+                                    VkDeviceSize& output_offset);
+
+  bool ReserveVertexBuffer(const VkDeviceSize& new_buffer_size);
+
+  bool ReserveIndexBuffer(const VkDeviceSize& new_buffer_size);
+
+  bool Reserve(const VkDeviceSize& new_vertex_buffer_size, const VkDeviceSize&
+               new_index_buffer_size);
 
 private:
+  RenderEngine* render_engine_{nullptr};
   AllocatedBuffer vertex_buffer_{};
   AllocatedBuffer index_buffer_{};
-  std::list<std::shared_ptr<BufferChunkInfo>> vertex_buffer_chunks_info{};
-  std::list<std::shared_ptr<BufferChunkInfo>> index_buffer_chunks_info{};
-  std::atomic_bool accessible_{false};
+  std::list<std::shared_ptr<BufferChunkInfo>> vertex_buffer_chunks_info_{};
+  std::list<std::shared_ptr<BufferChunkInfo>> index_buffer_chunks_info_{};
 };
 } // namespace RenderSystem
 } // namespace MM

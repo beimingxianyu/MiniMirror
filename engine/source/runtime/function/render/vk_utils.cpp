@@ -714,3 +714,43 @@ VkCopyImageInfo2 MM::RenderSystem::Utils::GetCopyImageInfo(
                           static_cast<uint32_t>(copy_regions.size()),
                           copy_regions.data()};
 }
+
+bool MM::RenderSystem::Utils::GetEndSizeAndOffset(const AllocatedBuffer& buffer,
+                                                  std::list<std::shared_ptr<BufferChunkInfo>>& buffer_chunks_info, VkDeviceSize& output_end_size,
+                                                  VkDeviceSize& output_offset) {
+#ifdef CHECK_PARAMETERS
+  if (!buffer.IsValid()) {
+    LOG_ERROR("The buffer is invalid.")
+    return false;
+  }
+
+  for (const auto& buffer_chunk_info: buffer_chunks_info) {
+    if (!buffer_chunk_info->IsValid()) {
+      LOG_ERROR("The buffer_chunk_info is Invalid.")
+      return false;
+    }
+  }
+#endif
+  if (buffer_chunks_info.empty()) {
+    output_offset = 0;
+    output_end_size = buffer.GetBufferSize();
+  } else {
+    auto end_element = --buffer_chunks_info.end();
+    while (end_element->use_count() == 1) {
+      end_element = buffer_chunks_info.erase(end_element);
+      if (buffer_chunks_info.empty()) {
+        break;
+      }
+      end_element = --end_element;
+    }
+    if (buffer_chunks_info.empty()) {
+      output_offset = 0;
+      output_end_size = buffer.GetBufferSize();
+    } else {
+      output_offset = (*end_element)->GetOffset() + (*end_element)->GetSize();
+      output_end_size = buffer.GetBufferSize() - output_offset;
+    }
+  }
+
+  return true;
+}

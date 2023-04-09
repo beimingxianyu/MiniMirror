@@ -5,7 +5,6 @@
 
 #include <vector>
 
-#include "vk_type.h"
 #include "runtime/function/render/pre_header.h"
 
 namespace MM {
@@ -13,6 +12,7 @@ namespace RenderSystem {
 class AllocatedImage;
 class AllocatedBuffer;
 class RenderEngine;
+class BufferChunkInfo;
 
 enum class ImageTransferMode {
   INIT_TO_ATTACHMENT,
@@ -244,6 +244,11 @@ VkCopyImageInfo2 GetCopyImageInfo(
     const AllocatedImage& src_image, AllocatedImage& dest_image,
     const VkImageLayout& src_layout, const VkImageLayout& dest_layout,
     const std::vector<VkImageCopy2>& copy_regions);
+
+bool GetEndSizeAndOffset(
+    const AllocatedBuffer& buffer, std::list<std::shared_ptr<BufferChunkInfo>>& buffer_chunks_info,
+    VkDeviceSize& output_end_size,
+    VkDeviceSize& output_offset);
 }
 }
 }

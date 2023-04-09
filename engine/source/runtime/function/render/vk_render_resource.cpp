@@ -34,24 +34,6 @@ bool MM::RenderSystem::RenderResourceManager::IsUseToWrite(
   return resource_ID_to_manage_info.at(resource_ID).use_to_write;
 }
 
-bool MM::RenderSystem::RenderResourceManager::IsStage(
-    const std::string& resource_name, bool& result) const {
-  std::shared_lock<std::shared_mutex> guard{resource_lock_};
-  const auto ID = GetObjectIDFromName(resource_name);
-  if (ID == 0) {
-    return false;
-  }
-  result = resource_ID_to_manage_info.at(ID).is_stage_;
-
-  return true;
-}
-
-bool MM::RenderSystem::RenderResourceManager::IsStage(
-    const std::uint32_t& resource_ID) const {
-  std::shared_lock<std::shared_mutex> guard{resource_lock_};
-  return resource_ID_to_manage_info.at(resource_ID).is_stage_;
-}
-
 bool MM::RenderSystem::RenderResourceManager::IsShared(
     const std::string& resource_name, bool& result) const {
   std::shared_lock<std::shared_mutex> guard{resource_lock_};
