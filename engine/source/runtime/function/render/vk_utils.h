@@ -87,7 +87,7 @@ VkSubmitInfo GetCommandSubmitInfo(const VkCommandBuffer& command_buffer, const u
  * sub_image.baseArrayLayer = 0; \n
  * sub_image.layerCount = 1;
  */
-VkImageMemoryBarrier2 GetImageTransferBarrier(AllocatedImage& image,
+VkImageMemoryBarrier2 GetImageMemoryBarrier(AllocatedImage& image,
                                               const ImageTransferMode&
                                               transfer_mode);
 
@@ -99,9 +99,13 @@ VkImageMemoryBarrier2 GetImageTransferBarrier(AllocatedImage& image,
  * \return The \ref VkImageMemoryBarrier2
  * \remark Blockage at all stages, poor performance.
  */
-VkImageMemoryBarrier2 GetImageTransferBarrier(AllocatedImage& image,
+VkImageMemoryBarrier2 GetImageMemoryBarrier(AllocatedImage& image,
                                               const VkImageLayout& old_layout,
                                               const VkImageLayout& new_layout);
+
+VkBufferMemoryBarrier2 GetBufferMemoryBarrier() {
+  VkBufferMemoryBarrier2 
+}
 
 VkDependencyInfo GetImageDependencyInfo(VkImageMemoryBarrier2& image_barrier,
                                         const VkDependencyFlags& flags = 0);

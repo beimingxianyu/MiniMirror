@@ -1,10 +1,12 @@
+#include <utility>
+
 #include "runtime/function/render/vk_type.h"
 
 #include "runtime/function/render/vk_engine.h"
 
 bool MM::RenderSystem::QueueFamilyIndices::isComplete() const {
   return graphics_family_.has_value() && present_family_.has_value() &&
-         compute_family_.has_value();
+         compute_family_.has_value() && transform_family_.has_value();
 }
 
 MM::RenderSystem::ManagedObjectBase::ManagedObjectBase(
@@ -124,16 +126,18 @@ void MM::RenderSystem::ImageInfo::Reset() {
   image_size_ = 0;
   image_format_ = VK_FORMAT_UNDEFINED;
   image_layout_ = VK_IMAGE_LAYOUT_UNDEFINED;
-  mipmap_levels = 1;
-  array_layers = 1;
+  mipmap_levels_ = 1;
+  array_layers_ = 1;
   can_mapped_ = false;
+  is_exclusive_ = false;
+  queue_index_ = 0;
 }
 
 bool MM::RenderSystem::ImageInfo::IsValid() const {
   if (image_size_ == 0 || image_format_ == VK_FORMAT_UNDEFINED ||
-      image_layout_ == VK_IMAGE_LAYOUT_UNDEFINED || mipmap_levels == 0 ||
+      image_layout_ == VK_IMAGE_LAYOUT_UNDEFINED || mipmap_levels_ == 0 ||
       image_extent_.width == 0 || image_extent_.height == 0 ||
-      image_extent_.depth == 0 || array_layers == 0) {
+      image_extent_.depth == 0 || array_layers_ == 0) {
     return false;
   }
   return true;
@@ -194,8 +198,10 @@ bool MM::RenderSystem::BufferBindInfo::IsValid() const {
 void MM::RenderSystem::BufferInfo::Reset() {
   buffer_size_ = 0;
   can_mapped_ = false;
-  is_transform_src = false;
-  is_transform_dest = false;
+  is_transform_src_ = false;
+  is_transform_dest_ = false;
+  is_exclusive_ = false;
+  queue_index_ = 0;
 }
 
 bool MM::RenderSystem::BufferInfo::IsValid() const { return buffer_size_ != 0; }
@@ -318,6 +324,60 @@ void MM::RenderSystem::VertexInputState::InitDefaultVertexInput() {
   vertex_attributes_[4].format = VK_FORMAT_R32G32B32_SFLOAT;
   vertex_attributes_[4].offset =
       static_cast<uint32_t>(MM::AssetType::Vertex::GetOffsetOfBiTangent());
+}
+
+MM::RenderSystem::CommandBufferInfo::CommandBufferInfo(
+    RenderEngine* engine, const std::uint32_t& queue_index_) : render_engine_(engine), queue_index_(queue_index_) {
+#ifdef CHECK_PARAMETERS
+  if (render_engine_ == nullptr) {
+    return;
+  }
+#endif
+  VkFence temp_fence{nullptr};
+  constexpr VkFenceCreateInfo fence_create_info{VK_STRUCTURE_TYPE_FENCE_CREATE_INFO,
+                                            nullptr, 0};
+
+  VK_CHECK(vkCreateFence(render_engine_->GetDevice(), &fence_create_info,
+                         nullptr, &temp_fence),
+           LOG_ERROR("Failed to create fence.") return;)
+
+  command_fence_.reset(&temp_fence);
+}
+
+MM::RenderSystem::CommandBufferInfo::CommandBufferInfo(
+    CommandBufferInfo&& other) noexcept
+  : render_engine_(other.render_engine_),
+    queue_index_(other.queue_index_),
+    command_fence_(std::move(other.command_fence_)) {
+  other.Reset();
+}
+
+MM::RenderSystem::CommandBufferInfo& MM::RenderSystem::CommandBufferInfo::
+operator=(CommandBufferInfo&& other) noexcept {
+  if (&other == this) {
+    return *this;
+  }
+
+  render_engine_ = other.render_engine_;
+  queue_index_ = other.queue_index_;
+  command_fence_ = std::move(other.command_fence_);
+
+  other.Reset();
+
+  return *this;
+}
+
+void MM::RenderSystem::CommandBufferInfo::Reset() {
+  render_engine_ = nullptr;
+  queue_index_ = 0;
+  command_fence_.reset();
+}
+
+bool MM::RenderSystem::CommandBufferInfo::IsValid() const {
+  if (render_engine_ == nullptr || command_fence_ == nullptr) {
+    return false;
+  }
+  return true;
 }
 
 bool MM::RenderSystem::VertexInputState::IsValid() const {
@@ -762,11 +822,11 @@ bool MM::RenderSystem::AllocatedBuffer::CanMapped() const {
 }
 
 bool MM::RenderSystem::AllocatedBuffer::IsTransformSrc() const {
-  return buffer_info_.is_transform_src;
+  return buffer_info_.is_transform_src_;
 }
 
 bool MM::RenderSystem::AllocatedBuffer::IsTransformDest() const {
-  return buffer_info_.is_transform_dest;
+  return buffer_info_.is_transform_dest_;
 }
 
 const MM::RenderSystem::BufferInfo& MM::RenderSystem::AllocatedBuffer::
@@ -973,11 +1033,11 @@ const VkImageLayout& MM::RenderSystem::AllocatedImage::GetImageLayout() const {
 }
 
 const uint32_t& MM::RenderSystem::AllocatedImage::GetMipmapLevels() const {
-  return image_info_.mipmap_levels;
+  return image_info_.mipmap_levels_;
 }
 
 const uint32_t& MM::RenderSystem::AllocatedImage::GetArrayLayers() const {
-  return image_info_.array_layers;
+  return image_info_.array_layers_;
 }
 
 const bool& MM::RenderSystem::AllocatedImage::CanMapped() const {
@@ -1192,8 +1252,8 @@ bool MM::RenderSystem::VertexAndIndexBuffer::AllocateBuffer(
     const std::vector<AssetType::Vertex>& vertices,
     const std::vector<uint32_t>& indexes,
     const std::shared_ptr<BufferChunkInfo>& output_vertex_buffer_chunk_info,
-    const std::shared_ptr<MM::RenderSystem::BufferChunkInfo>
-        output_index_buffer_chunk_info) {
+    const std::shared_ptr<MM::RenderSystem::BufferChunkInfo>&
+    output_index_buffer_chunk_info) {
   if (vertices.empty() || indexes.empty()) {
     LOG_ERROR("Input Vertices and indexes must not be empty.")
     return false;
@@ -1266,8 +1326,16 @@ bool MM::RenderSystem::VertexAndIndexBuffer::AllocateBuffer(
       VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE,
       VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT);
 
-  render_engine_->CopyDataToBuffer(index_stage_buffer, indexes.data(), 0,
-                                   indexes_size);
+  std::vector<VkDeviceSize> new_indexes(indexes.size());
+  for (std::size_t i = 0; i < new_indexes.size(); ++i) {
+    new_indexes[i] = indexes[i] + vertex_offset;
+  }
+
+  if (!render_engine_->CopyDataToBuffer(index_stage_buffer, new_indexes.data(), 0,
+                                   indexes_size)) {
+    LOG_ERROR("Failed to copy new index data to stage buffer")
+    return false;
+  }
 
   const VkBufferCopy2 index_region =
       Utils::GetBufferCopy(indexes_size, 0, index_offset);
@@ -1529,12 +1597,15 @@ bool MM::RenderSystem::VertexAndIndexBuffer::ReserveVertexBuffer(
   bool result_step1 = false;
   bool result_step3 = false;
 
+
   TaskSystem::Taskflow taskflow;
 
   AllocatedBuffer new_buffer;
 
   auto step1 = taskflow.emplace([&render_engine = render_engine_, &new_buffer,
-                                 &result_step1, &new_buffer_size]() {
+                                 &result_step1, &new_buffer_size, &
+                                 index_buffer_chunks_info =
+                                 index_buffer_chunks_info_]() {
     new_buffer = render_engine->CreateBuffer(
         new_buffer_size,
         VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT |
@@ -1547,12 +1618,21 @@ bool MM::RenderSystem::VertexAndIndexBuffer::ReserveVertexBuffer(
     result_step1 = true;
   });
 
+  auto step2 = taskflow.emplace([&render_engine = render_engine_]() {
+    // TODO 去除碎片化的空间
+
+  });
+
   std::vector<VkBufferCopy2> regions;
   
+  std::vector<VkDeviceSize> index_offsets;
+  index_offsets.reserve(vertex_buffer_chunks_info_.size());
+  std::vector<VkDeviceSize> new_buffer_offsets;
+  new_buffer_offsets.reserve(vertex_buffer_chunks_info_.size());
 
-  auto step2 = taskflow.emplace(
+  auto step3 = taskflow.emplace(
       [&regions, &vertex_buffer_chunks_info = vertex_buffer_chunks_info_,
-         &index_buffer_chunks_info = index_buffer_chunks_info_]() {
+         &index_buffer_chunks_info = index_buffer_chunks_info_, &index_offsets, &new_buffer_offsets]() {
         VkDeviceSize new_buffer_offset = 0;
         regions.reserve(vertex_buffer_chunks_info.size());
         auto index_buffer_chunk_info = index_buffer_chunks_info.begin();
@@ -1560,17 +1640,18 @@ bool MM::RenderSystem::VertexAndIndexBuffer::ReserveVertexBuffer(
           regions.emplace_back(Utils::GetBufferCopy(
               (*buffer_chunk_info).GetSize(), (*buffer_chunk_info).GetOffset(),
               new_buffer_offset));
-          // TODO 错误，应当copy成功后才修改chunk info
-          VkDeviceSize new_to_old_offset =
-              buffer_chunk_info->GetOffset() - new_buffer_offset;
-          buffer_chunk_info->SetOffset(new_buffer_offset); 
+
+          // save offset data and use them after copy succeed
+          index_offsets.emplace_back(buffer_chunk_info->GetOffset() -
+                                     new_buffer_offset);
+          new_buffer_offsets.emplace_back(new_buffer_offset);
 
           new_buffer_offset += (*buffer_chunk_info).GetSize();
           ++index_buffer_chunk_info;
         }
       });
 
-  auto step3 = taskflow.emplace([&render_engine = render_engine_,
+  auto step4 = taskflow.emplace([&render_engine = render_engine_,
                                  &vertex_buffer = vertex_buffer_, &regions,
                                  &new_buffer, &result_step1, &result_step3]() {
     if (!result_step1) {
@@ -1590,6 +1671,15 @@ bool MM::RenderSystem::VertexAndIndexBuffer::ReserveVertexBuffer(
     LOG_ERROR("Failed to reserve vertex buffer")
     return false;
   }
+
+  // The next process is linear and cannot be parallel.
+  if (!stage_index_buffer.IsValid()) {
+    LOG_ERROR("Failed to create stage index buffer")
+    return false;
+  }
+
+  // TODO 直接ReserveIndexBuffer
+
 
   vertex_buffer_ = new_buffer;
 

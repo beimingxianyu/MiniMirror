@@ -281,9 +281,12 @@ class RenderResourceTexture final : public RenderResourceBase {
       const std::string& resource_name, RenderEngine* engine,
       const VkDescriptorType& descriptor_type,
       const std::shared_ptr<AssetType::Image>& image, VkImageUsageFlags usages,
+      const std::uint32_t& queue_index = 0,
+      const VkSharingMode& sharing_mode = VK_SHARING_MODE_EXCLUSIVE,
       const VkImageLayout& image_layout, const uint32_t mipmap_levels& = 1,
       const VmaMemoryUsage& memory_usage = VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE,
       const VmaAllocationCreateFlags& allocation_flags = 0);
+
   /**
    * \remark This constructor does not check the correctness of parameters, so
    * exceptions may be thrown. Therefore, please use this function with caution.
@@ -437,6 +440,8 @@ protected:
       const std::string& resource_name, RenderEngine* engine,
       const VkDescriptorType& descriptor_type, VkBufferUsageFlags buffer_usage,
       const VkDeviceSize& size, const VkDeviceSize& offset,
+     const std::uint32_t& queue_index = 0,
+      const VkSharingMode& sharing_mode = VK_SHARING_MODE_EXCLUSIVE,
       const VkDeviceSize& size_range = VK_WHOLE_SIZE,
       const VkDeviceSize& dynamic_offset = 0, const DataToBufferInfo& data_info,
       const VkBufferCreateFlags& buffer_flags = 0,
@@ -462,7 +467,8 @@ protected:
       const VkDeviceSize& size, const VkBufferUsageFlags& buffer_usage,
       const VkBufferCreateFlags& buffer_flags,
       const VmaMemoryUsage& memory_usage = VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE,
-      const VmaAllocationCreateFlags& allocation_flags = 0);
+      const VmaAllocationCreateFlags& allocation_flags = 0, const std::uint32_t& queue_index, const VkSharingMode&
+      sharing_mode);
 
   /**
    * \remark Returns true if the \ref data is nullptr or the data is

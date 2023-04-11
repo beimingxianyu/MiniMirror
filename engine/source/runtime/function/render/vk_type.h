@@ -20,6 +20,7 @@ class RenderObject;
 
 struct QueueFamilyIndices {
   std::optional<uint32_t> graphics_family_;
+  std::optional<uint32_t> transform_family_;
   std::optional<uint32_t> present_family_;
   std::optional<uint32_t> compute_family_;
 
@@ -588,11 +589,13 @@ struct ImageInfo {
   VkDeviceSize image_size_{0};
   VkFormat image_format_{VK_FORMAT_UNDEFINED};
   VkImageLayout image_layout_{VK_IMAGE_LAYOUT_UNDEFINED};
-  std::uint32_t mipmap_levels{1};
-  std::uint32_t array_layers{1};
+  std::uint32_t mipmap_levels_{1};
+  std::uint32_t array_layers_{1};
   bool can_mapped_{false};
   bool is_transform_src_{false};
   bool is_transform_dest_{false};
+  bool is_exclusive_{false};
+  std::uint32_t queue_index_{0};
 
   void Reset();
 
@@ -621,8 +624,10 @@ struct BufferBindInfo {
 struct BufferInfo {
   VkDeviceSize buffer_size_{0};
   bool can_mapped_{false};
-  bool is_transform_src{false};
-  bool is_transform_dest{false};
+  bool is_transform_src_{false};
+  bool is_transform_dest_{false};
+  bool is_exclusive_{false};
+  std::uint32_t queue_index_{0};
 
   void Reset();
 
@@ -686,6 +691,25 @@ private:
   std::vector<VkVertexInputBindingDescription> instance_binds_{};
   std::vector<VkDeviceSize> instance_buffer_offset_{};
   std::vector<VkVertexInputAttributeDescription> instance_attributes_{};
+};
+
+struct CommandBufferInfo {
+  CommandBufferInfo() = default;
+  ~CommandBufferInfo() = default;
+  CommandBufferInfo(RenderEngine* engine,
+                    const std::uint32_t& queue_index_);
+  CommandBufferInfo(const CommandBufferInfo& other) = delete;
+  CommandBufferInfo(CommandBufferInfo&& other) noexcept;
+  CommandBufferInfo& operator=(const CommandBufferInfo& other) = delete;
+  CommandBufferInfo& operator=(CommandBufferInfo&& other) noexcept;
+
+  RenderEngine* render_engine_{nullptr};
+  std::uint32_t queue_index_{0};
+  std::unique_ptr<VkFence> command_fence_{nullptr};
+
+  void Reset();
+
+  bool IsValid() const;
 };
 
 class AllocatedCommandBuffer {
@@ -1047,7 +1071,8 @@ public:
       const std::vector<AssetType::Vertex>& vertices,
       const std::vector<uint32_t>& indexes,
       const std::shared_ptr<BufferChunkInfo>& output_vertex_buffer_chunk_info, const
-      std::shared_ptr<BufferChunkInfo>
+      std::shared_ptr<MM::RenderSystem::BufferChunkInfo>
+      &
       output_index_buffer_chunk_info);
 
   void Release();

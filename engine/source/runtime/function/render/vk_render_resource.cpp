@@ -489,6 +489,7 @@ MM::RenderSystem::RenderResourceTexture::RenderResourceTexture(
     const std::string& resource_name, RenderEngine* engine,
     const VkDescriptorType& descriptor_type,
     const std::shared_ptr<AssetType::Image>& image, VkImageUsageFlags usages,
+    const std::uint32_t& queue_index, const VkSharingMode& sharing_mode,
     const VkImageLayout& image_layout, const uint32_t& mipmap_levels,
     const VmaMemoryUsage& memory_usage,
     const VmaAllocationCreateFlags& allocation_flags)
@@ -519,16 +520,19 @@ MM::RenderSystem::RenderResourceTexture::RenderResourceTexture(
   temp_info.can_mapped_ = Utils::CanBeMapped(memory_usage, allocation_flags);
   temp_info.is_transform_src_ = Utils::IsTransformSrcImage(usages);
   temp_info.is_transform_dest_ = Utils::IsTransformDestImage(usages);
+  temp_info.is_exclusive_ =
+      sharing_mode == VK_SHARING_MODE_EXCLUSIVE ? true : false;
+  temp_info.queue_index_ = queue_index;
 
   const uint32_t recommend_mipmap_level =
       static_cast<uint32_t>(std::floor(std::log2(max(
           temp_info.image_extent_.width, temp_info.image_extent_.height)))) +
       1;
 
-  temp_info.mipmap_levels = mipmap_levels > recommend_mipmap_level
+  temp_info.mipmap_levels_ = mipmap_levels > recommend_mipmap_level
                                 ? recommend_mipmap_level
                                 : mipmap_levels;
-  temp_info.array_layers = 1;
+  temp_info.array_layers_ = 1;
 
   AllocatedBuffer stage_buffer;
   if (!LoadImageToStageBuffer(image, stage_buffer, temp_info)) {
@@ -994,7 +998,7 @@ bool MM::RenderSystem::RenderResourceTexture::InitImage(
   VkImageCreateInfo image_create_info =
       MM::RenderSystem::Utils::GetImageCreateInfo(
           image_info.image_format_, usages, image_info.image_extent_);
-  image_create_info.mipLevels = image_info.mipmap_levels;
+  image_create_info.mipLevels = image_info.mipmap_levels_;
   image_create_info.samples = render_engine_->GetMultiSampleCount();
 
   const VmaAllocationCreateInfo image_allocator_create_info =
@@ -1222,6 +1226,7 @@ MM::RenderSystem::RenderResourceBuffer::RenderResourceBuffer(
     const std::string& resource_name, RenderEngine* engine,
     const VkDescriptorType& descriptor_type, VkBufferUsageFlags buffer_usage,
     const VkDeviceSize& size, const VkDeviceSize& offset,
+    const std::uint32_t& queue_index, const VkSharingMode& sharing_mode,
     const VkDeviceSize& size_range, const VkDeviceSize& dynamic_offset,
     const DataToBufferInfo& data_info, const VkBufferCreateFlags& buffer_flags,
     const VmaMemoryUsage& memory_usage,
@@ -1255,7 +1260,7 @@ MM::RenderSystem::RenderResourceBuffer::RenderResourceBuffer(
   }
 
   if (!InitBuffer(size, buffer_usage, buffer_flags, memory_usage,
-                  allocation_flags)) {
+                  allocation_flags, queue_index, sharing_mode)) {
     RenderResourceBuffer::Release();
     return;
   }
@@ -1593,7 +1598,7 @@ RenderResourceBuffer::GetDeepCopy(
                RenderResourceBuffer>())
 
   BufferInfo new_buffer_info = GetBufferInfo();
-  new_buffer_info.is_transform_dest = true;
+  new_buffer_info.is_transform_dest_ = true;
 
   AllocatedBuffer new_allocated_buffer{render_engine_->GetAllocator(),
                                        new_buffer, new_allocation,
@@ -1719,7 +1724,8 @@ bool MM::RenderSystem::RenderResourceBuffer::CheckInitParameter(
 bool MM::RenderSystem::RenderResourceBuffer::InitBuffer(
     const VkDeviceSize& size, const VkBufferUsageFlags& buffer_usage,
     const VkBufferCreateFlags& buffer_flags, const VmaMemoryUsage& memory_usage,
-    const VmaAllocationCreateFlags& allocation_flags) {
+    const VmaAllocationCreateFlags& allocation_flags, const std::uint32_t& queue_index, const VkSharingMode&
+    sharing_mode) {
   const auto buffer_create_info =
       Utils::GetBufferCreateInfo(size, buffer_usage, buffer_flags);
   const auto allocation_create_info =
@@ -1738,9 +1744,12 @@ bool MM::RenderSystem::RenderResourceBuffer::InitBuffer(
   temp_buffer_info.buffer_size_ = size;
   temp_buffer_info.can_mapped_ =
       Utils::CanBeMapped(memory_usage, allocation_flags);
-  temp_buffer_info.is_transform_src = Utils::IsTransformSrcBuffer(buffer_flags);
-  temp_buffer_info.is_transform_dest =
+  temp_buffer_info.is_transform_src_ = Utils::IsTransformSrcBuffer(buffer_flags);
+  temp_buffer_info.is_transform_dest_ =
       Utils::IsTransformDestBuffer(buffer_flags);
+  temp_buffer_info.is_exclusive_ =
+      sharing_mode == VK_SHARING_MODE_EXCLUSIVE ? true : false;
+  temp_buffer_info.queue_index_ = queue_index;
 
   buffer_ = AllocatedBuffer{render_engine_->allocator_, temp_buffer,
                             temp_allocation, temp_buffer_info};

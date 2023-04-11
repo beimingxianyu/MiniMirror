@@ -71,6 +71,14 @@ class RenderEngine {
 
   const VkDevice& GetDevice() const;
 
+  const std::uint32_t& GetGraphQueue() const;
+
+  const std::uint32_t& GetTransformQueue() const;
+
+  const std::uint32_t& GetPresentQueue() const;
+
+  const std::uint32_t& GetComputeQueue() const;
+
   /**
    * \brief Record commands in the command buffer.
    * \param command_buffer_type The type of command buffer that the command to

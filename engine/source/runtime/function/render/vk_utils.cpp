@@ -137,7 +137,7 @@ VkSubmitInfo MM::RenderSystem::Utils::GetCommandSubmitInfo(
   return submit_info;
 }
 
-VkImageMemoryBarrier2 MM::RenderSystem::Utils::GetImageTransferBarrier(
+VkImageMemoryBarrier2 MM::RenderSystem::Utils::GetImageMemoryBarrier(
     MM::RenderSystem::AllocatedImage& image, const ImageTransferMode& transfer_mode) {
   VkImageMemoryBarrier2 image_barrier{};
   image_barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2;
@@ -241,7 +241,7 @@ VkImageMemoryBarrier2 MM::RenderSystem::Utils::GetImageTransferBarrier(
   return image_barrier;
 }
 
-VkImageMemoryBarrier2 MM::RenderSystem::Utils::GetImageTransferBarrier(
+VkImageMemoryBarrier2 MM::RenderSystem::Utils::GetImageMemoryBarrier(
     AllocatedImage& image, const VkImageLayout& old_layout,
     const VkImageLayout& new_layout) {
   VkImageMemoryBarrier2 image_barrier{};
@@ -272,7 +272,7 @@ VkImageMemoryBarrier2 MM::RenderSystem::Utils::GetImageTransferBarrier(
 }
 
 VkDependencyInfo MM::RenderSystem::Utils::GetImageDependencyInfo(
-    VkImageMemoryBarrier2& image_barrier, const VkDependencyFlags& flags = 0) {
+    VkImageMemoryBarrier2& image_barrier, const VkDependencyFlags& flags) {
   VkDependencyInfo dep_info{};
   dep_info.sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO;
   dep_info.pNext = nullptr;
@@ -288,7 +288,7 @@ VkDependencyInfo MM::RenderSystem::Utils::GetImageDependencyInfo(
 void MM::RenderSystem::Utils::AddTransferImageCommands(VkCommandBuffer& command_buffer,
     AllocatedImage& image, const ImageTransferMode& transfer_mode,
     const VkDependencyFlags& flags) {
-  auto image_barrier = Utils::GetImageTransferBarrier(image, transfer_mode);
+  auto image_barrier = Utils::GetImageMemoryBarrier(image, transfer_mode);
   const auto image_transfer_dependency = Utils::GetImageDependencyInfo(image_barrier, flags);
 
   vkCmdPipelineBarrier2(command_buffer, &image_transfer_dependency);
@@ -298,7 +298,7 @@ void MM::RenderSystem::Utils::AddTransferImageCommands(
     VkCommandBuffer& command_buffer, AllocatedImage& image,
     const VkImageLayout& old_layout, const VkImageLayout& new_layout,
     const VkDependencyFlags& flags) {
-  auto image_barrier = Utils::GetImageTransferBarrier(
+  auto image_barrier = Utils::GetImageMemoryBarrier(
       image, old_layout, new_layout);
   auto image_transfer_dependency = Utils::GetImageDependencyInfo(image_barrier, flags);
 

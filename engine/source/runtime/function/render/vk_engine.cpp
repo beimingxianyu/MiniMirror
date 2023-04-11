@@ -81,6 +81,22 @@ const VkDevice& MM::RenderSystem::RenderEngine::GetDevice() const {
   return device_;
 }
 
+const std::uint32_t& MM::RenderSystem::RenderEngine::GetGraphQueue() const {
+  return queue_family_indices_.graphics_family_.value();
+}
+
+const std::uint32_t& MM::RenderSystem::RenderEngine::GetTransformQueue() const {
+  return queue_family_indices_.transform_family_.value();
+}
+
+const std::uint32_t& MM::RenderSystem::RenderEngine::GetPresentQueue() const {
+  return queue_family_indices_.present_family_.value();
+}
+
+const std::uint32_t& MM::RenderSystem::RenderEngine::GetComputeQueue() const {
+  return queue_family_indices_.compute_family_.value();
+}
+
 bool MM::RenderSystem::RenderEngine::RecordAndSubmitCommand(
     const CommandBufferType& command_buffer_type,
     const std::function<void(VkCommandBuffer& cmd)>& function,
@@ -893,8 +909,10 @@ bool MM::RenderSystem::RenderEngine::RemoveBufferFragmentation(
           CommandBufferType::TRANSFORM,
           [&self_copy_info, &self_copy_to_stage_info,
            stage_copy_to_self_info](VkCommandBuffer& cmd) {
-            vkCmdCopyBuffer2(cmd, &self_copy_info);
             vkCmdCopyBuffer2(cmd, &self_copy_to_stage_info);
+            auto barrier = 
+            vkCmdCopyBuffer2(cmd, &self_copy_info);
+            
             vkCmdCopyBuffer2(cmd, &stage_copy_to_self_info);
           },
           true)) {
@@ -1695,6 +1713,10 @@ MM::RenderSystem::RenderEngine::FindQueueFamily(
       indices.compute_family_ = i;
     }
 
+    if (queueFamily.queueFlags & VK_QUEUE_TRANSFER_BIT) {
+      indices.compute_family_ = i;
+    }
+
     VkBool32 presentSupport = false;
     vkGetPhysicalDeviceSurfaceSupportKHR(physical_device, i, surface_,
                                          &presentSupport);
@@ -1709,6 +1731,11 @@ MM::RenderSystem::RenderEngine::FindQueueFamily(
 
     i++;
   }
+
+  if (!indices.transform_family_.has_value() && indices.graphics_family_.has_value()) {
+    indices.transform_family_ = indices.graphics_family_;
+  }
+
   return indices;
 }
 
