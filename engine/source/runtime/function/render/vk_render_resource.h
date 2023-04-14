@@ -1,20 +1,17 @@
 #pragma once
 
 #define STB_IMAGE_IMPLEMENTATION
-#include <stb_image.h>
 #include <vk_mem_alloc.h>
 #include <vulkan/vulkan.h>
 
 #include <memory>
 #include <mutex>
 #include <unordered_map>
-#include <unordered_set>
 
 #include "runtime/function/render/vk_render_resource.h"
 #include "runtime/function/render/pre_header.h"
 #include "runtime/function/render/vk_type.h"
 #include "runtime/function/render/vk_utils.h"
-#include "utils/utils.h"
 
 namespace MM {
 namespace RenderSystem {
@@ -35,10 +32,6 @@ class RenderResourceManager : public RenderManageBase<RenderResourceBase> {
   bool IsUseToWrite(const std::string& resource_name, bool& result) const;
 
   bool IsUseToWrite(const std::uint32_t& resource_ID) const;
-
-  bool IsStage(const std::string& resource_name, bool& result) const;
-
-  bool IsStage(const std::uint32_t& resource_ID) const;
 
   bool IsShared(const std::string& resource_name, bool& result) const;
 
@@ -128,7 +121,7 @@ class RenderResourceBase : ManagedObjectBase {
 
  public:
   RenderResourceBase();
-  virtual ~RenderResourceBase() override = default;
+  ~RenderResourceBase() override = default;
   RenderResourceBase(const RenderResourceBase& other) = default;
   RenderResourceBase(RenderResourceBase&& other) noexcept;
   RenderResourceBase& operator=(const RenderResourceBase& other);
@@ -198,6 +191,24 @@ class RenderResourceTexture final : public RenderResourceBase {
  public:
   RenderResourceTexture() = default;
   ~RenderResourceTexture() override = default;
+  RenderResourceTexture(
+      const std::string& resource_name, RenderEngine* engine,
+      const VkDescriptorType& descriptor_type,
+      const std::shared_ptr<AssetType::Image>& image, VkImageUsageFlags usages,
+      const std::vector<std::uint32_t>& queue_index =
+          std::vector<std::uint32_t>{},
+      const VkSharingMode& sharing_mode = VK_SHARING_MODE_EXCLUSIVE,
+      const VkImageLayout& image_layout, const uint32_t mipmap_levels& = 1,
+      const VmaMemoryUsage& memory_usage = VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE,
+      const VmaAllocationCreateFlags& allocation_flags = 0);
+
+  /**
+   * \remark This constructor does not check the correctness of parameters, so
+   * exceptions may be thrown. Therefore, please use this function with caution.
+   */
+  RenderResourceTexture(const std::string& resource_name, RenderEngine* engine,
+                        const AllocatedImage& image,
+                        const ImageBindInfo& image_bind_info);
   RenderResourceTexture(const RenderResourceTexture& other);
   RenderResourceTexture(RenderResourceTexture&& other) noexcept;
   RenderResourceTexture& operator=(const RenderResourceTexture& other);
@@ -276,25 +287,6 @@ class RenderResourceTexture final : public RenderResourceBase {
 
   bool CanWrite() const override;
 
- protected:
-  RenderResourceTexture(
-      const std::string& resource_name, RenderEngine* engine,
-      const VkDescriptorType& descriptor_type,
-      const std::shared_ptr<AssetType::Image>& image, VkImageUsageFlags usages,
-      const std::uint32_t& queue_index = 0,
-      const VkSharingMode& sharing_mode = VK_SHARING_MODE_EXCLUSIVE,
-      const VkImageLayout& image_layout, const uint32_t mipmap_levels& = 1,
-      const VmaMemoryUsage& memory_usage = VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE,
-      const VmaAllocationCreateFlags& allocation_flags = 0);
-
-  /**
-   * \remark This constructor does not check the correctness of parameters, so
-   * exceptions may be thrown. Therefore, please use this function with caution.
-   */
-  RenderResourceTexture(const std::string& resource_name, RenderEngine* engine,
-                        const AllocatedImage& image,
-                        const ImageBindInfo& image_bind_info);
-
  private:
   bool CheckInitParameter(const RenderEngine* engine,
                           const VkDescriptorType& descriptor_type,
@@ -331,6 +323,29 @@ class RenderResourceBuffer final : public RenderResourceBase {
  public:
   RenderResourceBuffer() = delete;
   ~RenderResourceBuffer() override = default;
+  /**
+   * \remrak If the type of \ref descriptor_type is not one of dynamic buffer
+   * type, the \ref dynamic_offset parameter is invalid.
+   */
+  RenderResourceBuffer(
+      const std::string& resource_name, RenderEngine* engine,
+      const VkDescriptorType& descriptor_type, VkBufferUsageFlags buffer_usage,
+      const VkDeviceSize& size, const VkDeviceSize& offset,
+      const std::vector<std::uint32_t>& queue_index =
+          std::vector<std::uint32_t>{},
+      const VkSharingMode& sharing_mode = VK_SHARING_MODE_EXCLUSIVE,
+      const VkDeviceSize& size_range = VK_WHOLE_SIZE,
+      const VkDeviceSize& dynamic_offset = 0, const DataToBufferInfo& data_info,
+      const VkBufferCreateFlags& buffer_flags = 0,
+      const VmaMemoryUsage& memory_usage = VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE,
+      const VmaAllocationCreateFlags& allocation_flags = 0);
+  /**
+   * \remark This constructor does not check the correctness of parameters, so
+   * exceptions may be thrown. Therefore, please use this function with caution.
+   */
+  RenderResourceBuffer(const std::string& resource_name, RenderEngine* engine,
+                       const BufferBindInfo& buffer_info,
+                       const AllocatedBuffer& buffer);
   RenderResourceBuffer(const RenderResourceBuffer& other) = default;
   RenderResourceBuffer(RenderResourceBuffer&& other) noexcept;
   RenderResourceBuffer& operator=(const RenderResourceBuffer& other);
@@ -431,31 +446,7 @@ class RenderResourceBuffer final : public RenderResourceBase {
   std::unique_ptr<RenderResourceBase> GetDeepCopy(
       const std::string& new_name_of_copy_resource) const override;
 
-protected:
-  /**
-   * \remrak If the type of \ref descriptor_type is not one of dynamic buffer
-   * type, the \ref dynamic_offset parameter is invalid.
-   */
-  RenderResourceBuffer(
-      const std::string& resource_name, RenderEngine* engine,
-      const VkDescriptorType& descriptor_type, VkBufferUsageFlags buffer_usage,
-      const VkDeviceSize& size, const VkDeviceSize& offset,
-     const std::uint32_t& queue_index = 0,
-      const VkSharingMode& sharing_mode = VK_SHARING_MODE_EXCLUSIVE,
-      const VkDeviceSize& size_range = VK_WHOLE_SIZE,
-      const VkDeviceSize& dynamic_offset = 0, const DataToBufferInfo& data_info,
-      const VkBufferCreateFlags& buffer_flags = 0,
-      const VmaMemoryUsage& memory_usage = VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE,
-      const VmaAllocationCreateFlags& allocation_flags = 0);
-  /**
-   * \remark This constructor does not check the correctness of parameters, so
-   * exceptions may be thrown. Therefore, please use this function with caution.
-   */
-  RenderResourceBuffer(const std::string& resource_name, RenderEngine* engine,
-                       const BufferBindInfo& buffer_info,
-                       const AllocatedBuffer& buffer);
-
- private:
+private:
   bool CheckInitParameter(
       const RenderEngine* engine, const VkDescriptorType& descriptor_type,
       const VkBufferUsageFlags& buffer_usage, const VkDeviceSize& size,
@@ -467,7 +458,8 @@ protected:
       const VkDeviceSize& size, const VkBufferUsageFlags& buffer_usage,
       const VkBufferCreateFlags& buffer_flags,
       const VmaMemoryUsage& memory_usage = VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE,
-      const VmaAllocationCreateFlags& allocation_flags = 0, const std::uint32_t& queue_index, const VkSharingMode&
+      const VmaAllocationCreateFlags& allocation_flags = 0, const std::vector<std
+      ::uint32_t>& queue_index, const VkSharingMode&
       sharing_mode);
 
   /**

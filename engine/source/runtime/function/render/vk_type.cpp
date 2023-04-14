@@ -130,7 +130,7 @@ void MM::RenderSystem::ImageInfo::Reset() {
   array_layers_ = 1;
   can_mapped_ = false;
   is_exclusive_ = false;
-  queue_index_ = 0;
+  queue_index_.clear();
 }
 
 bool MM::RenderSystem::ImageInfo::IsValid() const {
@@ -201,7 +201,7 @@ void MM::RenderSystem::BufferInfo::Reset() {
   is_transform_src_ = false;
   is_transform_dest_ = false;
   is_exclusive_ = false;
-  queue_index_ = 0;
+  queue_index_.clear();
 }
 
 bool MM::RenderSystem::BufferInfo::IsValid() const { return buffer_size_ != 0; }
@@ -326,60 +326,6 @@ void MM::RenderSystem::VertexInputState::InitDefaultVertexInput() {
       static_cast<uint32_t>(MM::AssetType::Vertex::GetOffsetOfBiTangent());
 }
 
-MM::RenderSystem::CommandBufferInfo::CommandBufferInfo(
-    RenderEngine* engine, const std::uint32_t& queue_index_) : render_engine_(engine), queue_index_(queue_index_) {
-#ifdef CHECK_PARAMETERS
-  if (render_engine_ == nullptr) {
-    return;
-  }
-#endif
-  VkFence temp_fence{nullptr};
-  constexpr VkFenceCreateInfo fence_create_info{VK_STRUCTURE_TYPE_FENCE_CREATE_INFO,
-                                            nullptr, 0};
-
-  VK_CHECK(vkCreateFence(render_engine_->GetDevice(), &fence_create_info,
-                         nullptr, &temp_fence),
-           LOG_ERROR("Failed to create fence.") return;)
-
-  command_fence_.reset(&temp_fence);
-}
-
-MM::RenderSystem::CommandBufferInfo::CommandBufferInfo(
-    CommandBufferInfo&& other) noexcept
-  : render_engine_(other.render_engine_),
-    queue_index_(other.queue_index_),
-    command_fence_(std::move(other.command_fence_)) {
-  other.Reset();
-}
-
-MM::RenderSystem::CommandBufferInfo& MM::RenderSystem::CommandBufferInfo::
-operator=(CommandBufferInfo&& other) noexcept {
-  if (&other == this) {
-    return *this;
-  }
-
-  render_engine_ = other.render_engine_;
-  queue_index_ = other.queue_index_;
-  command_fence_ = std::move(other.command_fence_);
-
-  other.Reset();
-
-  return *this;
-}
-
-void MM::RenderSystem::CommandBufferInfo::Reset() {
-  render_engine_ = nullptr;
-  queue_index_ = 0;
-  command_fence_.reset();
-}
-
-bool MM::RenderSystem::CommandBufferInfo::IsValid() const {
-  if (render_engine_ == nullptr || command_fence_ == nullptr) {
-    return false;
-  }
-  return true;
-}
-
 bool MM::RenderSystem::VertexInputState::IsValid() const {
   return vertex_bind_.stride != 0;
 }
@@ -485,296 +431,6 @@ VertexInputState::GetInstanceAttributes() const {
   return instance_attributes_;
 }
 
-MM::RenderSystem::AllocatedCommandBuffer::AllocatedCommandBuffer(
-    RenderEngine* engine, VkQueue queue, const VkCommandPool& command_pool,
-    const VkCommandBuffer& command_buffer)
-  : wrapper_(
-      std::make_shared<AllocatedCommandBufferWrapper>(
-          engine, queue, command_pool, command_buffer)) {
-}
-
-MM::RenderSystem::AllocatedCommandBuffer::AllocatedCommandBuffer(
-    AllocatedCommandBuffer&& other) noexcept
-  : wrapper_(std::move(other.wrapper_)) {
-}
-
-MM::RenderSystem::AllocatedCommandBuffer& MM::RenderSystem::
-AllocatedCommandBuffer::operator=(const AllocatedCommandBuffer& other) {
-  if (&other == this) {
-    return *this;
-  }
-  wrapper_ = other.wrapper_;
-
-  return *this;
-}
-
-MM::RenderSystem::AllocatedCommandBuffer& MM::RenderSystem::
-AllocatedCommandBuffer::operator=(AllocatedCommandBuffer&& other) noexcept {
-  if (&other == this) {
-    return *this;
-  }
-  wrapper_ = std::move(other.wrapper_);
-
-  return *this;
-}
-
-const MM::RenderSystem::RenderEngine& MM::RenderSystem::AllocatedCommandBuffer::
-GetRenderEngine() const {
-  return wrapper_->GetRenderEngine();
-}
-
-const VkQueue& MM::RenderSystem::AllocatedCommandBuffer::GetQueue() const {
-  return wrapper_->GetQueue();
-}
-
-const VkCommandPool& MM::RenderSystem::AllocatedCommandBuffer::
-GetCommandPool() const {
-  return wrapper_->GetCommandPool();
-}
-
-const VkCommandBuffer& MM::RenderSystem::AllocatedCommandBuffer::
-GetCommandBuffer() const {
-  return wrapper_->GetCommandBuffer();
-}
-
-const VkFence& MM::RenderSystem::AllocatedCommandBuffer::GetFence() const {
-  return wrapper_->GetFence();
-}
-
-bool MM::RenderSystem::AllocatedCommandBuffer::RecordAndSubmitCommand(
-    const std::function<void(VkCommandBuffer& cmd)>& function,
-    const bool& auto_start_end_submit, const bool& record_new_commands,
-    const std::shared_ptr<VkSubmitInfo>& submit_info_ptr) {
-  return wrapper_->RecordAndSubmitCommand(function, auto_start_end_submit,
-                                          record_new_commands, submit_info_ptr);
-}
-
-bool MM::RenderSystem::AllocatedCommandBuffer::RecordAndSubmitCommand(
-    const std::function<bool(VkCommandBuffer& cmd)>& function,
-    const bool& auto_start_end_submit, const bool& record_new_commands,
-    const std::shared_ptr<VkSubmitInfo>& submit_info_ptr) {
-  return wrapper_->RecordAndSubmitCommand(function, auto_start_end_submit,
-                                          record_new_commands, submit_info_ptr);
-}
-
-bool MM::RenderSystem::AllocatedCommandBuffer::IsValid() const {
-  return wrapper_ != nullptr && wrapper_->IsValid();
-}
-
-MM::RenderSystem::AllocatedCommandBuffer::AllocatedCommandBufferWrapper::~
-AllocatedCommandBufferWrapper() {
-  if (!IsValid()) {
-    return;
-  }
-  std::lock_guard<std::mutex> guard(record_mutex_);
-  vkFreeCommandBuffers(engine_->device_, *command_pool_, 1, &command_buffer_);
-  vkDestroyFence(engine_->device_, command_fence_, nullptr);
-  command_buffer_ = nullptr;
-  command_fence_ = nullptr;
-}
-
-MM::RenderSystem::AllocatedCommandBuffer::AllocatedCommandBufferWrapper::
-AllocatedCommandBufferWrapper(RenderEngine* engine, const VkQueue& queue,
-                              const VkCommandPool& command_pool,
-                              const VkCommandBuffer& command_buffer)
-  : engine_(engine),
-    queue_(queue),
-    command_pool_(
-        MM::Utils::MakeSharedWithDestructor<VkCommandPool>(
-            [device = engine_->device_](
-            VkCommandPool*
-            value) {
-              if (value == nullptr) {
-                return;
-              }
-              vkDestroyCommandPool(device, *value, nullptr);
-
-              delete value;
-              *value = nullptr;
-            }, command_pool)),
-    command_buffer_(command_buffer),
-    command_fence_(nullptr),
-    record_mutex_() {
-  if (engine_ == nullptr || queue_ == nullptr || command_pool_ == nullptr ||
-      command_buffer_ == nullptr) {
-    engine_ = nullptr;
-    queue_ = nullptr;
-    command_pool_ = nullptr;
-    command_buffer_ = nullptr;
-    LOG_ERROR("Failed to create AllocatedCommandBuffer!")
-    return;
-  }
-
-  command_fence_ =
-      MM::RenderSystem::Utils::GetVkFence(engine_->device_);
-  if (!command_fence_) {
-    engine_ = nullptr;
-    queue_ = nullptr;
-    command_pool_ = nullptr;
-    command_buffer_ = nullptr;
-    LOG_ERROR("Failed to create AllocatedCommandBuffer!")
-  }
-}
-
-const MM::RenderSystem::RenderEngine& MM::RenderSystem::AllocatedCommandBuffer
-::AllocatedCommandBufferWrapper::GetRenderEngine() const {
-  return *engine_;
-}
-
-const VkQueue& MM::RenderSystem::AllocatedCommandBuffer::
-AllocatedCommandBufferWrapper::GetQueue() const {
-  return queue_;
-}
-
-const VkCommandPool& MM::RenderSystem::AllocatedCommandBuffer::
-AllocatedCommandBufferWrapper::GetCommandPool() const {
-  return *command_pool_;
-}
-
-const VkCommandBuffer& MM::RenderSystem::AllocatedCommandBuffer::
-AllocatedCommandBufferWrapper::GetCommandBuffer() const {
-  return command_buffer_;
-}
-
-const VkFence& MM::RenderSystem::AllocatedCommandBuffer::
-AllocatedCommandBufferWrapper::GetFence() const {
-  return command_fence_;
-}
-
-bool MM::RenderSystem::AllocatedCommandBuffer::AllocatedCommandBufferWrapper::
-RecordAndSubmitCommand(const std::function<void(VkCommandBuffer& cmd)>&
-                       function,
-                       const bool& auto_start_end_submit,
-                       const bool& record_new_command,
-                       std::shared_ptr<VkSubmitInfo> submit_info_ptr) {
-  if (submit_info_ptr == nullptr) {
-    submit_info_ptr = std::make_shared<VkSubmitInfo>(
-        VkSubmitInfo{Utils::GetCommandSubmitInfo(command_buffer_)});
-  }
-  VK_CHECK(
-      vkWaitForFences(engine_->device_, 1, &command_fence_, true, 99999999999),
-      LOG_FATAL(
-        "The wait time for VkFence timed out.An error is expected in the program, and the render system will be restarted."
-      )
-      )
-
-  if (!record_new_command) {
-    VK_CHECK(
-        vkQueueSubmit(queue_, 1, submit_info_ptr.get(), command_fence_),
-        LOG_ERROR("Faild to record and submit command buffer!(can't submit "
-          "command buffer)");
-        return false;)
-    return true;
-  }
-
-  vkResetFences(engine_->device_, 1, &command_fence_);
-  std::lock_guard<std::mutex> guard{record_mutex_};
-  if (!ResetCommandBuffer()) {
-    LOG_ERROR("Faild to record and submit command buffer!");
-    return false;
-  }
-
-  if (auto_start_end_submit) {
-    const VkCommandBufferBeginInfo command_buffer_begin_info =
-        MM::RenderSystem::Utils::GetCommandBufferBeginInfo();
-    VK_CHECK(vkBeginCommandBuffer(command_buffer_, &command_buffer_begin_info),
-             LOG_ERROR(
-               "Faild to record and submit command buffer!(can't begin command buffer)"
-             );
-             return false;)
-  }
-
-  function(command_buffer_);
-
-  if (auto_start_end_submit) {
-    VK_CHECK(vkEndCommandBuffer(command_buffer_),
-             LOG_ERROR("Faild to record and submit command buffer!(can't end "
-               "command buffer)");
-             return false;)
-
-    VK_CHECK(vkQueueSubmit(queue_, 1, submit_info_ptr.get(), command_fence_),
-             LOG_ERROR(
-               "Faild to record and submit command buffer!(can't submit "
-               "command buffer)");
-             return false;)
-  }
-  return true;
-}
-
-bool MM::RenderSystem::AllocatedCommandBuffer::AllocatedCommandBufferWrapper::
-RecordAndSubmitCommand(
-    const std::function<bool(VkCommandBuffer& cmd)>& function,
-    const bool& auto_start_end_submit, const bool& record_new_command,
-    std::shared_ptr<VkSubmitInfo> submit_info_ptr) {
-  if (submit_info_ptr == nullptr) {
-    submit_info_ptr = std::make_shared<VkSubmitInfo>(
-        VkSubmitInfo{Utils::GetCommandSubmitInfo(command_buffer_)});
-  }
-  VK_CHECK(
-      vkWaitForFences(engine_->device_, 1, &command_fence_, true, 99999999999),
-      LOG_FATAL("The wait time for VkFence timed out.An error is expected in "
-        "the program, and the render system will be restarted."))
-
-  if (!record_new_command) {
-    VK_CHECK(
-        vkQueueSubmit(queue_, 1, submit_info_ptr.get(), command_fence_),
-        LOG_ERROR("Faild to record and submit command buffer!(can't submit "
-          "command buffer)");
-        return false;)
-    return true;
-  }
-
-  vkResetFences(engine_->device_, 1, &command_fence_);
-  std::lock_guard<std::mutex> guard{record_mutex_};
-  if (!ResetCommandBuffer()) {
-    LOG_ERROR("Faild to record and submit command buffer!");
-    return false;
-  }
-
-  if (auto_start_end_submit) {
-    const VkCommandBufferBeginInfo command_buffer_begin_info =
-        MM::RenderSystem::Utils::GetCommandBufferBeginInfo();
-    VK_CHECK(vkBeginCommandBuffer(command_buffer_, &command_buffer_begin_info),
-             LOG_ERROR("Faild to record and submit command buffer!(can't begin "
-               "command buffer)");
-             return false;)
-  }
-
-  if (!function(command_buffer_)) {
-    LOG_ERROR("Failed to excute function that pass to RecordAndSubmitCommand")
-    return false;
-  }
-
-  if (auto_start_end_submit) {
-    VK_CHECK(vkEndCommandBuffer(command_buffer_),
-             LOG_ERROR("Faild to record and submit command buffer!(can't end "
-               "command buffer)");
-             return false;)
-
-    VK_CHECK(
-        vkQueueSubmit(queue_, 1, submit_info_ptr.get(), command_fence_),
-        LOG_ERROR("Faild to record and submit command buffer!(can't submit "
-          "command buffer)");
-        return false;)
-  }
-  return true;
-}
-
-bool MM::RenderSystem::AllocatedCommandBuffer::AllocatedCommandBufferWrapper::
-IsValid() const {
-  return engine_ != nullptr && queue_ != nullptr && command_pool_ != nullptr &&
-         command_buffer_ != nullptr && command_fence_ != nullptr;
-}
-
-bool MM::RenderSystem::AllocatedCommandBuffer::AllocatedCommandBufferWrapper::
-ResetCommandBuffer() {
-  VK_CHECK(vkResetCommandBuffer(command_buffer_, 0),
-           LOG_ERROR("Faild to reset command buffer!");
-           return false;
-      )
-  return true;
-}
-
 MM::RenderSystem::AllocatedBuffer::AllocatedBuffer(
     const VmaAllocator& allocator, const VkBuffer& buffer,
     const VmaAllocation& allocation, const BufferInfo& buffer_info)
@@ -856,6 +512,11 @@ VmaAllocation MM::RenderSystem::AllocatedBuffer::GetAllocation() const {
   }
 
   return nullptr;
+}
+
+const std::vector<std::uint32_t>& MM::RenderSystem::AllocatedBuffer::
+GetQueueIndexes() const {
+  return buffer_info_.queue_index_;
 }
 
 void MM::RenderSystem::AllocatedBuffer::Release() {
@@ -1078,6 +739,11 @@ VmaAllocation MM::RenderSystem::AllocatedImage::GetAllocation() const {
   return nullptr;
 }
 
+const std::vector<std::uint32_t>& MM::RenderSystem::AllocatedImage::
+GetQueueIndexes() const {
+  return image_info_.queue_index_;
+}
+
 void MM::RenderSystem::AllocatedImage::Release() { wrapper_.reset(); }
 
 uint32_t MM::RenderSystem::AllocatedImage::UseCount() const {
@@ -1206,7 +872,7 @@ MM::RenderSystem::VertexAndIndexBuffer::VertexAndIndexBuffer(
                                         VK_BUFFER_USAGE_VERTEX_BUFFER_BIT |
                                         VK_BUFFER_USAGE_TRANSFER_DST_BIT |
                                         VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-                                        VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE, 0);
+                                        VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE, 0,);
   if (!vertex_buffer_.IsValid()) {
     Release();
     LOG_ERROR("Failed to create vertex total buffer.")
@@ -1216,7 +882,7 @@ MM::RenderSystem::VertexAndIndexBuffer::VertexAndIndexBuffer(
                                        VK_BUFFER_USAGE_INDEX_BUFFER_BIT |
                                        VK_BUFFER_USAGE_TRANSFER_SRC_BIT |
                                        VK_BUFFER_USAGE_TRANSFER_DST_BIT,
-                                       VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE, 0);
+                                       VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE, 0,);
   if (!index_buffer_.IsValid()) {
     Release();
     LOG_ERROR("Failed to create index total buffer.")
@@ -1288,7 +954,7 @@ bool MM::RenderSystem::VertexAndIndexBuffer::AllocateBuffer(
   AllocatedBuffer vertex_stage_buffer = render_engine_->CreateBuffer(
       vertices_size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
       VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE,
-      VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT);
+      VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT,);
 
   render_engine_->CopyDataToBuffer(vertex_stage_buffer, vertices.data(), 0,
                                    vertices_size);
@@ -1324,7 +990,7 @@ bool MM::RenderSystem::VertexAndIndexBuffer::AllocateBuffer(
   AllocatedBuffer index_stage_buffer = render_engine_->CreateBuffer(
       indexes_size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
       VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE,
-      VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT);
+      VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT,);
 
   std::vector<VkDeviceSize> new_indexes(indexes.size());
   for (std::size_t i = 0; i < new_indexes.size(); ++i) {
@@ -1609,8 +1275,8 @@ bool MM::RenderSystem::VertexAndIndexBuffer::ReserveVertexBuffer(
     new_buffer = render_engine->CreateBuffer(
         new_buffer_size,
         VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT |
-            VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
-        VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE, 0);
+        VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
+        VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE, 0,);
     if (!new_buffer.IsValid()) {
       LOG_ERROR("Failed to create new vertex buffer.")
       return;
@@ -1700,8 +1366,8 @@ bool MM::RenderSystem::VertexAndIndexBuffer::ReserveIndexBuffer(
     new_buffer = render_engine->CreateBuffer(
         new_buffer_size,
         VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT |
-            VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
-        VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE, 0);
+        VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
+        VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE, 0,);
     if (!new_buffer.IsValid()) {
       LOG_ERROR("Failed to create new index buffer.")
       return;

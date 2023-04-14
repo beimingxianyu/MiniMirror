@@ -201,6 +201,12 @@ bool MM::ConfigSystem::ConfigSystem::CheckAllNeedConfigLoaded() {
   if (config_data_base_.find("version_patch") == config_data_base_.end()) {
     return false;
   }
+  if (config_data_base_.find("logic_thread_share") == config_data_base_.end()) {
+    return false;
+  }
+  if (config_data_base_.find("graph_thread_share") == config_data_base_.end()) {
+    return false;
+  }
   if (config_data_base_.find("engine_dir") == config_data_base_.end()) {
     return false;
   }

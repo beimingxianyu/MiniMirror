@@ -68,9 +68,9 @@ bool MM::RenderSystem::RenderEngine::IsValid() const { return is_initialized_; }
 MM::RenderSystem::AllocatedBuffer MM::RenderSystem::RenderEngine::CreateBuffer(
     const size_t& alloc_size, const VkBufferUsageFlags& usage,
     const VmaMemoryUsage& memory_usage,
-    const VmaAllocationCreateFlags& allocation_flags) const {
+    const VmaAllocationCreateFlags& allocation_flags, const bool& is_BDA_buffer) const {
   return Utils::CreateBuffer(this, alloc_size, usage, memory_usage,
-                             allocation_flags);
+                             allocation_flags, is_BDA_buffer);
 }
 
 const VmaAllocator& MM::RenderSystem::RenderEngine::GetAllocator() const {
@@ -81,20 +81,36 @@ const VkDevice& MM::RenderSystem::RenderEngine::GetDevice() const {
   return device_;
 }
 
-const std::uint32_t& MM::RenderSystem::RenderEngine::GetGraphQueue() const {
+const std::uint32_t& MM::RenderSystem::RenderEngine::GetGraphQueueIndex() const {
   return queue_family_indices_.graphics_family_.value();
 }
 
-const std::uint32_t& MM::RenderSystem::RenderEngine::GetTransformQueue() const {
+const std::uint32_t& MM::RenderSystem::RenderEngine::GetTransformQueueIndex() const {
   return queue_family_indices_.transform_family_.value();
 }
 
-const std::uint32_t& MM::RenderSystem::RenderEngine::GetPresentQueue() const {
+const std::uint32_t& MM::RenderSystem::RenderEngine::GetPresentQueueIndex() const {
   return queue_family_indices_.present_family_.value();
 }
 
-const std::uint32_t& MM::RenderSystem::RenderEngine::GetComputeQueue() const {
+const std::uint32_t& MM::RenderSystem::RenderEngine::GetComputeQueueIndex() const {
   return queue_family_indices_.compute_family_.value();
+}
+
+const VkQueue& MM::RenderSystem::RenderEngine::GetGraphQueue() const {
+  return graphics_queue_;
+}
+
+const VkQueue& MM::RenderSystem::RenderEngine::GetTransformQueue() const {
+  return transform_queue_;
+}
+
+const VkQueue& MM::RenderSystem::RenderEngine::GetPresentQueue() const {
+  return present_queue_;
+}
+
+const VkQueue& MM::RenderSystem::RenderEngine::GetComputeQueue() const {
+  return compute_queue_;
 }
 
 bool MM::RenderSystem::RenderEngine::RecordAndSubmitCommand(
@@ -899,7 +915,7 @@ bool MM::RenderSystem::RenderEngine::RemoveBufferFragmentation(
   AllocatedBuffer stage_buffer = CreateBuffer(
       stage_buffer_size,
       VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
-      VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE);
+      VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE,);
 
   auto self_copy_info = Utils::GetCopyBufferInfo(buffer, buffer, self_copy_regions);
   auto self_copy_to_stage_info = Utils::GetCopyBufferInfo(buffer, stage_buffer, self_copy_to_stage_regions);
@@ -996,7 +1012,7 @@ bool MM::RenderSystem::RenderEngine::RemoveBufferFragmentation(
   AllocatedBuffer stage_buffer = CreateBuffer(
       stage_buffer_size,
       VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
-      VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE);
+      VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE,);
 
   auto self_copy_info =
       Utils::GetCopyBufferInfo(buffer, buffer, self_copy_regions);
@@ -1230,7 +1246,8 @@ void MM::RenderSystem::RenderEngine::InitLogicalDevice() {
   const std::set<uint32_t> queue_families{
       queue_family_indices_.graphics_family_.value(),
       queue_family_indices_.compute_family_.value(),
-      queue_family_indices_.present_family_.value()};
+      queue_family_indices_.present_family_.value(),
+      queue_family_indices_.transform_family_.value()};
   for (const uint32_t queue_family : queue_families) // for every queue family
   {
     // queue create info
@@ -1243,7 +1260,7 @@ void MM::RenderSystem::RenderEngine::InitLogicalDevice() {
   }
 
   // physical device features
-  VkPhysicalDeviceFeatures physical_device_features = {};
+  VkPhysicalDeviceFeatures physical_device_features;
 
   physical_device_features.samplerAnisotropy = VK_TRUE;
 
@@ -1258,9 +1275,43 @@ void MM::RenderSystem::RenderEngine::InitLogicalDevice() {
     physical_device_features.geometryShader = VK_TRUE;
   }
 
+  // support shader 64bit integer
+  physical_device_features.shaderInt64 = VK_TRUE;
+
+  VkPhysicalDeviceVulkan12Features device_vulkan12_features{};
+  device_vulkan12_features.sType =
+      VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES;
+  device_vulkan12_features.runtimeDescriptorArray = VK_TRUE;
+  device_vulkan12_features.descriptorIndexing = VK_TRUE;
+  device_vulkan12_features.descriptorBindingPartiallyBound = VK_TRUE;
+  device_vulkan12_features.shaderSampledImageArrayNonUniformIndexing = VK_TRUE;
+  device_vulkan12_features.descriptorBindingSampledImageUpdateAfterBind = VK_TRUE;
+  device_vulkan12_features.shaderStorageImageArrayNonUniformIndexing = VK_TRUE;
+  device_vulkan12_features.descriptorBindingStorageImageUpdateAfterBind = VK_TRUE;
+  device_vulkan12_features.bufferDeviceAddress = VK_TRUE;
+
+  VkPhysicalDeviceDescriptorIndexingFeatures di_features{};
+  di_features.sType =
+      VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DESCRIPTOR_INDEXING_FEATURES;
+
+  // Enable partially bound descriptor bindings
+  di_features.descriptorBindingPartiallyBound = true;
+
+  // Enable non-uniform indexing and update after bind
+  // binding flags for textures, uniforms, and buffers
+  di_features.shaderSampledImageArrayNonUniformIndexing = true;
+  di_features.descriptorBindingSampledImageUpdateAfterBind = true;
+
+  di_features.shaderUniformBufferArrayNonUniformIndexing = true;
+  di_features.descriptorBindingUniformBufferUpdateAfterBind = true;
+
+  di_features.shaderStorageBufferArrayNonUniformIndexing = true;
+  di_features.descriptorBindingStorageBufferUpdateAfterBind = true;
+
   // device create info
   VkDeviceCreateInfo device_create_info{};
   device_create_info.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
+  device_create_info.pNext = &di_features;
   device_create_info.pQueueCreateInfos = queue_create_infos.data();
   device_create_info.queueCreateInfoCount =
       static_cast<uint32_t>(queue_create_infos.size());
@@ -1271,6 +1322,7 @@ void MM::RenderSystem::RenderEngine::InitLogicalDevice() {
   device_create_info.enabledLayerCount =
       static_cast<uint32_t>(enable_layer_.size());
   device_create_info.ppEnabledLayerNames = enable_layer_.data();
+  device_create_info.pNext = &device_vulkan12_features;
 
   if (vkCreateDevice(physical_device_, &device_create_info, nullptr,
                      &device_) != VK_SUCCESS) {
@@ -1283,6 +1335,8 @@ void MM::RenderSystem::RenderEngine::InitLogicalDevice() {
                    &compute_queue_);
   vkGetDeviceQueue(device_, queue_family_indices_.present_family_.value(), 0,
                    &present_queue_);
+  vkGetDeviceQueue(device_, queue_family_indices_.transform_family_.value(), 0,
+                   &transform_queue_);
 }
 
 void MM::RenderSystem::RenderEngine::InitAllocator() {

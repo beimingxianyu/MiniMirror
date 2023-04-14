@@ -50,6 +50,27 @@ VkBufferCreateInfo MM::RenderSystem::Utils::GetBufferCreateInfo(
   return buffer_create_info;
 }
 
+VkBufferCreateInfo MM::RenderSystem::Utils::GetBufferCreateInfo(
+    const VkDeviceSize& size, const VkBufferUsageFlags& usage,
+    std::vector<std::uint32_t>& queue_index,
+    const VkBufferCreateFlags& flags) {
+  VkBufferCreateInfo buffer_create_info{};
+  buffer_create_info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+  buffer_create_info.pNext = nullptr;
+
+  buffer_create_info.flags = flags;
+  buffer_create_info.size = size;
+  buffer_create_info.usage = usage;
+
+  if (queue_index.empty()) {
+    buffer_create_info.sharingMode = VK_SHARING_MODE_CONCURRENT;
+  } else {
+    buffer_create_info.queueFamilyIndexCount = queue_index.size();
+    buffer_create_info.pQueueFamilyIndices = queue_index.data();
+  }
+
+  return buffer_create_info;
+}
 
 VkImageCreateInfo MM::RenderSystem::Utils::GetImageCreateInfo(
     const VkFormat& image_format, const VkImageUsageFlags& usage,
@@ -69,6 +90,39 @@ VkImageCreateInfo MM::RenderSystem::Utils::GetImageCreateInfo(
   image_create_info.arrayLayers = 1;
   image_create_info.samples = VK_SAMPLE_COUNT_1_BIT;
   image_create_info.tiling = VK_IMAGE_TILING_OPTIMAL;
+
+  image_create_info.sharingMode = VK_SHARING_MODE_CONCURRENT;
+
+  return image_create_info;
+}
+
+VkImageCreateInfo MM::RenderSystem::Utils::GetImageCreateInfo(
+    const VkFormat& image_format, const VkImageUsageFlags& usage,
+    const VkExtent3D& extent, std::vector<std::uint32_t>& queue_index,
+    const VkImageCreateFlags& flags) {
+  VkImageCreateInfo image_create_info{};
+  image_create_info.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
+  image_create_info.pNext = nullptr;
+
+  image_create_info.imageType = VK_IMAGE_TYPE_2D;
+
+  image_create_info.flags = flags;
+  image_create_info.format = image_format;
+  image_create_info.usage = usage;
+  image_create_info.extent = extent;
+
+  image_create_info.mipLevels = 1;
+  image_create_info.arrayLayers = 1;
+  image_create_info.samples = VK_SAMPLE_COUNT_1_BIT;
+  image_create_info.tiling = VK_IMAGE_TILING_OPTIMAL;
+
+  if (queue_index.empty()) {
+    image_create_info.sharingMode = VK_SHARING_MODE_CONCURRENT;
+  } else {
+    image_create_info.queueFamilyIndexCount = queue_index.size();
+    image_create_info.pQueueFamilyIndices = queue_index.data();
+  }
+  
 
   return image_create_info;
 }
@@ -499,13 +553,20 @@ bool MM::RenderSystem::Utils::DescriptorTypeIsTexelBuffer(
 MM::RenderSystem::AllocatedBuffer MM::RenderSystem::Utils::CreateBuffer(
     const RenderEngine* engine, const size_t& alloc_size,
     const VkBufferUsageFlags& usage, const VmaMemoryUsage& memory_usage,
-    const VmaAllocationCreateFlags& allocation_flags) {
+    const VmaAllocationCreateFlags& allocation_flags, const bool& is_BDA_buffer) {
+  VkBufferUsageFlags temp_usage = usage;
+  VmaAllocationCreateFlags temp_allocation_flags = allocation_flags;
+  if (is_BDA_buffer) {
+    temp_usage |= VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT;
+    temp_allocation_flags |= VMA_ALLOCATOR_CREATE_BUFFER_DEVICE_ADDRESS_BIT;
+  }
+
   const auto buffer_Info =
-      MM::RenderSystem::Utils::GetBufferCreateInfo(alloc_size, usage);
+      MM::RenderSystem::Utils::GetBufferCreateInfo(alloc_size, temp_usage);
 
   VmaAllocationCreateInfo vma_alloc_info = {};
   vma_alloc_info.usage = memory_usage;
-  vma_alloc_info.flags = allocation_flags;
+  vma_alloc_info.flags = temp_allocation_flags;
 
   VkBuffer temp_buffer{};
   VmaAllocation temp_allocation{};

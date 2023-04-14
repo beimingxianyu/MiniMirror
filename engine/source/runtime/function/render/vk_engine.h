@@ -65,19 +65,27 @@ class RenderEngine {
   AllocatedBuffer CreateBuffer(const size_t& alloc_size,
                                const VkBufferUsageFlags& usage,
                                const VmaMemoryUsage& memory_usage,
-                               const VmaAllocationCreateFlags& allocation_flags = 0) const;
+                               const VmaAllocationCreateFlags& allocation_flags = 0, const bool& is_BDA_buffer = true) const;
 
   const VmaAllocator& GetAllocator() const;
 
   const VkDevice& GetDevice() const;
 
-  const std::uint32_t& GetGraphQueue() const;
+  const std::uint32_t& GetGraphQueueIndex() const;
 
-  const std::uint32_t& GetTransformQueue() const;
+  const std::uint32_t& GetTransformQueueIndex() const;
 
-  const std::uint32_t& GetPresentQueue() const;
+  const std::uint32_t& GetPresentQueueIndex() const;
 
-  const std::uint32_t& GetComputeQueue() const;
+  const std::uint32_t& GetComputeQueueIndex() const;
+
+  const VkQueue& GetGraphQueue() const;
+
+  const VkQueue& GetTransformQueue() const;
+
+  const VkQueue& GetPresentQueue() const;
+
+  const VkQueue& GetComputeQueue() const;
 
   /**
    * \brief Record commands in the command buffer.
@@ -280,6 +288,9 @@ class RenderEngine {
   std::vector<const char*> enable_instance_extensions_;
   std::vector<char const*> enable_device_extensions_ = {
       VK_KHR_SWAPCHAIN_EXTENSION_NAME,
+      VK_KHR_MAINTENANCE3_EXTENSION_NAME,
+      VK_EXT_DESCRIPTOR_INDEXING_EXTENSION_NAME,
+      VK_KHR_BUFFER_DEVICE_ADDRESS_EXTENSION_NAME
 #if defined(__MACH__)
       "VK_KHR_portability_subset"
 #endif
@@ -308,6 +319,7 @@ class RenderEngine {
   VkQueue graphics_queue_{nullptr};
   VkQueue compute_queue_{nullptr};
   VkQueue present_queue_{nullptr};
+  VkQueue transform_queue_{nullptr};
   VkSurfaceKHR surface_{nullptr};
   // TODO 添加重置swapchain的函数
   VkSwapchainKHR swapchain_{nullptr};

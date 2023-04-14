@@ -3,6 +3,10 @@ version_major=@version_major@
 version_minor=@version_minor@
 version_patch=@version_patch@
 
+[common]
+logic_thread_share=0.6
+graph_thread_share=0.4
+
 [Path]
 engine_dir=@engine_dir@
 config_dir=@config_dir@

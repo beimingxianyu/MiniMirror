@@ -13,6 +13,8 @@
 #include "runtime/function/render/pre_header.h"
 #include "runtime/resource/asset_type/asset_type.h"
 
+
+// TODO Split these classes into different files.
 namespace MM {
 namespace RenderSystem {
 class RenderEngine;
@@ -595,7 +597,7 @@ struct ImageInfo {
   bool is_transform_src_{false};
   bool is_transform_dest_{false};
   bool is_exclusive_{false};
-  std::uint32_t queue_index_{0};
+  std::vector<std::uint32_t> queue_index_{0};
 
   void Reset();
 
@@ -627,7 +629,7 @@ struct BufferInfo {
   bool is_transform_src_{false};
   bool is_transform_dest_{false};
   bool is_exclusive_{false};
-  std::uint32_t queue_index_{0};
+  std::vector<std::uint32_t> queue_index_{0};
 
   void Reset();
 
@@ -693,144 +695,6 @@ private:
   std::vector<VkVertexInputAttributeDescription> instance_attributes_{};
 };
 
-struct CommandBufferInfo {
-  CommandBufferInfo() = default;
-  ~CommandBufferInfo() = default;
-  CommandBufferInfo(RenderEngine* engine,
-                    const std::uint32_t& queue_index_);
-  CommandBufferInfo(const CommandBufferInfo& other) = delete;
-  CommandBufferInfo(CommandBufferInfo&& other) noexcept;
-  CommandBufferInfo& operator=(const CommandBufferInfo& other) = delete;
-  CommandBufferInfo& operator=(CommandBufferInfo&& other) noexcept;
-
-  RenderEngine* render_engine_{nullptr};
-  std::uint32_t queue_index_{0};
-  std::unique_ptr<VkFence> command_fence_{nullptr};
-
-  void Reset();
-
-  bool IsValid() const;
-};
-
-class AllocatedCommandBuffer {
-public:
-  AllocatedCommandBuffer() = default;
-  ~AllocatedCommandBuffer() = default;
-  AllocatedCommandBuffer(RenderEngine* engine, VkQueue queue,
-                         const VkCommandPool& command_pool,
-                         const VkCommandBuffer& command_buffer);
-  AllocatedCommandBuffer(const AllocatedCommandBuffer& other) = default;
-  AllocatedCommandBuffer(AllocatedCommandBuffer&& other) noexcept;
-  AllocatedCommandBuffer& operator=(const AllocatedCommandBuffer& other);
-  AllocatedCommandBuffer& operator=(AllocatedCommandBuffer&& other) noexcept;
-
-public:
-  const RenderEngine& GetRenderEngine() const;
-
-  const VkQueue& GetQueue() const;
-
-  const VkCommandPool& GetCommandPool() const;
-
-  const VkCommandBuffer& GetCommandBuffer() const;
-
-  const VkFence& GetFence() const;
-
-  /**
-   * \brief Record commands in the command buffer.
-   * \param function A function that contains the record operations you want to
-   * perform.
-   * \param auto_start_end_submit If this item is true, the start
-   * command, end command, and submit command (etc.) are automatically recorded.
-   * The default value is false. If this item is true, please do not perform
-   * automatically completed work in the function again.
-   * \param record_new_commands Whether to not use the last submitted command buffer.
-   * The default value is true.
-   * \param submit_info_ptr Custom VkSubmitInfo.
-   * \return If there are no errors in the entire recording and submission
-   * process, it returns true, otherwise it returns false. \remark If \ref
-   * auto_start_end_submit is set to true and \ref function also has a start
-   * command or an end command, an error will occur. \remark Please do not
-   * create a VkFence in the \ref function and wait it. Doing so will cause the
-   * program to permanently block.
-   */
-  bool RecordAndSubmitCommand(
-      const std::function<void(VkCommandBuffer& cmd)>& function,
-      const bool& auto_start_end_submit = false,
-      const bool& record_new_commands = true,
-      const std::shared_ptr<VkSubmitInfo>& submit_info_ptr = nullptr);
-
-  /**
-   * \remark This function is mostly the same as \ref RecordAndSubmitCommand,
-   * except that the \ref function can return a value point out the \ref function
-   * execute result.If the \ref function return true specifies execution succeeded,
-   * otherwise return false.
-   */
-  bool RecordAndSubmitCommand(
-      const std::function<bool(VkCommandBuffer& cmd)>& function,
-      const bool& auto_start_end_submit = false,
-      const bool& record_new_commands = true,
-      const std::shared_ptr<VkSubmitInfo>& submit_info_ptr = nullptr);
-
-  bool IsValid() const;
-
-private:
-  class AllocatedCommandBufferWrapper {
-  public:
-    AllocatedCommandBufferWrapper() = default;
-    ~AllocatedCommandBufferWrapper();
-    AllocatedCommandBufferWrapper(RenderEngine* engine, const VkQueue& queue,
-                                  const VkCommandPool& command_pool,
-                                  const VkCommandBuffer& command_buffer);
-    AllocatedCommandBufferWrapper(const AllocatedCommandBufferWrapper& other)
-    = delete;
-    AllocatedCommandBufferWrapper(AllocatedCommandBufferWrapper&& other)
-    = delete;
-    AllocatedCommandBufferWrapper& operator=(
-        const AllocatedCommandBufferWrapper& other) = delete;
-    AllocatedCommandBufferWrapper& operator=(
-        AllocatedCommandBufferWrapper&& other) = delete;
-
-  public:
-    const RenderEngine& GetRenderEngine() const;
-
-    const VkQueue& GetQueue() const;
-
-    const VkCommandPool& GetCommandPool() const;
-
-    const VkCommandBuffer& GetCommandBuffer() const;
-
-    const VkFence& GetFence() const;
-
-    bool RecordAndSubmitCommand(
-        const std::function<void(VkCommandBuffer& cmd)>& function,
-        const bool& auto_start_end_submit = false,
-        const bool& record_new_command = true,
-        std::shared_ptr<VkSubmitInfo> submit_info_ptr = nullptr);
-
-    bool RecordAndSubmitCommand(
-        const std::function<bool(VkCommandBuffer& cmd)>& function,
-        const bool& auto_start_end_submit = false,
-        const bool& record_new_command = true,
-        std::shared_ptr<VkSubmitInfo> submit_info_ptr = nullptr);
-
-    bool IsValid() const;
-
-  private:
-    bool ResetCommandBuffer();
-
-  private:
-    RenderEngine* engine_{nullptr};
-    VkQueue queue_{nullptr};
-    std::shared_ptr<VkCommandPool> command_pool_{nullptr};
-    VkCommandBuffer command_buffer_{nullptr};
-    VkFence command_fence_{nullptr};
-    std::mutex record_mutex_{};
-  };
-
-private:
-  std::shared_ptr<AllocatedCommandBufferWrapper> wrapper_{nullptr};
-};
-
 class AllocatedBuffer {
 public:
   AllocatedBuffer() = default;
@@ -859,6 +723,8 @@ public:
   VkBuffer GetBuffer() const;
 
   VmaAllocation GetAllocation() const;
+
+  const std::vector<std::uint32_t>& GetQueueIndexes() const;
 
   void Release();
 
@@ -972,6 +838,8 @@ public:
   VkImage GetImage() const;
 
   VmaAllocation GetAllocation() const;
+
+  const std::vector<std::uint32_t>& GetQueueIndexes() const;
 
   void Release();
 

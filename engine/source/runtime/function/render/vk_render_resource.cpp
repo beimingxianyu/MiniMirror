@@ -489,7 +489,7 @@ MM::RenderSystem::RenderResourceTexture::RenderResourceTexture(
     const std::string& resource_name, RenderEngine* engine,
     const VkDescriptorType& descriptor_type,
     const std::shared_ptr<AssetType::Image>& image, VkImageUsageFlags usages,
-    const std::uint32_t& queue_index, const VkSharingMode& sharing_mode,
+    const std::vector<std::uint32_t>& queue_index, const VkSharingMode& sharing_mode,
     const VkImageLayout& image_layout, const uint32_t& mipmap_levels,
     const VmaMemoryUsage& memory_usage,
     const VmaAllocationCreateFlags& allocation_flags)
@@ -970,7 +970,7 @@ bool MM::RenderSystem::RenderResourceTexture::LoadImageToStageBuffer(
   stage_buffer = render_engine_->CreateBuffer(
       image_info.image_size_, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
       VMA_MEMORY_USAGE_AUTO,
-      VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT);
+      VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT, false);
 
   if (!stage_buffer.IsValid()) {
     LOG_ERROR("Failed to create stage buffer.");
@@ -995,9 +995,11 @@ bool MM::RenderSystem::RenderResourceTexture::InitImage(
     const VmaMemoryUsage& memory_usage,
     const VmaAllocationCreateFlags& allocation_flags,
     const ImageInfo& image_info) {
+  std::vector<std::uint32_t> temp_queue_index = image_info.queue_index_;
   VkImageCreateInfo image_create_info =
       MM::RenderSystem::Utils::GetImageCreateInfo(
-          image_info.image_format_, usages, image_info.image_extent_);
+          image_info.image_format_, usages, image_info.image_extent_,
+          temp_queue_index);
   image_create_info.mipLevels = image_info.mipmap_levels_;
   image_create_info.samples = render_engine_->GetMultiSampleCount();
 
@@ -1226,7 +1228,7 @@ MM::RenderSystem::RenderResourceBuffer::RenderResourceBuffer(
     const std::string& resource_name, RenderEngine* engine,
     const VkDescriptorType& descriptor_type, VkBufferUsageFlags buffer_usage,
     const VkDeviceSize& size, const VkDeviceSize& offset,
-    const std::uint32_t& queue_index, const VkSharingMode& sharing_mode,
+    const std::vector<std::uint32_t>& queue_index, const VkSharingMode& sharing_mode,
     const VkDeviceSize& size_range, const VkDeviceSize& dynamic_offset,
     const DataToBufferInfo& data_info, const VkBufferCreateFlags& buffer_flags,
     const VmaMemoryUsage& memory_usage,
@@ -1724,10 +1726,11 @@ bool MM::RenderSystem::RenderResourceBuffer::CheckInitParameter(
 bool MM::RenderSystem::RenderResourceBuffer::InitBuffer(
     const VkDeviceSize& size, const VkBufferUsageFlags& buffer_usage,
     const VkBufferCreateFlags& buffer_flags, const VmaMemoryUsage& memory_usage,
-    const VmaAllocationCreateFlags& allocation_flags, const std::uint32_t& queue_index, const VkSharingMode&
-    sharing_mode) {
+    const VmaAllocationCreateFlags& allocation_flags, const std::vector<std::uint32_t>& queue_index, 
+    const VkSharingMode& sharing_mode) {
+  std::vector<std::uint32_t> temp_queue_index = queue_index;
   const auto buffer_create_info =
-      Utils::GetBufferCreateInfo(size, buffer_usage, buffer_flags);
+      Utils::GetBufferCreateInfo(size, buffer_usage, temp_queue_index, buffer_flags);
   const auto allocation_create_info =
       Utils::GetVmaAllocationCreateInfo(memory_usage, allocation_flags);
 
@@ -1749,7 +1752,7 @@ bool MM::RenderSystem::RenderResourceBuffer::InitBuffer(
       Utils::IsTransformDestBuffer(buffer_flags);
   temp_buffer_info.is_exclusive_ =
       sharing_mode == VK_SHARING_MODE_EXCLUSIVE ? true : false;
-  temp_buffer_info.queue_index_ = queue_index;
+  temp_buffer_info.queue_index_ = std::move(temp_queue_index);
 
   buffer_ = AllocatedBuffer{render_engine_->allocator_, temp_buffer,
                             temp_allocation, temp_buffer_info};
@@ -1782,7 +1785,7 @@ bool MM::RenderSystem::RenderResourceBuffer::CopyDataToBuffer(
       size,
       VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
       VMA_MEMORY_USAGE_AUTO_PREFER_HOST,
-      VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT);
+      VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT, false);
 
   if (!stage_buffer.IsValid()) {
     LOG_ERROR("Failed to create stage buffer.")
