@@ -1083,75 +1083,75 @@ void MM::RenderSystem::RenderEngine::ChooseMultiSampleCount() {
     render_engine_info_.multi_sample_count_ = VK_SAMPLE_COUNT_1_BIT;
     return;
   }
-  if (config_system->GetConfig("multi_sample_count", count)) {
-    if (count < 2) {
-      render_engine_info_.multi_sample_count_ = VK_SAMPLE_COUNT_1_BIT;
-      return;
-    }
-    if (count < 4) {
-      if (VK_SAMPLE_COUNT_2_BIT > max_sample_count) {
-        render_engine_info_.multi_sample_count_ = max_sample_count;
-        return;
-      }
-      render_engine_info_.multi_sample_count_ = VK_SAMPLE_COUNT_2_BIT;
-      return;
-    }
-    if (count < 8) {
-      if (VK_SAMPLE_COUNT_4_BIT > max_sample_count) {
-        render_engine_info_.multi_sample_count_ = max_sample_count;
-        return;
-      }
-      render_engine_info_.multi_sample_count_ = VK_SAMPLE_COUNT_4_BIT;
-      return;
-    }
-    if (count < 16) {
-      if (VK_SAMPLE_COUNT_8_BIT > max_sample_count) {
-        render_engine_info_.multi_sample_count_ = max_sample_count;
-        return;
-      }
-      render_engine_info_.multi_sample_count_ = VK_SAMPLE_COUNT_8_BIT;
-      return;
-    }
-    if (count < 32) {
-      if (VK_SAMPLE_COUNT_16_BIT > max_sample_count) {
-        render_engine_info_.multi_sample_count_ = max_sample_count;
-        return;
-      }
-      render_engine_info_.multi_sample_count_ = VK_SAMPLE_COUNT_16_BIT;
-      return;
-    }
-    if (count < 64) {
-      if (VK_SAMPLE_COUNT_32_BIT > max_sample_count) {
-        render_engine_info_.multi_sample_count_ = max_sample_count;
-        return;
-      }
-      render_engine_info_.multi_sample_count_ = VK_SAMPLE_COUNT_32_BIT;
-      return;
-    }
-    if (VK_SAMPLE_COUNT_64_BIT > max_sample_count) {
+  MM_CHECK(CONFIG_SYSTEM->GetConfig("multi_sample_count", count),
+           LOG_ERROR("The setting of \"multi_sample_count\" is not exist.")
+               render_engine_info_.multi_sample_count_ = VK_SAMPLE_COUNT_4_BIT;
+           return;)
+
+  if (count < 2) {
+    render_engine_info_.multi_sample_count_ = VK_SAMPLE_COUNT_1_BIT;
+    return;
+  }
+  if (count < 4) {
+    if (VK_SAMPLE_COUNT_2_BIT > max_sample_count) {
       render_engine_info_.multi_sample_count_ = max_sample_count;
       return;
     }
-    render_engine_info_.multi_sample_count_ = VK_SAMPLE_COUNT_64_BIT;
+    render_engine_info_.multi_sample_count_ = VK_SAMPLE_COUNT_2_BIT;
     return;
   }
-  render_engine_info_.multi_sample_count_ = VK_SAMPLE_COUNT_1_BIT;
+  if (count < 8) {
+    if (VK_SAMPLE_COUNT_4_BIT > max_sample_count) {
+      render_engine_info_.multi_sample_count_ = max_sample_count;
+      return;
+    }
+    render_engine_info_.multi_sample_count_ = VK_SAMPLE_COUNT_4_BIT;
+    return;
+  }
+  if (count < 16) {
+    if (VK_SAMPLE_COUNT_8_BIT > max_sample_count) {
+      render_engine_info_.multi_sample_count_ = max_sample_count;
+      return;
+    }
+    render_engine_info_.multi_sample_count_ = VK_SAMPLE_COUNT_8_BIT;
+    return;
+  }
+  if (count < 32) {
+    if (VK_SAMPLE_COUNT_16_BIT > max_sample_count) {
+      render_engine_info_.multi_sample_count_ = max_sample_count;
+      return;
+    }
+    render_engine_info_.multi_sample_count_ = VK_SAMPLE_COUNT_16_BIT;
+    return;
+  }
+  if (count < 64) {
+    if (VK_SAMPLE_COUNT_32_BIT > max_sample_count) {
+      render_engine_info_.multi_sample_count_ = max_sample_count;
+      return;
+    }
+    render_engine_info_.multi_sample_count_ = VK_SAMPLE_COUNT_32_BIT;
+    return;
+  }
+  if (VK_SAMPLE_COUNT_64_BIT > max_sample_count) {
+    render_engine_info_.multi_sample_count_ = max_sample_count;
+    return;
+  }
+  render_engine_info_.multi_sample_count_ = VK_SAMPLE_COUNT_64_BIT;
+    
 }
 
 void MM::RenderSystem::RenderEngine::InitInstance() {
   uint32_t version_major = 0;
   uint32_t version_minor = 0;
   uint32_t version_patch = 0;
-  if (!(config_system->GetConfig("version_major", version_major) &&
-        config_system->GetConfig("version_minor", version_minor) &&
-        config_system->GetConfig("version_patch", version_patch))) {
-    version_major = 0;
-    version_minor = 0;
-    version_patch = 0;
-    LOG_WARN(
-        "Failed to get the engine version, set to the default version of "
-        "0.0.0.")
-  }
+  MM_CHECK(
+      CONFIG_SYSTEM->GetConfig("version_major", version_major) |
+          CONFIG_SYSTEM->GetConfig("version_minor", version_minor) |
+          CONFIG_SYSTEM->GetConfig("version_patch", version_patch),
+      version_major = 0;
+      version_minor = 0; version_patch = 0; LOG_WARN(
+          "Failed to get the engine version, set to the default version of "
+          "0.0.0."))
   if (enable_validation_layers_) {
     if (CheckValidationLayerSupport()) {
       enable_layer_.push_back(validation_layers_name.c_str());
@@ -1566,13 +1566,15 @@ void MM::RenderSystem::RenderEngine::SetUpDebugMessenger() {
 
 void MM::RenderSystem::RenderEngine::InitGlfw() {
   // Read the initialization settings.
-  if (!config_system->GetConfig("window_extent_width", window_extent_.width)) {
-    LOG_WARN("\"Window_extent_width.\" is not set.");
-  }
-  if (!config_system->GetConfig("window_extent_height",
-                                window_extent_.height)) {
-    LOG_WARN("\"Window_extent_height.\" is not set.");
-  }
+  MM_CHECK(
+      CONFIG_SYSTEM->GetConfig("window_extent_width", window_extent_.width),
+      LOG_WARN("\"Window_extent_width.\" is not set.Set to default value(1960)")
+          window_extent_.width = 1960;)
+  MM_CHECK(
+      CONFIG_SYSTEM->GetConfig("window_extent_height", window_extent_.height),
+      LOG_WARN(
+          "\"Window_extent_height.\" is not set.Set to default value(1080)")
+          window_extent_.height = 1080;)
 
   // Initialize glfw.
   glfwInit();

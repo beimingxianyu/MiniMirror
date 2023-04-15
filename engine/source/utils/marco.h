@@ -51,6 +51,19 @@ namespace Utils {
 #define LOG_FATAL(...) \
   LOG(MM::LogSystem::LogSystem::LogLevel::Fatal, __VA_ARGS__);
 
+#define RESULT_CODE __MM__result_code_name
+
+#define MM_CHECK(executor, failed_callback)                            \
+  if (MM::ExecuteResult RESULT_CODE = LOG_SYSTEM->CheckResult(executor); \
+      RESULT_CODE != MM::ExecuteResult::SUCCESS) {                       \
+    failed_callback                                                    \
+  }
+
+#define ERROR_CODE_EQUAL(result, target_error_code, failed_callback) \
+  if (result == (target_error_code)) {                                 \
+    failed_callback                                                  \
+  }
+
 #define ASSET_SYSTEM asset_system
 
 #define IMPORT_ASSET_SYSTEM                          \

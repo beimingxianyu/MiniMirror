@@ -9,6 +9,8 @@
 
 #include <mutex>
 
+#include "runtime/platform/base/error.h"
+
 namespace MM {
 namespace LogSystem {
 class LogSystem {
@@ -90,6 +92,8 @@ public:
     const std::string format_str = fmt::format(std::forward<Targets>(args)...);
     throw std::runtime_error(format_str);
   }
+
+  ExecuteResult CheckResult(ExecuteResult result) const;
 
 private:
   /**

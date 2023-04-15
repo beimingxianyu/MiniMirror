@@ -5,14 +5,18 @@ include_directories("${CMAKE_CURRENT_SOURCE_DIR}/../")
 #####################################################
 #####################  platform  ####################
 #####################################################
+########## base ##########
+AddMoudle("base" "${CMAKE_CURRENT_SOURCE_DIR}/platform/base")
+
 ##########  file_system  ##########
 AddMoudle("file_system" "${CMAKE_CURRENT_SOURCE_DIR}/platform/file_system")
 target_compile_definitions(file_system PUBLIC "BIN_DIR=\"${CMAKE_RUNTIME_OUTPUT_DIRECTORY}\"")
+target_link_libraries(file_system PUBLIC base)
 
 ##########  config_system  ##########
 AddMoudle("config_system" "${CMAKE_CURRENT_SOURCE_DIR}/platform/config_system")
 target_compile_definitions(config_system PUBLIC "-DCONFIG_DIR=\"${config_dir}\"")
-target_link_libraries(config_system PUBLIC file_system)
+target_link_libraries(config_system PUBLIC file_system base)
 
 
 #################################################
@@ -20,7 +24,7 @@ target_link_libraries(config_system PUBLIC file_system)
 #################################################
 ##########  log_system  ##########
 AddMoudle("log_system" "${CMAKE_CURRENT_SOURCE_DIR}/core/log")
-target_link_libraries(log_system PUBLIC spdlog::spdlog)
+target_link_libraries(log_system PUBLIC spdlog::spdlog base)
 
 ##########  reflection  ##########
 AddMoudle("reflection" "${CMAKE_CURRENT_SOURCE_DIR}/core/reflection")

@@ -35,7 +35,6 @@ std::shared_ptr<ElementType> MakeSharedWithDestructor(Destructor destructor,
 }
 
 std::size_t StringHash(const std::string& target);
-
 }
 }
 

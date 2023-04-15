@@ -579,7 +579,6 @@ struct ImageBindInfo {
   VkDescriptorSetLayoutBinding bind_{};
   std::shared_ptr<VkImageView> image_view_{nullptr};
   std::shared_ptr<VkSampler> sampler_{nullptr};
-  std::shared_ptr<VkSemaphore> semaphore_{nullptr};
 
   bool IsValid() const;
 
@@ -616,7 +615,6 @@ struct BufferBindInfo {
   VkDeviceSize range_size_{0};
   VkDeviceSize offset_{0};
   VkDeviceSize dynamic_offset_{0};
-  std::shared_ptr<VkSemaphore> semaphore_{nullptr};
 
   void Reset();
 

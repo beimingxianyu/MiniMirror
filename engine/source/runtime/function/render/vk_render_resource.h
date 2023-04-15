@@ -310,8 +310,6 @@ class RenderResourceTexture final : public RenderResourceBase {
 
   bool InitSampler();
 
-  bool InitSemaphore();
-
  private:
   RenderEngine* render_engine_{nullptr};
   AllocatedImage image_{};
@@ -469,8 +467,6 @@ private:
   bool CopyDataToBuffer(void* data, const VkDeviceSize& offset,
                         const VkDeviceSize& size);
 
-  bool InitSemaphore();
-
   bool OffsetIsAlignment(const RenderEngine* engine,
                          const VkDescriptorType& descriptor_type,
                          const VkDeviceSize& offset,
@@ -510,7 +506,7 @@ class RenderResourceMesh final : public RenderResourceBase {
   RenderEngine* render_engine_{nullptr};
   VertexInputState vertex_input_state_{};
   AllocatedBuffer index_buffer_{};
-  BufferBindInfo index_buffer_info{};
+  BufferBindInfo index_buffer_info_{};
   AllocatedBuffer vertex_buffer_{};
   BufferBindInfo vertex_buffer_info{};
   std::vector<AllocatedBuffer> instance_buffers_{};

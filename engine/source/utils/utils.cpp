@@ -4,3 +4,12 @@ std::size_t MM::Utils::StringHash(const std::string& target) {
   constexpr std::hash<std::string> hash;
   return hash(target);
 }
+
+bool MM::Utils::ResultCheck(int error_code) {
+  switch (error_code) {
+    case 0:
+      return true;
+    case 1:
+      LOG_ERROR
+  }
+}

@@ -62,6 +62,45 @@ void MM::LogSystem::LogSystem::SetLevel(const LogLevel& level) {
   }
 }
 
+MM::ExecuteResult MM::LogSystem::LogSystem::CheckResult(
+    ExecuteResult result) const {
+  switch (result) {
+    case ExecuteResult::SUCCESS:
+      break;
+    case ExecuteResult::UNDEFINED_ERROR:
+      LogError("Undefined error.");
+      break;
+    case ExecuteResult::OUT_OF_HOST_MEMORY:
+      LogError("Out of host memory.");
+      break;
+    case ExecuteResult::OUT_OF_DEVICE_MEMORY:
+      LogError("Out of device memory.");
+      break;
+    case ExecuteResult::OBJECT_IS_INVALID:
+      LogError("Object is invalid");
+      break;
+    case ExecuteResult::NO_SUCH_CONFIG:
+      LogError("The desired setting does not exist.");
+      break;
+    case ExecuteResult::TYPE_CONVERSION_FAILED:
+      LogError("Type conversion failed");
+      break;
+    case ExecuteResult::INITIALIZATION_FAILED:
+      LogError("Initialization failed.");
+      break;
+    case ExecuteResult::LOAD_CONFIG_FROM_FILE_FAILED:
+      LogError("Failed to load config from file.");
+      break;
+    case ExecuteResult::FILE_IS_NOT_EXIST:
+      LogError("File is not exist.");
+      break;
+    case ExecuteResult::DESTROY_FAILED:
+      LogError("Failed to destroy object.");
+  }
+
+  return result;
+}
+
 bool MM::LogSystem::LogSystem::Destroy() {
   std::lock_guard<std::mutex> guard(sync_flag_);
   if (log_system_) {

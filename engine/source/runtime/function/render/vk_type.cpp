@@ -1027,13 +1027,12 @@ void MM::RenderSystem::VertexAndIndexBuffer::Release() {
 bool MM::RenderSystem::VertexAndIndexBuffer::ChooseVertexBufferReserveSize(
     const VkDeviceSize& require_size, VkDeviceSize& output_reserve_size) {
   VkDeviceSize max_buffer_size = 0;
-  if (!CONFIG_SYSTEM->GetConfig("max_vertex_buffer_size", max_buffer_size)) {
-    LOG_WARN(
-        "The max_vertex_buffer_size"
-        " is not set,vertexbuffer_size will become"
-        "infinitely larger.")
-    max_buffer_size = VK_WHOLE_SIZE;
-  }
+  MM_CHECK(CONFIG_SYSTEM->GetConfig("max_vertex_buffer_size", max_buffer_size),
+           LOG_WARN("The max_vertex_buffer_size"
+                    " is not set,vertexbuffer_size will become"
+                    "infinitely larger.") 
+            max_buffer_size = VK_WHOLE_SIZE;
+  )
 
   VkDeviceSize total_used_size = 0;
   for (auto buffer_chunk_info = vertex_buffer_chunks_info_.begin();
@@ -1069,13 +1068,11 @@ bool MM::RenderSystem::VertexAndIndexBuffer::ChooseVertexBufferReserveSize(
 bool MM::RenderSystem::VertexAndIndexBuffer::ChooseIndexBufferReserveSize(
     const VkDeviceSize& require_size, VkDeviceSize& output_reserve_size) {
   VkDeviceSize max_buffer_size = 0;
-  if (!CONFIG_SYSTEM->GetConfig("max_index_buffer_size", max_buffer_size)) {
-    LOG_WARN(
-        "The max_index_buffer_size"
-        " is not set,vertexbuffer_size will become"
-        "infinitely larger.")
-    max_buffer_size = VK_WHOLE_SIZE;
-  }
+  MM_CHECK(CONFIG_SYSTEM->GetConfig("max_index_buffer_size", max_buffer_size),
+           LOG_WARN("The max_index_buffer_size"
+                    " is not set,vertexbuffer_size will become"
+                    "infinitely larger.")
+          max_buffer_size = VK_WHOLE_SIZE;)
 
   VkDeviceSize total_used_size = 0;
   for (auto buffer_chunk_info = index_buffer_chunks_info_.begin();

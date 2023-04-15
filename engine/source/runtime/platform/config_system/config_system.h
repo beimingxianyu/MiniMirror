@@ -6,6 +6,7 @@
 #include <unordered_map>
 
 #include "runtime/platform/file_system/file_system.h"
+#include "utils/marco.h"
 
 namespace MM {
 namespace ConfigSystem {
@@ -47,6 +48,7 @@ public:
   void SetConfig(const std::string& key, const unsigned long& data);
   void SetConfig(const std::string& key, const unsigned long long& data);
 
+  // TODO Implement the "std::stoXX" function again using error codes and add TYPE_CONVERSION_FAILED.
   /**
    * \brief Get the value.
    * \param key Name of the setting to be modified.
@@ -54,15 +56,16 @@ public:
    * \return If the desired setting does not exist, return false; Otherwise,
    * return true.
    */
-  bool GetConfig(const std::string& key, std::string& get_data) const;
-  bool GetConfig(const std::string& key, int& get_data) const;
-  bool GetConfig(const std::string& key, unsigned& get_data) const;
-  bool GetConfig(const std::string& key, float& get_data) const;
-  bool GetConfig(const std::string& key, long& get_data) const;
-  bool GetConfig(const std::string& key, long double& get_data) const;
-  bool GetConfig(const std::string& key, long long& get_data) const;
-  bool GetConfig(const std::string& key, unsigned long& get_data) const;
-  bool GetConfig(const std::string& key, unsigned long long& get_data) const;
+  ExecuteResult GetConfig(const std::string& key, std::string& get_data) const;
+  ExecuteResult GetConfig(const std::string& key, int& get_data) const;
+  ExecuteResult GetConfig(const std::string& key, unsigned& get_data) const;
+  ExecuteResult GetConfig(const std::string& key, float& get_data) const;
+  ExecuteResult GetConfig(const std::string& key, long& get_data) const;
+  ExecuteResult GetConfig(const std::string& key, long double& get_data) const;
+  ExecuteResult GetConfig(const std::string& key, long long& get_data) const;
+  ExecuteResult GetConfig(const std::string& key, unsigned long& get_data) const;
+  ExecuteResult GetConfig(const std::string& key,
+                          unsigned long long& get_data) const;
   // void SetConfig(std::string key, std::string data);
 
   /**
@@ -95,7 +98,7 @@ public:
    * \return Returns true if the settings were read successfully; otherwise
    * returns false.
    */
-  bool LoadConfigFromIni(const MM::FileSystem::Path& file_path);
+  ExecuteResult LoadConfigFromIni(const MM::FileSystem::Path& file_path);
 
   /**
    * \brief Clear all settings.
@@ -112,7 +115,7 @@ public:
    * \brief Return the count of all setting.
    * \return The count of all setting.
    */
-  const size_t Size();
+  const size_t& Size();
 
 
    /**
@@ -137,7 +140,7 @@ private:
    * \return If it is successfully
    * destroyed, it returns true, otherwise it returns false.
    */
-  bool Destroy();
+  ExecuteResult Destroy();
 
   static void CheckInit();
 

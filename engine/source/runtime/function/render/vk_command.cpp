@@ -7,57 +7,7 @@ GetCommandBufferType() const {
   return command_type_;
 }
 
-const std::uint32_t& MM::RenderSystem::CommandTask::
-GetCommandBufferIndex() const {
-  return command_buffer_index_;
-}
-
-bool MM::RenderSystem::CommandTask::IsSubmitted() const { return submitted_; }
-
-bool MM::RenderSystem::CommandTask::Wait(const std::uint64_t& timeout) const {
-  if (!IsValid()) {
-    LOG_ERROR(
-        "Use MM::RenderSystem::CommandTask::Wait(), but CommandTask is "
-        "invalid.")
-    return false;
-  }
-
-  return vkWaitForFences(render_engine_->GetDevice(), 1, &task_fence_, VK_TRUE,
-                  timeout);
-}
-
-void MM::RenderSystem::CommandTask::Reset() {
-  command_type_ = CommandBufferType::UNDEFINED;
-  command_buffer_index_ = UINT32_MAX;
-  task_fence_ = nullptr;
-}
-
-MM::RenderSystem::CommandTask::CommandTask(
-    RenderEngine* engine, const CommandBufferType& command_type,
-    const std::uint32_t& command_buffer_index, const VkFence& task_fence)
-    : render_engine_(engine),
-      command_type_(command_type),
-      command_buffer_index_(command_buffer_index),
-      task_fence_(task_fence) {
-#ifdef CHECK_PARAMETERS
-  if (render_engine_ == nullptr || command_type_ == CommandBufferType::UNDEFINED
-      || command_buffer_index_ == UINT32_MAX || task_fence_ == nullptr) {
-    LOG_ERROR("CommandTask input parameters are error.")
-    Reset();
-    return;
-  }
-#endif
-}
-
-bool MM::RenderSystem::CommandTask::IsValid() const {
-  if (render_engine_ == nullptr || command_type_ == CommandBufferType::UNDEFINED || command_buffer_index_ ==
-          UINT32_MAX || task_fence_ == nullptr) {
-    return false;
-  }
-  return true;
-}
-
-bool MM::RenderSystem::SubmitWaitSemaphore::IsValid() const {
+bool MM::RenderSystem::WaitSemaphore::IsValid() const {
   return wait_semaphore_ != nullptr;
 }
 
@@ -361,6 +311,19 @@ bool MM::RenderSystem::AllocatedCommandBuffer::AllocatedCommandBufferWrapper::
            return false;)
 
   return true;
+}
+
+const MM::RenderSystem::CommandTask* MM::RenderSystem::CommandTaskFlow::AddTask(
+    const CommandType& command_type,
+    std::function<ExecuteResult(AllocatedCommandBuffer& cmd)>& commands,
+    const std::vector<WaitSemaphore>& wait_semaphores,
+    const std::vector<VkSemaphore>& signal_semaphores) {
+  std::vector<std::function<ExecuteResult(AllocatedCommandBuffer & cmd)>> temp{
+      commands};
+  CommandTask* new_command_task =
+      new CommandTask(command_type, temp, wait_semaphores, signal_semaphores);
+
+  root_task.
 }
 
 MM::RenderSystem::CommandExecutor::CommandExecutor(RenderEngine* engine)

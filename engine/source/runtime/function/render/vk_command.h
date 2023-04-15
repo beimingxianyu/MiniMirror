@@ -6,44 +6,11 @@ namespace MM {
 namespace RenderSystem {
 class RenderEngine;
 class CommandExecutor;
+class CommandTaskFlow;
 
-class CommandTask {
-  friend class CommandExecutor;
+using CommandType = CommandBufferType;
 
-public:
-  CommandTask() = delete;
- ~CommandTask() = default;
-  
-
-public:
- const CommandBufferType& GetCommandBufferType() const;
-
-  const std::uint32_t& GetCommandBufferIndex() const;
-
-  bool IsSubmitted() const;
-
-  bool Wait(const std::uint64_t& timeout = 1000000000) const;
-
-  void Reset();
-
-  bool IsValid() const;
-
-private:
-  CommandTask(RenderEngine* engine,
-              const CommandBufferType& command_type,
-              const std::uint32_t& command_buffer_index,
-              const VkFence& task_fence);
-
- private:
-  RenderEngine* render_engine_{nullptr};
-  CommandBufferType command_type_{CommandBufferType::UNDEFINED};
-  std::uint32_t command_buffer_index_{UINT32_MAX};
-  // TODO add semaphore vector
-  std::atomic_bool submitted_{false};
-  VkFence task_fence_;
-};
-
-struct SubmitWaitSemaphore {
+struct WaitSemaphore {
   VkSemaphore wait_semaphore_{nullptr};
   VkPipelineStageFlags wait_stage_{VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT};
 
@@ -83,8 +50,7 @@ class AllocatedCommandBuffer {
 
   const VkFence& GetFence() const;
 
-  
-    bool IsRecorded() const;
+  bool IsRecorded() const;
 
   /**
    * \remark A command pool corresponds to a command buffer, so resetting t
@@ -123,22 +89,6 @@ class AllocatedCommandBuffer {
 
     const VkFence& GetFence() const;
 
-    // bool RecordAndSubmitCommand(
-    //     AllocatedCommandBuffer
-    //     & allocate_buffer,
-    //     const std::function<void(AllocatedCommandBuffer& cmd)>& function,
-    //     const bool& auto_start_end_submit = false,
-    //     const bool& record_new_command = true, std::shared_ptr<VkSubmitInfo>
-    //     submit_info_ptr = nullptr);
-
-    // bool RecordAndSubmitCommand(
-    //     AllocatedCommandBuffer
-    //     & allocated_buffer,
-    //     const std::function<bool(AllocatedCommandBuffer& cmd)>& function,
-    //     const bool& auto_start_end_submit = false,
-    //     const bool& record_new_command = true, std::shared_ptr<VkSubmitInfo>
-    //     submit_info_ptr = nullptr);
-
     bool IsValid() const;
 
     bool ResetCommandBuffer();
@@ -154,6 +104,84 @@ class AllocatedCommandBuffer {
  private:
   CommandBufferInfo command_buffer_info_{};
   std::shared_ptr<AllocatedCommandBufferWrapper> wrapper_{nullptr};
+};
+
+class CommandTask {
+  friend class CommandExecutor;
+  friend class CommandTaskFlow;
+
+public:
+ ~CommandTask() = default;
+
+public:
+ const CommandBufferType& GetCommandBufferType() const;
+
+  const std::uint32_t& GetCommandBufferIndex() const;
+
+  bool IsSubmitted() const;
+
+  template<typename  ...CommandTasks, typename IsCommandTask = typename std::enable_if<std::is_same<const CommandTask*, CommandTasks>..., void>::type>
+  void Precede(CommandTasks ...command_tasks);
+
+  template <typename... CommandTasks,
+            typename IsCommandTask = typename std::enable_if<
+                std::is_same<const CommandTask*, CommandTasks>..., void>::type>
+  void Succeed(CommandTasks ...command_tasks);
+
+  void Reset();
+
+  bool IsValid() const;
+
+private:
+  CommandTask() = default;
+
+  CommandTask(
+      const CommandType& command_type,
+      std::vector<std::function<ExecuteResult(AllocatedCommandBuffer& cmd)>>&
+              commands,
+      std::vector<WaitSemaphore> wait_semaphore,
+      std::vector<VkSemaphore> signal_semaphore);
+
+ private:
+  CommandType command_type_{CommandType::UNDEFINED};
+  std::vector<std::function<ExecuteResult(AllocatedCommandBuffer& cmd)>> recorded_command_{};
+  std::vector<WaitSemaphore> wait_semaphore_{};
+  std::vector<VkSemaphore> signal_semaphore_{};
+  std::atomic_bool submitted_{false};
+  mutable std::list<CommandTask*> pre_tasks_{};
+  mutable std::list<CommandTask*> post_tasks_{};
+};
+
+template <typename ... CommandTasks, typename IsCommandTask>
+void CommandTask::Precede(CommandTasks... command_tasks) {
+  command_tasks->
+}
+
+class CommandTaskFlow {
+public:
+  CommandTaskFlow() = default;
+ ~CommandTaskFlow();
+  CommandTaskFlow(const CommandTaskFlow& other) = delete;
+  CommandTaskFlow(CommandTaskFlow&& other) noexcept;
+  CommandTaskFlow& operator=(const CommandTaskFlow& other) = delete;
+  CommandTaskFlow& operator=(CommandTaskFlow&& other) noexcept;
+
+public:
+  const CommandTask* AddTask(
+      const CommandType& command_type,
+      std::function<ExecuteResult(AllocatedCommandBuffer& cmd)>& commands,
+      const std::vector<WaitSemaphore>& wait_semaphores,
+      const std::vector<VkSemaphore>& signal_semaphores);
+
+  const CommandTask* AddTask(
+      const CommandType& command_type,
+      const std::vector<std::function<ExecuteResult(AllocatedCommandBuffer& cmd)>>&
+          commands,
+      const std::vector<WaitSemaphore>& wait_semaphores,
+      const std::vector<VkSemaphore>& signal_semaphores);
+
+private:
+  CommandTask root_task{};
 };
 
 class CommandExecutor {
@@ -182,19 +210,6 @@ public:
   std::uint32_t GetUsableComputeCommandNumber() const;
 
   std::uint32_t GetUsableTransformCommandNumber() const;
-
-  bool RecrodCommand(
-      const CommandBufferType& command_type,
-      std::function<void(AllocatedCommandBuffer& cmd)> function,
-      const std::vector<SubmitWaitSemaphore>& wait_semaphores,
-      const std::vector<VkSemaphore>& signal_semaphores,
-      const CommandTask* output_task);
-
-  bool SubmitTask(const CommandTask& command_task);
-
-  bool SubmitAllTask(const CommandBufferType& command_type);
-
-  bool SubmitAllTask();
 
   bool ResetCommandPool(const CommandBufferType& command_type);
 

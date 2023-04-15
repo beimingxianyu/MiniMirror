@@ -206,7 +206,7 @@ MM::AssetType::RectangleBox MM::AssetType::CapsuleBox::GetRectangleBoxFormThis()
                  {radius_, top_ + radius_, radius_}};
 }
 
-bool MM::AssetType::CapsuleBox::IsValid() const { return radius_ != 0; }
+bool MM::AssetType::CapsuleBox::IsValid() const { return std::abs(radius_) > 1e-6; }
 
 MM::AssetType::BoundingBox::BoundingBoxType MM::AssetType::CapsuleBox::
 GetBoundingType() const {

@@ -737,15 +737,6 @@ VkDescriptorType MM::RenderSystem::RenderResourceTexture::GetDescriptorType()
   return image_bind_info_.bind_.descriptorType;
 }
 
-std::shared_ptr<VkSemaphore>
-MM::RenderSystem::RenderResourceTexture::GetSemaphore() const {
-  if (image_bind_info_.semaphore_) {
-    return image_bind_info_.semaphore_;
-  }
-
-  return nullptr;
-}
-
 bool MM::RenderSystem::RenderResourceTexture::CanMapped() const {
   return image_.CanMapped();
 }
@@ -791,10 +782,12 @@ MM::RenderSystem::RenderResourceTexture::GetDeepCopy(
   if (image_.IsTransformSrc()) {
     new_image_usage |= VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
   }
+
+  std::vector<std::uint32_t> temp_queue_index = image_.GetQueueIndexes();
   const VkImageCreateInfo new_image_create_info = Utils::GetImageCreateInfo(
       image_.GetImageFormat(),
       new_image_usage | VK_IMAGE_USAGE_TRANSFER_DST_BIT,
-      image_.GetImageExtent());
+      image_.GetImageExtent(), temp_queue_index);
 
   const VmaAllocationCreateInfo new_allocation_create_info =
       Utils::GetVmaAllocationCreateInfo(
@@ -827,11 +820,12 @@ MM::RenderSystem::RenderResourceTexture::GetDeepCopy(
     sub_resource_vector.push_back(temp_src_region);
   }
 
-  const std::vector<VkImageCopy2> image_region_vector;
+  std::vector<VkImageCopy2> image_region_vector;
   for (const auto& sub_resource: sub_resource_vector) {
     VkImageCopy2 temp_image_copy =
         Utils::GetImageCopy(sub_resource, sub_resource, VkOffset3D{0, 0, 0},
                             VkOffset3D{0, 0, 0}, image_.GetImageExtent());
+    image_region_vector.push_back(temp_image_copy);
   }
 
   if (!render_engine_->CopyImage(const_cast<AllocatedImage&>(image_), new_allocated_image, GetImageLayout(),
@@ -1198,32 +1192,6 @@ bool MM::RenderSystem::RenderResourceTexture::InitSampler() {
   return true;
 }
 
-bool MM::RenderSystem::RenderResourceTexture::InitSemaphore() {
-  const auto semaphore_create_info = Utils::GetSemaphoreCreateInfo();
-
-  VkSemaphore temp_semaphore{nullptr};
-
-  VK_CHECK(vkCreateSemaphore(render_engine_->device_, &semaphore_create_info,
-                             nullptr, &temp_semaphore),
-           LOG_ERROR("Failed to create VkSemaphore.");
-           return false;)
-
-  image_bind_info_.semaphore_ =
-      MM::Utils::MakeSharedWithDestructor<VkSemaphore>(
-          [&engine = render_engine_](VkSemaphore* value) {
-            if (value == nullptr) {
-              return;
-            }
-
-            vkDestroySemaphore(engine->device_, *value, nullptr);
-
-            delete value;
-            value = nullptr;
-          },
-          temp_semaphore);
-  return true;
-}
-
 MM::RenderSystem::RenderResourceBuffer::RenderResourceBuffer(
     const std::string& resource_name, RenderEngine* engine,
     const VkDescriptorType& descriptor_type, VkBufferUsageFlags buffer_usage,
@@ -1268,11 +1236,6 @@ MM::RenderSystem::RenderResourceBuffer::RenderResourceBuffer(
   }
 
   if (!CopyDataToBuffer(data_info.data_, offset, size)) {
-    RenderResourceBuffer::Release();
-    return;
-  }
-
-  if (!InitSemaphore()) {
     RenderResourceBuffer::Release();
     return;
   }
@@ -1328,11 +1291,6 @@ MM::RenderSystem::RenderResourceBuffer::operator=(
 const VkDescriptorType&
 MM::RenderSystem::RenderResourceBuffer::GetDescriptorType() const {
   return buffer_bind_info_.bind_.descriptorType;
-}
-
-MM::RenderSystem::RenderResourceBuffer
-MM::RenderSystem::RenderResourceBuffer::GetLightCopy() const {
-  return *this;
 }
 
 MM::RenderSystem::RenderResourceBuffer
@@ -1582,8 +1540,9 @@ RenderResourceBuffer::GetDeepCopy(
   }
   new_buffer_usage |= VK_BUFFER_USAGE_TRANSFER_DST_BIT;
 
-  const VkBufferCreateInfo new_buffer_create_info =
-      Utils::GetBufferCreateInfo(GetBufferSize(), new_buffer_usage, 0);
+  std::vector<std::uint32_t> temp_queue_index = buffer_.GetQueueIndexes();
+  const VkBufferCreateInfo new_buffer_create_info = Utils::GetBufferCreateInfo(
+      GetBufferSize(), new_buffer_usage, temp_queue_index, 0);
 
   const VmaAllocationCreateInfo new_allocation_create_info =
       Utils::GetVmaAllocationCreateInfo(VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE,
@@ -1821,30 +1780,6 @@ bool MM::RenderSystem::RenderResourceBuffer::CopyDataToBuffer(
   return true;
 }
 
-bool MM::RenderSystem::RenderResourceBuffer::InitSemaphore() {
-  const auto semaphore_create_info = Utils::GetSemaphoreCreateInfo();
-
-  VkSemaphore temp_semaphore{nullptr};
-  VK_CHECK(vkCreateSemaphore(render_engine_->device_, &semaphore_create_info,
-                             nullptr, &temp_semaphore),
-           LOG_ERROR("Failed to create VkSemaphore.");
-           return false;)
-
-  buffer_bind_info_.semaphore_ =
-      MM::Utils::MakeSharedWithDestructor<VkSemaphore>(
-          [engine = render_engine_](VkSampler* value) {
-            if (value == nullptr) {
-              return;
-            }
-            vkDestroySampler(engine->device_, *value, nullptr);
-            delete value;
-            value = nullptr;
-          },
-          temp_semaphore);
-
-  return true;
-}
-
 bool MM::RenderSystem::RenderResourceBuffer::OffsetIsAlignment(
     const RenderEngine* engine, const VkDescriptorType& descriptor_type,
     const VkDeviceSize& offset, const VkDeviceSize& dynamic_offset) const {
@@ -1905,7 +1840,7 @@ MM::RenderSystem::RenderResourceMesh::RenderResourceMesh(
       render_engine_(other.render_engine_),
       vertex_input_state_(std::move(other.vertex_input_state_)),
       index_buffer_(std::move(other.index_buffer_)),
-      index_buffer_info(other.index_buffer_info),
+      index_buffer_info_(other.index_buffer_info_),
       vertex_buffer_(std::move(other.vertex_buffer_)),
       vertex_buffer_info(other.vertex_buffer_info),
       instance_buffers_(std::move(other.instance_buffers_)),
@@ -1921,7 +1856,7 @@ MM::RenderSystem::RenderResourceMesh::operator=(
   render_engine_ = other.render_engine_;
   vertex_input_state_ = other.vertex_input_state_;
   index_buffer_ = other.index_buffer_;
-  index_buffer_info = other.index_buffer_info;
+  index_buffer_info_ = other.index_buffer_info_;
   vertex_buffer_ = other.vertex_buffer_;
   vertex_buffer_info = other.vertex_buffer_info;
   instance_buffers_ = other.instance_buffers_;
@@ -1940,14 +1875,14 @@ MM::RenderSystem::RenderResourceMesh::operator=(
   render_engine_ = other.render_engine_;
   vertex_input_state_ = std::move(other.vertex_input_state_);
   index_buffer_ = std::move(other.index_buffer_);
-  index_buffer_info = other.index_buffer_info;
+  index_buffer_info_ = other.index_buffer_info_;
   vertex_buffer_ = std::move(other.vertex_buffer_);
   vertex_buffer_info = other.vertex_buffer_info;
   instance_buffers_ = std::move(other.instance_buffers_);
   instance_buffers_info = std::move(other.instance_buffers_info);
 
   other.render_engine_ = nullptr;
-  other.index_buffer_info.Reset();
+  other.index_buffer_info_.Reset();
   other.vertex_buffer_info.Reset();
 
   return *this;
@@ -1955,7 +1890,7 @@ MM::RenderSystem::RenderResourceMesh::operator=(
 
 bool MM::RenderSystem::RenderResourceMesh::IsValid() const {
   if (render_engine_ == nullptr || !vertex_input_state_.IsValid() ||
-      !index_buffer_.IsValid() || index_buffer_info.buffer_size_ == 0 ||
+      !index_buffer_.IsValid() || index_buffer_info_.buffer_size_ == 0 ||
       !vertex_buffer_.IsValid() || vertex_buffer_info.buffer_size_ == 0) {
     return false;
   }

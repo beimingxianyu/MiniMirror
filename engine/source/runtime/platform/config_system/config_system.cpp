@@ -75,7 +75,8 @@ MM::ConfigSystem::ConfigSystem
     if (!config_system_) {
       config_system_ = new ConfigSystem{};
       config_data_base_["config_dir"] = CONFIG_DIR;
-      config_system_->LoadConfigFromIni(config_data_base_["config_dir"] + "/init_config.ini");
+      ExecuteResult load_result = config_system_->LoadConfigFromIni(config_data_base_["config_dir"] +
+                                        "/init_config.ini");
     }
     CheckInit();
   }
@@ -125,7 +126,8 @@ bool MM::ConfigSystem::ConfigSystem::LoadOneConfigFromIni(const MM::FileSystem::
   return false;
 }
 
-bool MM::ConfigSystem::ConfigSystem::LoadConfigFromIni(const MM::FileSystem::Path& file_path) {
+MM::ExecuteResult MM::ConfigSystem::ConfigSystem::LoadConfigFromIni(
+    const MM::FileSystem::Path& file_path) {
   std::fstream config_file{file_path.String()};
   if (config_file.is_open()) {
     std::string line;
@@ -149,9 +151,9 @@ bool MM::ConfigSystem::ConfigSystem::LoadConfigFromIni(const MM::FileSystem::Pat
       }
     }
     config_file.close();
-    return true;
+    return ExecuteResult::SUCCESS;
   }
-  return false;
+  return ExecuteResult::FILE_IS_NOT_EXIST;
 }
 
 void MM::ConfigSystem::ConfigSystem::Clear() { config_data_base_.clear(); }
@@ -161,21 +163,21 @@ MM::ConfigSystem::ConfigSystem::GetAllConfig() const {
   return config_data_base_;
 }
 
-const size_t MM::ConfigSystem::ConfigSystem::Size() {
+const size_t& MM::ConfigSystem::ConfigSystem::Size() {
   return config_data_base_.size();
 }
 
-bool MM::ConfigSystem::ConfigSystem::Destroy() {
+MM::ExecuteResult MM::ConfigSystem::ConfigSystem::Destroy() {
   std::lock_guard<std::mutex> guard{sync_flag_};
   if (config_system_) {
     delete config_system_;
     config_data_base_.clear();
     config_system_ = nullptr;
 
-    return true;
+    return ExecuteResult::SUCCESS;
   }
-  return false;
-  }
+  return ExecuteResult::DESTROY_FAILED;
+}
 
 void MM::ConfigSystem::ConfigSystem::CheckInit() {
   if (!CheckAllNeedConfigLoaded()) {
@@ -321,83 +323,92 @@ void MM::ConfigSystem::ConfigSystem::SetConfig(const std::string& key,
   config_data_base_[key] = std::to_string(data);
 }
 
-bool MM::ConfigSystem::ConfigSystem::GetConfig(const std::string& key,
-                                   std::string& get_data) const {
+MM::ExecuteResult MM::ConfigSystem::ConfigSystem::GetConfig(
+    const std::string& key,
+    std::string& get_data) const {
   if (Have(key)) {
     get_data = config_data_base_[key];
-    return true;
+    return ExecuteResult::SUCCESS;
   }
-  return false;
+  return ExecuteResult::NO_SUCH_CONFIG;
 }
 
-bool MM::ConfigSystem::ConfigSystem::GetConfig(const std::string& key,
-                                   int& get_data) const {
+MM::ExecuteResult MM::ConfigSystem::ConfigSystem::GetConfig(
+    const std::string& key,
+    int& get_data) const {
   if (Have(key)) {
     get_data = std::stoi(config_data_base_[key]);
-    return true;
+    return ExecuteResult::SUCCESS;
   }
-  return false;
+  return ExecuteResult::NO_SUCH_CONFIG;
 }
 
-bool MM::ConfigSystem::ConfigSystem::GetConfig(const std::string& key,
-                                   unsigned int& get_data) const {
+MM::ExecuteResult MM::ConfigSystem::ConfigSystem::GetConfig(
+    const std::string& key,
+    unsigned int& get_data) const {
   if (Have(key)) {
     get_data = static_cast<unsigned int>(std::stoi(config_data_base_[key]));
-    return true;
+    return ExecuteResult::SUCCESS;
   }
-  return false;
+  return ExecuteResult::NO_SUCH_CONFIG;
 }
 
-bool MM::ConfigSystem::ConfigSystem::GetConfig(const std::string& key,
-                                   float& get_data) const {
+MM::ExecuteResult MM::ConfigSystem::ConfigSystem::GetConfig(
+    const std::string& key,
+    float& get_data) const {
   if (Have((key))) {
     get_data = std::stof(config_data_base_[key]);
-    return true;
+    return ExecuteResult::SUCCESS;
   }
-  return false;
+  return ExecuteResult::NO_SUCH_CONFIG;
 }
 
-bool MM::ConfigSystem::ConfigSystem::GetConfig(const std::string& key,
-                                   long& get_data) const {
+MM::ExecuteResult MM::ConfigSystem::ConfigSystem::GetConfig(
+    const std::string& key,
+    long& get_data) const {
   if (Have((key))) {
     get_data = std::stol(config_data_base_[key]);
-    return true;
+    return ExecuteResult::SUCCESS;
   }
-  return false;
+  return ExecuteResult::NO_SUCH_CONFIG;
 }
 
-bool MM::ConfigSystem::ConfigSystem::GetConfig(const std::string& key,
-                                   long double& get_data) const {
+MM::ExecuteResult MM::ConfigSystem::ConfigSystem::GetConfig(
+    const std::string& key,
+    long double& get_data) const {
   if (Have((key))) {
     get_data = std::stold(config_data_base_[key]);
-    return true;
+    return ExecuteResult::SUCCESS;
   }
-  return false;
+  return ExecuteResult::NO_SUCH_CONFIG;
 }
 
-bool MM::ConfigSystem::ConfigSystem::GetConfig(const std::string& key,
-                                   long long& get_data) const {
+MM::ExecuteResult MM::ConfigSystem::ConfigSystem::GetConfig(
+    const std::string& key,
+    long long& get_data) const {
   if (Have((key))) {
     get_data = std::stoll(config_data_base_[key]);
-    return true;
+    return ExecuteResult::SUCCESS;
   }
-  return false;
+  return ExecuteResult::NO_SUCH_CONFIG;
 }
 
-bool MM::ConfigSystem::ConfigSystem::GetConfig(const std::string& key,
-                                   unsigned long& get_data) const {
+MM::ExecuteResult MM::ConfigSystem::ConfigSystem::GetConfig(
+    const std::string& key,
+    unsigned long& get_data) const {
   if (Have((key))) {
     get_data = std::stoul(config_data_base_[key]);
-    return true;
+    return ExecuteResult::SUCCESS;
   }
-  return false;
+  return ExecuteResult::NO_SUCH_CONFIG;
 }
 
-bool MM::ConfigSystem::ConfigSystem::GetConfig(const std::string& key,
-                                  unsigned long long& get_data) const{
+MM::ExecuteResult MM::ConfigSystem::ConfigSystem::GetConfig(
+    const std::string& key,
+    unsigned long long& get_data) const{
   if (Have((key))) {
     get_data = std::stoull(config_data_base_[key]);
-    return true;
+    return ExecuteResult::SUCCESS;
   }
-  return false;
+  return ExecuteResult::NO_SUCH_CONFIG;
 }
