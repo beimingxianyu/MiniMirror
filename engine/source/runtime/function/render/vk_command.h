@@ -6,6 +6,7 @@ namespace MM {
 namespace RenderSystem {
 class RenderEngine;
 class CommandExecutor;
+class CommandTask;
 class CommandTaskFlow;
 
 using CommandType = CommandBufferType;
@@ -13,6 +14,11 @@ using CommandType = CommandBufferType;
 struct WaitSemaphore {
   VkSemaphore wait_semaphore_{nullptr};
   VkPipelineStageFlags wait_stage_{VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT};
+
+  struct WaitSemaphoreLessWithoutWaitStage {
+    bool operator()(const WaitSemaphore& l_value,
+                    const WaitSemaphore& r_value) const;
+  };
 
   bool IsValid() const;
 };
@@ -31,7 +37,7 @@ class AllocatedCommandBuffer {
   AllocatedCommandBuffer() = default;
   ~AllocatedCommandBuffer() = default;
   AllocatedCommandBuffer(RenderEngine* engine, const std::uint32_t& queue_index,
-                         const std::shared_ptr<VkQueue>& queue,
+                         const VkQueue& queue,
                          const VkCommandPool& command_pool,
                          const VkCommandBuffer& command_buffer);
   AllocatedCommandBuffer(const AllocatedCommandBuffer& other) = default;
@@ -66,7 +72,7 @@ class AllocatedCommandBuffer {
     AllocatedCommandBufferWrapper() = default;
     ~AllocatedCommandBufferWrapper();
     AllocatedCommandBufferWrapper(RenderEngine* engine,
-                                  const std::shared_ptr<VkQueue>& queue,
+                                  const VkQueue& queue,
                                   const VkCommandPool& command_pool,
                                   const VkCommandBuffer& command_buffer);
     AllocatedCommandBufferWrapper(const AllocatedCommandBufferWrapper& other) =
@@ -95,7 +101,7 @@ class AllocatedCommandBuffer {
 
    private:
     RenderEngine* engine_{nullptr};
-    std::shared_ptr<VkQueue> queue_{nullptr};
+    VkQueue queue_{nullptr};
     VkCommandPool command_pool_{nullptr};
     VkCommandBuffer command_buffer_{nullptr};
     VkFence command_fence_{nullptr};
@@ -106,82 +112,145 @@ class AllocatedCommandBuffer {
   std::shared_ptr<AllocatedCommandBufferWrapper> wrapper_{nullptr};
 };
 
-class CommandTask {
-  friend class CommandExecutor;
-  friend class CommandTaskFlow;
-
-public:
- ~CommandTask() = default;
-
-public:
- const CommandBufferType& GetCommandBufferType() const;
-
-  const std::uint32_t& GetCommandBufferIndex() const;
-
-  bool IsSubmitted() const;
-
-  template<typename  ...CommandTasks, typename IsCommandTask = typename std::enable_if<std::is_same<const CommandTask*, CommandTasks>..., void>::type>
-  void Precede(CommandTasks ...command_tasks);
-
-  template <typename... CommandTasks,
-            typename IsCommandTask = typename std::enable_if<
-                std::is_same<const CommandTask*, CommandTasks>..., void>::type>
-  void Succeed(CommandTasks ...command_tasks);
-
-  void Reset();
-
-  bool IsValid() const;
-
-private:
-  CommandTask() = default;
-
-  CommandTask(
-      const CommandType& command_type,
-      std::vector<std::function<ExecuteResult(AllocatedCommandBuffer& cmd)>>&
-              commands,
-      std::vector<WaitSemaphore> wait_semaphore,
-      std::vector<VkSemaphore> signal_semaphore);
-
- private:
-  CommandType command_type_{CommandType::UNDEFINED};
-  std::vector<std::function<ExecuteResult(AllocatedCommandBuffer& cmd)>> recorded_command_{};
-  std::vector<WaitSemaphore> wait_semaphore_{};
-  std::vector<VkSemaphore> signal_semaphore_{};
-  std::atomic_bool submitted_{false};
-  mutable std::list<CommandTask*> pre_tasks_{};
-  mutable std::list<CommandTask*> post_tasks_{};
-};
-
-template <typename ... CommandTasks, typename IsCommandTask>
-void CommandTask::Precede(CommandTasks... command_tasks) {
-  command_tasks->
-}
-
 class CommandTaskFlow {
-public:
+  friend class CommandTask;
+  friend class CommandExecutor;
+
+ public:
   CommandTaskFlow() = default;
- ~CommandTaskFlow();
+  ~CommandTaskFlow();
   CommandTaskFlow(const CommandTaskFlow& other) = delete;
   CommandTaskFlow(CommandTaskFlow&& other) noexcept;
   CommandTaskFlow& operator=(const CommandTaskFlow& other) = delete;
   CommandTaskFlow& operator=(CommandTaskFlow&& other) noexcept;
 
-public:
-  const CommandTask* AddTask(
+ public:
+  /**
+   * \remark The \ref commands must not contain VkQueueSubmit().
+   */
+  CommandTask& AddTask(
       const CommandType& command_type,
-      std::function<ExecuteResult(AllocatedCommandBuffer& cmd)>& commands,
+      const std::function<ExecuteResult(AllocatedCommandBuffer& cmd)>& commands,
       const std::vector<WaitSemaphore>& wait_semaphores,
       const std::vector<VkSemaphore>& signal_semaphores);
 
-  const CommandTask* AddTask(
+  /**
+   * \remark The \ref commands must not contain VkQueueSubmit().
+   */
+  CommandTask& AddTask(
       const CommandType& command_type,
-      const std::vector<std::function<ExecuteResult(AllocatedCommandBuffer& cmd)>>&
-          commands,
+      const std::vector<
+          std::function<ExecuteResult(AllocatedCommandBuffer& cmd)>>& commands,
       const std::vector<WaitSemaphore>& wait_semaphores,
       const std::vector<VkSemaphore>& signal_semaphores);
+
+  std::uint32_t GetTaskCount() const;
+
+  std::uint32_t GetGraphCount() const;
+
+  std::uint32_t GetComputeCount() const;
+
+  std::uint32_t GetTransformCount() const;
+
+  bool IsRootTask(const CommandTask& command_task) const;
+
+  void Clear();
+
+  bool HaveRing() const;
+
+  bool IsValid() const;
 
 private:
-  CommandTask root_task{};
+  struct CommandTaskEdge {
+    CommandTaskEdge(CommandTask* start, CommandTask* end);
+
+    CommandTask* start_command_task_{nullptr};
+    CommandTask* end_command_task_{nullptr};
+
+    bool operator<(const CommandTaskEdge& other) const;
+  };
+
+  void RemoveRootTask(const CommandTask& command_task);
+
+  void GetCommandTaskEdges(std::vector<CommandTaskEdge>& command_task_edges) const;
+
+ private:
+  std::vector<CommandTask*> root_tasks_{};
+  std::vector<CommandTask*> tasks_{};
+  std::array<std::uint32_t, 3> task_count_{};
+};
+
+class CommandTask {
+  friend class CommandExecutor;
+  friend class CommandTaskFlow;
+
+public:
+  CommandTask() = delete;
+  ~CommandTask();
+  CommandTask(const CommandTask& other) = delete;
+  CommandTask(CommandTask&& other) = delete;
+  CommandTask& operator=(const CommandTask& other) = delete;
+  CommandTask& operator=(CommandTask&& other) = delete; 
+
+public:
+ const CommandBufferType& GetCommandBufferType() const;
+
+  const CommandTaskFlow& GetCommandTaskFlow() const;
+
+  const std::vector<std::function<ExecuteResult(AllocatedCommandBuffer& cmd)>>&
+  GetCommands() const;
+
+  const std::vector<WaitSemaphore>& GetWaitSemaphore() const;
+
+  const std::vector<VkSemaphore>& GetSignalSemaphore() const;
+
+  template <typename... CommandTasks>
+  void IsPreTaskTo(CommandTasks&& ...command_tasks);
+
+  template <typename... CommandTasks>
+  void IsPostTaskTo(CommandTasks&& ...command_tasks);
+
+  bool IsValid() const;
+
+private:
+  CommandTask(
+      CommandTaskFlow* task_flow,
+      const CommandType& command_type,
+      const std::vector<std::function<ExecuteResult(AllocatedCommandBuffer& cmd)>>&
+              commands,
+      const std::vector<WaitSemaphore>& wait_semaphore,
+      const std::vector<VkSemaphore>& signal_semaphore);
+
+ private:
+  CommandTaskFlow* task_flow_;
+  CommandType command_type_{CommandType::UNDEFINED};
+  std::vector<std::function<ExecuteResult(AllocatedCommandBuffer& cmd)>> commands_{};
+  std::vector<WaitSemaphore> wait_semaphore_{};
+  std::vector<VkSemaphore> signal_semaphore_{};
+  mutable std::list<CommandTask*> pre_tasks_{};
+  mutable std::list<CommandTask*> post_tasks_{};
+};
+
+template <typename ... CommandTasks>
+void CommandTask::IsPreTaskTo(CommandTasks&&... command_tasks) {
+  (assert(&command_tasks != this), ...);
+  (command_tasks.pre_tasks_.push_back(this), ...);
+  (task_flow_->RemoveRootTask(command_tasks),...);
+  (post_tasks_.push_back(&command_tasks), ...);
+}
+
+template <typename ... CommandTasks>
+void CommandTask::IsPostTaskTo(CommandTasks&&... command_tasks) {
+  (assert(!(&command_tasks == this)), ...);
+  (command_tasks.post_tasks_.push_nack(this), ...);
+  (pre_tasks_.push_back(&command_tasks), ...);
+  task_flow_->RemoveRootTask(*this);
+}
+
+class RenderFuture {
+
+private:
+  std::vector<std::shared_ptr<bool>> command_complete_states_{};
 };
 
 class CommandExecutor {
@@ -211,19 +280,92 @@ public:
 
   std::uint32_t GetUsableTransformCommandNumber() const;
 
-  bool ResetCommandPool(const CommandBufferType& command_type);
+  ExecuteResult ResetCommandPool(const CommandBufferType& command_type);
 
-  bool ResetCommandPool();
+  ExecuteResult ResetCommandPool();
+
+  /**
+   * \remark \ref command_task_flow is invalid after call this function.
+   */
+  RenderFuture Run(CommandTaskFlow& command_task_flow);
+
+  /**
+   * \remark The \ref command_task_flow is invalid after call this function.
+   */
+  void RunAndWait(CommandTaskFlow& command_task_flow);
+
+  /**
+   * \brief The \ref command_task_flow contain all render commands in one frame,
+   * and will be use in next frame if the render state not change.
+   * \remark This function must be the last call to the rendering call,
+   * otherwise this call is invalid.
+   * \remark Default wait this call.
+   */
+  RenderFuture RunOneFrame(CommandTaskFlow& command_task_flow);
 
   bool IsValid() const;
 
- private:
-  std::list<CommandTask> not_submitted_commands{};
+private:
+  void ClearWhenConstructFailed(
+      std::vector<VkCommandPool>& graph_command_pools,
+      std::vector<VkCommandPool>& compute_command_pools,
+      std::vector<VkCommandPool>& transform_command_pools);
 
+  ExecuteResult InitCommandPolls(
+      std::vector<VkCommandPool>& graph_command_pools, std::vector<VkCommandPool>& compute_command_pools,
+      std::vector<VkCommandPool>& transform_command_pools);
+
+  ExecuteResult InitCommandBuffers(
+      std::vector<VkCommandPool>& graph_command_pools,
+      std::vector<VkCommandPool>& compute_command_pools,
+      std::vector<VkCommandPool>& transform_command_pools,
+      std::vector<VkCommandBuffer>& graph_command_buffers,
+      std::vector<VkCommandBuffer>& compute_command_buffers,
+      std::vector<VkCommandBuffer>& transform_command_buffers);
+
+  ExecuteResult InitAllocateCommandBuffers(
+      std::vector<VkCommandPool>& graph_command_pools,
+      std::vector<VkCommandPool>& compute_command_pools,
+      std::vector<VkCommandPool>& transform_command_pools,
+      std::vector<VkCommandBuffer>& graph_command_buffers,
+      std::vector<VkCommandBuffer>& compute_command_buffers,
+      std::vector<VkCommandBuffer>& transform_command_buffers);
+
+  struct CommandTaskFlowToBeRun {
+    CommandTaskFlowToBeRun(CommandTaskFlow&& command_task_flow);
+
+    CommandTaskFlow command_task_flow_{};
+    std::uint32_t task_flow_ID_{0};
+    std::shared_ptr<ExecuteResult> execute_result_{};
+
+  };
+
+  struct ExecutingCommandBuffer {
+    AllocatedCommandBuffer command_buffer_;
+    CommandType command_type_;
+    CommandTaskFlow command_task_flow_{};
+    std::uint32_t task_flow_ID_{0};
+    std::shared_ptr<ExecuteResult> execute_result_{};
+    std::weak_ptr<bool> is_complete_{};
+  };
+
+  void ProcessTask();
+
+ private:
   RenderEngine* render_engine{nullptr};
-  std::vector<AllocatedCommandBuffer> graph_command_buffers_{};
-  std::vector<AllocatedCommandBuffer> compute_command_buffers_{};
-  std::vector<AllocatedCommandBuffer> transform_command_buffers_{};
+  std::list<AllocatedCommandBuffer> free_graph_command_buffers_{};
+  std::list<AllocatedCommandBuffer> free_compute_command_buffers_{};
+  std::list<AllocatedCommandBuffer> free_transform_command_buffers_{};
+
+  std::list<AllocatedCommandBuffer> executing_graph_command_buffers_{};
+  std::list<AllocatedCommandBuffer> executing_compute_command_buffers_{};
+  std::list<AllocatedCommandBuffer> executing_transform_command_buffers_{};
+
+  std::list<CommandTaskFlow> task_flow_queue_{};
+  std::mutex task_flow_queue_mutex_{};
+
+  bool last_run_is_run_one_frame_call_{false};
+  std::atomic_bool processing_task_flow_queue_{false};
 };
 }  // namespace RenderSystem
 }  // namespace MM

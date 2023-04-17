@@ -53,14 +53,21 @@ namespace Utils {
 
 #define RESULT_CODE __MM__result_code_name
 
-#define MM_CHECK(executor, failed_callback)                            \
+#define MM_CHECK(executor, failed_callback)                              \
   if (MM::ExecuteResult RESULT_CODE = LOG_SYSTEM->CheckResult(executor); \
       RESULT_CODE != MM::ExecuteResult::SUCCESS) {                       \
-    failed_callback                                                    \
+    failed_callback                                                      \
+  }
+
+#define MM_MULTIPLE_CHECK(executor, failed_callback) \
+  if (MM::ExecuteResult RESULT_CODE =                \
+          LOG_SYSTEM->CheckMultipleResult(executor); \
+      RESULT_CODE != MM::ExecuteResult::SUCCESS) {   \
+    failed_callback                                  \
   }
 
 #define ERROR_CODE_EQUAL(result, target_error_code, failed_callback) \
-  if (result == (target_error_code)) {                                 \
+  if (result == (target_error_code)) {                               \
     failed_callback                                                  \
   }
 

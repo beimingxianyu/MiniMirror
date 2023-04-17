@@ -96,10 +96,68 @@ MM::ExecuteResult MM::LogSystem::LogSystem::CheckResult(
       break;
     case ExecuteResult::DESTROY_FAILED:
       LogError("Failed to destroy object.");
+      break;
+    case ExecuteResult::PARENT_OBJECT_NOT_CONTAIN_SPECIFIC_CHILD_OBJECT:
+      LogError("The parent object does not contain specific child objects.");
   }
 
   return result;
 }
+
+MM::ExecuteResult MM::LogSystem::LogSystem::CheckMultipleResult(
+    ExecuteResult result) const {
+  if ((result & ExecuteResult::SUCCESS) == ExecuteResult::SUCCESS) {
+    return result;
+  }
+  if ((result & ExecuteResult::UNDEFINED_ERROR) ==
+      ExecuteResult::UNDEFINED_ERROR) {
+    LogError("Undefined error.");
+  }
+  if ((result & ExecuteResult::OUT_OF_HOST_MEMORY) ==
+      ExecuteResult::OUT_OF_HOST_MEMORY) {
+    LogError("Out of host memory.");
+  }
+  if ((result & ExecuteResult::OUT_OF_DEVICE_MEMORY) ==
+      ExecuteResult::OUT_OF_DEVICE_MEMORY) {
+    LogError("Out of device memory.");
+  }
+  if ((result & ExecuteResult::OBJECT_IS_INVALID) ==
+      ExecuteResult::OBJECT_IS_INVALID) {
+    LogError("Object is invalid");
+  }
+  if ((result & ExecuteResult::NO_SUCH_CONFIG) ==
+      ExecuteResult::NO_SUCH_CONFIG) {
+    LogError("The desired setting does not exist.");
+  }
+  if ((result & ExecuteResult::TYPE_CONVERSION_FAILED) ==
+      ExecuteResult::TYPE_CONVERSION_FAILED) {
+    LogError("Type conversion failed");
+  }
+  if ((result & ExecuteResult::INITIALIZATION_FAILED) ==
+      ExecuteResult::INITIALIZATION_FAILED) {
+    LogError("Initialization failed.");
+  }
+  if ((result & ExecuteResult::LOAD_CONFIG_FROM_FILE_FAILED) ==
+      ExecuteResult::LOAD_CONFIG_FROM_FILE_FAILED) {
+    LogError("Failed to load config from file.");
+  }
+  if ((result & ExecuteResult::FILE_IS_NOT_EXIST) ==
+      ExecuteResult::FILE_IS_NOT_EXIST) {
+    LogError("File is not exist.");
+  }
+  if ((result & ExecuteResult::DESTROY_FAILED) ==
+      ExecuteResult::DESTROY_FAILED) {
+    LogError("Failed to destroy object.");
+  }
+  if ((result &
+       ExecuteResult::PARENT_OBJECT_NOT_CONTAIN_SPECIFIC_CHILD_OBJECT) ==
+      ExecuteResult::PARENT_OBJECT_NOT_CONTAIN_SPECIFIC_CHILD_OBJECT) {
+    LogError("The parent object does not contain specific child objects.");
+  }
+
+  return result;
+}
+
 
 bool MM::LogSystem::LogSystem::Destroy() {
   std::lock_guard<std::mutex> guard(sync_flag_);

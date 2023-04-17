@@ -95,6 +95,8 @@ public:
 
   ExecuteResult CheckResult(ExecuteResult result) const;
 
+  ExecuteResult CheckMultipleResult(ExecuteResult result) const;
+
 private:
   /**
    * \brief Destroy the instance. If it is successfully destroyed, it returns true, otherwise it returns false.
