@@ -448,7 +448,7 @@ VkSamplerCreateInfo MM::RenderSystem::Utils::GetSamplerCreateInfo(
   return sampler_create_info;
 }
 
-VkSemaphoreCreateInfo MM::RenderSystem::Utils::GetSemaphoreCreateInfo() {
+VkSemaphoreCreateInfo MM::RenderSystem::Utils::GetSemaphoreCreateInfo(const VkSemaphoreCreateFlags& flags) {
   VkSemaphoreCreateInfo semaphore_create_info{};
   semaphore_create_info.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
   semaphore_create_info.pNext = nullptr;

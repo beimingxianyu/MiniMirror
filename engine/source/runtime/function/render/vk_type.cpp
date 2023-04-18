@@ -9,6 +9,15 @@ bool MM::RenderSystem::QueueFamilyIndices::isComplete() const {
          compute_family_.has_value() && transform_family_.has_value();
 }
 
+void MM::RenderSystem::SemaphoreDestructor::operator()(VkSemaphore* value) { if (value == nullptr) {
+    return;
+  }
+
+  vkDestroySemaphore(render_engine_->GetDevice(), *value, nullptr);
+
+  value = nullptr;
+}
+
 MM::RenderSystem::ManagedObjectBase::ManagedObjectBase(
     const std::string& object_name, const std::uint32_t& object_ID)
   : object_name_(object_name),

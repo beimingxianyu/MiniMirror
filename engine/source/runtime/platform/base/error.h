@@ -17,7 +17,8 @@ enum class ExecuteResult : std::uint32_t{
   // Such as child "class A", parent "class B", B have a member std::set<A> A_set.
   // The instance of class B b_instance and the instance of class A a_instance,
   // b.A_set not contain a_instance and call A_set.at(a_instance) will return this error. 
-  PARENT_OBJECT_NOT_CONTAIN_SPECIFIC_CHILD_OBJECT 
+  PARENT_OBJECT_NOT_CONTAIN_SPECIFIC_CHILD_OBJECT,
+  RENDER_COMMAND_RECORD_OR_SUBMIT_FAILED
 };
 
 ExecuteResult operator|(ExecuteResult l_result, ExecuteResult r_result);

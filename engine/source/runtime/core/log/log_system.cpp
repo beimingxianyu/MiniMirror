@@ -154,7 +154,9 @@ MM::ExecuteResult MM::LogSystem::LogSystem::CheckMultipleResult(
       ExecuteResult::PARENT_OBJECT_NOT_CONTAIN_SPECIFIC_CHILD_OBJECT) {
     LogError("The parent object does not contain specific child objects.");
   }
-
+  if ((result & ExecuteResult::RENDER_COMMAND_RECORD_OR_SUBMIT_FAILED) == ExecuteResult::RENDER_COMMAND_RECORD_OR_SUBMIT_FAILED) {
+    LogError("Failed to record or submit render command.")
+  }
   return result;
 }
 

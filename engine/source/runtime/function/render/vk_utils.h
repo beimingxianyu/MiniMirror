@@ -169,7 +169,7 @@ VkImageViewCreateInfo GetImageViewCreateInfo(const AllocatedImage& image,
 **/
 VkSamplerCreateInfo GetSamplerCreateInfo(const VkPhysicalDevice& physical_device);
 
-VkSemaphoreCreateInfo GetSemaphoreCreateInfo();
+VkSemaphoreCreateInfo GetSemaphoreCreateInfo(const VkSemaphoreCreateFlags& flags = 0);
 
 bool DescriptorTypeIsDynamicBuffer(const VkDescriptorType& descriptor_type);
 

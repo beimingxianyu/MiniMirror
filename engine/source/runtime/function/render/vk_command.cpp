@@ -544,11 +544,30 @@ void MM::RenderSystem::CommandTaskFlow::GetCommandTaskEdges(
   }
 }
 
+std::vector<MM::RenderSystem::CommandTaskFlow::CommandTaskEdge>
+MM::RenderSystem ::CommandTaskFlow::GetCommandTaskEdges() const {
+  std::vector<CommandTaskEdge> command_task_edges;
+  for (const auto task : tasks_) {
+    for (const auto last_task : tasks_) {
+      command_task_edges.emplace_back(task, last_task);
+    }
+  }
+
+  return command_task_edges;
+}
+
 MM::RenderSystem::CommandTask::~CommandTask() = default;
 
 
+MM::RenderSystem::RenderFuture::RenderFuture(const std::uint32_t& task_flow_ID,
+    const std::shared_ptr<ExecuteResult>& future_execute_result,
+    const std::vector<std::shared_ptr<bool>>& command_complete_states)
+  : task_flow_ID_(task_flow_ID), execute_result_(future_execute_result),
+    command_complete_states_(command_complete_states) {
+}
+
 MM::RenderSystem::CommandExecutor::CommandExecutor(RenderEngine* engine)
-    : render_engine(engine), free_graph_command_buffers_(),
+    : render_engine_(engine), free_graph_command_buffers_(),
       free_compute_command_buffers_(), free_transform_command_buffers_(),
       executing_graph_command_buffers_(), executing_compute_command_buffers_(),
       executing_transform_command_buffers_(), task_flow_queue_(),
@@ -557,7 +576,7 @@ MM::RenderSystem::CommandExecutor::CommandExecutor(RenderEngine* engine)
       wait_tasks_(), wait_tasks_mutex_(){
   if (engine == nullptr || !engine->IsValid()) {
     LOG_ERROR("Engine is invalid.")
-    render_engine = nullptr;
+    render_engine_ = nullptr;
     return;
   }
 
@@ -589,13 +608,15 @@ MM::RenderSystem::CommandExecutor::CommandExecutor(RenderEngine* engine)
       InitAllocateCommandBuffers(graph_command_pools, compute_command_pools,
         transform_command_pools, graph_command_buffers, compute_command_buffers,
         transform_command_buffers), return;)
+
+
 }
 
 MM::RenderSystem::CommandExecutor::CommandExecutor(RenderEngine* engine,
     const uint32_t& graph_command_number,
     const uint32_t& compute_command_number,
     const uint32_t& transform_command_number)
-    : render_engine(engine),
+    : render_engine_(engine),
       free_graph_command_buffers_(),
       free_compute_command_buffers_(),
       free_transform_command_buffers_(),
@@ -607,10 +628,17 @@ MM::RenderSystem::CommandExecutor::CommandExecutor(RenderEngine* engine,
       last_run_is_run_one_frame_call_(),
       processing_task_flow_queue_(),
       wait_tasks_(),
-      wait_tasks_mutex_(){
+      wait_tasks_mutex_(),
+      semaphores_() {
   if (engine == nullptr || !engine->IsValid()) {
     LOG_ERROR("Engine is invalid.")
-    render_engine = nullptr;
+    render_engine_ = nullptr;
+    return;
+  }
+
+  if (graph_command_number < 1 || compute_command_number < 1 || transform_command_number < 1) {
+    LOG_ERROR("graph_command_number,compute_command_number and transform_command_number must greater than 1.")
+    render_engine_ = nullptr;
     return;
   }
 
@@ -640,15 +668,42 @@ MM::RenderSystem::CommandExecutor::CommandExecutor(RenderEngine* engine,
                transform_command_pools, graph_command_buffers,
                compute_command_buffers, transform_command_buffers),
            return;)
-}
+
+  MM_CHECK(
+      InitSemaphores(graph_command_number + compute_command_number +
+        transform_command_number, graph_command_pools, compute_command_pools,
+        transform_command_pools),
+        return;)
+  }
 
 MM::RenderSystem::RenderFuture MM::RenderSystem::CommandExecutor::Run(
     CommandTaskFlow& command_task_flow) {
-  command_task_flow.GetTaskNumber()
+  std::uint32_t task_id = Math::Random::GetRandomUint32();
+  std::shared_ptr<ExecuteResult> execute_result{
+      std::make_shared<ExecuteResult>(ExecuteResult::SUCCESS)};
+  std::vector<std::shared_ptr<bool>> complete_states;
+  for (const auto& command_task: command_task_flow.tasks_) {
+    if (command_task->post_tasks_.empty()) {
+      complete_states.emplace_back(std::make_shared<bool>(false));
+    }
+  }
+  {
+    std::lock_guard<std::mutex> guard{task_flow_queue_mutex_};
+    task_flow_queue_.emplace_front(std::move(command_task_flow), task_id,
+                                   execute_result, complete_states);
+  }
+
+  if (!processing_task_flow_queue_) {
+    TaskSystem::Taskflow task_flow;
+    task_flow.emplace([this_object = this]() { this_object->ProcessTask(); });
+    TASK_SYSTEM->Run(TaskSystem::TaskType::Render, task_flow);
+  }
+
+  return RenderFuture{task_id, execute_result, complete_states};
 }
 
 bool MM::RenderSystem::CommandExecutor::IsValid() const {
-  return render_engine != nullptr && GetGraphCommandNumber() != 0 &&
+  return render_engine_ != nullptr && GetGraphCommandNumber() != 0 &&
          GetComputeCommandNumber() != 0 && GetTransformCommandNumber() != 0;
 }
 
@@ -660,19 +715,19 @@ void MM::RenderSystem::CommandExecutor::ClearWhenConstructFailed(
     if (command_pool == nullptr) {
       continue;
     }
-    vkDestroyCommandPool(render_engine->GetDevice(), command_pool, nullptr);
+    vkDestroyCommandPool(render_engine_->GetDevice(), command_pool, nullptr);
   }
   for (auto& command_pool : compute_command_pools) {
     if (command_pool == nullptr) {
       continue;
     }
-    vkDestroyCommandPool(render_engine->GetDevice(), command_pool, nullptr);
+    vkDestroyCommandPool(render_engine_->GetDevice(), command_pool, nullptr);
   }
   for (auto& command_pool : transform_command_pools) {
     if (command_pool == nullptr) {
       continue;
     }
-    vkDestroyCommandPool(render_engine->GetDevice(), command_pool, nullptr);
+    vkDestroyCommandPool(render_engine_->GetDevice(), command_pool, nullptr);
   }
 
   while (!free_graph_command_buffers_.empty()) {
@@ -684,6 +739,12 @@ void MM::RenderSystem::CommandExecutor::ClearWhenConstructFailed(
   while (!free_transform_command_buffers_.empty()) {
     free_transform_command_buffers_.pop();
   }
+
+  while (!semaphores_.empty()) {
+    const VkSemaphore pop_object = semaphores_.top();
+    vkDestroySemaphore(render_engine_->GetDevice(), pop_object, nullptr);
+    semaphores_.pop();
+  }
 }
 
 MM::ExecuteResult MM::RenderSystem::CommandExecutor::InitCommandPolls(
@@ -691,11 +752,11 @@ MM::ExecuteResult MM::RenderSystem::CommandExecutor::InitCommandPolls(
     std::vector<VkCommandPool>& compute_command_pools,
     std::vector<VkCommandPool>& transform_command_pools) {
   VkCommandPoolCreateInfo command_buffer_create_info =
-      Utils::GetCommandPoolCreateInfo(render_engine->GetGraphQueueIndex());
+      Utils::GetCommandPoolCreateInfo(render_engine_->GetGraphQueueIndex());
 
   for (std::uint32_t i = 0; i < graph_command_pools.size(); ++i) {
     VK_CHECK(
-        vkCreateCommandPool(render_engine->GetDevice(), &command_buffer_create_info,
+        vkCreateCommandPool(render_engine_->GetDevice(), &command_buffer_create_info,
                             nullptr, &graph_command_pools[i]),
         LOG_ERROR("Failed to create graph command pool.");
         ClearWhenConstructFailed(graph_command_pools, compute_command_pools,
@@ -704,10 +765,10 @@ MM::ExecuteResult MM::RenderSystem::CommandExecutor::InitCommandPolls(
   }
 
   command_buffer_create_info.queueFamilyIndex =
-      render_engine->GetComputeQueueIndex();
+      render_engine_->GetComputeQueueIndex();
   for (std::uint32_t i = 0; i < compute_command_pools.size(); ++i) {
     VK_CHECK(
-        vkCreateCommandPool(render_engine->GetDevice(),
+        vkCreateCommandPool(render_engine_->GetDevice(),
                             &command_buffer_create_info,
                             nullptr, &compute_command_pools[i]),
         LOG_ERROR("Failed to create compute command pool.");
@@ -717,10 +778,10 @@ MM::ExecuteResult MM::RenderSystem::CommandExecutor::InitCommandPolls(
   }
 
   command_buffer_create_info.queueFamilyIndex =
-      render_engine->GetTransformQueueIndex();
+      render_engine_->GetTransformQueueIndex();
   for (std::uint32_t i = 0; i < transform_command_pools.size(); ++i) {
     VK_CHECK(
-        vkCreateCommandPool(render_engine->GetDevice(),
+        vkCreateCommandPool(render_engine_->GetDevice(),
                             &command_buffer_create_info,
                             nullptr, &transform_command_pools[i]),
         LOG_ERROR("Failed to create transform command pool.");
@@ -745,7 +806,7 @@ MM::ExecuteResult MM::RenderSystem::CommandExecutor::InitCommandBuffers(
   for (std::uint32_t i = 0; i < graph_command_buffers.size(); ++i) {
     command_buffer_allocate_info.commandPool = graph_command_pools[i];
     VK_CHECK(
-        vkAllocateCommandBuffers(render_engine->GetDevice(),
+        vkAllocateCommandBuffers(render_engine_->GetDevice(),
                                  &command_buffer_allocate_info,
                                  graph_command_buffers.data()),
         LOG_ERROR("Failed to allocate graph command buffers.");
@@ -757,7 +818,7 @@ MM::ExecuteResult MM::RenderSystem::CommandExecutor::InitCommandBuffers(
   for (std::uint32_t i = 0; i < compute_command_buffers.size(); ++i) {
     command_buffer_allocate_info.commandPool = compute_command_pools[i];
     VK_CHECK(
-        vkAllocateCommandBuffers(render_engine->GetDevice(),
+        vkAllocateCommandBuffers(render_engine_->GetDevice(),
                                  &command_buffer_allocate_info,
                                  compute_command_buffers.data()),
         LOG_ERROR("Failed to allocate compute command buffers.");
@@ -769,7 +830,7 @@ MM::ExecuteResult MM::RenderSystem::CommandExecutor::InitCommandBuffers(
   for (std::uint32_t i = 0; i < transform_command_buffers.size(); ++i) {
     command_buffer_allocate_info.commandPool = transform_command_pools[i];
     VK_CHECK(
-        vkAllocateCommandBuffers(render_engine->GetDevice(),
+        vkAllocateCommandBuffers(render_engine_->GetDevice(),
                                  &command_buffer_allocate_info,
                                  transform_command_buffers.data()),
         LOG_ERROR("Failed to allocate transform command buffers.");
@@ -791,8 +852,8 @@ MM::ExecuteResult MM::RenderSystem::CommandExecutor::InitAllocateCommandBuffers(
   for (std::uint32_t i = 0; i < graph_command_buffers.size(); ++i) {
     free_graph_command_buffers_.push(
         std::make_unique<AllocatedCommandBuffer>(
-            render_engine, render_engine->GetGraphQueueIndex(),
-            render_engine->GetGraphQueue(), graph_command_pools[i],
+            render_engine_, render_engine_->GetGraphQueueIndex(),
+            render_engine_->GetGraphQueue(), graph_command_pools[i],
             graph_command_buffers[i]));
     graph_command_pools[i] = nullptr;
 
@@ -807,8 +868,8 @@ MM::ExecuteResult MM::RenderSystem::CommandExecutor::InitAllocateCommandBuffers(
   for (std::uint32_t i = 0; i < compute_command_buffers.size(); ++i) {
     free_compute_command_buffers_.push(
         std::make_unique<AllocatedCommandBuffer>(
-            render_engine, render_engine->GetComputeQueueIndex(),
-            render_engine->GetComputeQueue(), compute_command_pools[i],
+            render_engine_, render_engine_->GetComputeQueueIndex(),
+            render_engine_->GetComputeQueue(), compute_command_pools[i],
             compute_command_buffers[i]));
     compute_command_pools[i] = nullptr;
 
@@ -823,8 +884,8 @@ MM::ExecuteResult MM::RenderSystem::CommandExecutor::InitAllocateCommandBuffers(
   for (std::uint32_t i = 0; i < transform_command_buffers.size(); ++i) {
     free_transform_command_buffers_.push(
         std::make_unique<AllocatedCommandBuffer>(
-            render_engine, render_engine->GetTransformQueueIndex(),
-            render_engine->GetTransformQueue(), transform_command_pools[i],
+            render_engine_, render_engine_->GetTransformQueueIndex(),
+            render_engine_->GetTransformQueue(), transform_command_pools[i],
             transform_command_buffers[i]));
     transform_command_pools[i] = nullptr;
 
@@ -839,11 +900,142 @@ MM::ExecuteResult MM::RenderSystem::CommandExecutor::InitAllocateCommandBuffers(
   return ExecuteResult::SUCCESS;
 }
 
-bool MM::RenderSystem::CommandExecutor::ExecutingCommandBuffer::
+MM::ExecuteResult MM::RenderSystem::CommandExecutor::InitSemaphores(
+    const std::uint32_t& need_semaphore_number,
+    std::vector<VkCommandPool>& graph_command_pools,
+    std::vector<VkCommandPool>& compute_command_pools,
+    std::vector<VkCommandPool>& transform_command_pools) {
+  const VkSemaphoreCreateInfo semaphore_create_info =
+      Utils::GetSemaphoreCreateInfo();
+  VkSemaphore new_semaphore{nullptr};
+  for (std::uint32_t i = 0; i < need_semaphore_number; ++i) {
+    VK_CHECK(
+        vkCreateSemaphore(render_engine_->GetDevice(), &semaphore_create_info,
+                          nullptr, &new_semaphore),
+        LOG_ERROR("Failed to create VkSemaphore.");
+        ClearWhenConstructFailed(graph_command_pools, compute_command_pools,
+                                 transform_command_pools);
+        return ExecuteResult::INITIALIZATION_FAILED;)
+
+    semaphores_.push(new_semaphore);
+  }
+}
+
+MM::RenderSystem::CommandExecutor::CommandTaskFlowToBeRun::
+CommandTaskFlowToBeRun(CommandTaskFlow&& command_task_flow,
+    const std::uint32_t& task_flow_ID,
+    const std::shared_ptr<ExecuteResult>& execute_result,
+    const std::vector<std::shared_ptr<bool>>& is_completes) : command_task_flow_(std::move(command_task_flow)), task_flow_ID_(task_flow_ID), execute_result_(execute_result) {
+  for (const auto& is_complete: is_completes) {
+    is_completes_.push(is_complete);
+  }
+}
+
+bool MM::RenderSystem::CommandExecutor::ExecutingTask::
 IsComplete() const {
   VK_CHECK(vkGetFenceStatus(render_engine_->GetDevice(),
                             command_buffers_[0]->GetFence()),
-           return false);
+           return false)
   return true;
+}
+
+void MM::RenderSystem::CommandExecutor::ProcessCompleteTask() {
+  for (auto executing_command_buffer = executing_graph_command_buffers_.begin();
+       executing_command_buffer != executing_graph_command_buffers_.end();
+       ++executing_command_buffer) {
+    if (executing_command_buffer->IsComplete()) {
+      if (executing_command_buffer->is_complete_.has_value()) {
+        if (!executing_command_buffer->is_complete_.value().expired()) {
+          *(executing_command_buffer->is_complete_.value().lock()) = true;
+        }
+      }
+      for (auto& complete_buffer : executing_command_buffer->command_buffers_) {
+        free_graph_command_buffers_.push(std::move(complete_buffer));
+      }
+      if (executing_command_buffer->signal_semaphore_ != nullptr) {
+        semaphores_.push(executing_command_buffer->signal_semaphore_);
+      }
+      executing_graph_command_buffers_.erase(executing_command_buffer);
+    }
+  }
+
+  for (auto executing_command_buffer =
+           executing_compute_command_buffers_.begin();
+       executing_command_buffer != executing_compute_command_buffers_.end();
+       ++executing_command_buffer) {
+    if (executing_command_buffer->IsComplete()) {
+      if (executing_command_buffer->is_complete_.has_value()) {
+        if (!executing_command_buffer->is_complete_.value().expired()) {
+          *(executing_command_buffer->is_complete_.value().lock()) = true;
+        }
+      }
+      for (auto& complete_buffer : executing_command_buffer->command_buffers_) {
+        free_compute_command_buffers_.push(std::move(complete_buffer));
+      }
+      if (executing_command_buffer->signal_semaphore_ != nullptr) {
+        semaphores_.push(executing_command_buffer->signal_semaphore_);
+      }
+      executing_compute_command_buffers_.erase(executing_command_buffer);
+    }
+  }
+
+  for (auto executing_command_buffer =
+           executing_transform_command_buffers_.begin();
+       executing_command_buffer != executing_transform_command_buffers_.end();
+       ++executing_command_buffer) {
+    if (executing_command_buffer->IsComplete()) {
+      if (executing_command_buffer->is_complete_.has_value()) {
+        if (!executing_command_buffer->is_complete_.value().expired()) {
+          *(executing_command_buffer->is_complete_.value().lock()) = true;
+        }
+      }
+      for (auto& complete_buffer : executing_command_buffer->command_buffers_) {
+        free_transform_command_buffers_.push(std::move(complete_buffer));
+      }
+      if (executing_command_buffer->signal_semaphore_ != nullptr) {
+        semaphores_.push(executing_command_buffer->signal_semaphore_);
+      }
+      executing_transform_command_buffers_.erase(executing_command_buffer);
+    }
+  }
+}
+
+void MM::RenderSystem::CommandExecutor::ProcessTask() {
+  do {
+    ProcessCompleteTask();
+
+    std::unique_lock<std::mutex> guard{task_flow_queue_mutex_};
+    if (!task_flow_queue_.empty()) {
+      CommandTaskFlowToBeRun command_task_flow = std::move(task_flow_queue_.back());
+      task_flow_queue_.erase(--task_flow_queue_.end());
+      guard.unlock();
+
+      std::set<CommandTask*> task_that_have_already_been_accessed;
+      std::set<CommandTask*> submitted_task;
+      std::list<CommandTask*> can_be_submitted_task;
+      std::list<CommandTask*> pre_task_not_submit_task;
+
+      for (const auto& root_task: command_task_flow.command_task_flow_.root_tasks_) {
+        can_be_submitted_task.emplace_back(root_task);
+        task_that_have_already_been_accessed.emplace(root_task); // deletable
+        for (const auto& sub_task : root_task) {
+          if (task_that_have_already_been_accessed.find(sub_task) != task_that_have_already_been_accessed.end()) {
+            pre_task_not_submit_task.emplace_back(sub_task); 
+          }
+        }
+      }
+
+      while (!can_be_submitted_task.empty()) {
+        
+      }
+    }
+
+    std::this_thread::sleep_for(std::chrono::nanoseconds(100000));
+  } while (executing_graph_command_buffers_.empty() &&
+           executing_compute_command_buffers_.empty() &&
+           executing_transform_command_buffers_.empty() && task_flow_queue_.
+           empty());
+
+  processing_task_flow_queue_ = false;
 }
 

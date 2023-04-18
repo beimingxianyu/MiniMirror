@@ -1,6 +1,7 @@
 #pragma once
 
 #include "runtime/function/render/vk_utils.h"
+#include "runtime/function/render/vk_type.h"
 
 namespace MM {
 namespace RenderSystem {
@@ -172,7 +173,10 @@ private:
 
   void RemoveRootTask(const CommandTask& command_task);
 
+  [[deprecated]]
   void GetCommandTaskEdges(std::vector<CommandTaskEdge>& command_task_edges) const;
+
+  std::vector<CommandTaskEdge> GetCommandTaskEdges() const;
 
  private:
   std::vector<CommandTask*> root_tasks_{};
@@ -250,8 +254,23 @@ void CommandTask::IsPostTaskTo(CommandTasks&&... command_tasks) {
 }
 
 class RenderFuture {
+public:
+  RenderFuture() = delete;
+  RenderFuture(const std::uint32_t& task_flow_ID,
+               const std::shared_ptr<ExecuteResult>& future_execute_result,
+               const std::vector<std::shared_ptr<bool>>& command_complete_states);
+  ~RenderFuture() = default;
+  RenderFuture(const RenderFuture& other) = default;
+  RenderFuture(RenderFuture&& other) noexcept = default;
+  RenderFuture& operator=(const RenderFuture& other) = default;
+  RenderFuture& operator=(RenderFuture&& other) noexcept = default;
+
+public:
+  ExecuteResult Get();
 
 private:
+  std::uint32_t task_flow_ID_{0};
+  std::shared_ptr<ExecuteResult> execute_result_{};
   std::vector<std::shared_ptr<bool>> command_complete_states_{};
 };
 
@@ -333,40 +352,56 @@ private:
       std::vector<VkCommandBuffer>& compute_command_buffers,
       std::vector<VkCommandBuffer>& transform_command_buffers);
 
+  ExecuteResult InitSemaphores(
+      const std::uint32_t& need_semaphore_number,
+      std::vector<VkCommandPool>& graph_command_pools,
+      std::vector<VkCommandPool>& compute_command_pools,
+      std::vector<VkCommandPool>& transform_command_pools);
+
   struct CommandTaskFlowToBeRun {
-    CommandTaskFlowToBeRun(CommandTaskFlow&& command_task_flow);
+    CommandTaskFlowToBeRun() = delete;
+    CommandTaskFlowToBeRun(
+        CommandTaskFlow&& command_task_flow, const std::uint32_t& task_flow_ID,
+        const std::shared_ptr<ExecuteResult>& execute_result,
+        const std::vector<std::shared_ptr<bool>>& is_completes);
 
     CommandTaskFlow command_task_flow_{};
     std::uint32_t task_flow_ID_{0};
-    std::shared_ptr<ExecuteResult> execute_result_{};
-
+    std::weak_ptr<ExecuteResult> execute_result_{};
+    std::stack<std::weak_ptr<bool>> is_completes_{};
   };
 
-  struct ExecutingCommandBuffer {
+  struct ExecutingTask {
+    ExecutingTask() = delete;
+
     RenderEngine* render_engine_;
     std::vector<std::unique_ptr<AllocatedCommandBuffer>> command_buffers_;
     CommandType command_type_;
     CommandTaskFlow command_task_flow_{};
-    std::uint32_t task_flow_ID_{0};
-    std::shared_ptr<ExecuteResult> execute_result_{};
-    std::weak_ptr<bool> is_complete_{};
+    std::weak_ptr<ExecuteResult> execute_result_{};
+    std::optional<std::weak_ptr<bool>> is_complete_{};
+
+    VkSemaphore wait_semaphore_;
+    VkSemaphore signal_semaphore_;
 
     bool IsComplete() const;
   };
 
+  void ProcessCompleteTask();
+
   void ProcessTask();
 
  private:
-  RenderEngine* render_engine{nullptr};
+  RenderEngine* render_engine_{nullptr};
   std::stack<std::unique_ptr<AllocatedCommandBuffer>> free_graph_command_buffers_{};
   std::stack<std::unique_ptr<AllocatedCommandBuffer>> free_compute_command_buffers_{};
   std::stack<std::unique_ptr<AllocatedCommandBuffer>> free_transform_command_buffers_{};
 
-  std::list<AllocatedCommandBuffer> executing_graph_command_buffers_{};
-  std::list<AllocatedCommandBuffer> executing_compute_command_buffers_{};
-  std::list<AllocatedCommandBuffer> executing_transform_command_buffers_{};
+  std::list<ExecutingTask> executing_graph_command_buffers_{};
+  std::list<ExecutingTask> executing_compute_command_buffers_{};
+  std::list<ExecutingTask> executing_transform_command_buffers_{};
 
-  std::list<CommandTaskFlow> task_flow_queue_{};
+  std::list<CommandTaskFlowToBeRun> task_flow_queue_{};
   std::mutex task_flow_queue_mutex_{};
 
   bool last_run_is_run_one_frame_call_{false};
@@ -374,6 +409,8 @@ private:
 
   std::list<std::uint32_t> wait_tasks_;
   std::shared_mutex wait_tasks_mutex_{};
+
+  std::stack<VkSemaphore> semaphores_;
 };
 }  // namespace RenderSystem
 }  // namespace MM

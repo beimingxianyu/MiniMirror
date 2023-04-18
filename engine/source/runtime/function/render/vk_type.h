@@ -35,6 +35,12 @@ struct SwapChainSupportDetails {
   std::vector<VkPresentModeKHR> presentModes_{};
 };
 
+struct SemaphoreDestructor {
+  void operator()(VkSemaphore* value);
+
+  RenderEngine* render_engine_;
+};
+
 struct RenderResourceManageInfo {
   bool use_to_write{false};
   bool is_shared_{true};
