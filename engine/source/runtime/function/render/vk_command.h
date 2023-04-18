@@ -144,13 +144,13 @@ class CommandTaskFlow {
       const std::vector<WaitSemaphore>& wait_semaphores,
       const std::vector<VkSemaphore>& signal_semaphores);
 
-  std::uint32_t GetTaskCount() const;
+  std::uint32_t GetTaskNumber() const;
 
-  std::uint32_t GetGraphCount() const;
+  std::uint32_t GetGraphNumber() const;
 
-  std::uint32_t GetComputeCount() const;
+  std::uint32_t GetComputeNumber() const;
 
-  std::uint32_t GetTransformCount() const;
+  std::uint32_t GetTransformNumber() const;
 
   bool IsRootTask(const CommandTask& command_task) const;
 
@@ -199,6 +199,8 @@ public:
 
   const std::vector<std::function<ExecuteResult(AllocatedCommandBuffer& cmd)>>&
   GetCommands() const;
+
+  std::uint32_t GetUsedCommandBufferNumber() const;
 
   const std::vector<WaitSemaphore>& GetWaitSemaphore() const;
 
@@ -341,21 +343,24 @@ private:
   };
 
   struct ExecutingCommandBuffer {
-    AllocatedCommandBuffer command_buffer_;
+    RenderEngine* render_engine_;
+    std::vector<std::unique_ptr<AllocatedCommandBuffer>> command_buffers_;
     CommandType command_type_;
     CommandTaskFlow command_task_flow_{};
     std::uint32_t task_flow_ID_{0};
     std::shared_ptr<ExecuteResult> execute_result_{};
     std::weak_ptr<bool> is_complete_{};
+
+    bool IsComplete() const;
   };
 
   void ProcessTask();
 
  private:
   RenderEngine* render_engine{nullptr};
-  std::list<AllocatedCommandBuffer> free_graph_command_buffers_{};
-  std::list<AllocatedCommandBuffer> free_compute_command_buffers_{};
-  std::list<AllocatedCommandBuffer> free_transform_command_buffers_{};
+  std::stack<std::unique_ptr<AllocatedCommandBuffer>> free_graph_command_buffers_{};
+  std::stack<std::unique_ptr<AllocatedCommandBuffer>> free_compute_command_buffers_{};
+  std::stack<std::unique_ptr<AllocatedCommandBuffer>> free_transform_command_buffers_{};
 
   std::list<AllocatedCommandBuffer> executing_graph_command_buffers_{};
   std::list<AllocatedCommandBuffer> executing_compute_command_buffers_{};
@@ -366,6 +371,9 @@ private:
 
   bool last_run_is_run_one_frame_call_{false};
   std::atomic_bool processing_task_flow_queue_{false};
+
+  std::list<std::uint32_t> wait_tasks_;
+  std::shared_mutex wait_tasks_mutex_{};
 };
 }  // namespace RenderSystem
 }  // namespace MM
