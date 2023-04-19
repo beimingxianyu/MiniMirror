@@ -93,9 +93,9 @@ public:
     throw std::runtime_error(format_str);
   }
 
-  ExecuteResult CheckResult(ExecuteResult result) const;
+  ExecuteResult CheckResult(ExecuteResult result, const std::string& log_prefix) const;
 
-  ExecuteResult CheckMultipleResult(ExecuteResult result) const;
+  ExecuteResult CheckMultipleResult(ExecuteResult result, const std::string& log_prefix) const;
 
 private:
   /**

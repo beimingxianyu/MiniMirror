@@ -43,6 +43,8 @@ enum class MemoryOperate { READ, WRITE, READ_AND_WRITE, UNDEFINED };
 enum class CommandBufferType { GRAPH, COMPUTE, TRANSFORM, UNDEFINED };
 
 namespace Utils {
+ExecuteResult VkResultToMMResult(VkResult vk_result);
+
 // TODO Add default value annotations for various functions that obtain creation information, such as the \ref GetSamplerCreateInfo function.
 VkCommandPoolCreateInfo GetCommandPoolCreateInfo(
     const uint32_t& queue_family_index, const VkCommandPoolCreateFlags& flags = 0);

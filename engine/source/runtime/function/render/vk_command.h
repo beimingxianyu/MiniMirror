@@ -358,17 +358,37 @@ private:
       std::vector<VkCommandPool>& compute_command_pools,
       std::vector<VkCommandPool>& transform_command_pools);
 
+  ExecuteResult AddCommandBuffer(const CommandType& command_type,
+                                 const std::uint32_t& new_command_buffer_num);
+
   struct CommandTaskFlowToBeRun {
     CommandTaskFlowToBeRun() = delete;
     CommandTaskFlowToBeRun(
         CommandTaskFlow&& command_task_flow, const std::uint32_t& task_flow_ID,
         const std::shared_ptr<ExecuteResult>& execute_result,
         const std::vector<std::shared_ptr<bool>>& is_completes);
+    CommandTaskFlowToBeRun(const CommandTaskFlowToBeRun& other) = delete;
+    CommandTaskFlowToBeRun(CommandTaskFlowToBeRun&& other) noexcept;
+    CommandTaskFlowToBeRun& operator=(const CommandTaskFlowToBeRun& other) = delete;
+    CommandTaskFlowToBeRun& operator=(CommandTaskFlowToBeRun&& other) noexcept;
 
     CommandTaskFlow command_task_flow_{};
     std::uint32_t task_flow_ID_{0};
     std::weak_ptr<ExecuteResult> execute_result_{};
     std::stack<std::weak_ptr<bool>> is_completes_{};
+  };
+
+  struct CommandTaskToBeSubmit {
+    CommandTaskToBeSubmit(
+        CommandTask* command_task,
+        const std::vector<VkSemaphore>& default_wait_semaphore,
+        const VkSemaphore& default_signal_semaphore);
+
+    CommandTask* command_task_;
+    std::vector<VkSemaphore> default_wait_semaphore_{};
+    VkSemaphore default_signal_semaphore_{nullptr};
+
+    bool operator<(const CommandTaskToBeSubmit& other) const;
   };
 
   struct ExecutingTask {
@@ -381,11 +401,13 @@ private:
     std::weak_ptr<ExecuteResult> execute_result_{};
     std::optional<std::weak_ptr<bool>> is_complete_{};
 
-    VkSemaphore wait_semaphore_;
+    std::vector<VkSemaphore> wait_semaphore_;
     VkSemaphore signal_semaphore_;
 
     bool IsComplete() const;
   };
+
+  VkSemaphore GetSemaphore();
 
   void ProcessCompleteTask();
 
@@ -408,7 +430,7 @@ private:
   std::atomic_bool processing_task_flow_queue_{false};
 
   std::list<std::uint32_t> wait_tasks_;
-  std::shared_mutex wait_tasks_mutex_{};
+  std::mutex wait_tasks_mutex_{};
 
   std::stack<VkSemaphore> semaphores_;
 };

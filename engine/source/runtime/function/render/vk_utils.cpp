@@ -6,6 +6,32 @@
 #include "runtime/function/render/vk_engine.h"
 #include "utils/marco.h"
 
+MM::ExecuteResult MM::RenderSystem::Utils::VkResultToMMResult(
+    VkResult vk_result) {
+  ExecuteResult MM_result = ExecuteResult::SUCCESS;
+  switch (vk_result) {
+    case VK_SUCCESS:
+      MM_result = ExecuteResult::SUCCESS;
+      break;
+    case VK_TIMEOUT:
+      MM_result = ExecuteResult::TIMEOUT;
+      break;
+    case VK_ERROR_OUT_OF_HOST_MEMORY:
+      MM_result = ExecuteResult::OUT_OF_HOST_MEMORY;
+      break;
+    case VK_ERROR_OUT_OF_DEVICE_MEMORY:
+      MM_result = ExecuteResult::OUT_OF_DEVICE_MEMORY;
+      break;
+    case VK_ERROR_INITIALIZATION_FAILED:
+      MM_result = ExecuteResult::INITIALIZATION_FAILED;
+      break;
+    default:
+      MM_result = ExecuteResult::UNDEFINED_ERROR;
+  }
+
+  return MM_result;
+}
+
 VkCommandPoolCreateInfo MM::RenderSystem::Utils::GetCommandPoolCreateInfo(
     const uint32_t& queue_family_index, const VkCommandPoolCreateFlags& flags) {
   VkCommandPoolCreateInfo info = {};

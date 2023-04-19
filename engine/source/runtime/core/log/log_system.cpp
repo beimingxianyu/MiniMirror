@@ -63,100 +63,120 @@ void MM::LogSystem::LogSystem::SetLevel(const LogLevel& level) {
 }
 
 MM::ExecuteResult MM::LogSystem::LogSystem::CheckResult(
-    ExecuteResult result) const {
+    ExecuteResult result, const std::string& log_prefix) const {
   switch (result) {
     case ExecuteResult::SUCCESS:
       break;
     case ExecuteResult::UNDEFINED_ERROR:
-      LogError("Undefined error.");
+      LogError(log_prefix + "Undefined error.");
       break;
     case ExecuteResult::OUT_OF_HOST_MEMORY:
-      LogError("Out of host memory.");
+      LogError(log_prefix + "Out of host memory.");
       break;
     case ExecuteResult::OUT_OF_DEVICE_MEMORY:
-      LogError("Out of device memory.");
+      LogError(log_prefix + "Out of device memory.");
       break;
     case ExecuteResult::OBJECT_IS_INVALID:
-      LogError("Object is invalid");
+      LogError(log_prefix + "Object is invalid");
       break;
     case ExecuteResult::NO_SUCH_CONFIG:
-      LogError("The desired setting does not exist.");
+      LogError(log_prefix + "The desired setting does not exist.");
       break;
     case ExecuteResult::TYPE_CONVERSION_FAILED:
-      LogError("Type conversion failed");
+      LogError(log_prefix + "Type conversion failed");
       break;
     case ExecuteResult::INITIALIZATION_FAILED:
-      LogError("Initialization failed.");
+      LogError(log_prefix + "Initialization failed.");
       break;
     case ExecuteResult::LOAD_CONFIG_FROM_FILE_FAILED:
-      LogError("Failed to load config from file.");
+      LogError(log_prefix + "Failed to load config from file.");
       break;
     case ExecuteResult::FILE_IS_NOT_EXIST:
-      LogError("File is not exist.");
+      LogError(log_prefix + "File is not exist.");
       break;
     case ExecuteResult::DESTROY_FAILED:
-      LogError("Failed to destroy object.");
+      LogError(log_prefix + "Failed to destroy object.");
       break;
     case ExecuteResult::PARENT_OBJECT_NOT_CONTAIN_SPECIFIC_CHILD_OBJECT:
-      LogError("The parent object does not contain specific child objects.");
+      LogError(log_prefix +
+               "The parent object does not contain specific child objects.");
+      break;
+    case ExecuteResult::RENDER_COMMAND_RECORD_OR_SUBMIT_FAILED:
+      LogError(log_prefix + "Failed to submit or record render command.");
+      break;
+    case ExecuteResult::INPUT_PARAMETERS_ARE_INCORRECT:
+      LogError(log_prefix + "The input parameters are incorrect.");
+      break;
+    case ExecuteResult::TIMEOUT:
+      LogError(log_prefix + "The operation timed out.");
+      break;
   }
 
   return result;
 }
 
 MM::ExecuteResult MM::LogSystem::LogSystem::CheckMultipleResult(
-    ExecuteResult result) const {
+    ExecuteResult result, const std::string& log_prefix) const {
   if ((result & ExecuteResult::SUCCESS) == ExecuteResult::SUCCESS) {
     return result;
   }
-  if ((result & ExecuteResult::UNDEFINED_ERROR) ==
-      ExecuteResult::UNDEFINED_ERROR) {
-    LogError("Undefined error.");
+  if ((result & ExecuteResult::UNDEFINED_ERROR) == ExecuteResult::UNDEFINED_ERROR) {
+    LogError(log_prefix + "Undefined error.");
   }
   if ((result & ExecuteResult::OUT_OF_HOST_MEMORY) ==
       ExecuteResult::OUT_OF_HOST_MEMORY) {
-    LogError("Out of host memory.");
+    LogError(log_prefix + "Out of host memory.");
   }
   if ((result & ExecuteResult::OUT_OF_DEVICE_MEMORY) ==
       ExecuteResult::OUT_OF_DEVICE_MEMORY) {
-    LogError("Out of device memory.");
+    LogError(log_prefix + "Out of device memory.");
   }
   if ((result & ExecuteResult::OBJECT_IS_INVALID) ==
       ExecuteResult::OBJECT_IS_INVALID) {
-    LogError("Object is invalid");
+    LogError(log_prefix + "Object is invalid");
   }
   if ((result & ExecuteResult::NO_SUCH_CONFIG) ==
       ExecuteResult::NO_SUCH_CONFIG) {
-    LogError("The desired setting does not exist.");
+    LogError(log_prefix + "The desired setting does not exist.");
   }
   if ((result & ExecuteResult::TYPE_CONVERSION_FAILED) ==
       ExecuteResult::TYPE_CONVERSION_FAILED) {
-    LogError("Type conversion failed");
+    LogError(log_prefix + "Type conversion failed");
   }
   if ((result & ExecuteResult::INITIALIZATION_FAILED) ==
       ExecuteResult::INITIALIZATION_FAILED) {
-    LogError("Initialization failed.");
+    LogError(log_prefix + "Initialization failed.");
   }
   if ((result & ExecuteResult::LOAD_CONFIG_FROM_FILE_FAILED) ==
       ExecuteResult::LOAD_CONFIG_FROM_FILE_FAILED) {
-    LogError("Failed to load config from file.");
+    LogError(log_prefix + "Failed to load config from file.");
   }
   if ((result & ExecuteResult::FILE_IS_NOT_EXIST) ==
       ExecuteResult::FILE_IS_NOT_EXIST) {
-    LogError("File is not exist.");
+    LogError(log_prefix + "File is not exist.");
   }
   if ((result & ExecuteResult::DESTROY_FAILED) ==
       ExecuteResult::DESTROY_FAILED) {
-    LogError("Failed to destroy object.");
+    LogError(log_prefix + "Failed to destroy object.");
   }
   if ((result &
        ExecuteResult::PARENT_OBJECT_NOT_CONTAIN_SPECIFIC_CHILD_OBJECT) ==
       ExecuteResult::PARENT_OBJECT_NOT_CONTAIN_SPECIFIC_CHILD_OBJECT) {
-    LogError("The parent object does not contain specific child objects.");
+    LogError(log_prefix +
+             "The parent object does not contain specific child objects.");
   }
-  if ((result & ExecuteResult::RENDER_COMMAND_RECORD_OR_SUBMIT_FAILED) == ExecuteResult::RENDER_COMMAND_RECORD_OR_SUBMIT_FAILED) {
-    LogError("Failed to record or submit render command.")
+  if ((result & ExecuteResult::RENDER_COMMAND_RECORD_OR_SUBMIT_FAILED) ==
+      ExecuteResult::RENDER_COMMAND_RECORD_OR_SUBMIT_FAILED) {
+    LogError(log_prefix + "Failed to record or submit render command.");
   }
+  if ((result & ExecuteResult::INPUT_PARAMETERS_ARE_INCORRECT) ==
+      ExecuteResult::INPUT_PARAMETERS_ARE_INCORRECT) {
+    LogError(log_prefix + "The input parameters are incorrect.");
+  }
+  if ((result & ExecuteResult::TIMEOUT) == ExecuteResult::TIMEOUT) {
+    LogError(log_prefix + "The operation timed out.");
+  }
+
   return result;
 }
 

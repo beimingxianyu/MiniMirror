@@ -8,6 +8,15 @@ namespace Utils {
 
 #define MM_CAT(a, b) MM_CAT_IMP(a, b)
 
+#define CODE_LOCATION_IMP_IMP(line)                                    \
+  (std::string("[File:") + __FILE__ + " || Function:" + __FUNCTION__ + \
+   " || Line:" + #line + "]")
+
+#define CODE_LOCATION_IMP(line) CODE_LOCATION_IMP_IMP(line)
+
+#define CODE_LOCATION CODE_LOCATION_IMP(__LINE__)
+
+
 #define CONFIG_SYSTEM config_system
 
 #define IMPORT_CONFIG_SYSTEM                            \
@@ -32,9 +41,8 @@ namespace Utils {
   inline MM::LogSystem::LogSystem* LOG_SYSTEM{ \
       MM::LogSystem::LogSystem::GetInstance()};
 
-#define LOG(log_level, ...)                                                 \
-  LOG_SYSTEM->Log(log_level, std::string("[") + std::string(__FUNCTION__) + \
-                                 "]" + __VA_ARGS__);
+#define LOG(log_level, ...)                                      \
+  LOG_SYSTEM->Log(log_level, CODE_LOCATION + __VA_ARGS__);
 
 #define LOG_DEBUG(...) \
   LOG(MM::LogSystem::LogSystem::LogLevel::Debug, __VA_ARGS__);
@@ -53,23 +61,23 @@ namespace Utils {
 
 #define RESULT_CODE __MM__result_code_name
 
-#define MM_CHECK(executor, failed_callback)                              \
-  if (MM::ExecuteResult RESULT_CODE = LOG_SYSTEM->CheckResult(executor); \
-      RESULT_CODE != MM::ExecuteResult::SUCCESS) {                       \
-    failed_callback                                                      \
+#define MM_CHECK(executor, failed_callback)                \
+  {                                                        \
+    if (ExecuteResult RESULT_CODE = executor;              \
+        RESULT_CODE != MM::ExecuteResult::SUCCESS) {       \
+      LOG_SYSTEM->CheckResult(RESULT_CODE, CODE_LOCATION); \
+      failed_callback                                      \
+    }                                                      \
   }
-
-#define MM_MULTIPLE_CHECK(executor, failed_callback) \
-  if (MM::ExecuteResult RESULT_CODE =                \
-          LOG_SYSTEM->CheckMultipleResult(executor); \
-      RESULT_CODE != MM::ExecuteResult::SUCCESS) {   \
-    failed_callback                                  \
+#define MM_MULTIPLE_CHECK(executor, failed_callback)            \
+  {                                                             \
+    if (ExecuteResult RESULT_CODE = executor;                   \
+        RESULT_CODE != MM::ExecuteResult::SUCCESS) {             \
+      LOG_SYSTEM->CheckMultipleResult(RESULT_CODE, CODE_LOCATION); \
+      failed_callback                                           \
+    }                                                           \
   }
-
-#define ERROR_CODE_EQUAL(result, target_error_code, failed_callback) \
-  if (result == (target_error_code)) {                               \
-    failed_callback                                                  \
-  }
+#define MM_RESULT_CODE_EQUAL(result, target_error_code) (result) == (target_error_code)
 
 #define ASSET_SYSTEM asset_system
 
@@ -77,10 +85,14 @@ namespace Utils {
   inline MM::AssetSystem::AssetSystem* ASSET_SYSTEM{ \
       MM::AssetSystem::AssetSystem::GetInstance()};
 
+#define VK_RESULT_CODE __MM_vk_result_code_name
+
 // TODO 添加对各种情况的警告（如内存不足）
-#define VK_CHECK(vk_executor, failed_callback) \
-  if (vk_executor != VK_SUCCESS) {             \
-    failed_callback;                           \
+#define VK_CHECK(vk_executor, failed_callback)                                 \
+  {                                                                            \
+    if (VkResult VK_RESULT_CODE = vk_executor; VK_RESULT_CODE != VK_SUCCESS) { \
+      failed_callback;                                                         \
+    }                                                                          \
   }
 
 }  // namespace Utils
