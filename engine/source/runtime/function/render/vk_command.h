@@ -204,6 +204,8 @@ public:
   const std::vector<std::function<ExecuteResult(AllocatedCommandBuffer& cmd)>>&
   GetCommands() const;
 
+  std::uint32_t GetRequireCommandBufferNumber() const;
+
   std::uint32_t GetUsedCommandBufferNumber() const;
 
   const std::vector<WaitSemaphore>& GetWaitSemaphore() const;
@@ -295,11 +297,11 @@ public:
 
   std::uint32_t GetTransformCommandNumber() const;
 
-  std::uint32_t GetUsableGraphCommandNumber() const;
+  std::uint32_t GetFreeGraphCommandNumber() const;
 
-  std::uint32_t GetUsableComputeCommandNumber() const;
+  std::uint32_t GetFreeComputeCommandNumber() const;
 
-  std::uint32_t GetUsableTransformCommandNumber() const;
+  std::uint32_t GetFreeTransformCommandNumber() const;
 
   ExecuteResult ResetCommandPool(const CommandBufferType& command_type);
 
@@ -393,11 +395,18 @@ private:
 
   struct ExecutingTask {
     ExecutingTask() = delete;
+    ExecutingTask(RenderEngine* engine,
+                  std::vector<std::unique_ptr<AllocatedCommandBuffer>>&&
+                      command_buffer,
+                  CommandTask*& command_task,
+                  const std::shared_ptr<ExecuteResult>& execute_result,
+                  const std::shared_ptr<bool>& is_complete,
+                  std::vector<VkSemaphore>&& wait_semaphore,
+                  const VkSemaphore& signal_semaphore);
 
     RenderEngine* render_engine_;
     std::vector<std::unique_ptr<AllocatedCommandBuffer>> command_buffers_;
-    CommandType command_type_;
-    CommandTaskFlow command_task_flow_{};
+    CommandTask* command_task_{};
     std::weak_ptr<ExecuteResult> execute_result_{};
     std::optional<std::weak_ptr<bool>> is_complete_{};
 
@@ -410,6 +419,11 @@ private:
   VkSemaphore GetSemaphore();
 
   void ProcessCompleteTask();
+
+  void ProcessWaitTask();
+
+  void ProcessRequireCommandBufferNumberLagerThanExecutorHaveCommandBufferNumber(
+      const CommandTaskFlowToBeRun& command_task_flow, bool& skip_task_flow);
 
   void ProcessTask();
 
