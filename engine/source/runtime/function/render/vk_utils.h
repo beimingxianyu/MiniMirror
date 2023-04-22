@@ -11,6 +11,7 @@ namespace MM {
 namespace RenderSystem {
 class AllocatedImage;
 class AllocatedBuffer;
+class AllocatedCommandBuffer;
 class RenderEngine;
 class BufferChunkInfo;
 
@@ -85,7 +86,13 @@ VkFenceCreateInfo GetFenceCreateInfo(const VkFenceCreateFlags& flags = 0);
 
 VkFence GetVkFence(const VkDevice& device, const bool& is_signaled = false);
 
+[[deprecated]]
 VkSubmitInfo GetCommandSubmitInfo(const VkCommandBuffer& command_buffer, const uint32_t& command_count = 1);
+
+VkSubmitInfo GetCommandSubmitInfo(const std::vector<VkCommandBuffer>& command_buffers);
+
+VkSubmitInfo GetSubmitInfo(
+    const std::vector<AllocatedCommandBuffer>& command_buffers);
 
 /**
  * \brief Get \ref VkImageMemoryBarrier2, but performance is poor.
