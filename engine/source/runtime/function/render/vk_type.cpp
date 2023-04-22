@@ -1444,6 +1444,201 @@ bool MM::RenderSystem::VertexAndIndexBuffer::Reserve(const VkDeviceSize& new_ver
   return false;
 }
 
+MM::RenderSystem::AllocateSemaphore::AllocateSemaphore(
+    RenderEngine* engine, VkSemaphoreCreateFlags flags) {
+  if (engine == nullptr) {
+    return;
+  }
+
+  const VkSemaphoreCreateInfo semaphore_create_info =
+      Utils::GetSemaphoreCreateInfo(flags);
+  VkSemaphore new_semaphore{nullptr};
+  VK_CHECK(vkCreateSemaphore(engine->GetDevice(), &semaphore_create_info,
+                             nullptr, &new_semaphore),
+           LOG_ERROR("Failed to create Semaphore.");
+           return;)
+  wrapper_ = std::make_shared<AllocateSemaphoreWrapper>(engine, new_semaphore);
+}
+
+MM::RenderSystem::AllocateSemaphore& MM::RenderSystem::AllocateSemaphore::
+operator=(const AllocateSemaphore& other) {
+  if (&other == this) {
+    return *this;
+  }
+
+  wrapper_ = std::move(other.wrapper_);
+
+  return *this;
+}
+
+MM::RenderSystem::AllocateSemaphore& MM::RenderSystem::AllocateSemaphore::
+operator=(AllocateSemaphore&& other) noexcept {
+  if (&other == this) {
+    return *this;
+  }
+
+  wrapper_ = std::move(other.wrapper_);
+
+  return *this;
+}
+
+VkSemaphore& MM::RenderSystem::AllocateSemaphore::GetSemaphore() {
+  return wrapper_->GetSemaphore();
+}
+
+const VkSemaphore& MM::RenderSystem::AllocateSemaphore::GetSemaphore() const {
+  return wrapper_->GetSemaphore();
+}
+
+bool MM::RenderSystem::AllocateSemaphore::IsValid() const {
+  return wrapper_ != nullptr && wrapper_->IsValid();
+}
+
+MM::RenderSystem::AllocateSemaphore::AllocateSemaphoreWrapper::
+AllocateSemaphoreWrapper(RenderEngine* engine, VkSemaphore semaphore) : render_engine_(engine), semaphore_(semaphore){}
+
+MM::RenderSystem::AllocateSemaphore::AllocateSemaphoreWrapper::~
+AllocateSemaphoreWrapper() {
+  vkDestroySemaphore(render_engine_->GetDevice(), semaphore_, nullptr);
+}
+
+MM::RenderSystem::AllocateSemaphore::AllocateSemaphoreWrapper::
+AllocateSemaphoreWrapper(AllocateSemaphoreWrapper&& other) noexcept
+  : render_engine_(other.render_engine_), semaphore_(other.semaphore_) {
+  other.render_engine_ = nullptr;
+  other.semaphore_ = nullptr;
+}
+
+MM::RenderSystem::AllocateSemaphore::AllocateSemaphoreWrapper& MM::RenderSystem
+::AllocateSemaphore::AllocateSemaphoreWrapper::operator=(
+    AllocateSemaphoreWrapper&& other) noexcept {
+  if (&other == this) {
+    return *this;
+  }
+
+  render_engine_ = other.render_engine_;
+  semaphore_ = other.semaphore_;
+
+  other.render_engine_ = nullptr;
+  other.semaphore_ = nullptr;
+
+  return *this;
+}
+
+VkSemaphore& MM::RenderSystem::AllocateSemaphore::AllocateSemaphoreWrapper::
+GetSemaphore() {
+  return semaphore_;
+}
+
+const VkSemaphore& MM::RenderSystem::AllocateSemaphore::AllocateSemaphoreWrapper
+::GetSemaphore() const {
+  return semaphore_;
+}
+
+bool MM::RenderSystem::AllocateSemaphore::AllocateSemaphoreWrapper::
+IsValid() const { 
+  return render_engine_ != nullptr && semaphore_ != nullptr;
+}
+
+MM::RenderSystem::AllocateFence::AllocateFence(
+    RenderEngine* engine, VkFenceCreateFlags flags) {
+  if (engine == nullptr) {
+    return;
+  }
+
+  const VkFenceCreateInfo fence_create_info =
+      Utils::GetFenceCreateInfo(flags);
+  VkFence new_fence{nullptr};
+  VK_CHECK(vkCreateFence(engine->GetDevice(), &fence_create_info,
+                             nullptr, &new_fence),
+           LOG_ERROR("Failed to create Fence.");
+           return;)
+  wrapper_ = std::make_shared<AllocateFenceWrapper>(engine, new_fence);
+}
+
+MM::RenderSystem::AllocateFence&
+MM::RenderSystem::AllocateFence::operator=(const AllocateFence& other) {
+  if (&other == this) {
+    return *this;
+  }
+
+  wrapper_ = std::move(other.wrapper_);
+
+  return *this;
+}
+
+MM::RenderSystem::AllocateFence&
+MM::RenderSystem::AllocateFence::operator=(
+    AllocateFence&& other) noexcept {
+  if (&other == this) {
+    return *this;
+  }
+
+  wrapper_ = std::move(other.wrapper_);
+
+  return *this;
+}
+
+VkFence& MM::RenderSystem::AllocateFence::GetFence() {
+  return wrapper_->GetFence();
+}
+
+const VkFence& MM::RenderSystem::AllocateFence::GetFence() const {
+  return wrapper_->GetFence();
+}
+
+bool MM::RenderSystem::AllocateFence::IsValid() const {
+  return wrapper_ != nullptr && wrapper_->IsValid();
+}
+
+MM::RenderSystem::AllocateFence::AllocateFenceWrapper::
+    AllocateFenceWrapper(RenderEngine* engine, VkFence fence)
+    : render_engine_(engine), fence_(fence) {}
+
+MM::RenderSystem::AllocateFence::AllocateFenceWrapper::
+    ~AllocateFenceWrapper() {
+  vkDestroyFence(render_engine_->GetDevice(), fence_, nullptr);
+}
+
+MM::RenderSystem::AllocateFence::AllocateFenceWrapper::
+    AllocateFenceWrapper(AllocateFenceWrapper&& other) noexcept
+    : render_engine_(other.render_engine_), fence_(other.fence_) {
+  other.render_engine_ = nullptr;
+  other.fence_ = nullptr;
+}
+
+MM::RenderSystem::AllocateFence::AllocateFenceWrapper&
+MM::RenderSystem ::AllocateFence::AllocateFenceWrapper::operator=(
+    AllocateFenceWrapper&& other) noexcept {
+  if (&other == this) {
+    return *this;
+  }
+
+  render_engine_ = other.render_engine_;
+  fence_ = other.fence_;
+
+  other.render_engine_ = nullptr;
+  other.fence_ = nullptr;
+
+  return *this;
+}
+
+VkFence&
+MM::RenderSystem::AllocateFence::AllocateFenceWrapper::GetFence() {
+  return fence_;
+}
+
+const VkFence&
+MM::RenderSystem::AllocateFence::AllocateFenceWrapper ::GetFence()
+    const {
+  return fence_;
+}
+
+bool MM::RenderSystem::AllocateFence::AllocateFenceWrapper::IsValid()
+    const {
+  return render_engine_ != nullptr && fence_ != nullptr;
+}
+
 bool MM::RenderSystem::operator==(const ManagedObjectBase& lhs,
                                   const ManagedObjectBase& rhs) {
   return lhs.object_ID_ == rhs.object_ID_;

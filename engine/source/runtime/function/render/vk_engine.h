@@ -231,6 +231,8 @@ class RenderEngine {
 
   uint32_t GetCurrentFrame() const;
 
+  uint32_t GetFlightFrameNumber() const;
+
   VkSampleCountFlagBits GetMultiSampleCount() const;
 
   bool SupportMultiDrawIndirect() const;
@@ -281,7 +283,7 @@ class RenderEngine {
 
  private:
   bool is_initialized_{false};
-  uint32_t flight_frame_number_{1};
+  uint32_t flight_frame_number_{3};
   VkExtent2D window_extent_{1920, 1080};
   bool enable_point_light_shadow_{true};
   std::vector<const char*> enable_layer_;

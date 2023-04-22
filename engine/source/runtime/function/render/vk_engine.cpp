@@ -1053,6 +1053,10 @@ uint32_t MM::RenderSystem::RenderEngine::GetCurrentFrame() const {
   return rendered_frame_count_ % flight_frame_number_;
 }
 
+uint32_t MM::RenderSystem::RenderEngine::GetFlightFrameNumber() const {
+  return flight_frame_number_;
+}
+
 VkSampleCountFlagBits
 MM::RenderSystem::RenderEngine::GetMultiSampleCount() const {
   return render_engine_info_.multi_sample_count_;

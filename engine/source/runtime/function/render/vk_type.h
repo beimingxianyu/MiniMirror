@@ -987,5 +987,93 @@ private:
   std::list<std::shared_ptr<BufferChunkInfo>> vertex_buffer_chunks_info_{};
   std::list<std::shared_ptr<BufferChunkInfo>> index_buffer_chunks_info_{};
 };
+
+class AllocateSemaphore {
+ public:
+  explicit AllocateSemaphore(RenderEngine* engine,
+                             VkSemaphoreCreateFlags flags = 0);
+  ~AllocateSemaphore() = default;
+  AllocateSemaphore(const AllocateSemaphore& other) = default;
+  AllocateSemaphore(AllocateSemaphore&& other) noexcept = default;
+  AllocateSemaphore& operator=(const AllocateSemaphore& other);
+  AllocateSemaphore& operator=(AllocateSemaphore&& other) noexcept;
+
+ public:
+  VkSemaphore& GetSemaphore();
+  const VkSemaphore& GetSemaphore() const;
+
+  bool IsValid() const;
+
+ private:
+  class AllocateSemaphoreWrapper {
+   public:
+    AllocateSemaphoreWrapper() = default;
+    AllocateSemaphoreWrapper(RenderEngine* engine, VkSemaphore semaphore);
+    ~AllocateSemaphoreWrapper();
+    AllocateSemaphoreWrapper(const AllocateSemaphoreWrapper& other) = delete;
+    AllocateSemaphoreWrapper(AllocateSemaphoreWrapper&& other) noexcept;
+    AllocateSemaphoreWrapper& operator=(const AllocateSemaphoreWrapper& other) =
+        delete;
+    AllocateSemaphoreWrapper& operator=(
+        AllocateSemaphoreWrapper&& other) noexcept;
+
+   public:
+    VkSemaphore& GetSemaphore();
+    const VkSemaphore& GetSemaphore() const;
+
+    bool IsValid() const;
+
+   private:
+    RenderEngine* render_engine_{nullptr};
+    VkSemaphore semaphore_{nullptr};
+  };
+
+ private:
+  std::shared_ptr<AllocateSemaphoreWrapper> wrapper_{nullptr};
+};
+
+class AllocateFence {
+ public:
+  explicit AllocateFence(RenderEngine* engine,
+                             VkFenceCreateFlags flags = 0);
+  ~AllocateFence() = default;
+  AllocateFence(const AllocateFence& other) = default;
+  AllocateFence(AllocateFence&& other) noexcept = default;
+  AllocateFence& operator=(const AllocateFence& other);
+  AllocateFence& operator=(AllocateFence&& other) noexcept;
+
+ public:
+  VkFence& GetFence();
+  const VkFence& GetFence() const;
+
+  bool IsValid() const;
+
+ private:
+  class AllocateFenceWrapper {
+   public:
+    AllocateFenceWrapper() = default;
+    AllocateFenceWrapper(RenderEngine* engine, VkFence fence);
+    ~AllocateFenceWrapper();
+    AllocateFenceWrapper(const AllocateFenceWrapper& other) = delete;
+    AllocateFenceWrapper(AllocateFenceWrapper&& other) noexcept;
+    AllocateFenceWrapper& operator=(const AllocateFenceWrapper& other) =
+        delete;
+    AllocateFenceWrapper& operator=(
+        AllocateFenceWrapper&& other) noexcept;
+
+   public:
+    VkFence& GetFence();
+    const VkFence& GetFence() const;
+
+    bool IsValid() const;
+
+   private:
+    RenderEngine* render_engine_{nullptr};
+    VkFence fence_{nullptr};
+  };
+
+ private:
+  std::shared_ptr<AllocateFenceWrapper> wrapper_{nullptr};
+};
 } // namespace RenderSystem
 } // namespace MM

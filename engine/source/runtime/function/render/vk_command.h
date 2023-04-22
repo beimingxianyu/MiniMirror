@@ -13,7 +13,7 @@ class CommandTaskFlow;
 using CommandType = CommandBufferType;
 
 struct WaitSemaphore {
-  VkSemaphore wait_semaphore_{nullptr};
+  AllocateSemaphore wait_semaphore_;
   VkPipelineStageFlags wait_stage_{VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT};
 
   struct WaitSemaphoreLessWithoutWaitStage {
@@ -133,7 +133,7 @@ class CommandTaskFlow {
       const CommandType& command_type,
       const std::function<ExecuteResult(AllocatedCommandBuffer& cmd)>& commands,
       const std::vector<WaitSemaphore>& wait_semaphores,
-      const std::vector<VkSemaphore>& signal_semaphores);
+      const std::vector<AllocateSemaphore>& signal_semaphores);
 
   /**
    * \remark The \ref commands must not contain VkQueueSubmit().
@@ -141,9 +141,9 @@ class CommandTaskFlow {
   CommandTask& AddTask(
       const CommandType& command_type,
       const std::vector<
-          std::function<ExecuteResult(AllocatedCommandBuffer& cmd)>>& commands,
+        std::function<ExecuteResult(AllocatedCommandBuffer& cmd)>>& commands,
       const std::vector<WaitSemaphore>& wait_semaphores,
-      const std::vector<VkSemaphore>& signal_semaphores);
+      const std::vector<AllocateSemaphore>& signal_semaphores);
 
   std::uint32_t GetTaskNumber() const;
 
@@ -163,10 +163,11 @@ class CommandTaskFlow {
 
 private:
   struct CommandTaskEdge {
-    CommandTaskEdge(CommandTask* start, CommandTask* end);
+    CommandTaskEdge(std::unique_ptr<CommandTask>* start,
+                    std::unique_ptr<CommandTask>* end);
 
-    CommandTask* start_command_task_{nullptr};
-    CommandTask* end_command_task_{nullptr};
+    std::unique_ptr<CommandTask>* start_command_task_{nullptr};
+    std::unique_ptr<CommandTask>* end_command_task_{nullptr};
 
     bool operator<(const CommandTaskEdge& other) const;
   };
@@ -179,9 +180,10 @@ private:
   std::vector<CommandTaskEdge> GetCommandTaskEdges() const;
 
  private:
-  std::vector<CommandTask*> root_tasks_{};
-  std::vector<CommandTask*> tasks_{};
-  std::array<std::uint32_t, 3> task_count_{};
+  std::vector<std::unique_ptr<CommandTask>*> root_tasks_{};
+  std::vector<std::unique_ptr<CommandTask>> tasks_{};
+
+  std::shared_mutex task_sync_{};
 };
 
 class CommandTask {
@@ -197,7 +199,7 @@ public:
   CommandTask& operator=(CommandTask&& other) = delete; 
 
 public:
- const CommandBufferType& GetCommandBufferType() const;
+ const CommandBufferType& GetCommandType() const;
 
   const CommandTaskFlow& GetCommandTaskFlow() const;
 
@@ -206,11 +208,9 @@ public:
 
   std::uint32_t GetRequireCommandBufferNumber() const;
 
-  std::uint32_t GetUsedCommandBufferNumber() const;
-
   const std::vector<WaitSemaphore>& GetWaitSemaphore() const;
 
-  const std::vector<VkSemaphore>& GetSignalSemaphore() const;
+  const std::vector<AllocateSemaphore>& GetSignalSemaphore() const;
 
   template <typename... CommandTasks>
   void IsPreTaskTo(CommandTasks&& ...command_tasks);
@@ -227,31 +227,32 @@ private:
       const std::vector<std::function<ExecuteResult(AllocatedCommandBuffer& cmd)>>&
               commands,
       const std::vector<WaitSemaphore>& wait_semaphore,
-      const std::vector<VkSemaphore>& signal_semaphore);
+      const std::vector<AllocateSemaphore>& signal_semaphore);
 
  private:
   CommandTaskFlow* task_flow_;
+  std::unique_ptr<CommandTask>* this_unique_ptr_{nullptr};
   CommandType command_type_{CommandType::UNDEFINED};
   std::vector<std::function<ExecuteResult(AllocatedCommandBuffer& cmd)>> commands_{};
   std::vector<WaitSemaphore> wait_semaphore_{};
-  std::vector<VkSemaphore> signal_semaphore_{};
-  mutable std::list<CommandTask*> pre_tasks_{};
-  mutable std::list<CommandTask*> post_tasks_{};
+  std::vector<AllocateSemaphore> signal_semaphore_{};
+  mutable std::list<std::unique_ptr<CommandTask>*> pre_tasks_{};
+  mutable std::list<std::unique_ptr<CommandTask>*> post_tasks_{};
 };
 
 template <typename ... CommandTasks>
 void CommandTask::IsPreTaskTo(CommandTasks&&... command_tasks) {
   (assert(&command_tasks != this), ...);
-  (command_tasks.pre_tasks_.push_back(this), ...);
+  (command_tasks.pre_tasks_.push_back(this_unique_ptr_), ...);
   (task_flow_->RemoveRootTask(command_tasks),...);
-  (post_tasks_.push_back(&command_tasks), ...);
+  (post_tasks_.push_back(&command_tasks.this_unique_ptr_), ...);
 }
 
 template <typename ... CommandTasks>
 void CommandTask::IsPostTaskTo(CommandTasks&&... command_tasks) {
   (assert(!(&command_tasks == this)), ...);
-  (command_tasks.post_tasks_.push_nack(this), ...);
-  (pre_tasks_.push_back(&command_tasks), ...);
+  (command_tasks.post_tasks_.push_back(this_unique_ptr_), ...);
+  (pre_tasks_.push_back(&command_tasks.this_unique_ptr_), ...);
   task_flow_->RemoveRootTask(*this);
 }
 
@@ -365,6 +366,7 @@ private:
 
   struct CommandTaskFlowToBeRun {
     CommandTaskFlowToBeRun() = delete;
+    ~CommandTaskFlowToBeRun() = default;
     CommandTaskFlowToBeRun(
         CommandTaskFlow&& command_task_flow, const std::uint32_t& task_flow_ID,
         const std::shared_ptr<ExecuteResult>& execute_result,
@@ -380,43 +382,65 @@ private:
     std::stack<std::weak_ptr<bool>> is_completes_{};
   };
 
-  struct CommandTaskToBeSubmit {
-    CommandTaskToBeSubmit(
-        CommandTask* command_task,
-        const std::vector<VkSemaphore>& default_wait_semaphore,
-        const VkSemaphore& default_signal_semaphore);
+  static void UpdateCommandTaskLine(
+      std::unique_ptr<CommandTask>& new_command_task,
+      const std::unique_ptr<CommandTask>* old_command_task_ptr);
 
-    CommandTask* command_task_;
+  struct CommandTaskToBeSubmit {
+    CommandTaskToBeSubmit() = delete;
+    ~CommandTaskToBeSubmit() = default;
+    CommandTaskToBeSubmit(
+        std::unique_ptr<CommandTask>&& command_task,
+        std::vector<VkSemaphore>&& default_wait_semaphore,
+        std::vector<VkSemaphore>&& default_signal_semaphore);
+    CommandTaskToBeSubmit(const CommandTaskToBeSubmit& other) = delete;
+    CommandTaskToBeSubmit(CommandTaskToBeSubmit&& other) noexcept;
+    CommandTaskToBeSubmit& operator=(const CommandTaskToBeSubmit& other) =
+        delete;
+    CommandTaskToBeSubmit& operator=(CommandTaskToBeSubmit&& other) noexcept;
+
+    std::unique_ptr<CommandTask> command_task_;
     std::vector<VkSemaphore> default_wait_semaphore_{};
-    VkSemaphore default_signal_semaphore_{nullptr};
+    std::vector<VkSemaphore> default_signal_semaphore_{};
 
     bool operator<(const CommandTaskToBeSubmit& other) const;
   };
 
   struct ExecutingTask {
     ExecutingTask() = delete;
+    ~ExecutingTask() = default;
     ExecutingTask(RenderEngine* engine,
                   std::vector<std::unique_ptr<AllocatedCommandBuffer>>&&
-                      command_buffer,
-                  CommandTask*& command_task,
-                  const std::shared_ptr<ExecuteResult>& execute_result,
-                  const std::shared_ptr<bool>& is_complete,
-                  std::vector<VkSemaphore>&& wait_semaphore,
-                  const VkSemaphore& signal_semaphore);
+                      command_buffer, std::unique_ptr<CommandTask>&& command_task,
+                  const std::weak_ptr<ExecuteResult>& execute_result,
+                  const std::optional<std::weak_ptr<bool>>& is_complete,
+                  std::vector<VkSemaphore>&& default_wait_semaphore,
+                  std::vector<VkSemaphore>&& default_signal_semaphore,
+                  const std::vector<WaitSemaphore>& external_wait_semaphores,
+                  const std::vector<AllocateSemaphore>& external_signal_semaphores);
+    ExecutingTask(const ExecutingTask& other) = delete;
+    ExecutingTask(ExecutingTask&& other) noexcept;
+    ExecutingTask& operator=(ExecutingTask&& other) noexcept;
+    ExecutingTask& operator=(const ExecutingTask& other) = delete;
 
     RenderEngine* render_engine_;
     std::vector<std::unique_ptr<AllocatedCommandBuffer>> command_buffers_;
-    CommandTask* command_task_{};
+    std::unique_ptr<CommandTask> command_task_{};
     std::weak_ptr<ExecuteResult> execute_result_{};
     std::optional<std::weak_ptr<bool>> is_complete_{};
 
     std::vector<VkSemaphore> wait_semaphore_;
-    VkSemaphore signal_semaphore_;
+    std::vector<VkSemaphore> signal_semaphore_;
+    std::uint32_t default_wait_semaphore_number_{0};
+    std::uint32_t default_signal_semaphore_number_{0};
+    // Prevent external semaphores from being destroyed during render runtime
+    std::vector<WaitSemaphore> external_wait_semaphores_;
+    std::vector<AllocateSemaphore> external_signal_semaphores_;
 
     bool IsComplete() const;
   };
 
-  VkSemaphore GetSemaphore();
+  std::vector<VkSemaphore> GetSemaphore(std::uint32_t require_number);
 
   void ProcessCompleteTask();
 
@@ -424,6 +448,37 @@ private:
 
   void ProcessRequireCommandBufferNumberLagerThanExecutorHaveCommandBufferNumber(
       const CommandTaskFlowToBeRun& command_task_flow, bool& skip_task_flow);
+
+  void ProcessRootTaskAndSubTask(CommandTaskFlowToBeRun& command_task_flow);
+
+  void ChooseVariableByCommandType(
+      CommandType command_type, std::uint32_t*& free_command_buffer_number,
+      std::stack<std::unique_ptr<AllocatedCommandBuffer>>*&
+          free_command_buffers,
+      std::list<ExecutingTask>*& submit_group,
+      std::atomic_uint32_t*& recording_command_buffer_number,
+      std::uint32_t free_graph_command_buffer_number,
+      std::uint32_t free_compute_command_buffer_number,
+      std::uint32_t free_transform_command_buffer_number,
+      std::list<ExecutingTask>& graph_submit_group,
+      std::list<ExecutingTask>& compute_submit_group,
+      std::list<ExecutingTask>& transform_submit_group);
+
+  void ProcessOneCanSubmitTask(
+      std::list<CommandTaskToBeSubmit>::iterator& command_task_to_be_submit,
+      CommandTaskFlowToBeRun& command_task_flow,
+      std::uint32_t free_graph_command_buffer_number,
+      std::uint32_t free_compute_command_buffer_number,
+      std::uint32_t free_transform_command_buffer_number,
+      std::list<ExecutingTask>& graph_submit_group,
+      std::list<ExecutingTask>& compute_submit_group,
+      std::list<ExecutingTask>& transform_submit_group);
+
+  void ProcessNextStepCanSubmitTask(
+      std::list<CommandTaskToBeSubmit>& next_can_be_submitted_tasks,
+      CommandTaskFlowToBeRun& command_task_flow);
+
+  ExecuteResult SubmitTasks(std::list<ExecutingTask>* input_tasks);
 
   void ProcessTask();
 
@@ -433,9 +488,16 @@ private:
   std::stack<std::unique_ptr<AllocatedCommandBuffer>> free_compute_command_buffers_{};
   std::stack<std::unique_ptr<AllocatedCommandBuffer>> free_transform_command_buffers_{};
 
+  std::atomic_uint32_t recoding_graph_command_buffer_number_{0};
+  std::atomic_uint32_t recording_compute_command_buffer_number_{0};
+  std::atomic_uint32_t recording_transform_command_buffer_number_{0};
+
   std::list<ExecutingTask> executing_graph_command_buffers_{};
   std::list<ExecutingTask> executing_compute_command_buffers_{};
   std::list<ExecutingTask> executing_transform_command_buffers_{};
+  std::mutex executing_graph_command_buffers_mutex_{};
+  std::mutex executing_compute_command_buffers_mutex_{};
+  std::mutex executing_transform_command_buffers_mutex_{};
 
   std::list<CommandTaskFlowToBeRun> task_flow_queue_{};
   std::mutex task_flow_queue_mutex_{};
@@ -445,6 +507,11 @@ private:
 
   std::list<std::uint32_t> wait_tasks_;
   std::mutex wait_tasks_mutex_{};
+
+  std::set<std::unique_ptr<CommandTask>*> task_that_have_already_been_accessed_;
+  std::set<std::unique_ptr<CommandTask>*> submitted_task_;
+  std::list<CommandTaskToBeSubmit> can_be_submitted_tasks_;
+  std::list<CommandTaskToBeSubmit> pre_task_not_submit_task_;
 
   std::stack<VkSemaphore> semaphores_;
 };
