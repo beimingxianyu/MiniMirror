@@ -1,6 +1,8 @@
 #include <string>
 
 #include "runtime/function/render/vk_utils.h"
+
+#include "vk_command.h"
 #include "runtime/function/render/pre_header.h"
 #include "runtime/function/render/vk_type.h"
 #include "runtime/function/render/vk_engine.h"
@@ -209,8 +211,48 @@ VkSubmitInfo MM::RenderSystem::Utils::GetCommandSubmitInfo(
   submit_info.waitSemaphoreCount = 0;
   submit_info.pWaitSemaphores = nullptr;
   submit_info.pWaitDstStageMask = nullptr;
-  submit_info.commandBufferCount = 1;
+  submit_info.commandBufferCount = command_count;
   submit_info.pCommandBuffers = &command_buffer;
+  submit_info.signalSemaphoreCount = 0;
+  submit_info.pSignalSemaphores = nullptr;
+
+  return submit_info;
+}
+
+VkSubmitInfo MM::RenderSystem::Utils::GetCommandSubmitInfo(
+    const std::vector<VkCommandBuffer>& command_buffers) {
+  VkSubmitInfo submit_info = {};
+  submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+  submit_info.pNext = nullptr;
+
+  submit_info.waitSemaphoreCount = 0;
+  submit_info.pWaitSemaphores = nullptr;
+  submit_info.pWaitDstStageMask = nullptr;
+  submit_info.commandBufferCount = command_buffers.size();
+  submit_info.pCommandBuffers = command_buffers.data();
+  submit_info.signalSemaphoreCount = 0;
+  submit_info.pSignalSemaphores = nullptr;
+
+  return submit_info;
+}
+
+VkSubmitInfo MM::RenderSystem::Utils::GetSubmitInfo(
+    const std::vector<AllocatedCommandBuffer>& command_buffers) {
+  std::vector<VkCommandBuffer> vk_command_buffers;
+  vk_command_buffers.reserve(command_buffers.size());
+  for (std::uint32_t i = 0; i < command_buffers.size(); ++i) {
+    vk_command_buffers.emplace_back(command_buffers.at(i).GetCommandBuffer());
+  }
+
+  VkSubmitInfo submit_info = {};
+  submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+  submit_info.pNext = nullptr;
+
+  submit_info.waitSemaphoreCount = 0;
+  submit_info.pWaitSemaphores = nullptr;
+  submit_info.pWaitDstStageMask = nullptr;
+  submit_info.commandBufferCount = command_buffers.size();
+  submit_info.pCommandBuffers = vk_command_buffers.data();
   submit_info.signalSemaphoreCount = 0;
   submit_info.pSignalSemaphores = nullptr;
 
