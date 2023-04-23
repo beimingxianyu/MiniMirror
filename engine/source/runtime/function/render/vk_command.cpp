@@ -34,7 +34,7 @@ MM::RenderSystem::CommandTask::GetSignalSemaphore() const {
 }
 
 bool MM::RenderSystem::CommandTask::IsValid() const {
-  return task_flow_ != nullptr && commands_.size() != 0;
+  return task_flow_ != nullptr && !commands_.empty();
 }
 
 MM::RenderSystem::CommandTask::CommandTask(
@@ -65,9 +65,55 @@ bool MM::RenderSystem::WaitAllocatedSemaphore::IsValid() const {
   return wait_semaphore_.GetSemaphore() != nullptr;
 }
 
-void MM::RenderSystem::CommandBufferInfo::Reset() { is_recorded_ = false; }
+MM::RenderSystem::CommandBufferInfo::CommandBufferInfo(
+    std::uint32_t queue_index, CommandBufferType command_buffer_type)
+  : queue_index_(queue_index), command_buffer_type(command_buffer_type){
+}
 
-bool MM::RenderSystem::CommandBufferInfo::IsValid() const { return true; }
+MM::RenderSystem::CommandBufferInfo::CommandBufferInfo(
+    const CommandBufferInfo& other)
+  : queue_index_(other.queue_index_),
+    command_buffer_type(other.command_buffer_type){
+}
+
+MM::RenderSystem::CommandBufferInfo::CommandBufferInfo(
+    CommandBufferInfo&& other) noexcept
+    : queue_index_(other.queue_index_),
+      command_buffer_type(other.command_buffer_type) {
+  command_buffer_type = CommandBufferType::UNDEFINED;
+}
+
+MM::RenderSystem::CommandBufferInfo& MM::RenderSystem::CommandBufferInfo::
+operator=(const CommandBufferInfo& other) {
+  if (&other == this) {
+    return *this;
+  }
+
+  queue_index_ = other.queue_index_;
+  command_buffer_type = other.command_buffer_type;
+
+  return *this;
+}
+
+MM::RenderSystem::CommandBufferInfo& MM::RenderSystem::CommandBufferInfo::
+operator=(CommandBufferInfo&& other) noexcept {
+  if (&other == this) {
+    return *this;
+  }
+
+  queue_index_ = other.queue_index_;
+  command_buffer_type = other.command_buffer_type;
+
+  command_buffer_type = CommandBufferType::UNDEFINED;
+
+  return *this;
+}
+
+void MM::RenderSystem::CommandBufferInfo::Reset() {
+  command_buffer_type = CommandBufferType::UNDEFINED;
+}
+
+bool MM::RenderSystem::CommandBufferInfo::IsValid() const { return command_buffer_type != CommandBufferType::UNDEFINED; }
 
 MM::RenderSystem::AllocatedCommandBuffer::AllocatedCommandBuffer(
     RenderEngine* engine, const std::uint32_t& queue_index,
@@ -101,9 +147,7 @@ MM::RenderSystem::AllocatedCommandBuffer::operator=(
   if (&other == this) {
     return *this;
   }
-  command_buffer_info_.queue_index_ = other.command_buffer_info_.queue_index_;
-  const bool is_record = other.command_buffer_info_.is_recorded_;
-  command_buffer_info_.is_recorded_ = is_record;
+  command_buffer_info_ = other.command_buffer_info_;
   wrapper_ = other.wrapper_;
 
   return *this;
@@ -115,10 +159,10 @@ MM::RenderSystem::AllocatedCommandBuffer::operator=(
   if (&other == this) {
     return *this;
   }
-  command_buffer_info_.queue_index_ = other.command_buffer_info_.queue_index_;
-  const bool is_record = other.command_buffer_info_.is_recorded_;
-  command_buffer_info_.is_recorded_ = is_record;
+  command_buffer_info_ = other.command_buffer_info_;
   wrapper_ = std::move(other.wrapper_);
+
+  other.command_buffer_info_.Reset();
 
   other.command_buffer_info_.Reset();
 
@@ -157,9 +201,6 @@ const VkFence& MM::RenderSystem::AllocatedCommandBuffer::GetFence() const {
   return wrapper_->GetFence();
 }
 
-bool MM::RenderSystem::AllocatedCommandBuffer::IsRecorded() const {
-  return command_buffer_info_.is_recorded_;
-}
 
 bool MM::RenderSystem::AllocatedCommandBuffer::ResetCommandBuffer() {
   return wrapper_->ResetCommandBuffer();
@@ -313,7 +354,7 @@ MM::RenderSystem::CommandTask& MM::RenderSystem::CommandTaskFlow::AddTask(
     const std::vector<MM::RenderSystem::WaitAllocatedSemaphore>&
         wait_semaphores,
     const std::vector<MM::RenderSystem::AllocateSemaphore>& signal_semaphores) {
-  assert(commands.size() != 0);
+  assert(!commands.empty());
 
   std::unique_lock<std::shared_mutex> guard(task_sync_);
 
@@ -376,7 +417,7 @@ void MM::RenderSystem::CommandTaskFlow::Clear() {
 
 bool MM::RenderSystem::CommandTaskFlow::HaveRing() const {
   std::uint32_t task_count = GetTaskNumber();
-  std::vector<CommandTaskEdge> command_task_edges = GetCommandTaskEdges();
+  const std::vector<CommandTaskEdge> command_task_edges = GetCommandTaskEdges();
 
   std::unordered_map<std::unique_ptr<CommandTask>*, std::uint32_t> penetrations;
   for (const auto& task_edge : command_task_edges) {
@@ -533,7 +574,7 @@ MM::RenderSystem::CommandExecutor::CommandExecutor(RenderEngine* engine)
       executing_transform_command_buffers_mutex_(),
       task_flow_queue_(),
       task_flow_queue_mutex_(),
-      last_run_is_run_one_frame_call_(),
+      // last_run_is_run_one_frame_call_(),
       processing_task_flow_queue_(),
       wait_tasks_(),
       wait_tasks_mutex_(),
@@ -542,7 +583,14 @@ MM::RenderSystem::CommandExecutor::CommandExecutor(RenderEngine* engine)
       can_be_submitted_tasks_(),
       pre_task_not_submit_task_(),
       semaphores_(),
-      signal_recovery_semaphore_() {
+      // signal_recovery_semaphore_()
+      submit_failed_to_be_recycled_semaphore_(),
+      submit_failed_to_be_recycled_semaphore_current_index_(),
+      submit_failed_to_be_recycled_semaphore_mutex_(),
+      recycled_semaphore_(),
+      recycled_semaphore_mutex_(),
+      submit_failed_to_be_recycled_command_buffer_(),
+      submit_failed_to_be_recycled_command_buffer_mutex_() {
   if (engine == nullptr || !engine->IsValid()) {
     LOG_ERROR("Engine is invalid.")
     render_engine_ = nullptr;
@@ -587,6 +635,10 @@ MM::RenderSystem::CommandExecutor::CommandExecutor(RenderEngine* engine)
                           graph_command_pools, compute_command_pools,
                           transform_command_pools),
            return;)
+
+  TaskSystem::Taskflow taskflow;
+  taskflow.emplace([this_object = this]() { this_object->RecycledSemaphoreThatSubmittedFailed(); });
+  TASK_SYSTEM->Run(TaskSystem::TaskType::Render, taskflow);
 }
 
 MM::RenderSystem::CommandExecutor::CommandExecutor(
@@ -608,7 +660,7 @@ MM::RenderSystem::CommandExecutor::CommandExecutor(
       executing_transform_command_buffers_mutex_(),
       task_flow_queue_(),
       task_flow_queue_mutex_(),
-      last_run_is_run_one_frame_call_(),
+      // last_run_is_run_one_frame_call_(),
       processing_task_flow_queue_(),
       wait_tasks_(),
       wait_tasks_mutex_(),
@@ -672,7 +724,11 @@ MM::RenderSystem::CommandExecutor::CommandExecutor(
                           transform_command_pools),
            return;)
 
-  RecycledSemaphoreThatSubmittedFailed();
+  TaskSystem::Taskflow taskflow;
+  taskflow.emplace([this_object = this]() {
+    this_object->RecycledSemaphoreThatSubmittedFailed();
+  });
+  TASK_SYSTEM->Run(TaskSystem::TaskType::Render, taskflow);
 }
 
 std::uint32_t MM::RenderSystem::CommandExecutor::GetGraphCommandNumber() const {
@@ -1511,7 +1567,7 @@ void MM::RenderSystem::CommandExecutor::
       MM_CHECK(AddCommandBuffer(CommandType::COMPUTE, new_count),
                skip_task_flow = true;
                LOG_ERROR("Failed to create new command buffer, skip this "
-                         "command_task_flow."));
+                         "command_task_flow."))
     }
 
     if (task->command_type_ == CommandBufferType::TRANSFORM &&
@@ -1522,7 +1578,7 @@ void MM::RenderSystem::CommandExecutor::
       MM_CHECK(AddCommandBuffer(CommandType::TRANSFORM, new_count),
                skip_task_flow = true;
                LOG_ERROR("Failed to create new command buffer, skip this "
-                         "command_task_flow."));
+                         "command_task_flow."))
     }
   }
 }
@@ -1603,6 +1659,11 @@ void MM::RenderSystem::CommandExecutor::ChooseVariableByCommandType(
       recording_command_buffer_number =
           &recording_transform_command_buffer_number_;
       break;
+    default:
+      free_command_buffer_number = &free_graph_command_buffer_number;
+      free_command_buffers = &free_graph_command_buffers_;
+      executing_task_list = &executing_graph_command_buffers_;
+      recording_command_buffer_number = &recoding_graph_command_buffer_number_;
   }
 }
 
@@ -1643,7 +1704,7 @@ void MM::RenderSystem::CommandExecutor::ProcessOneCanSubmitTask(
       command_task_flow.is_completes_.pop();
     }
 
-    ExecutingTask* temp_execute_task = new ExecutingTask(
+    auto temp_execute_task = new ExecutingTask(
         render_engine_, this, std::move(acquired_command_buffer),
         std::move(command_task_to_be_submit->command_task_),
         command_task_flow.execute_result_, is_complete,
@@ -1666,9 +1727,19 @@ void MM::RenderSystem::CommandExecutor::ProcessOneCanSubmitTask(
 
   } else {
     ProcessCompleteTask();
-    free_graph_command_buffer_number = GetFreeGraphCommandNumber();
-    free_compute_command_buffer_number = GetFreeComputeCommandNumber();
-    free_transform_command_buffer_number = GetFreeTransformCommandNumber();
+    switch (command_task_to_be_submit->command_task_->GetCommandType()) {
+      case CommandType::GRAPH:
+        *free_command_buffer_number = GetFreeGraphCommandNumber();
+        break;
+      case CommandType::COMPUTE:
+        *free_command_buffer_number = GetFreeComputeCommandNumber();
+        break;
+      case CommandType::TRANSFORM:
+        *free_command_buffer_number = GetFreeTransformCommandNumber();
+        break;
+      default:
+        LOG_ERROR("Command type is error.")
+    }
 
     if (command_task_to_be_submit->command_task_
             ->GetRequireCommandBufferNumber() > *free_command_buffer_number) {

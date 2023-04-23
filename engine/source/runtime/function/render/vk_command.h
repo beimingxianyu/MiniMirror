@@ -32,9 +32,16 @@ struct WaitAllocatedSemaphore {
 };
 
 struct CommandBufferInfo {
+  CommandBufferInfo() = default;
+  ~CommandBufferInfo() = default;
+  CommandBufferInfo(std::uint32_t queue_index, CommandBufferType command_buffer_type);
+  CommandBufferInfo(const CommandBufferInfo& other);
+  CommandBufferInfo(CommandBufferInfo&& other) noexcept;
+  CommandBufferInfo& operator=(const CommandBufferInfo& other);
+  CommandBufferInfo& operator=(CommandBufferInfo&& other) noexcept;
+
   std::uint32_t queue_index_{0};
   CommandBufferType command_buffer_type{};
-  std::atomic_bool is_recorded_{false};
 
   void Reset();
 
@@ -68,8 +75,6 @@ class AllocatedCommandBuffer {
   const VkCommandBuffer& GetCommandBuffer() const;
 
   const VkFence& GetFence() const;
-
-  bool IsRecorded() const;
 
   /**
    * \remark A command pool corresponds to a command buffer, so resetting t
@@ -516,7 +521,7 @@ private:
   std::list<CommandTaskFlowToBeRun> task_flow_queue_{};
   std::mutex task_flow_queue_mutex_{};
 
-  bool last_run_is_run_one_frame_call_{false};
+  // bool last_run_is_run_one_frame_call_{false};
   std::atomic_bool processing_task_flow_queue_{false};
 
   std::list<std::uint32_t> wait_tasks_;
