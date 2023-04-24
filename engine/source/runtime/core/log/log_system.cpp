@@ -85,8 +85,9 @@ MM::ExecuteResult MM::LogSystem::LogSystem::CheckResult(
     case ExecuteResult::TYPE_CONVERSION_FAILED:
       LogError(log_prefix + "Type conversion failed");
       break;
-    case ExecuteResult::INITIALIZATION_FAILED:
-      LogError(log_prefix + "Initialization failed.");
+    //case ExecuteResult::INITIALIZATION_FAILED:
+    case ExecuteResult::CREATE_OBJECT_FAILED:
+      LogError(log_prefix + "Create object/initialization failed.");
       break;
     case ExecuteResult::LOAD_CONFIG_FROM_FILE_FAILED:
       LogError(log_prefix + "Failed to load config from file.");
@@ -149,9 +150,9 @@ MM::ExecuteResult MM::LogSystem::LogSystem::CheckMultipleResult(
       ExecuteResult::TYPE_CONVERSION_FAILED) {
     LogError(log_prefix + "Type conversion failed");
   }
-  if ((result & ExecuteResult::INITIALIZATION_FAILED) ==
-      ExecuteResult::INITIALIZATION_FAILED) {
-    LogError(log_prefix + "Initialization failed.");
+  if ((result & ExecuteResult::CREATE_OBJECT_FAILED) ==
+      ExecuteResult::CREATE_OBJECT_FAILED) {
+    LogError(log_prefix + "Create object/initialization failed.");
   }
   if ((result & ExecuteResult::LOAD_CONFIG_FROM_FILE_FAILED) ==
       ExecuteResult::LOAD_CONFIG_FROM_FILE_FAILED) {

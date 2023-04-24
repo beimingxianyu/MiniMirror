@@ -175,6 +175,7 @@ class RenderEngine {
    */
   ExecuteResult RunCommandAndWait(CommandTaskFlow& command_task_flow);
 
+  // TODO cross queue family resource ownership transform
   RenderFuture RunSingleCommand(
       CommandBufferType command_type,
       const std::function<
@@ -223,49 +224,53 @@ class RenderEngine {
   /**
    * \remark The range specified by \ref regions cannot overlap.
    */
-  bool CopyImage(AllocatedImage& src_image, AllocatedImage& dest_image,
-                 const VkImageLayout& src_layout,
-                 const VkImageLayout& dest_layout,
-                 const std::vector<VkImageCopy2>& regions);
+  ExecuteResult CopyImage(AllocatedImage& src_image, AllocatedImage& dest_image,
+                          const VkImageLayout& src_layout,
+                          const VkImageLayout& dest_layout,
+                          const std::vector<VkImageCopy2>& regions);
 
   /**
    * \remark The range specified by \ref regions cannot overlap and src_image can not equal to dest_image.
    */
-  bool CopyImage(const AllocatedImage& src_image, AllocatedImage& dest_image,
-                 const VkImageLayout& src_layout,
-                 const VkImageLayout& dest_layout,
-                 const std::vector<VkImageCopy2>& regions);
+  ExecuteResult CopyImage(const AllocatedImage& src_image,
+                          AllocatedImage& dest_image,
+                          const VkImageLayout& src_layout,
+                          const VkImageLayout& dest_layout,
+                          const std::vector<VkImageCopy2>& regions);
 
   /**
    * \remark The areas specified for each \ref VkImageCopy in the vector
    * cannot overlap, but the areas specified between each \ref VkImageCopy can
    * overlap.
    */
-  bool CopyImage(AllocatedImage& src_image, AllocatedImage& dest_image,
-                 const VkImageLayout& src_layout,
-                 const VkImageLayout& dest_layout,
-                 const std::vector<std::vector<VkImageCopy2>&>& regions_vector);
+  ExecuteResult CopyImage(AllocatedImage& src_image, AllocatedImage& dest_image,
+                          const VkImageLayout& src_layout,
+                          const VkImageLayout& dest_layout,
+                          const std::vector<std::vector<VkImageCopy2>&>&
+                          regions_vector);
 
   /**
    * \remark The areas specified for each \ref VkImageCopy in the vector
    * cannot overlap, but the areas specified between each \ref VkImageCopy can
    * overlap.Src_image can not equal to dest_image.
    */
-  bool CopyImage(const AllocatedImage& src_image, AllocatedImage& dest_image,
-                 const VkImageLayout& src_layout,
-                 const VkImageLayout& dest_layout,
-                 const std::vector<std::vector<VkImageCopy2>&>& regions_vector);
+  ExecuteResult CopyImage(const AllocatedImage& src_image,
+                          AllocatedImage& dest_image,
+                          const VkImageLayout& src_layout,
+                          const VkImageLayout& dest_layout,
+                          const std::vector<std::vector<VkImageCopy2>&>&
+                          regions_vector);
 
 
-  bool CopyDataToBuffer(AllocatedBuffer& dest_buffer, const void* data,
-                        const VkDeviceSize& copy_offset,
-                        const VkDeviceSize& copy_size);
+  ExecuteResult CopyDataToBuffer(AllocatedBuffer& dest_buffer, const void* data,
+                                 const VkDeviceSize& copy_offset,
+                                 const VkDeviceSize& copy_size);
 
-  bool RemoveBufferFragmentation(
+  ExecuteResult RemoveBufferFragmentation(
       AllocatedBuffer& buffer,
       std::vector<BufferChunkInfo>& buffer_chunks_info);
 
-  bool RemoveBufferFragmentation(
+  ExecuteResult RemoveBufferFragmentation(
       AllocatedBuffer& buffer,
       std::list<BufferChunkInfo>& buffer_chunks_info);
 

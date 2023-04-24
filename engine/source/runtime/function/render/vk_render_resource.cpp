@@ -545,16 +545,13 @@ MM::RenderSystem::RenderResourceTexture::RenderResourceTexture(
     return;
   }
 
-  if (!InitImage(stage_buffer, usages, memory_usage, allocation_flags,
-                 temp_info)) {
-    RenderResourceTexture::Release();
-    return;
-  }
+  MM_CHECK(InitImage(stage_buffer, usages, memory_usage, allocation_flags,
+                     temp_info),
+           RenderResourceTexture::Release();
+           return;
+    )
 
-  if (!GenerateMipmap()) {
-    RenderResourceTexture::Release();
-    return;
-  }
+  MM_CHECK(GenerateMipmap(), RenderResourceTexture::Release(); return;)
 
   if (!InitImageView()) {
     RenderResourceTexture::Release();
@@ -828,11 +825,11 @@ MM::RenderSystem::RenderResourceTexture::GetDeepCopy(
     image_region_vector.push_back(temp_image_copy);
   }
 
-  if (!render_engine_->CopyImage(const_cast<AllocatedImage&>(image_), new_allocated_image, GetImageLayout(),
-                            GetImageLayout(), image_region_vector)) {
-    LOG_ERROR("Failed to copy imager to new image.");
-    return std::unique_ptr<RenderResourceBase>();
-  }
+  MM_CHECK(render_engine_->CopyImage(const_cast<AllocatedImage&>(image_),
+                                     new_allocated_image, GetImageLayout(),
+                                     GetImageLayout(), image_region_vector),
+           LOG_ERROR("Failed to copy imager to new image.");
+           return std::unique_ptr<RenderResourceBase>();)
 
   return std::make_unique<RenderResourceTexture>(
       new_name_of_copy_resource, render_engine_, new_allocated_image,
@@ -984,7 +981,7 @@ bool MM::RenderSystem::RenderResourceTexture::LoadImageToStageBuffer(
   return true;
 }
 
-bool MM::RenderSystem::RenderResourceTexture::InitImage(
+MM::ExecuteResult MM::RenderSystem::RenderResourceTexture::InitImage(
     const AllocatedBuffer& stage_buffer, VkImageUsageFlags usages,
     const VmaMemoryUsage& memory_usage,
     const VmaAllocationCreateFlags& allocation_flags,
@@ -1013,39 +1010,53 @@ bool MM::RenderSystem::RenderResourceTexture::InitImage(
                           &image_allocator_create_info, &temp_image,
                           &temp_allocation, nullptr),
            LOG_ERROR("Failed to create VkImage.");
-           return false;)
+           return Utils::VkResultToMMResult(VK_RESULT_CODE);)
 
   image_ = AllocatedImage{render_engine_->allocator_, temp_image,
                           temp_allocation, image_info};
 
-  if (!render_engine_->RecordAndSubmitSingleTimeCommand(
-          CommandBufferType::GRAPH,
+  MM_CHECK(
+      render_engine_->RunSingleCommandAndWait(
+          CommandBufferType::TRANSFORM,
           [&image = image_, &stage = stage_buffer,
            &image_extent = image_.GetImageExtent(),
-           &image_layout = image_.GetImageLayout()](VkCommandBuffer& cmd) {
+           &image_layout = image_.GetImageLayout()](AllocatedCommandBuffer& cmd) {
+            MM_CHECK(Utils::BeginCommandBuffer(cmd),
+                     LOG_ERROR("Failed to begin command buffer.");
+                     return MM_RESULT_CODE;)
+
             Utils::AddTransferImageCommands(
                 cmd, image, ImageTransferMode::INIT_TO_TRANSFER_DESTINATION);
 
             const auto copy_region = Utils::GetBufferToImageCopyRegion(
                 VK_IMAGE_ASPECT_COLOR_BIT, image_extent);
 
-            vkCmdCopyBufferToImage(cmd, stage.GetBuffer(), image.GetImage(),
-                                   image_layout, 1, &copy_region);
-          },
-          true)) {
-    LOG_ERROR("Copying image data to the GPU failed.");
-    return false;
-  }
-  return true;
+            vkCmdCopyBufferToImage(cmd.GetCommandBuffer(), stage.GetBuffer(),
+                                   image.GetImage(), image_layout, 1,
+                                   &copy_region);
+
+            MM_CHECK(Utils::EndCommandBuffer(cmd),
+                     LOG_ERROR("Failed to end command buffer.");
+                     return MM_RESULT_CODE;);
+
+            return ExecuteResult::SUCCESS;
+          }),
+      LOG_ERROR("Copying image data to the GPU failed.");
+      return MM_RESULT_CODE;)
+
+  return ExecuteResult::SUCCESS;
 }
 
-bool MM::RenderSystem::RenderResourceTexture::GenerateMipmap() {
-  const bool execute_result = render_engine_->RecordAndSubmitSingleTimeCommand(
-      CommandBufferType::GRAPH,
-      [&](VkCommandBuffer& cmd) {
+MM::ExecuteResult MM::RenderSystem::RenderResourceTexture::GenerateMipmap() {
+  MM_CHECK(render_engine_->RunSingleCommandAndWait(
+      CommandBufferType::TRANSFORM, [&image = image_](AllocatedCommandBuffer& cmd) {
+        MM_CHECK(Utils::BeginCommandBuffer(cmd),
+                 LOG_ERROR("Failed to begin command buffer.");
+                 return MM_RESULT_CODE;)
+
         VkImageMemoryBarrier2 barrier{};
         barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
-        barrier.image = image_.GetImage();
+        barrier.image = image.GetImage();
         barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
         barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
         barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
@@ -1055,11 +1066,11 @@ bool MM::RenderSystem::RenderResourceTexture::GenerateMipmap() {
 
         const auto dependency_info = Utils::GetImageDependencyInfo(barrier);
 
-        int32_t mip_width = static_cast<int32_t>(image_.GetImageExtent().width);
+        int32_t mip_width = static_cast<int32_t>(image.GetImageExtent().width);
         int32_t mip_height =
-            static_cast<int32_t>(image_.GetImageExtent().height);
+            static_cast<int32_t>(image.GetImageExtent().height);
 
-        for (uint32_t i = 1; i < image_.GetMipmapLevels(); ++i) {
+        for (uint32_t i = 1; i < image.GetMipmapLevels(); ++i) {
           barrier.subresourceRange.baseMipLevel = i - 1;
           barrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
           barrier.newLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
@@ -1068,7 +1079,7 @@ bool MM::RenderSystem::RenderResourceTexture::GenerateMipmap() {
           barrier.srcAccessMask = VK_ACCESS_2_TRANSFER_WRITE_BIT;
           barrier.dstStageMask = VK_ACCESS_2_TRANSFER_READ_BIT;
 
-          vkCmdPipelineBarrier2(cmd, &dependency_info);
+          vkCmdPipelineBarrier2(cmd.GetCommandBuffer(), &dependency_info);
 
           barrier.subresourceRange.baseMipLevel = i;
           barrier.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
@@ -1078,7 +1089,7 @@ bool MM::RenderSystem::RenderResourceTexture::GenerateMipmap() {
           barrier.srcAccessMask = 0;
           barrier.dstStageMask = VK_ACCESS_2_TRANSFER_WRITE_BIT;
 
-          vkCmdPipelineBarrier2(cmd, &dependency_info);
+          vkCmdPipelineBarrier2(cmd.GetCommandBuffer(), &dependency_info);
 
           VkImageBlit blit{};
           blit.srcOffsets[0] = {0, 0, 0};
@@ -1096,19 +1107,19 @@ bool MM::RenderSystem::RenderResourceTexture::GenerateMipmap() {
           blit.dstSubresource.layerCount = 1;
 
           vkCmdBlitImage(
-              cmd, image_.GetImage(), VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
-              image_.GetImage(), VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &blit,
+              cmd.GetCommandBuffer(), image.GetImage(), VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+              image.GetImage(), VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &blit,
               VK_FILTER_LINEAR);
 
           barrier.subresourceRange.baseMipLevel = i - 1;
           barrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
-          barrier.newLayout = image_.GetImageLayout();
+          barrier.newLayout = image.GetImageLayout();
           barrier.srcStageMask = VK_PIPELINE_STAGE_2_TRANSFER_BIT;
           barrier.dstStageMask = VK_PIPELINE_STAGE_2_VERTEX_SHADER_BIT;
           barrier.srcAccessMask = VK_ACCESS_2_TRANSFER_READ_BIT;
           barrier.dstAccessMask = VK_ACCESS_2_SHADER_READ_BIT;
 
-          vkCmdPipelineBarrier2(cmd, &dependency_info);
+          vkCmdPipelineBarrier2(cmd.GetCommandBuffer(), &dependency_info);
 
           if (mip_width > 1) {
             mip_width >>= 1;
@@ -1118,21 +1129,27 @@ bool MM::RenderSystem::RenderResourceTexture::GenerateMipmap() {
           }
         }
 
-        barrier.subresourceRange.baseMipLevel = image_.GetMipmapLevels() - 1;
+        barrier.subresourceRange.baseMipLevel = image.GetMipmapLevels() - 1;
         barrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
-        barrier.newLayout = image_.GetImageLayout();
+        barrier.newLayout = image.GetImageLayout();
         barrier.srcStageMask = VK_PIPELINE_STAGE_2_TRANSFER_BIT;
         barrier.dstStageMask = VK_PIPELINE_STAGE_2_VERTEX_SHADER_BIT;
         barrier.srcAccessMask = VK_ACCESS_2_TRANSFER_WRITE_BIT;
         barrier.dstAccessMask = VK_ACCESS_2_SHADER_READ_BIT;
 
-        vkCmdPipelineBarrier2(cmd, &dependency_info);
-      },
-      true);
-  if (!execute_result) {
-    LOG_ERROR("Mipmap generation failed.");
-  }
-  return execute_result;
+        vkCmdPipelineBarrier2(cmd.GetCommandBuffer(), &dependency_info);
+
+        MM_CHECK(Utils::EndCommandBuffer(cmd),
+                 LOG_ERROR("Failed to end command buffer.");
+                 return MM_RESULT_CODE;
+          )
+        return ExecuteResult::SUCCESS;
+      }),
+      LOG_ERROR("Mipmap generation failed.");
+      return MM_RESULT_CODE;
+    )
+  
+  return ExecuteResult::SUCCESS;
 }
 
 bool MM::RenderSystem::RenderResourceTexture::InitImageView() {
@@ -1720,10 +1737,10 @@ bool MM::RenderSystem::RenderResourceBuffer::InitBuffer(
   return false;
 }
 
-bool MM::RenderSystem::RenderResourceBuffer::CopyDataToBuffer(
+MM::ExecuteResult MM::RenderSystem::RenderResourceBuffer::CopyDataToBuffer(
     void* data, const VkDeviceSize& offset, const VkDeviceSize& size) {
   if (data == nullptr) {
-    return true;
+    return ExecuteResult::SUCCESS;
   }
 
   if (buffer_.CanMapped()) {
@@ -1731,14 +1748,14 @@ bool MM::RenderSystem::RenderResourceBuffer::CopyDataToBuffer(
     VK_CHECK(vmaMapMemory(render_engine_->allocator_, buffer_.GetAllocation(),
                           reinterpret_cast<void**>(&buffer_ptr)),
              LOG_ERROR("Unable to obtain a pointer mapped to a buffer");
-             return false;)
+             return ExecuteResult::INPUT_PARAMETERS_ARE_NOT_SUITABLE;)
 
     buffer_ptr = buffer_ptr + offset;
     memcpy(buffer_ptr, data, size);
 
     vmaUnmapMemory(render_engine_->allocator_, buffer_.GetAllocation());
 
-    return true;
+    return ExecuteResult::SUCCESS;
   }
 
   auto stage_buffer = render_engine_->CreateBuffer(
@@ -1749,7 +1766,7 @@ bool MM::RenderSystem::RenderResourceBuffer::CopyDataToBuffer(
 
   if (!stage_buffer.IsValid()) {
     LOG_ERROR("Failed to create stage buffer.");
-    return false;
+    return ExecuteResult::CREATE_OBJECT_FAILED;
   }
 
   const auto buffer_copy_region = Utils::GetBufferCopy(size, 0, offset);
@@ -1762,23 +1779,29 @@ bool MM::RenderSystem::RenderResourceBuffer::CopyDataToBuffer(
   VK_CHECK(vmaMapMemory(render_engine_->allocator_,
                         stage_buffer.GetAllocation(), &stage_buffer_ptr),
            LOG_ERROR("Unable to obtain a pointer mapped to a buffer");
-           return false;)
+           return Utils::VkResultToMMResult(VK_RESULT_CODE);)
 
   memcpy(stage_buffer_ptr, data, size);
 
   vmaUnmapMemory(render_engine_->allocator_, stage_buffer.GetAllocation());
 
-  if (!render_engine_->RecordAndSubmitSingleTimeCommand(
-          CommandBufferType::GRAPH,
-          [&buffer_copy_info = buffer_copy_info](VkCommandBuffer& cmd) {
-            vkCmdCopyBuffer2(cmd, &buffer_copy_info);
-          },
-          true)) {
-    LOG_ERROR("Failed to copy data form stage_buffer to buffer_.");
-    return false;
-  }
+  MM_CHECK(render_engine_->RunSingleCommandAndWait(
+      CommandBufferType::TRANSFORM,
+      [&buffer_copy_info = buffer_copy_info](AllocatedCommandBuffer& cmd) {
+        MM_CHECK(Utils::BeginCommandBuffer(cmd),
+                 LOG_ERROR("Failed to begin command buffer.");
+                 return MM_RESULT_CODE;)
 
-  return true;
+        vkCmdCopyBuffer2(cmd.GetCommandBuffer(), &buffer_copy_info);
+
+        MM_CHECK(Utils::EndCommandBuffer(cmd),
+                 LOG_ERROR("Failed to end command buffer.");
+                 return MM_RESULT_CODE;)
+
+        return ExecuteResult::SUCCESS;
+      }))
+
+  return ExecuteResult::SUCCESS;
 }
 
 bool MM::RenderSystem::RenderResourceBuffer::OffsetIsAlignment(

@@ -556,33 +556,34 @@ MM::ExecuteResult MM::RenderSystem::RenderEngine::CopyBuffer(
   return ExecuteResult::SUCCESS;
 }
 
-bool MM::RenderSystem::RenderEngine::CopyImage(AllocatedImage& src_image,
-                                               AllocatedImage& dest_image,
-                                               const VkImageLayout& src_layout,
-                                               const VkImageLayout& dest_layout,
-                                               const std::vector<VkImageCopy2>&
-                                               regions) {
+MM::ExecuteResult MM::RenderSystem::RenderEngine::CopyImage(
+    AllocatedImage& src_image,
+    AllocatedImage& dest_image,
+    const VkImageLayout& src_layout,
+    const VkImageLayout& dest_layout,
+    const std::vector<VkImageCopy2>&
+    regions) {
   // TODO Add "#ifdef CHECK_PARAMETERS" to all parameter check.
 #ifdef CHECK_PARAMETERS
   if (!src_image.IsValid()) {
     LOG_ERROR("Src_image is invalid.");
-    return false;
+    return ExecuteResult::OBJECT_IS_INVALID;
   }
 
   if (!dest_image.IsValid()) {
     LOG_ERROR("Dest_image is invalid.");
-    return false;
+    return ExecuteResult::OBJECT_IS_INVALID;
   }
 
   if (!src_image.IsTransformSrc() || !dest_image.IsTransformDest()) {
     LOG_ERROR(
         "Src_buffer or dest_buffer is not Transform src buffer or Transform "
         "dest buffer.");
-    return false;
+    return ExecuteResult::INPUT_PARAMETERS_ARE_NOT_SUITABLE;
   }
 
   if (regions.empty()) {
-    return true;
+    return ExecuteResult::SUCCESS;
   }
 
   std::unordered_map<std::uint64_t, std::vector<ImageChunkInfo>>
@@ -591,12 +592,12 @@ bool MM::RenderSystem::RenderEngine::CopyImage(AllocatedImage& src_image,
     if (region.extent.width == 0 || region.extent.height == 0 || region.extent.
         depth == 0) {
       LOG_ERROR("VkImageCopy::extent::width/height/depth must greater than 0.");
-      return false;
+      return ExecuteResult::INPUT_PARAMETERS_ARE_NOT_SUITABLE;
     }
 
     if (region.dstSubresource.aspectMask != region.srcSubresource.aspectMask) {
       LOG_ERROR("Src_image aspect mask not equal dest_image aspect mask.");
-      return false;
+      return ExecuteResult::INPUT_PARAMETERS_ARE_NOT_SUITABLE;
     }
 
     if (region.srcSubresource.aspectMask & VK_IMAGE_ASPECT_METADATA_BIT ||
@@ -605,7 +606,7 @@ bool MM::RenderSystem::RenderEngine::CopyImage(AllocatedImage& src_image,
           "Src_image or dest_image include "
           "VK_IMAGE_ASPECT_METADATA_BIT.aspectMask must not contain "
           "VK_IMAGE_ASPECT_METADATA_BIT.");
-      return false;
+      return ExecuteResult::INPUT_PARAMETERS_ARE_NOT_SUITABLE;
     }
 
     if (region.srcSubresource.aspectMask & VK_IMAGE_ASPECT_COLOR_BIT &&
@@ -615,7 +616,7 @@ bool MM::RenderSystem::RenderEngine::CopyImage(AllocatedImage& src_image,
           "If aspectMask contains VK_IMAGE_ASPECT_COLOR_BIT, it must not "
           "contain either of VK_IMAGE_ASPECT_DEPTH_BIT or "
           "VK_IMAGE_ASPECT_STENCIL_BIT.");
-      return false;
+      return ExecuteResult::INPUT_PARAMETERS_ARE_NOT_SUITABLE;
     }
 
     if (region.dstSubresource.aspectMask & VK_IMAGE_ASPECT_COLOR_BIT &&
@@ -625,7 +626,7 @@ bool MM::RenderSystem::RenderEngine::CopyImage(AllocatedImage& src_image,
           "If aspectMask contains VK_IMAGE_ASPECT_COLOR_BIT, it must not "
           "contain either of VK_IMAGE_ASPECT_DEPTH_BIT or "
           "VK_IMAGE_ASPECT_STENCIL_BIT.");
-      return false;
+      return ExecuteResult::INPUT_PARAMETERS_ARE_NOT_SUITABLE;
     }
 
     if (region.srcSubresource.mipLevel > src_image.GetMipmapLevels() || region.
@@ -633,13 +634,13 @@ bool MM::RenderSystem::RenderEngine::CopyImage(AllocatedImage& src_image,
       LOG_ERROR(
           "The specified number of mipmap level is greater than the number of "
           "mipmap level contained in the image itself.");
-      return false;
+      return ExecuteResult::INPUT_PARAMETERS_ARE_NOT_SUITABLE;
     }
 
     if (region.srcSubresource.layerCount != region.dstSubresource.layerCount) {
       LOG_ERROR(
           "The array layer number of src_image and dest_image if different.");
-      return false;
+      return ExecuteResult::INPUT_PARAMETERS_ARE_NOT_SUITABLE;
     }
 
     if (region.srcSubresource.baseArrayLayer + region.srcSubresource.layerCount
@@ -650,7 +651,7 @@ bool MM::RenderSystem::RenderEngine::CopyImage(AllocatedImage& src_image,
       LOG_ERROR(
           "The specified number of array level is greater than the number of "
           "array level contained in the image itself.");
-      return false;
+      return ExecuteResult::INPUT_PARAMETERS_ARE_NOT_SUITABLE;
     }
 
     if (!Utils::ImageRegionAreaLessThanImageExtent(
@@ -659,7 +660,7 @@ bool MM::RenderSystem::RenderEngine::CopyImage(AllocatedImage& src_image,
             region.dstOffset, region.extent, dest_image)) {
       LOG_ERROR(
           "The specified area is lager than src_image/dest_image extent.");
-      return false;
+      return ExecuteResult::INPUT_PARAMETERS_ARE_NOT_SUITABLE;
     }
 
     if (src_image.GetImage() == dest_image.GetImage()) {
@@ -673,7 +674,7 @@ bool MM::RenderSystem::RenderEngine::CopyImage(AllocatedImage& src_image,
           LOG_ERROR(
               "During the buffer copy process, there is an overlap in the "
               "specified copy area.");
-          return false;
+          return ExecuteResult::INPUT_PARAMETERS_ARE_NOT_SUITABLE;
         }
       }
       image_write_areas[hash_value].emplace_back(
@@ -691,7 +692,7 @@ bool MM::RenderSystem::RenderEngine::CopyImage(AllocatedImage& src_image,
         LOG_ERROR(
             "During the buffer copy process, there is an overlap in the "
             "specified copy area.");
-        return false;
+        return ExecuteResult::INPUT_PARAMETERS_ARE_NOT_SUITABLE;
       }
     }
   }
@@ -700,41 +701,50 @@ bool MM::RenderSystem::RenderEngine::CopyImage(AllocatedImage& src_image,
 
   VkCopyImageInfo2 copy_image_info = Utils::GetCopyImageInfo(
       src_image, dest_image, src_layout, dest_layout, regions);
-  if (!RecordAndSubmitSingleTimeCommand(
-          CommandBufferType::TRANSFORM,
-          [&copy_image_info](VkCommandBuffer& cmd) {
-            vkCmdCopyImage2(cmd, &copy_image_info);
-          })) {
-    LOG_ERROR("Failed to copy image.");
-    return false;
-  }
+  MM_CHECK(RunSingleCommandAndWait(
+               CommandBufferType::TRANSFORM,
+               [&copy_image_info](AllocatedCommandBuffer& cmd) {
+                 MM_CHECK(Utils::BeginCommandBuffer(cmd),
+                          LOG_ERROR("Failed to begin command buffer");
+                          return MM_RESULT_CODE;)
 
-  return true;
+                 vkCmdCopyImage2(cmd.GetCommandBuffer(), &copy_image_info);
+
+                 MM_CHECK(Utils::EndCommandBuffer(cmd),
+                          LOG_ERROR("Failed to end command buffer.");
+                          return MM_RESULT_CODE;)
+                 return ExecuteResult::SUCCESS;
+               }),
+           LOG_ERROR("Failed to copy image.");
+           return MM_RESULT_CODE;)
+
+  return ExecuteResult::SUCCESS;
 }
 
-bool MM::RenderSystem::RenderEngine::CopyImage(const AllocatedImage& src_image,
-                                               AllocatedImage& dest_image,
-                                               const VkImageLayout& src_layout,
-                                               const VkImageLayout& dest_layout,
-                                               const std::vector<VkImageCopy2>&
-                                               regions) {
+MM::ExecuteResult MM::RenderSystem::RenderEngine::CopyImage(
+    const AllocatedImage& src_image,
+    AllocatedImage& dest_image,
+    const VkImageLayout& src_layout,
+    const VkImageLayout& dest_layout,
+    const std::vector<VkImageCopy2>&
+    regions) {
   // TODO Add "#ifdef CHECK_PARAMETERS" to all parameter check.
 #ifdef CHECK_PARAMETERS
   if (!src_image.IsValid()) {
     LOG_ERROR("Src_image is invalid.");
-    return false;
+    return ExecuteResult::OBJECT_IS_INVALID;
   }
 
   if (!dest_image.IsValid()) {
     LOG_ERROR("Dest_image is invalid.");
-    return false;
+    return ExecuteResult::OBJECT_IS_INVALID;
   }
 
   if (!src_image.IsTransformSrc() || !dest_image.IsTransformDest()) {
     LOG_ERROR(
         "Src_buffer or dest_buffer is not Transform src buffer or Transform "
         "dest buffer.");
-    return false;
+    return ExecuteResult::INPUT_PARAMETERS_ARE_NOT_SUITABLE;
   }
 
   if (src_image.GetImage() == dest_image.GetImage()) {
@@ -744,11 +754,11 @@ bool MM::RenderSystem::RenderEngine::CopyImage(const AllocatedImage& src_image,
         "AllocatedImage & dest_image, const VkImageLayout& src_layout, const "
         "VkImageLayout& dest_layout, const std::vector<VkImageCopy2>& "
         "regions)");
-    return false;
+    return ExecuteResult::INPUT_PARAMETERS_ARE_INCORRECT;
   }
 
   if (regions.empty()) {
-    return true;
+    return ExecuteResult::SUCCESS;
   }
 
   std::unordered_map<std::uint64_t, std::vector<ImageChunkInfo>>
@@ -757,12 +767,12 @@ bool MM::RenderSystem::RenderEngine::CopyImage(const AllocatedImage& src_image,
     if (region.extent.width == 0 || region.extent.height == 0 ||
         region.extent.depth == 0) {
       LOG_ERROR("VkImageCopy::extent::width/height/depth must greater than 0.");
-      return false;
+      return ExecuteResult::INPUT_PARAMETERS_ARE_NOT_SUITABLE;
     }
 
     if (region.dstSubresource.aspectMask != region.srcSubresource.aspectMask) {
       LOG_ERROR("Src_image aspect mask not equal dest_image aspect mask.");
-      return false;
+      return ExecuteResult::INPUT_PARAMETERS_ARE_NOT_SUITABLE;
     }
 
     if (region.srcSubresource.aspectMask & VK_IMAGE_ASPECT_METADATA_BIT ||
@@ -771,7 +781,7 @@ bool MM::RenderSystem::RenderEngine::CopyImage(const AllocatedImage& src_image,
           "Src_image or dest_image include "
           "VK_IMAGE_ASPECT_METADATA_BIT.aspectMask must not contain "
           "VK_IMAGE_ASPECT_METADATA_BIT.");
-      return false;
+      return ExecuteResult::INPUT_PARAMETERS_ARE_NOT_SUITABLE;
     }
 
     if (region.srcSubresource.aspectMask & VK_IMAGE_ASPECT_COLOR_BIT &&
@@ -781,7 +791,7 @@ bool MM::RenderSystem::RenderEngine::CopyImage(const AllocatedImage& src_image,
           "If aspectMask contains VK_IMAGE_ASPECT_COLOR_BIT, it must not "
           "contain either of VK_IMAGE_ASPECT_DEPTH_BIT or "
           "VK_IMAGE_ASPECT_STENCIL_BIT.");
-      return false;
+      return ExecuteResult::INPUT_PARAMETERS_ARE_NOT_SUITABLE;
     }
 
     if (region.dstSubresource.aspectMask & VK_IMAGE_ASPECT_COLOR_BIT &&
@@ -791,7 +801,7 @@ bool MM::RenderSystem::RenderEngine::CopyImage(const AllocatedImage& src_image,
           "If aspectMask contains VK_IMAGE_ASPECT_COLOR_BIT, it must not "
           "contain either of VK_IMAGE_ASPECT_DEPTH_BIT or "
           "VK_IMAGE_ASPECT_STENCIL_BIT.");
-      return false;
+      return ExecuteResult::INPUT_PARAMETERS_ARE_NOT_SUITABLE;
     }
 
     if (region.srcSubresource.mipLevel > src_image.GetMipmapLevels() ||
@@ -799,13 +809,13 @@ bool MM::RenderSystem::RenderEngine::CopyImage(const AllocatedImage& src_image,
       LOG_ERROR(
           "The specified number of mipmap level is greater than the number of "
           "mipmap level contained in the image itself.");
-      return false;
+      return ExecuteResult::INPUT_PARAMETERS_ARE_NOT_SUITABLE;
     }
 
     if (region.srcSubresource.layerCount != region.dstSubresource.layerCount) {
       LOG_ERROR(
           "The array layer number of src_image and dest_image if different.");
-      return false;
+      return ExecuteResult::INPUT_PARAMETERS_ARE_NOT_SUITABLE;
     }
 
     if (region.srcSubresource.baseArrayLayer +
@@ -817,7 +827,7 @@ bool MM::RenderSystem::RenderEngine::CopyImage(const AllocatedImage& src_image,
       LOG_ERROR(
           "The specified number of array level is greater than the number of "
           "array level contained in the image itself.");
-      return false;
+      return ExecuteResult::INPUT_PARAMETERS_ARE_NOT_SUITABLE;
     }
 
     if (!Utils::ImageRegionAreaLessThanImageExtent(region.srcOffset,
@@ -826,62 +836,71 @@ bool MM::RenderSystem::RenderEngine::CopyImage(const AllocatedImage& src_image,
                                                    region.extent, dest_image)) {
       LOG_ERROR(
           "The specified area is lager than src_image/dest_image extent.");
-      return false;
+      return ExecuteResult::INPUT_PARAMETERS_ARE_NOT_SUITABLE;
     }
   }
 #endif
 
   VkCopyImageInfo2 copy_image_info = Utils::GetCopyImageInfo(
       src_image, dest_image, src_layout, dest_layout, regions);
-  if (RecordAndSubmitSingleTimeCommand(
-          CommandBufferType::TRANSFORM,
-          [&copy_image_info](VkCommandBuffer& cmd) {
-            vkCmdCopyImage2(cmd, &copy_image_info);
-          })) {
-    LOG_ERROR("Failed to copy image.");
-    return false;
-  }
 
-  return true;
+   MM_CHECK(RunSingleCommandAndWait(
+               CommandBufferType::TRANSFORM,
+               [&copy_image_info](AllocatedCommandBuffer& cmd) {
+                 MM_CHECK(Utils::BeginCommandBuffer(cmd),
+                          LOG_ERROR("Failed to begin command buffer");
+                          return MM_RESULT_CODE;)
+
+                 vkCmdCopyImage2(cmd.GetCommandBuffer(), &copy_image_info);
+
+                 MM_CHECK(Utils::EndCommandBuffer(cmd),
+                          LOG_ERROR("Failed to end command buffer.");
+                          return MM_RESULT_CODE;)
+                 return ExecuteResult::SUCCESS;
+               }),
+           LOG_ERROR("Failed to copy image.");
+           return MM_RESULT_CODE;)
+
+  return ExecuteResult::SUCCESS;
 }
 
-bool MM::RenderSystem::RenderEngine::CopyImage(
+MM::ExecuteResult MM::RenderSystem::RenderEngine::CopyImage(
     AllocatedImage& src_image, AllocatedImage& dest_image,
     const VkImageLayout& src_layout, const VkImageLayout& dest_layout,
     const std::vector<std::vector<VkImageCopy2>&>& regions_vector) {
   for (const auto& regions : regions_vector) {
-    if (!CopyImage(src_image, dest_image, src_layout, dest_layout, regions)) {
-      return false;
-    }
+    MM_CHECK(
+        CopyBuffer(src_image, dest_image, src_layout, dest_layout, regions),
+        return MM_RESULT_CODE;
+      )
   }
 
-  return true;
+  return ExecuteResult::SUCCESS;
 }
 
-bool MM::RenderSystem::RenderEngine::CopyImage(
+MM::ExecuteResult MM::RenderSystem::RenderEngine::CopyImage(
     const AllocatedImage& src_image, AllocatedImage& dest_image,
     const VkImageLayout& src_layout, const VkImageLayout& dest_layout,
     const std::vector<std::vector<VkImageCopy2>&>& regions_vector) {
   for (const auto& regions : regions_vector) {
-    if (!CopyImage(src_image, dest_image, src_layout, dest_layout, regions)) {
-      return false;
-    }
+    MM_CHECK(CopyImage(src_image, dest_image, src_layout, dest_layout, regions),
+             return MM_RESULT_CODE;)
   }
 
-  return true;
+  return ExecuteResult::SUCCESS;
 }
 
-bool MM::RenderSystem::RenderEngine::CopyDataToBuffer(
+MM::ExecuteResult MM::RenderSystem::RenderEngine::CopyDataToBuffer(
     AllocatedBuffer& dest_buffer, const void* data,
     const VkDeviceSize& copy_offset, const VkDeviceSize& copy_size) {
   if (!dest_buffer.IsValid()) {
     LOG_ERROR("Dest_buffer is invalid.");
-    return false;
+    return ExecuteResult::OBJECT_IS_INVALID;
   }
 
   if (!dest_buffer.CanMapped()) {
     LOG_ERROR("Dest_buffer can not mapped.");
-    return false;
+    return ExecuteResult::INPUT_PARAMETERS_ARE_INCORRECT;
   }
 
   if (data == nullptr) {
@@ -899,19 +918,19 @@ bool MM::RenderSystem::RenderEngine::CopyDataToBuffer(
   memcpy(map_data, data, copy_size);
   vmaUnmapMemory(dest_buffer.GetAllocator(), dest_buffer.GetAllocation());
 
-  return true;
+  return ExecuteResult::SUCCESS;
 }
 
-bool MM::RenderSystem::RenderEngine::RemoveBufferFragmentation(
+MM::ExecuteResult MM::RenderSystem::RenderEngine::RemoveBufferFragmentation(
     AllocatedBuffer& buffer,
     std::vector<BufferChunkInfo>& buffer_chunks_info) {
 #ifdef CHECK_PARAMETERS
   if (!buffer.IsValid()) {
     LOG_ERROR("buffer is invalid.");
-    return false;
+    return ExecuteResult::OBJECT_IS_INVALID;
   }
   if (buffer_chunks_info.empty()) {
-    return true;
+    return ExecuteResult::SUCCESS;
   }
 #endif
 
@@ -977,36 +996,45 @@ bool MM::RenderSystem::RenderEngine::RemoveBufferFragmentation(
   auto self_copy_to_stage_info = Utils::GetCopyBufferInfo(buffer, stage_buffer, self_copy_to_stage_regions);
   auto stage_copy_to_self_info = Utils::GetCopyBufferInfo(stage_buffer, buffer, stage_copy_to_self_regions);
 
-  if (RecordAndSubmitSingleTimeCommand(
+  MM_CHECK(
+      RunSingleCommandAndWait(
           CommandBufferType::TRANSFORM,
           [&self_copy_info, &self_copy_to_stage_info,
-           stage_copy_to_self_info](VkCommandBuffer& cmd) {
-            vkCmdCopyBuffer2(cmd, &self_copy_to_stage_info);
-            auto barrier = 
-            vkCmdCopyBuffer2(cmd, &self_copy_info);
-            
-            vkCmdCopyBuffer2(cmd, &stage_copy_to_self_info);
-          },
-          true)) {
-    LOG_ERROR(
-        "An error occurred during buffer move while removing the fragmentation "
-        "buffer.");
-    return false;
-  }
+           &stage_copy_to_self_info](AllocatedCommandBuffer& cmd) {
+            MM_CHECK(Utils::BeginCommandBuffer(cmd),
+                     LOG_ERROR("Failed to begin command buffer.");
+                     return MM_RESULT_CODE;)
 
-  return true;
+            vkCmdCopyBuffer2(cmd.GetCommandBuffer(), &self_copy_to_stage_info);
+
+            vkCmdCopyBuffer2(cmd.GetCommandBuffer(), &self_copy_info);
+
+            vkCmdCopyBuffer2(cmd.GetCommandBuffer(), &stage_copy_to_self_info);
+
+            MM_CHECK(Utils::EndCommandBuffer(cmd),
+                     LOG_ERROR("Failed to end command buffer.");
+                     return MM_RESULT_CODE;)
+
+            return ExecuteResult::SUCCESS;
+          }),
+      LOG_ERROR("An error occurred during buffer move while removing the "
+                "fragmentation "
+                "buffer.");
+      return MM_RESULT_CODE;)
+
+  return ExecuteResult::SUCCESS;
 }
 
-bool MM::RenderSystem::RenderEngine::RemoveBufferFragmentation(
+MM::ExecuteResult MM::RenderSystem::RenderEngine::RemoveBufferFragmentation(
     AllocatedBuffer& buffer,
     std::list<BufferChunkInfo>& buffer_chunks_info) {
 #ifdef CHECK_PARAMETERS
   if (!buffer.IsValid()) {
     LOG_ERROR("buffer is invalid.");
-    return false;
+    return ExecuteResult::OBJECT_IS_INVALID;
   }
   if (buffer_chunks_info.empty()) {
-    return true;
+    return ExecuteResult::SUCCESS;
   }
 #endif
 
@@ -1068,7 +1096,7 @@ bool MM::RenderSystem::RenderEngine::RemoveBufferFragmentation(
   AllocatedBuffer stage_buffer = CreateBuffer(
       stage_buffer_size,
       VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
-      VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE,);
+      VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE);
 
   auto self_copy_info =
       Utils::GetCopyBufferInfo(buffer, buffer, self_copy_regions);
@@ -1077,22 +1105,35 @@ bool MM::RenderSystem::RenderEngine::RemoveBufferFragmentation(
   auto stage_copy_to_self_info = Utils::GetCopyBufferInfo(
       stage_buffer, buffer, stage_copy_to_self_regions);
 
-  if (RecordAndSubmitSingleTimeCommand(
+  MM_CHECK(
+      RunSingleCommandAndWait(
           CommandBufferType::TRANSFORM,
           [&self_copy_info, &self_copy_to_stage_info,
-           stage_copy_to_self_info](VkCommandBuffer& cmd) {
-            vkCmdCopyBuffer2(cmd, &self_copy_info);
-            vkCmdCopyBuffer2(cmd, &self_copy_to_stage_info);
-            vkCmdCopyBuffer2(cmd, &stage_copy_to_self_info);
-          },
-          true)) {
-    LOG_ERROR(
-        "An error occurred during buffer move while removing the fragmentation "
-        "buffer.");
-    return false;
-  }
+           &stage_copy_to_self_info](AllocatedCommandBuffer& cmd) {
+            MM_CHECK(Utils::BeginCommandBuffer(cmd),
+                     LOG_ERROR("Failed to begin command buffer.");
+                     return MM_RESULT_CODE;)
 
-  return true;
+            vkCmdCopyBuffer2(cmd.GetCommandBuffer(), &self_copy_to_stage_info);
+
+            vkCmdCopyBuffer2(cmd.GetCommandBuffer(), &self_copy_info);
+
+            vkCmdCopyBuffer2(cmd.GetCommandBuffer(), &stage_copy_to_self_info);
+
+            MM_CHECK(Utils::EndCommandBuffer(cmd),
+                     LOG_ERROR("Failed to end command buffer.");
+                     return MM_RESULT_CODE;)
+
+            return ExecuteResult::SUCCESS;
+          }),
+      LOG_ERROR("An error occurred during buffer move while removing the "
+                "fragmentation "
+                "buffer.");
+      return MM_RESULT_CODE;)
+
+
+
+  return ExecuteResult::SUCCESS;
 }
 
 const VkPhysicalDeviceFeatures& MM::RenderSystem::RenderEngine::

@@ -12,7 +12,8 @@ enum class ExecuteResult : std::uint32_t {
   TYPE_CONVERSION_FAILED = 1u << 5,
   LOAD_CONFIG_FROM_FILE_FAILED = 1u << 6,
   FILE_IS_NOT_EXIST = 1u << 7,
-  INITIALIZATION_FAILED = 1u << 8,
+  CREATE_OBJECT_FAILED = 1u << 8,
+  INITIALIZATION_FAILED = CREATE_OBJECT_FAILED,
   DESTROY_FAILED = 1u << 9,
   // Such as child "class A", parent "class B", B have a member std::set<A>
   // A_set. The instance of class B b_instance and the instance of class A

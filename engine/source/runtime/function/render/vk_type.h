@@ -945,10 +945,11 @@ public:
 
   const MM::RenderSystem::BufferInfo& GetIndexBufferInfo() const;
 
-  bool AllocateBuffer(
+  ExecuteResult AllocateBuffer(
       const std::vector<AssetType::Vertex>& vertices,
       const std::vector<uint32_t>& indexes,
-      const std::shared_ptr<BufferChunkInfo>& output_vertex_buffer_chunk_info, const
+      const std::shared_ptr<BufferChunkInfo>& output_vertex_buffer_chunk_info,
+      const
       std::shared_ptr<MM::RenderSystem::BufferChunkInfo>
       &
       output_index_buffer_chunk_info);
@@ -973,11 +974,12 @@ private:
       VkDeviceSize& output_end_size,
       VkDeviceSize& output_offset);
 
-  bool ScanBufferToFindSuitableArea(AllocatedBuffer& buffer,
-                                    std::list<std::shared_ptr<BufferChunkInfo>>&
-                                    buffer_chunks_info,
-                                    const VkDeviceSize& require_size,
-                                    VkDeviceSize& output_offset);
+  ExecuteResult ScanBufferToFindSuitableArea(AllocatedBuffer& buffer,
+                                             std::list<std::shared_ptr<
+                                               BufferChunkInfo>>&
+                                             buffer_chunks_info,
+                                             const VkDeviceSize& require_size,
+                                             VkDeviceSize& output_offset);
 
   bool ReserveVertexBuffer(const VkDeviceSize& new_buffer_size);
 

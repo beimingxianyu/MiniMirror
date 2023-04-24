@@ -162,6 +162,8 @@ class CommandTaskFlow {
       const std::vector<WaitAllocatedSemaphore>& wait_semaphores,
       const std::vector<AllocateSemaphore>& signal_semaphores);
 
+  // TODO Merge
+
   std::uint32_t GetTaskNumber() const;
 
   std::uint32_t GetGraphNumber() const;
@@ -228,6 +230,8 @@ public:
   const std::vector<WaitAllocatedSemaphore>& GetWaitSemaphore() const;
 
   const std::vector<AllocateSemaphore>& GetSignalSemaphore() const;
+
+  // TODO merge
 
   template <typename... CommandTasks>
   void IsPreTaskTo(CommandTasks&& ...command_tasks);

@@ -432,6 +432,28 @@ void MM::RenderSystem::Utils::AddTransferImageCommands(
   vkCmdPipelineBarrier2(command_buffer, &image_transfer_dependency);
 }
 
+void MM::RenderSystem::Utils::AddTransferImageCommands(
+    AllocatedCommandBuffer& command_buffer, AllocatedImage& image,
+    const ImageTransferMode& transfer_mode, const VkDependencyFlags& flags) {
+  auto image_barrier = Utils::GetImageMemoryBarrier(image, transfer_mode);
+  const auto image_transfer_dependency =
+      Utils::GetImageDependencyInfo(image_barrier, flags);
+
+  vkCmdPipelineBarrier2(command_buffer.GetCommandBuffer(), &image_transfer_dependency);
+}
+
+void MM::RenderSystem::Utils::AddTransferImageCommands(
+    AllocatedCommandBuffer& command_buffer, AllocatedImage& image,
+    const VkImageLayout& old_layout, const VkImageLayout& new_layout,
+    const VkDependencyFlags& flags) {
+  auto image_barrier =
+      Utils::GetImageMemoryBarrier(image, old_layout, new_layout);
+  auto image_transfer_dependency =
+      Utils::GetImageDependencyInfo(image_barrier, flags);
+
+  vkCmdPipelineBarrier2(command_buffer.GetCommandBuffer(), &image_transfer_dependency);
+}
+
 VkBufferImageCopy MM::RenderSystem::Utils::GetBufferToImageCopyRegion(
     const VkImageAspectFlagBits& aspect, const VkExtent3D& image_extent,
     const VkDeviceSize& buffer_offset, const VkOffset3D& image_offset) {

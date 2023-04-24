@@ -149,6 +149,17 @@ void AddTransferImageCommands(VkCommandBuffer& command_buffer,
                               const VkImageLayout& new_layout,
                               const VkDependencyFlags& flags = 0);
 
+void AddTransferImageCommands(AllocatedCommandBuffer& command_buffer,
+                              AllocatedImage& image,
+                              const ImageTransferMode& transfer_mode,
+                              const VkDependencyFlags& flags = 0);
+
+void AddTransferImageCommands(AllocatedCommandBuffer& command_buffer,
+                              AllocatedImage& image,
+                              const VkImageLayout& old_layout,
+                              const VkImageLayout& new_layout,
+                              const VkDependencyFlags& flags = 0);
+
 VkBufferImageCopy GetBufferToImageCopyRegion(
     const VkImageAspectFlagBits& aspect, const VkExtent3D& image_extent,
     const VkDeviceSize& buffer_offset = 0,

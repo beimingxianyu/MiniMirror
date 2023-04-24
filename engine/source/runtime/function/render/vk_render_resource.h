@@ -300,13 +300,13 @@ class RenderResourceTexture final : public RenderResourceBase {
                               AllocatedBuffer& stage_buffer,
                               MM::RenderSystem::ImageInfo& image_info);
 
-  bool InitImage(
+  ExecuteResult InitImage(
       const AllocatedBuffer& stage_buffer, VkImageUsageFlags usages,
       const VmaMemoryUsage& memory_usage = VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE,
       const VmaAllocationCreateFlags& allocation_flags = 0,
       const ImageInfo& image_info);
 
-  bool GenerateMipmap();
+  ExecuteResult GenerateMipmap();
 
   bool InitImageView();
 
@@ -466,8 +466,8 @@ private:
    * \remark Returns true if the \ref data is nullptr or the data is
    * successfully copied, otherwise returns false.
    */
-  bool CopyDataToBuffer(void* data, const VkDeviceSize& offset,
-                        const VkDeviceSize& size);
+  ExecuteResult CopyDataToBuffer(void* data, const VkDeviceSize& offset,
+                                 const VkDeviceSize& size);
 
   bool OffsetIsAlignment(const RenderEngine* engine,
                          const VkDescriptorType& descriptor_type,

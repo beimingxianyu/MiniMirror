@@ -929,107 +929,117 @@ GetIndexBufferInfo() const {
   return index_buffer_.GetBufferInfo();
 }
 
-bool MM::RenderSystem::VertexAndIndexBuffer::AllocateBuffer(
-    const std::vector<AssetType::Vertex>& vertices,
-    const std::vector<uint32_t>& indexes,
-    const std::shared_ptr<BufferChunkInfo>& output_vertex_buffer_chunk_info,
-    const std::shared_ptr<MM::RenderSystem::BufferChunkInfo>&
-    output_index_buffer_chunk_info) {
-  if (vertices.empty() || indexes.empty()) {
-    LOG_ERROR("Input Vertices and indexes must not be empty.");
-    return false;
-  }
-
-  const VkDeviceSize vertices_size =
-      sizeof(AssetType::Vertex) * vertices.size();
-  VkDeviceSize vertex_offset = 0;
-  const VkDeviceSize indexes_size = sizeof(uint32_t) * indexes.size();
-  VkDeviceSize index_offset = 0;
-  TaskSystem::Taskflow taskflow;
-
-  VkDeviceSize vertex_end_size = 0;
-  GetEndSizeAndOffset(vertex_buffer_, vertex_buffer_chunks_info_,
-                      vertex_end_size, vertex_offset);
-
-  if (vertices_size < vertex_end_size) {
-    *output_vertex_buffer_chunk_info =
-        BufferChunkInfo{vertex_offset, vertices_size};
-  } else {
-    // If the remaining space behind cannot meet the requirements,
-    // scan the entire buffer area to find suitable unused space.
-    if (!ScanBufferToFindSuitableArea(vertex_buffer_,
-                                      vertex_buffer_chunks_info_, vertices_size,
-                                      vertex_offset)) {
-      return false;
-    }
-    *output_vertex_buffer_chunk_info =
-        BufferChunkInfo{vertex_offset, vertices_size};
-  }
-
-  AllocatedBuffer vertex_stage_buffer = render_engine_->CreateBuffer(
-      vertices_size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-      VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE,
-      VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT);
-
-  render_engine_->CopyDataToBuffer(vertex_stage_buffer, vertices.data(), 0,
-                                   vertices_size);
-
-  const VkBufferCopy2 vertex_region =
-      Utils::GetBufferCopy(vertices_size, 0, vertex_offset);
-  if (!render_engine_->CopyBuffer(vertex_stage_buffer, vertex_buffer_,
-                                  std::vector<VkBufferCopy2>{vertex_region})) {
-    LOG_ERROR("Failed to copy new vertex data to vertex buffer.");
-    return false;
-  }
-
-  vertex_stage_buffer.Release();
-
-  VkDeviceSize index_end_size = 0;
-  GetEndSizeAndOffset(index_buffer_, index_buffer_chunks_info_, index_end_size,
-                      index_offset);
-
-  if (indexes_size < index_end_size) {
-    *output_index_buffer_chunk_info =
-        BufferChunkInfo{index_offset, indexes_size};
-  } else {
-    // If the remaining space behind cannot meet the requirements,
-    // scan the entire buffer area to find suitable unused space.
-    if (!ScanBufferToFindSuitableArea(index_buffer_, index_buffer_chunks_info_,
-                                      indexes_size, index_offset)) {
-      return false;
-    }
-    *output_index_buffer_chunk_info =
-        BufferChunkInfo{index_offset, indexes_size};
-  }
-
-  AllocatedBuffer index_stage_buffer = render_engine_->CreateBuffer(
-      indexes_size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-      VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE,
-      VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT,);
-
-  std::vector<VkDeviceSize> new_indexes(indexes.size());
-  for (std::size_t i = 0; i < new_indexes.size(); ++i) {
-    new_indexes[i] = indexes[i] + vertex_offset;
-  }
-
-  if (!render_engine_->CopyDataToBuffer(index_stage_buffer, new_indexes.data(), 0,
-                                   indexes_size)) {
-    LOG_ERROR("Failed to copy new index data to stage buffer");
-    return false;
-  }
-
-  const VkBufferCopy2 index_region =
-      Utils::GetBufferCopy(indexes_size, 0, index_offset);
-  if (!render_engine_->CopyBuffer(index_stage_buffer, index_buffer_,
-                                  std::vector<VkBufferCopy2>{index_region})) {
-    LOG_ERROR("Failed to copy new index data to index buffer.");
-    return false;
-  }
-
-  index_stage_buffer.Release();
-
-  return true;
-}
+//MM::ExecuteResult MM::RenderSystem::VertexAndIndexBuffer::AllocateBuffer(
+//    const std::vector<AssetType::Vertex>& vertices,
+//    const std::vector<uint32_t>& indexes,
+//    const std::shared_ptr<BufferChunkInfo>& output_vertex_buffer_chunk_info,
+//    const std::shared_ptr<MM::RenderSystem::BufferChunkInfo>&
+//    output_index_buffer_chunk_info) {
+//  if (vertices.empty() || indexes.empty()) {
+//    LOG_ERROR("Input Vertices and indexes must not be empty.");
+//    return ExecuteResult::INPUT_PARAMETERS_ARE_INCORRECT;
+//  }
+//
+//  const VkDeviceSize vertices_size =
+//      sizeof(AssetType::Vertex) * vertices.size();
+//  VkDeviceSize vertex_offset = 0;
+//  const VkDeviceSize indexes_size = sizeof(uint32_t) * indexes.size();
+//  VkDeviceSize index_offset = 0;
+//  TaskSystem::Taskflow taskflow;
+//
+//  VkDeviceSize vertex_end_size = 0;
+//  GetEndSizeAndOffset(vertex_buffer_, vertex_buffer_chunks_info_,
+//                      vertex_end_size, vertex_offset);
+//
+//  if (vertices_size < vertex_end_size) {
+//    *output_vertex_buffer_chunk_info =
+//        BufferChunkInfo{vertex_offset, vertices_size};
+//  } else {
+//    // If the remaining space behind cannot meet the requirements,
+//    // scan the entire buffer area to find suitable unused space.
+//    if (!ScanBufferToFindSuitableArea(vertex_buffer_,
+//                                      vertex_buffer_chunks_info_, vertices_size,
+//                                      vertex_offset)) {
+//      return false;
+//    }
+//    *output_vertex_buffer_chunk_info =
+//        BufferChunkInfo{vertex_offset, vertices_size};
+//  }
+//
+//  AllocatedBuffer vertex_stage_buffer = render_engine_->CreateBuffer(
+//      vertices_size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+//      VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE,
+//      VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT);
+//
+//  MM_CHECK(render_engine_->CopyDataToBuffer(vertex_stage_buffer,
+//                                            vertices.data(), 0, vertices_size),
+//           LOG_ERROR("Failed to copy new index data to stage buffer");
+//           return MM_RESULT_CODE;)
+//
+//  const VkBufferCopy2 vertex_region =
+//      Utils::GetBufferCopy(vertices_size, 0, vertex_offset);
+//  MM_CHECK(
+//      render_engine_->CopyBuffer(vertex_stage_buffer, vertex_buffer_,
+//                                 std::vector<VkBufferCopy2>{vertex_region}),
+//      LOG_ERROR("Failed to copy new vertex data to vertex buffer.");
+//      return MM_RESULT_CODE;
+//    )
+//
+//  MM_CHECK(
+//      render_engine_->CopyBuffer(vertex_stage_buffer, vertex_buffer_,
+//                                 std::vector<VkBufferCopy2>{vertex_region}), 
+//    )
+//
+//  vertex_stage_buffer.Release();
+//
+//  VkDeviceSize index_end_size = 0;
+//  GetEndSizeAndOffset(index_buffer_, index_buffer_chunks_info_, index_end_size,
+//                      index_offset);
+//
+//  if (indexes_size < index_end_size) {
+//    *output_index_buffer_chunk_info =
+//        BufferChunkInfo{index_offset, indexes_size};
+//  } else {
+//    // If the remaining space behind cannot meet the requirements,
+//    // scan the entire buffer area to find suitable unused space.
+//    if (!ScanBufferToFindSuitableArea(index_buffer_, index_buffer_chunks_info_,
+//                                      indexes_size, index_offset)) {
+//      return false;
+//    }
+//    *output_index_buffer_chunk_info =
+//        BufferChunkInfo{index_offset, indexes_size};
+//  }
+//
+//  AllocatedBuffer index_stage_buffer = render_engine_->CreateBuffer(
+//      indexes_size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+//      VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE,
+//      VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT,);
+//
+//  std::vector<VkDeviceSize> new_indexes(indexes.size());
+//  for (std::size_t i = 0; i < new_indexes.size(); ++i) {
+//    new_indexes[i] = indexes[i] + vertex_offset;
+//  }
+//
+//  MM_CHECK(render_engine_->CopyDataToBuffer(
+//               index_stage_buffer, new_indexes.data(), 0, indexes_size),
+//           LOG_ERROR("Failed to copy new index data to stage buffer");
+//           return MM_RESULT_CODE;)
+//
+//  const VkBufferCopy2 index_region =
+//      Utils::GetBufferCopy(indexes_size, 0, index_offset);
+//  
+//  MM_CHECK(render_engine_->CopyBuffer(index_stage_buffer, index_buffer_,
+//                                      std::vector<VkBufferCopy2>{index_region}),
+//           LOG_ERROR("Failed to copy new index data to index buffer.");
+//           return MM_RESULT_CODE;
+//    )
+//
+//  index_stage_buffer.Release();
+//
+//
+//
+//  return ExecuteResult::SUCCESS;
+//}
 
 void MM::RenderSystem::VertexAndIndexBuffer::Release() {
   render_engine_ = nullptr;
@@ -1161,274 +1171,273 @@ void MM::RenderSystem::VertexAndIndexBuffer::GetEndSizeAndOffset(
   }
 }
 
-bool MM::RenderSystem::VertexAndIndexBuffer::ScanBufferToFindSuitableArea(
-    MM::RenderSystem::AllocatedBuffer& buffer,
-    std::list<std::shared_ptr<BufferChunkInfo>>& buffer_chunks_info,
-    const VkDeviceSize& require_size, VkDeviceSize& output_offset) {
-  if (buffer_chunks_info.empty()) {
-    if (require_size > buffer.GetBufferSize()) {
-      VkDeviceSize reserve_size = 0;
-      if (&buffer == &vertex_buffer_) {
-        if (!ChooseVertexBufferReserveSize(require_size, reserve_size)) {
-          LOG_ERROR("Unable to find a suitable buffer.");
-          return false;
-        }
-        if (!ReserveVertexBuffer(reserve_size)) {
-          LOG_ERROR("Unable to find a suitable buffer.");
-          return false;
-        }
-      } else {
-        if (!ChooseIndexBufferReserveSize(require_size, reserve_size)) {
-          LOG_ERROR("Unable to find a suitable buffer.");
-          return false;
-        }
-        if (!ReserveIndexBuffer(reserve_size)) {
-          LOG_ERROR("Unable to find a suitable buffer.");
-          return false;
-        }
-      }
-    }
-    output_offset = 0;
-    return true;
-  }
-  auto first_element = buffer_chunks_info.begin();
-  while (first_element->use_count() == 1) {
-    first_element = buffer_chunks_info.erase(first_element);
-    if (first_element == buffer_chunks_info.end()) {
-      break;
-    }
-  }
-  if (first_element == buffer_chunks_info.end()) {
-    if (require_size > buffer.GetBufferSize()) {
-      VkDeviceSize reserve_size = 0;
-      if (&buffer == &vertex_buffer_) {
-        if (!ChooseVertexBufferReserveSize(require_size, reserve_size)) {
-          LOG_ERROR("Unable to find a suitable buffer.");
-          return false;
-        }
-        if (!ReserveVertexBuffer(reserve_size)) {
-          LOG_ERROR("Unable to find a suitable buffer.");
-          return false;
-        }
-      } else {
-        if (!ChooseIndexBufferReserveSize(require_size, reserve_size)) {
-          LOG_ERROR("Unable to find a suitable buffer.");
-          return false;
-        }
-        if (!ReserveIndexBuffer(reserve_size)) {
-          LOG_ERROR("Unable to find a suitable buffer.");
-          return false;
-        }
-      }
-      output_offset = 0;
-      return true;
-    }
-  }
+//MM::ExecuteResult
+//MM::RenderSystem::VertexAndIndexBuffer::ScanBufferToFindSuitableArea(
+//    MM::RenderSystem::AllocatedBuffer& buffer,
+//    std::list<std::shared_ptr<BufferChunkInfo>>& buffer_chunks_info,
+//    const VkDeviceSize& require_size, VkDeviceSize& output_offset) {
+//  if (buffer_chunks_info.empty()) {
+//    if (require_size > buffer.GetBufferSize()) {
+//      VkDeviceSize reserve_size = 0;
+//      if (&buffer == &vertex_buffer_) {
+//        if (!ChooseVertexBufferReserveSize(require_size, reserve_size)) {
+//          LOG_ERROR("Unable to find a suitable buffer.");
+//          return false;
+//        }
+//        if (!ReserveVertexBuffer(reserve_size)) {
+//          LOG_ERROR("Unable to find a suitable buffer.");
+//          return false;
+//        }
+//      } else {
+//        if (!ChooseIndexBufferReserveSize(require_size, reserve_size)) {
+//          LOG_ERROR("Unable to find a suitable buffer.");
+//          return false;
+//        }
+//        if (!ReserveIndexBuffer(reserve_size)) {
+//          LOG_ERROR("Unable to find a suitable buffer.");
+//          return false;
+//        }
+//      }
+//    }
+//    output_offset = 0;
+//    return true;
+//  }
+//  auto first_element = buffer_chunks_info.begin();
+//  while (first_element->use_count() == 1) {
+//    first_element = buffer_chunks_info.erase(first_element);
+//    if (first_element == buffer_chunks_info.end()) {
+//      break;
+//    }
+//  }
+//  if (first_element == buffer_chunks_info.end()) {
+//    if (require_size > buffer.GetBufferSize()) {
+//      VkDeviceSize reserve_size = 0;
+//      if (&buffer == &vertex_buffer_) {
+//        if (!ChooseVertexBufferReserveSize(require_size, reserve_size)) {
+//          LOG_ERROR("Unable to find a suitable buffer.");
+//          return false;
+//        }
+//        if (!ReserveVertexBuffer(reserve_size)) {
+//          LOG_ERROR("Unable to find a suitable buffer.");
+//          return false;
+//        }
+//      } else {
+//        if (!ChooseIndexBufferReserveSize(require_size, reserve_size)) {
+//          LOG_ERROR("Unable to find a suitable buffer.");
+//          return false;
+//        }
+//        if (!ReserveIndexBuffer(reserve_size)) {
+//          LOG_ERROR("Unable to find a suitable buffer.");
+//          return false;
+//        }
+//      }
+//      output_offset = 0;
+//      return true;
+//    }
+//  }
+//
+//  if ((*first_element)->GetOffset() > require_size) {
+//    output_offset = 0;
+//    return true;
+//  }
+//
+//  auto next_element = ++first_element;
+//  for (; next_element != buffer_chunks_info.end();
+//       ++first_element, ++next_element) {
+//    const VkDeviceSize first_end =
+//        (*first_element)->GetOffset() + (*first_element)->GetSize();
+//    if (require_size < (*next_element)->GetOffset - first_end) {
+//      output_offset = first_end;
+//      return true;
+//    }
+//  }
+//
+//  VkDeviceSize reserve_size = 0;
+//  if (&buffer == &vertex_buffer_) {
+//    if (!ChooseVertexBufferReserveSize(require_size, reserve_size)) {
+//      LOG_ERROR("Unable to find a suitable buffer.");
+//      return false;
+//    }
+//    if (!ReserveVertexBuffer(reserve_size)) {
+//      LOG_ERROR("Unable to find a suitable buffer.");
+//      return false;
+//    }
+//    const auto the_last_element = (--vertex_buffer_chunks_info_.end());
+//    output_offset =
+//        (*the_last_element)->GetOffset() + (*the_last_element)->GetSize();
+//    return true;
+//  }
+//  if (!ChooseIndexBufferReserveSize(require_size, reserve_size)) {
+//    LOG_ERROR("Unable to find a suitable buffer.");
+//    return false;
+//  }
+//  if (!ReserveIndexBuffer(reserve_size)) {
+//    LOG_ERROR("Unable to find a suitable buffer.");
+//    return false;
+//  }
+//  const auto the_last_element = (--index_buffer_chunks_info_.end());
+//  output_offset =
+//      (*the_last_element)->GetOffset() + (*the_last_element)->GetSize();
+//  return true;
+//}
 
-  if ((*first_element)->GetOffset() > require_size) {
-    output_offset = 0;
-    return true;
-  }
+//bool MM::RenderSystem::VertexAndIndexBuffer::ReserveVertexBuffer(
+//    const VkDeviceSize& new_buffer_size) {
+//  bool result_step1 = false;
+//  bool result_step3 = false;
+//
+//  TaskSystem::Taskflow taskflow;
+//
+//  AllocatedBuffer new_buffer;
+//
+//  auto step1 = taskflow.emplace([&render_engine = render_engine_, &new_buffer,
+//                                 &result_step1, &new_buffer_size,
+//                                 &index_buffer_chunks_info =
+//                                     index_buffer_chunks_info_]() {
+//    new_buffer = render_engine->CreateBuffer(
+//        new_buffer_size,
+//        VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT |
+//            VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
+//        VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE);
+//    if (!new_buffer.IsValid()) {
+//      LOG_ERROR("Failed to create new vertex buffer.");
+//      return;
+//    }
+//    result_step1 = true;
+//  });
+//
+//  auto step2 = taskflow.emplace([&render_engine = render_engine_]() {
+//    // TODO 去除碎片化的空间
+//  });
+//
+//  std::vector<VkBufferCopy2> regions;
+//
+//  std::vector<VkDeviceSize> index_offsets;
+//  index_offsets.reserve(vertex_buffer_chunks_info_.size());
+//  std::vector<VkDeviceSize> new_buffer_offsets;
+//  new_buffer_offsets.reserve(vertex_buffer_chunks_info_.size());
+//
+//  auto step3 = taskflow.emplace(
+//      [&regions, &vertex_buffer_chunks_info = vertex_buffer_chunks_info_,
+//       &index_buffer_chunks_info = index_buffer_chunks_info_, &index_offsets,
+//       &new_buffer_offsets]() {
+//        VkDeviceSize new_buffer_offset = 0;
+//        regions.reserve(vertex_buffer_chunks_info.size());
+//        auto index_buffer_chunk_info = index_buffer_chunks_info.begin();
+//        for (const auto& buffer_chunk_info : vertex_buffer_chunks_info) {
+//          regions.emplace_back(Utils::GetBufferCopy(
+//              (*buffer_chunk_info).GetSize(), (*buffer_chunk_info).GetOffset(),
+//              new_buffer_offset));
+//
+//          // save offset data and use them after copy succeed
+//          index_offsets.emplace_back(buffer_chunk_info->GetOffset() -
+//                                     new_buffer_offset);
+//          new_buffer_offsets.emplace_back(new_buffer_offset);
+//
+//          new_buffer_offset += (*buffer_chunk_info).GetSize();
+//          ++index_buffer_chunk_info;
+//        }
+//      });
+//
+//  auto step4 = taskflow.emplace([&render_engine = render_engine_,
+//                                 &vertex_buffer = vertex_buffer_, &regions,
+//                                 &new_buffer, &result_step1, &result_step3]() {
+//    if (!result_step1) {
+//      return;
+//    }
+//    result_step3 =
+//        render_engine->CopyBuffer(vertex_buffer, new_buffer, regions);
+//    if (!result_step3) {
+//      LOG_ERROR("Failed to copy vertiex data to new vertex buffer.");
+//    }
+//  });
+//
+//  step3.succeed(step1, step2);
+//
+//  TASK_SYSTEM->RunAndWait(TaskSystem::TaskType::Render, taskflow);
+//
+//  if (!result_step3) {
+//    LOG_ERROR("Failed to reserve vertex buffer");
+//    return false;
+//  }
+//
+//  // The next process is linear and cannot be parallel.
+//  if (!stage_index_buffer.IsValid()) {
+//    LOG_ERROR("Failed to create stage index buffer");
+//    return false;
+//  }
+//
+//  // TODO 直接ReserveIndexBuffer
+//
+//  vertex_buffer_ = new_buffer;
+//
+//  return true;
+//}
 
-  auto next_element = ++first_element;
-  for (; next_element != buffer_chunks_info.end();
-         ++first_element, ++next_element) {
-    const VkDeviceSize first_end =
-        (*first_element)->GetOffset() + (*first_element)->GetSize();
-    if (require_size < (*next_element)->GetOffset - first_end) {
-      output_offset = first_end;
-      return true;
-    }
-  }
-
-  VkDeviceSize reserve_size = 0;
-  if (&buffer == &vertex_buffer_) {
-    if (!ChooseVertexBufferReserveSize(require_size, reserve_size)) {
-      LOG_ERROR("Unable to find a suitable buffer.");
-      return false;
-    }
-    if (!ReserveVertexBuffer(reserve_size)) {
-      LOG_ERROR("Unable to find a suitable buffer.");
-      return false;
-    }
-    const auto the_last_element = (--vertex_buffer_chunks_info_.end());
-    output_offset =
-        (*the_last_element)->GetOffset() + (*the_last_element)->GetSize();
-    return true;
-  }
-  if (!ChooseIndexBufferReserveSize(require_size, reserve_size)) {
-    LOG_ERROR("Unable to find a suitable buffer.");
-    return false;
-  }
-  if (!ReserveIndexBuffer(reserve_size)) {
-    LOG_ERROR("Unable to find a suitable buffer.");
-    return false;
-  }
-  const auto the_last_element = (--index_buffer_chunks_info_.end());
-  output_offset =
-      (*the_last_element)->GetOffset() + (*the_last_element)->GetSize();
-  return true;
-}
-
-bool MM::RenderSystem::VertexAndIndexBuffer::ReserveVertexBuffer(
-    const VkDeviceSize& new_buffer_size) {
-  bool result_step1 = false;
-  bool result_step3 = false;
-
-
-  TaskSystem::Taskflow taskflow;
-
-  AllocatedBuffer new_buffer;
-
-  auto step1 = taskflow.emplace([&render_engine = render_engine_, &new_buffer,
-                                 &result_step1, &new_buffer_size, &
-                                 index_buffer_chunks_info =
-                                 index_buffer_chunks_info_]() {
-    new_buffer = render_engine->CreateBuffer(
-        new_buffer_size,
-        VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT |
-        VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
-        VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE);
-    if (!new_buffer.IsValid()) {
-      LOG_ERROR("Failed to create new vertex buffer.");
-      return;
-    }
-    result_step1 = true;
-  });
-
-  auto step2 = taskflow.emplace([&render_engine = render_engine_]() {
-    // TODO 去除碎片化的空间
-
-  });
-
-  std::vector<VkBufferCopy2> regions;
-  
-  std::vector<VkDeviceSize> index_offsets;
-  index_offsets.reserve(vertex_buffer_chunks_info_.size());
-  std::vector<VkDeviceSize> new_buffer_offsets;
-  new_buffer_offsets.reserve(vertex_buffer_chunks_info_.size());
-
-  auto step3 = taskflow.emplace(
-      [&regions, &vertex_buffer_chunks_info = vertex_buffer_chunks_info_,
-         &index_buffer_chunks_info = index_buffer_chunks_info_, &index_offsets, &new_buffer_offsets]() {
-        VkDeviceSize new_buffer_offset = 0;
-        regions.reserve(vertex_buffer_chunks_info.size());
-        auto index_buffer_chunk_info = index_buffer_chunks_info.begin();
-        for (const auto& buffer_chunk_info : vertex_buffer_chunks_info) {
-          regions.emplace_back(Utils::GetBufferCopy(
-              (*buffer_chunk_info).GetSize(), (*buffer_chunk_info).GetOffset(),
-              new_buffer_offset));
-
-          // save offset data and use them after copy succeed
-          index_offsets.emplace_back(buffer_chunk_info->GetOffset() -
-                                     new_buffer_offset);
-          new_buffer_offsets.emplace_back(new_buffer_offset);
-
-          new_buffer_offset += (*buffer_chunk_info).GetSize();
-          ++index_buffer_chunk_info;
-        }
-      });
-
-  auto step4 = taskflow.emplace([&render_engine = render_engine_,
-                                 &vertex_buffer = vertex_buffer_, &regions,
-                                 &new_buffer, &result_step1, &result_step3]() {
-    if (!result_step1) {
-      return;
-    }
-    result_step3 = render_engine->CopyBuffer(vertex_buffer, new_buffer, regions);
-    if (!result_step3) {
-      LOG_ERROR("Failed to copy vertiex data to new vertex buffer.");
-    }
-  });
-
-  step3.succeed(step1, step2);
-
-  TASK_SYSTEM->RunAndWait(TaskSystem::TaskType::Render, taskflow);
-
-  if (!result_step3) {
-    LOG_ERROR("Failed to reserve vertex buffer");
-    return false;
-  }
-
-  // The next process is linear and cannot be parallel.
-  if (!stage_index_buffer.IsValid()) {
-    LOG_ERROR("Failed to create stage index buffer");
-    return false;
-  }
-
-  // TODO 直接ReserveIndexBuffer
-
-
-  vertex_buffer_ = new_buffer;
-
-  return true;
-}
-
-bool MM::RenderSystem::VertexAndIndexBuffer::ReserveIndexBuffer(
-    const VkDeviceSize& new_buffer_size) {
-  bool result_step1 = false;
-  bool result_step3 = false;
-
-  TaskSystem::Taskflow taskflow;
-
-  AllocatedBuffer new_buffer;
-
-  auto step1 = taskflow.emplace([&render_engine = render_engine_, &new_buffer,
-                                 &result_step1, &new_buffer_size]() {
-    new_buffer = render_engine->CreateBuffer(
-        new_buffer_size,
-        VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT |
-        VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
-        VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE);
-    if (!new_buffer.IsValid()) {
-      LOG_ERROR("Failed to create new index buffer.");
-      return;
-    }
-    result_step1 = true;
-  });
-
-  std::vector<VkBufferCopy2> regions;
-
-  auto step2 = taskflow.emplace(
-      [&regions, &index_buffer_chunks_info = index_buffer_chunks_info_]() {
-        VkDeviceSize new_buffer_offset = 0;
-        regions.reserve(index_buffer_chunks_info.size());
-        for (const auto& buffer_chunk_info : index_buffer_chunks_info) {
-          regions.emplace_back(Utils::GetBufferCopy(
-              (*buffer_chunk_info).GetSize(), (*buffer_chunk_info).GetOffset(),
-              new_buffer_offset));
-          buffer_chunk_info->SetOffset(new_buffer_offset);
-
-          new_buffer_offset += (*buffer_chunk_info).GetSize();
-        }
-      });
-
-  auto step3 = taskflow.emplace([&render_engine = render_engine_,
-                                 &index_buffer = index_buffer_, &regions,
-                                 &new_buffer, &result_step1, &result_step3]() {
-    if (!result_step1) {
-      return;
-    }
-    result_step3 =
-        render_engine->CopyBuffer(index_buffer, new_buffer, regions);
-    if (!result_step3) {
-      LOG_ERROR("Failed to copy vertiex data to new index buffer.");
-    }
-  });
-
-  step3.succeed(step1, step2);
-
-  TASK_SYSTEM->RunAndWait(TaskSystem::TaskType::Render, taskflow);
-
-  if (!result_step3) {
-    LOG_ERROR("Failed to reserve vertex buffer");
-    return false;
-  }
-
-  index_buffer_ = new_buffer;
-
-  return true;
-}
+//bool MM::RenderSystem::VertexAndIndexBuffer::ReserveIndexBuffer(
+//    const VkDeviceSize& new_buffer_size) {
+//  bool result_step1 = false;
+//  bool result_step3 = false;
+//
+//  TaskSystem::Taskflow taskflow;
+//
+//  AllocatedBuffer new_buffer;
+//
+//  auto step1 = taskflow.emplace([&render_engine = render_engine_, &new_buffer,
+//                                 &result_step1, &new_buffer_size]() {
+//    new_buffer = render_engine->CreateBuffer(
+//        new_buffer_size,
+//        VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT |
+//            VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
+//        VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE);
+//    if (!new_buffer.IsValid()) {
+//      LOG_ERROR("Failed to create new index buffer.");
+//      return;
+//    }
+//    result_step1 = true;
+//  });
+//
+//  std::vector<VkBufferCopy2> regions;
+//
+//  auto step2 = taskflow.emplace(
+//      [&regions, &index_buffer_chunks_info = index_buffer_chunks_info_]() {
+//        VkDeviceSize new_buffer_offset = 0;
+//        regions.reserve(index_buffer_chunks_info.size());
+//        for (const auto& buffer_chunk_info : index_buffer_chunks_info) {
+//          regions.emplace_back(Utils::GetBufferCopy(
+//              (*buffer_chunk_info).GetSize(), (*buffer_chunk_info).GetOffset(),
+//              new_buffer_offset));
+//          buffer_chunk_info->SetOffset(new_buffer_offset);
+//
+//          new_buffer_offset += (*buffer_chunk_info).GetSize();
+//        }
+//      });
+//
+//  auto step3 = taskflow.emplace([&render_engine = render_engine_,
+//                                 &index_buffer = index_buffer_, &regions,
+//                                 &new_buffer, &result_step1, &result_step3]() {
+//    if (!result_step1) {
+//      return;
+//    }
+//    result_step3 = render_engine->CopyBuffer(index_buffer, new_buffer, regions);
+//    if (!result_step3) {
+//      LOG_ERROR("Failed to copy vertiex data to new index buffer.");
+//    }
+//  });
+//
+//  step3.succeed(step1, step2);
+//
+//  TASK_SYSTEM->RunAndWait(TaskSystem::TaskType::Render, taskflow);
+//
+//  if (!result_step3) {
+//    LOG_ERROR("Failed to reserve vertex buffer");
+//    return false;
+//  }
+//
+//  index_buffer_ = new_buffer;
+//
+//  return true;
+//}
 
 bool MM::RenderSystem::VertexAndIndexBuffer::Reserve(const VkDeviceSize& new_vertex_buffer_size, const VkDeviceSize&
                                                      new_index_buffer_size) {
