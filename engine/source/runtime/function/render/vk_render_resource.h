@@ -67,6 +67,8 @@ class RenderResourceManager : public RenderManageBase<RenderResourceBase> {
   std::uint32_t GetLightCopy(const std::string& new_name_of_resource,
                              const std::uint32_t& resource_ID) override;
 
+  // TODO Add function that create default type render resource
+
   std::uint32_t SaveData(
       std::unique_ptr<RenderResourceBase>&& resource) override;
 
@@ -87,6 +89,7 @@ class RenderResourceManager : public RenderManageBase<RenderResourceBase> {
 
   bool AddUse(const std::string& resource_name) override;
 
+  // TODO Add multiple frame in flight support
   void ReleaseUse(const std::uint32_t& object_id) override;
 
   void ReleaseUse(const std::string& resource_name) override;
@@ -109,6 +112,7 @@ class RenderResourceManager : public RenderManageBase<RenderResourceBase> {
   std::unordered_map<uint32_t, uint64_t> resource_ID_to_asset_ID_{};
   std::unordered_map<uint32_t, RenderResourceManageInfo>
       resource_ID_to_manage_info{};
+  // TODO Add vertex buffer and stage buffer
 };
 
 class RenderResourceBase : ManagedObjectBase {
@@ -244,8 +248,6 @@ class RenderResourceTexture final : public RenderResourceBase {
       const std::shared_ptr<VkSampler>& sampler);
 
   VkDescriptorType GetDescriptorType() const;
-
-  std::shared_ptr<VkSemaphore> GetSemaphore() const;
 
   bool CanMapped() const;
 
@@ -716,7 +718,7 @@ void RenderResourceConstants<ConstantType>::Reset(
     LOG_WARN(
         "The resource type of the reset resource is different from the "
         "original resource type. Only the resources held by the object will be "
-        "released, and resources will not be reset.")
+        "released, and resources will not be reset.");
     Release();
     return;
   }

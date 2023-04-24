@@ -264,7 +264,7 @@ template <typename ObjectType>
 uint32_t RenderManageBase<ObjectType>::GetObjectIDFromName(
     const std::string& object_name) const {
   if (!HaveData(object_name)) {
-    LOG_ERROR(object_name + "is not existent.0 will be return.")
+    LOG_ERROR(object_name + "is not existent.0 will be return.");
     return 0;
   }
   std::shared_lock<std::shared_mutex> guard{data_lock_};
@@ -324,7 +324,7 @@ std::uint32_t RenderManageBase<ObjectType>::GetDeepCopy(
     const std::string& new_name_of_object, const std::string& object_name) {
   const auto name_to_ID = GetObjectIDFromName(object_name);
   if (name_to_ID == 0) {
-    LOG_ERROR(object_name + " is not exist.")
+    LOG_ERROR(object_name + " is not exist.");
     return 0;
   }
   std::uint32_t ID = GetIncreaseIndex();
@@ -385,7 +385,7 @@ std::uint32_t RenderManageBase<ObjectType>::GetLightCopy(
     const std::string& new_name_of_object, const std::string& object_name) {
   const auto name_to_ID = GetObjectIDFromName(object_name);
   if (name_to_ID == 0) {
-    LOG_ERROR(object_name + " is not exist.")
+    LOG_ERROR(object_name + " is not exist.");
     return 0;
   }
   std::uint32_t ID = GetIncreaseIndex();
@@ -463,7 +463,7 @@ template <typename ObjectType>
 bool RenderManageBase<ObjectType>::AddUse(const std::string& object_name) {
   const auto ID = GetObjectIDFromName(object_name);
   if (ID == 0) {
-    LOG_ERROR(object_name + " is not exist.")
+    LOG_ERROR(object_name + " is not exist.");
     return false;
   }
   std::unique_lock<std::shared_mutex> guard{data_lock_};
@@ -577,6 +577,9 @@ struct RenderEngineInfo {
 struct ImageBindInfo {
   ImageBindInfo() = default;
   ~ImageBindInfo() = default;
+  ImageBindInfo(const VkDescriptorSetLayoutBinding& bind,
+                const std::shared_ptr<VkImageView>& image_view,
+                const std::shared_ptr<VkSampler>& sampler);
   ImageBindInfo(const ImageBindInfo& other) = default;
   ImageBindInfo(ImageBindInfo&& other) noexcept;
   ImageBindInfo& operator=(const ImageBindInfo& other);
@@ -612,6 +615,9 @@ struct ImageInfo {
 struct BufferBindInfo {
   BufferBindInfo() = default;
   ~BufferBindInfo() = default;
+  BufferBindInfo(const VkDescriptorSetLayoutBinding& bind,
+                 VkDeviceSize range_size, VkDeviceSize offset,
+                 VkDeviceSize dynamic_offset);
   BufferBindInfo(const BufferBindInfo& other) = default;
   BufferBindInfo(BufferBindInfo&& other) noexcept;
   BufferBindInfo& operator=(const BufferBindInfo& other);

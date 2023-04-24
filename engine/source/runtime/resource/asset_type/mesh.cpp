@@ -111,7 +111,7 @@ void MM::AssetType::Mesh::LoadModel(const FileSystem::Path& mesh_path,
   }
 
   if (scene->mNumMeshes <= mesh_index) {
-    LOG_ERROR("The grid index is larger than the maximum index.")
+    LOG_ERROR("The grid index is larger than the maximum index.");
     return;
   }
 
@@ -120,7 +120,7 @@ void MM::AssetType::Mesh::LoadModel(const FileSystem::Path& mesh_path,
 
 void MM::AssetType::Mesh::ProcessMesh(const aiMesh& mesh) {
   if (!mesh.HasPositions()) {
-    LOG_ERROR("There is no vertex position information in the mesh.")
+    LOG_ERROR("There is no vertex position information in the mesh.");
     return;
   }
   vertices_->reserve(mesh.mNumVertices);

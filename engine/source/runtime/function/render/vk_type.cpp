@@ -79,11 +79,17 @@ void MM::RenderSystem::ManagedObjectBase::SetObjectID(
 }
 
 
+MM::RenderSystem::ImageBindInfo::ImageBindInfo(
+    const VkDescriptorSetLayoutBinding& bind,
+    const std::shared_ptr<VkImageView>& image_view,
+    const std::shared_ptr<VkSampler>& sampler)
+  : bind_(bind), image_view_(image_view), sampler_(sampler) {
+}
+
 MM::RenderSystem::ImageBindInfo::ImageBindInfo(ImageBindInfo&& other) noexcept
   : bind_(other.bind_),
     image_view_(std::move(other.image_view_)),
-    sampler_(std::move(other.sampler_)),
-    semaphore_(std::move(other.semaphore_)) {
+    sampler_(std::move(other.sampler_)) {
   other.Reset();
 }
 
@@ -95,7 +101,6 @@ MM::RenderSystem::ImageBindInfo& MM::RenderSystem::ImageBindInfo::operator=(
   bind_ = other.bind_;
   image_view_ = other.image_view_;
   sampler_ = other.sampler_;
-  semaphore_ = other.semaphore_;
 
   return *this;
 }
@@ -108,7 +113,6 @@ MM::RenderSystem::ImageBindInfo& MM::RenderSystem::ImageBindInfo::operator=(
   bind_ = other.bind_;
   image_view_ = std::move(other.image_view_);
   sampler_ = std::move(other.sampler_);
-  semaphore_ = std::move(other.semaphore_);
 
   other.Reset();
 
@@ -117,7 +121,7 @@ MM::RenderSystem::ImageBindInfo& MM::RenderSystem::ImageBindInfo::operator=(
 
 bool MM::RenderSystem::ImageBindInfo::IsValid() const {
   if (bind_.descriptorCount == 0 || image_view_ == nullptr ||
-      sampler_ == nullptr || semaphore_ == nullptr) {
+      sampler_ == nullptr) {
     return false;
   }
   return true;
@@ -127,7 +131,6 @@ void MM::RenderSystem::ImageBindInfo::Reset() {
   bind_.descriptorCount = 0;
   sampler_.reset();
   image_view_.reset();
-  semaphore_.reset();
 }
 
 void MM::RenderSystem::ImageInfo::Reset() {
@@ -153,12 +156,18 @@ bool MM::RenderSystem::ImageInfo::IsValid() const {
 }
 
 MM::RenderSystem::BufferBindInfo::BufferBindInfo(
+    const VkDescriptorSetLayoutBinding& bind, VkDeviceSize range_size,
+    VkDeviceSize offset, VkDeviceSize dynamic_offset)
+  : bind_(bind), range_size_(range_size), offset_(offset),
+    dynamic_offset_(dynamic_offset) {
+}
+
+MM::RenderSystem::BufferBindInfo::BufferBindInfo(
     BufferBindInfo&& other) noexcept
   : bind_(other.bind_),
     range_size_(other.range_size_),
     offset_(other.offset_),
-    dynamic_offset_(other.dynamic_offset_),
-    semaphore_(std::move(other.semaphore_)) {
+    dynamic_offset_(other.dynamic_offset_) {
   other.Reset();
 }
 
@@ -171,7 +180,6 @@ MM::RenderSystem::BufferBindInfo& MM::RenderSystem::BufferBindInfo::operator=(
   range_size_ = other.range_size_;
   offset_ = other.offset_;
   dynamic_offset_ = other.dynamic_offset_;
-  semaphore_ = other.semaphore_;
 
   return *this;
 }
@@ -185,7 +193,6 @@ MM::RenderSystem::BufferBindInfo& MM::RenderSystem::BufferBindInfo::operator=(
   range_size_ = other.range_size_;
   offset_ = other.offset_;
   dynamic_offset_ = other.dynamic_offset_;
-  semaphore_ = std::move(other.semaphore_);
 
   other.Reset();
 
@@ -196,12 +203,11 @@ void MM::RenderSystem::BufferBindInfo::Reset() {
   range_size_ = 0;
   offset_ = 0;
   dynamic_offset_ = 0;
-  semaphore_.reset();
 }
 
 bool MM::RenderSystem::BufferBindInfo::IsValid() const {
   return range_size_ != 0 && dynamic_offset_ < range_size_ &&
-         bind_.descriptorCount != 0 && semaphore_ != nullptr;
+         bind_.descriptorCount != 0;
 }
 
 void MM::RenderSystem::BufferInfo::Reset() {
@@ -249,7 +255,7 @@ MM::RenderSystem::VertexInputState::VertexInputState(
     instance_attributes_(instance_attributes) {
   std::string error_message;
   if (!CheckLayoutIsCorrect(error_message)) {
-    LOG_ERROR(error_message)
+    LOG_ERROR(error_message);
     Reset();
     return;
   }
@@ -881,20 +887,20 @@ MM::RenderSystem::VertexAndIndexBuffer::VertexAndIndexBuffer(
                                         VK_BUFFER_USAGE_VERTEX_BUFFER_BIT |
                                         VK_BUFFER_USAGE_TRANSFER_DST_BIT |
                                         VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-                                        VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE, 0,);
+                                        VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE);
   if (!vertex_buffer_.IsValid()) {
     Release();
-    LOG_ERROR("Failed to create vertex total buffer.")
+    LOG_ERROR("Failed to create vertex total buffer.");
   }
 
   index_buffer_ = engine->CreateBuffer(index_buffer_size,
                                        VK_BUFFER_USAGE_INDEX_BUFFER_BIT |
                                        VK_BUFFER_USAGE_TRANSFER_SRC_BIT |
                                        VK_BUFFER_USAGE_TRANSFER_DST_BIT,
-                                       VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE, 0,);
+                                       VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE);
   if (!index_buffer_.IsValid()) {
     Release();
-    LOG_ERROR("Failed to create index total buffer.")
+    LOG_ERROR("Failed to create index total buffer.");
   }
 }
 
@@ -930,7 +936,7 @@ bool MM::RenderSystem::VertexAndIndexBuffer::AllocateBuffer(
     const std::shared_ptr<MM::RenderSystem::BufferChunkInfo>&
     output_index_buffer_chunk_info) {
   if (vertices.empty() || indexes.empty()) {
-    LOG_ERROR("Input Vertices and indexes must not be empty.")
+    LOG_ERROR("Input Vertices and indexes must not be empty.");
     return false;
   }
 
@@ -963,7 +969,7 @@ bool MM::RenderSystem::VertexAndIndexBuffer::AllocateBuffer(
   AllocatedBuffer vertex_stage_buffer = render_engine_->CreateBuffer(
       vertices_size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
       VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE,
-      VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT,);
+      VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT);
 
   render_engine_->CopyDataToBuffer(vertex_stage_buffer, vertices.data(), 0,
                                    vertices_size);
@@ -972,7 +978,7 @@ bool MM::RenderSystem::VertexAndIndexBuffer::AllocateBuffer(
       Utils::GetBufferCopy(vertices_size, 0, vertex_offset);
   if (!render_engine_->CopyBuffer(vertex_stage_buffer, vertex_buffer_,
                                   std::vector<VkBufferCopy2>{vertex_region})) {
-    LOG_ERROR("Failed to copy new vertex data to vertex buffer.")
+    LOG_ERROR("Failed to copy new vertex data to vertex buffer.");
     return false;
   }
 
@@ -1008,7 +1014,7 @@ bool MM::RenderSystem::VertexAndIndexBuffer::AllocateBuffer(
 
   if (!render_engine_->CopyDataToBuffer(index_stage_buffer, new_indexes.data(), 0,
                                    indexes_size)) {
-    LOG_ERROR("Failed to copy new index data to stage buffer")
+    LOG_ERROR("Failed to copy new index data to stage buffer");
     return false;
   }
 
@@ -1016,7 +1022,7 @@ bool MM::RenderSystem::VertexAndIndexBuffer::AllocateBuffer(
       Utils::GetBufferCopy(indexes_size, 0, index_offset);
   if (!render_engine_->CopyBuffer(index_stage_buffer, index_buffer_,
                                   std::vector<VkBufferCopy2>{index_region})) {
-    LOG_ERROR("Failed to copy new index data to index buffer.")
+    LOG_ERROR("Failed to copy new index data to index buffer.");
     return false;
   }
 
@@ -1059,7 +1065,7 @@ bool MM::RenderSystem::VertexAndIndexBuffer::ChooseVertexBufferReserveSize(
     total_used_size += (*buffer_chunk_info)->GetSize();
   }
   if (require_size + total_used_size > max_buffer_size) {
-    LOG_ERROR("Insufficient buffer space to load data.")
+    LOG_ERROR("Insufficient buffer space to load data.");
     return false;
   }
 
@@ -1098,7 +1104,7 @@ bool MM::RenderSystem::VertexAndIndexBuffer::ChooseIndexBufferReserveSize(
     total_used_size += (*buffer_chunk_info)->GetSize();
   }
   if (require_size + total_used_size > max_buffer_size) {
-    LOG_ERROR("Insufficient buffer space to load data.")
+    LOG_ERROR("Insufficient buffer space to load data.");
     return false;
   }
 
@@ -1164,20 +1170,20 @@ bool MM::RenderSystem::VertexAndIndexBuffer::ScanBufferToFindSuitableArea(
       VkDeviceSize reserve_size = 0;
       if (&buffer == &vertex_buffer_) {
         if (!ChooseVertexBufferReserveSize(require_size, reserve_size)) {
-          LOG_ERROR("Unable to find a suitable buffer.")
+          LOG_ERROR("Unable to find a suitable buffer.");
           return false;
         }
         if (!ReserveVertexBuffer(reserve_size)) {
-          LOG_ERROR("Unable to find a suitable buffer.")
+          LOG_ERROR("Unable to find a suitable buffer.");
           return false;
         }
       } else {
         if (!ChooseIndexBufferReserveSize(require_size, reserve_size)) {
-          LOG_ERROR("Unable to find a suitable buffer.")
+          LOG_ERROR("Unable to find a suitable buffer.");
           return false;
         }
         if (!ReserveIndexBuffer(reserve_size)) {
-          LOG_ERROR("Unable to find a suitable buffer.")
+          LOG_ERROR("Unable to find a suitable buffer.");
           return false;
         }
       }
@@ -1197,20 +1203,20 @@ bool MM::RenderSystem::VertexAndIndexBuffer::ScanBufferToFindSuitableArea(
       VkDeviceSize reserve_size = 0;
       if (&buffer == &vertex_buffer_) {
         if (!ChooseVertexBufferReserveSize(require_size, reserve_size)) {
-          LOG_ERROR("Unable to find a suitable buffer.")
+          LOG_ERROR("Unable to find a suitable buffer.");
           return false;
         }
         if (!ReserveVertexBuffer(reserve_size)) {
-          LOG_ERROR("Unable to find a suitable buffer.")
+          LOG_ERROR("Unable to find a suitable buffer.");
           return false;
         }
       } else {
         if (!ChooseIndexBufferReserveSize(require_size, reserve_size)) {
-          LOG_ERROR("Unable to find a suitable buffer.")
+          LOG_ERROR("Unable to find a suitable buffer.");
           return false;
         }
         if (!ReserveIndexBuffer(reserve_size)) {
-          LOG_ERROR("Unable to find a suitable buffer.")
+          LOG_ERROR("Unable to find a suitable buffer.");
           return false;
         }
       }
@@ -1238,11 +1244,11 @@ bool MM::RenderSystem::VertexAndIndexBuffer::ScanBufferToFindSuitableArea(
   VkDeviceSize reserve_size = 0;
   if (&buffer == &vertex_buffer_) {
     if (!ChooseVertexBufferReserveSize(require_size, reserve_size)) {
-      LOG_ERROR("Unable to find a suitable buffer.")
+      LOG_ERROR("Unable to find a suitable buffer.");
       return false;
     }
     if (!ReserveVertexBuffer(reserve_size)) {
-      LOG_ERROR("Unable to find a suitable buffer.")
+      LOG_ERROR("Unable to find a suitable buffer.");
       return false;
     }
     const auto the_last_element = (--vertex_buffer_chunks_info_.end());
@@ -1251,11 +1257,11 @@ bool MM::RenderSystem::VertexAndIndexBuffer::ScanBufferToFindSuitableArea(
     return true;
   }
   if (!ChooseIndexBufferReserveSize(require_size, reserve_size)) {
-    LOG_ERROR("Unable to find a suitable buffer.")
+    LOG_ERROR("Unable to find a suitable buffer.");
     return false;
   }
   if (!ReserveIndexBuffer(reserve_size)) {
-    LOG_ERROR("Unable to find a suitable buffer.")
+    LOG_ERROR("Unable to find a suitable buffer.");
     return false;
   }
   const auto the_last_element = (--index_buffer_chunks_info_.end());
@@ -1282,9 +1288,9 @@ bool MM::RenderSystem::VertexAndIndexBuffer::ReserveVertexBuffer(
         new_buffer_size,
         VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT |
         VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
-        VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE, 0,);
+        VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE);
     if (!new_buffer.IsValid()) {
-      LOG_ERROR("Failed to create new vertex buffer.")
+      LOG_ERROR("Failed to create new vertex buffer.");
       return;
     }
     result_step1 = true;
@@ -1331,7 +1337,7 @@ bool MM::RenderSystem::VertexAndIndexBuffer::ReserveVertexBuffer(
     }
     result_step3 = render_engine->CopyBuffer(vertex_buffer, new_buffer, regions);
     if (!result_step3) {
-      LOG_ERROR("Failed to copy vertiex data to new vertex buffer.")
+      LOG_ERROR("Failed to copy vertiex data to new vertex buffer.");
     }
   });
 
@@ -1340,13 +1346,13 @@ bool MM::RenderSystem::VertexAndIndexBuffer::ReserveVertexBuffer(
   TASK_SYSTEM->RunAndWait(TaskSystem::TaskType::Render, taskflow);
 
   if (!result_step3) {
-    LOG_ERROR("Failed to reserve vertex buffer")
+    LOG_ERROR("Failed to reserve vertex buffer");
     return false;
   }
 
   // The next process is linear and cannot be parallel.
   if (!stage_index_buffer.IsValid()) {
-    LOG_ERROR("Failed to create stage index buffer")
+    LOG_ERROR("Failed to create stage index buffer");
     return false;
   }
 
@@ -1373,9 +1379,9 @@ bool MM::RenderSystem::VertexAndIndexBuffer::ReserveIndexBuffer(
         new_buffer_size,
         VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT |
         VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
-        VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE, 0,);
+        VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE);
     if (!new_buffer.IsValid()) {
-      LOG_ERROR("Failed to create new index buffer.")
+      LOG_ERROR("Failed to create new index buffer.");
       return;
     }
     result_step1 = true;
@@ -1406,7 +1412,7 @@ bool MM::RenderSystem::VertexAndIndexBuffer::ReserveIndexBuffer(
     result_step3 =
         render_engine->CopyBuffer(index_buffer, new_buffer, regions);
     if (!result_step3) {
-      LOG_ERROR("Failed to copy vertiex data to new index buffer.")
+      LOG_ERROR("Failed to copy vertiex data to new index buffer.");
     }
   });
 
@@ -1415,7 +1421,7 @@ bool MM::RenderSystem::VertexAndIndexBuffer::ReserveIndexBuffer(
   TASK_SYSTEM->RunAndWait(TaskSystem::TaskType::Render, taskflow);
 
   if (!result_step3) {
-    LOG_ERROR("Failed to reserve vertex buffer")
+    LOG_ERROR("Failed to reserve vertex buffer");
     return false;
   }
 

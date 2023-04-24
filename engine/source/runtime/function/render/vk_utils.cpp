@@ -259,6 +259,11 @@ VkSubmitInfo MM::RenderSystem::Utils::GetSubmitInfo(
   return submit_info;
 }
 
+MM::ExecuteResult MM::RenderSystem::Utils::SubmitCommandBuffers(VkQueue queue,
+    const std::vector<VkSubmitInfo>& submit_infos, VkFence fence) {
+  return VkResultToMMResult(vkQueueSubmit(queue, submit_infos.size(),submit_infos.data(), fence));
+}
+
 VkImageMemoryBarrier2 MM::RenderSystem::Utils::GetImageMemoryBarrier(
     MM::RenderSystem::AllocatedImage& image, const ImageTransferMode& transfer_mode) {
   VkImageMemoryBarrier2 image_barrier{};
@@ -844,19 +849,21 @@ VkCopyImageInfo2 MM::RenderSystem::Utils::GetCopyImageInfo(
                           copy_regions.data()};
 }
 
-bool MM::RenderSystem::Utils::GetEndSizeAndOffset(const AllocatedBuffer& buffer,
-                                                  std::list<std::shared_ptr<BufferChunkInfo>>& buffer_chunks_info, VkDeviceSize& output_end_size,
-                                                  VkDeviceSize& output_offset) {
+MM::ExecuteResult MM::RenderSystem::Utils::GetEndSizeAndOffset(
+    const AllocatedBuffer& buffer,
+    std::list<std::shared_ptr<BufferChunkInfo>>& buffer_chunks_info,
+    VkDeviceSize& output_end_size,
+    VkDeviceSize& output_offset) {
 #ifdef CHECK_PARAMETERS
   if (!buffer.IsValid()) {
-    LOG_ERROR("The buffer is invalid.")
-    return false;
+    LOG_ERROR("The buffer is invalid.");
+    return ExecuteResult::OBJECT_IS_INVALID;
   }
 
   for (const auto& buffer_chunk_info: buffer_chunks_info) {
     if (!buffer_chunk_info->IsValid()) {
-      LOG_ERROR("The buffer_chunk_info is Invalid.")
-      return false;
+      LOG_ERROR("The buffer_chunk_info is Invalid.");
+      return ExecuteResult::OBJECT_IS_INVALID;
     }
   }
 #endif
@@ -881,5 +888,28 @@ bool MM::RenderSystem::Utils::GetEndSizeAndOffset(const AllocatedBuffer& buffer,
     }
   }
 
-  return true;
+  return ExecuteResult::SUCCESS;
+}
+
+VkCommandBufferBeginInfo MM::RenderSystem::Utils::GetCommandBufferBeginInfo(
+    VkCommandBufferUsageFlags flags,
+    const VkCommandBufferInheritanceInfo* inheritance_info) {
+  return VkCommandBufferBeginInfo{VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
+                                  nullptr, flags, inheritance_info};
+}
+
+MM::ExecuteResult MM::RenderSystem::Utils::BeginCommandBuffer(
+    AllocatedCommandBuffer& command_buffer, VkCommandBufferUsageFlags flags,
+    const VkCommandBufferInheritanceInfo* inheritance_info) {
+  const VkCommandBufferBeginInfo command_buffer_begin_info =
+      GetCommandBufferBeginInfo(flags, inheritance_info);
+
+  return VkResultToMMResult(vkBeginCommandBuffer(
+      command_buffer.GetCommandBuffer(), &command_buffer_begin_info));
+}
+
+MM::ExecuteResult MM::RenderSystem::Utils::EndCommandBuffer(
+    AllocatedCommandBuffer& command_buffer) {
+  return VkResultToMMResult(
+      vkEndCommandBuffer(command_buffer.GetCommandBuffer()));
 }

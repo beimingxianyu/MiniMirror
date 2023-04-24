@@ -113,7 +113,8 @@ std::uint32_t MM::RenderSystem::RenderResourceManager::GetDeepCopy(
     const std::string& new_name_of_resource, const std::string& resource_name) {
   const auto mapped_ID = GetResourceIDFromName(resource_name);
   if (mapped_ID == 0) {
-    LOG_ERROR(std::string("Render resource " + resource_name + "is not exist."))
+    LOG_ERROR(
+        std::string("Render resource " + resource_name + "is not exist."));
     return 0;
   }
 
@@ -122,7 +123,7 @@ std::uint32_t MM::RenderSystem::RenderResourceManager::GetDeepCopy(
 
   if (ID == 0) {
     LOG_ERROR(
-        std::string("Failed to deep copy render resource " + resource_name))
+        std::string("Failed to deep copy render resource " + resource_name));
     return 0;
   }
 
@@ -150,7 +151,8 @@ std::uint32_t MM::RenderSystem::RenderResourceManager::GetDeepCopy(
 
   if (ID == 0) {
     LOG_ERROR(std::string("Render resource " +
-                          GetResourceNameFromID(resource_ID) + "is not exist."))
+                          GetResourceNameFromID(resource_ID) +
+                          "is not exist."));
     return 0;
   }
 
@@ -175,7 +177,8 @@ std::uint32_t MM::RenderSystem::RenderResourceManager::GetLightCopy(
     const std::string& new_name_of_resource, const std::string& resource_name) {
   const auto mapped_ID = GetResourceIDFromName(resource_name);
   if (mapped_ID == 0) {
-    LOG_ERROR(std::string("Render resource " + resource_name + "is not exist."))
+    LOG_ERROR(
+        std::string("Render resource " + resource_name + "is not exist."));
     return 0;
   }
 
@@ -184,7 +187,7 @@ std::uint32_t MM::RenderSystem::RenderResourceManager::GetLightCopy(
 
   if (ID == 0) {
     LOG_ERROR(
-        std::string("Failed to deep copy render resource " + resource_name))
+        std::string("Failed to deep copy render resource " + resource_name));
     return 0;
   }
 
@@ -212,7 +215,8 @@ std::uint32_t MM::RenderSystem::RenderResourceManager::GetLightCopy(
       new_name_of_resource, resource_ID);
   if (ID == 0) {
     LOG_ERROR(std::string("Render resource " +
-                          GetResourceNameFromID(resource_ID) + "is not exist."))
+                          GetResourceNameFromID(resource_ID) +
+                          "is not exist."));
     return 0;
   }
   const auto asset_id = GetAssetIDFromResourceID(ID);
@@ -280,7 +284,8 @@ std::uint32_t MM::RenderSystem::RenderResourceManager::AddUseToWrite(
     const bool& is_shared) {
   const auto mapped_ID = GetResourceIDFromName(resource_name);
   if (mapped_ID == 0) {
-    LOG_ERROR(std::string("Render resource " + resource_name + "is not exist."))
+    LOG_ERROR(
+        std::string("Render resource " + resource_name + "is not exist."));
     return 0;
   }
 
@@ -564,11 +569,6 @@ MM::RenderSystem::RenderResourceTexture::RenderResourceTexture(
       return;
     }
   }
-
-  if (!InitSemaphore()) {
-    RenderResourceTexture::Release();
-    return;
-  }
 }
 
 MM::RenderSystem::RenderResourceTexture::RenderResourceTexture(
@@ -830,7 +830,7 @@ MM::RenderSystem::RenderResourceTexture::GetDeepCopy(
 
   if (!render_engine_->CopyImage(const_cast<AllocatedImage&>(image_), new_allocated_image, GetImageLayout(),
                             GetImageLayout(), image_region_vector)) {
-    LOG_ERROR("Failed to copy imager to new image.")
+    LOG_ERROR("Failed to copy imager to new image.");
     return std::unique_ptr<RenderResourceBase>();
   }
 
@@ -860,7 +860,7 @@ void MM::RenderSystem::RenderResourceTexture::Reset(
     LOG_WARN(
         "The resource type of the reset resource is different from the "
         "original resource type. Only the resources held by the object will be "
-        "released, and resources will not be reset.")
+        "released, and resources will not be reset.");
     Release();
     return;
   }
@@ -892,46 +892,46 @@ bool MM::RenderSystem::RenderResourceTexture::CheckInitParameter(
     const std::shared_ptr<AssetType::Image>& image,
     const uint32_t& mipmap_level, VkImageUsageFlags usages) const {
   if (engine == nullptr) {
-    LOG_ERROR("The incoming engine parameter pointer is null.")
+    LOG_ERROR("The incoming engine parameter pointer is null.");
     return false;
   }
   if (!image->IsValid()) {
-    LOG_ERROR("The incoming image parameter is not available.")
+    LOG_ERROR("The incoming image parameter is not available.");
     return false;
   }
   if (!engine->IsValid()) {
-    LOG_ERROR("The rendering engine is not available.")
+    LOG_ERROR("The rendering engine is not available.");
     return false;
   }
   if (!Utils::DescriptorTypeIsImage(descriptor_type)) {
-    LOG_ERROR("Parameter descriptor_type is not  for texture adaptation.")
+    LOG_ERROR("Parameter descriptor_type is not  for texture adaptation.");
     return false;
   }
   if (mipmap_level == 0) {
     LOG_ERROR(
         "The value of the parameter mipmap level is 0, and the parameter is "
-        "incorrect.")
+        "incorrect.");
     return false;
   }
   if (usages & VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT) {
     LOG_ERROR(
         "Depth and stencil test do not match the RenderResourceTexture "
         "resource type. You should create a RenderResourceFrameBuffer resource "
-        "to hold the depth and stencil test resources.")
+        "to hold the depth and stencil test resources.");
     return false;
   }
   if (usages & VK_IMAGE_USAGE_STORAGE_BIT &&
       descriptor_type != VK_DESCRIPTOR_TYPE_STORAGE_IMAGE) {
     LOG_ERROR(
         "VkImageUsageFlags specifies that the image is a storage image, but "
-        "VkDescriptorType is not a storage image. ")
+        "VkDescriptorType is not a storage image. ");
     return false;
   }
   if (descriptor_type == VK_DESCRIPTOR_TYPE_STORAGE_IMAGE &&
       !(usages & VK_IMAGE_USAGE_STORAGE_BIT)) {
     LOG_ERROR(
         "VkDescriptorType specifies that the image is a storage image, but "
-        "VkImageUsageFlags is not a storage image. ")
+        "VkImageUsageFlags is not a storage image. ");
     return false;
   }
   return true;
@@ -957,7 +957,7 @@ bool MM::RenderSystem::RenderResourceTexture::LoadImageToStageBuffer(
       image_info.image_format_ = VK_FORMAT_R8G8B8A8_SRGB;
       break;
     case AssetType::ImageFormat::UNDEFINED:
-      LOG_ERROR("Image loading failed, image format not defined.")
+      LOG_ERROR("Image loading failed, image format not defined.");
       return false;
   }
 
@@ -1033,7 +1033,7 @@ bool MM::RenderSystem::RenderResourceTexture::InitImage(
                                    image_layout, 1, &copy_region);
           },
           true)) {
-    LOG_ERROR("Copying image data to the GPU failed.")
+    LOG_ERROR("Copying image data to the GPU failed.");
     return false;
   }
   return true;
@@ -1130,7 +1130,7 @@ bool MM::RenderSystem::RenderResourceTexture::GenerateMipmap() {
       },
       true);
   if (!execute_result) {
-    LOG_ERROR("Mipmap generation failed.")
+    LOG_ERROR("Mipmap generation failed.");
   }
   return execute_result;
 }
@@ -1293,19 +1293,20 @@ MM::RenderSystem::RenderResourceBuffer::GetDescriptorType() const {
   return buffer_bind_info_.bind_.descriptorType;
 }
 
+// TODO change signature
 MM::RenderSystem::RenderResourceBuffer
 MM::RenderSystem::RenderResourceBuffer::GetCopyWithNewOffset(
     const VkDeviceSize& new_offset) const {
   VkDeviceSize new_offset_in = new_offset;
   if (IsDynamic()) {
     if (new_offset_in > UINT64_MAX - buffer_bind_info_.dynamic_offset_) {
-      LOG_WARN("New offset is too large.")
+      LOG_WARN("New offset is too large.");
       new_offset_in =
           buffer_.GetBufferSize() - buffer_bind_info_.dynamic_offset_;
     }
     if (new_offset_in + buffer_bind_info_.dynamic_offset_ >
         buffer_.GetBufferSize()) {
-      LOG_WARN("New offset is too large.")
+      LOG_WARN("New offset is too large.");
       new_offset_in =
           buffer_.GetBufferSize() - buffer_bind_info_.dynamic_offset_;
     }
@@ -1327,7 +1328,7 @@ MM::RenderSystem::RenderResourceBuffer::GetCopyWithNewDynamicOffset(
   VkDeviceSize new_dynamic_offset_in = new_dynamic_offset;
 
   if (new_dynamic_offset > UINT64_MAX - buffer_bind_info_.offset_) {
-    LOG_WARN("New_Dynamic_offset is too larger.")
+    LOG_WARN("New_Dynamic_offset is too larger.");
     new_dynamic_offset_in = buffer_.GetBufferSize() - buffer_bind_info_.offset_;
   }
   if (new_dynamic_offset_in + buffer_bind_info_.offset_ >
@@ -1350,13 +1351,13 @@ MM::RenderSystem::RenderResourceBuffer::GetCopyWithNewOffsetAndDynamicOffset(
   VkDeviceSize new_dynamic_offset_in = new_dynamic_offset;
   if (IsDynamic()) {
     if (new_offset_in > UINT64_MAX - buffer_bind_info_.dynamic_offset_) {
-      LOG_WARN("The sum of new offset and new dynamic offset is too large.")
+      LOG_WARN("The sum of new offset and new dynamic offset is too large.");
       new_offset_in =
           buffer_.GetBufferSize() - buffer_bind_info_.dynamic_offset_;
       new_dynamic_offset_in = buffer_bind_info_.dynamic_offset_;
     }
     if (new_offset_in + new_dynamic_offset_in > buffer_.GetBufferSize()) {
-      LOG_WARN("The sum of new offset and new dynamic offset is too large.")
+      LOG_WARN("The sum of new offset and new dynamic offset is too large.");
       new_offset_in =
           buffer_.GetBufferSize() - buffer_bind_info_.dynamic_offset_;
       new_dynamic_offset_in = buffer_bind_info_.dynamic_offset_;
@@ -1490,7 +1491,7 @@ void MM::RenderSystem::RenderResourceBuffer::Reset(
     LOG_WARN(
         "The resource type of the reset resource is different from the "
         "original resource type. Only the resources held by the object will be "
-        "released, and resources will not be reset.")
+        "released, and resources will not be reset.");
     Release();
     return;
   }
@@ -1567,11 +1568,11 @@ RenderResourceBuffer::GetDeepCopy(
 
   const VkBufferCopy2 buffer_copy = Utils::GetBufferCopy(GetBufferSize(), 0, 0);
 
-  if (!render_engine_->CopyBuffer(buffer_, new_allocated_buffer,
-                                 std::vector<VkBufferCopy2>{buffer_copy})) {
-    LOG_ERROR("Failed to copy buffer.")
-    return std::unique_ptr<RenderResourceBuffer>{};
-  }
+  MM_CHECK(render_engine_->CopyBuffer(buffer_, new_allocated_buffer,
+                                      std::vector<VkBufferCopy2>{buffer_copy}),
+           LOG_ERROR("Failed to copy buffer.");
+           return std::unique_ptr<
+               RenderResourceBuffer>{};)
 
   return std::make_unique<RenderResourceBuffer>(
       new_name_of_copy_resource, render_engine_, buffer_bind_info_,
@@ -1585,96 +1586,96 @@ bool MM::RenderSystem::RenderResourceBuffer::CheckInitParameter(
     const VkDeviceSize& dynamic_offset, const void* data,
     const VkDeviceSize& copy_offset, const VkDeviceSize& copy_size) const {
   if (engine == nullptr) {
-    LOG_ERROR("The incoming engine parameter pointer is null.")
+    LOG_ERROR("The incoming engine parameter pointer is null.");
     return false;
   }
   if (!engine->IsValid()) {
-    LOG_ERROR("The rendering engine is not available.")
+    LOG_ERROR("The rendering engine is not available.");
     return false;
   }
 
   if (size > 65536 && Utils::DescriptorTypeIsUniformBuffer(descriptor_type)) {
     LOG_ERROR(
         "The maximum allowable uniform buffer size for most desktop clients is "
-        "64KB (1024 * 64=65536).")
+        "64KB (1024 * 64=65536).");
     return false;
   }
 
   if (!Utils::DescriptorTypeIsBuffer(descriptor_type)) {
-    LOG_ERROR("Parameter descriptor_type is not  for buffer adaptation.")
+    LOG_ERROR("Parameter descriptor_type is not  for buffer adaptation.");
     return false;
   }
   if (buffer_usage & VK_BUFFER_USAGE_UNIFORM_TEXEL_BUFFER_BIT) {
     if (descriptor_type != VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER) {
-      LOG_ERROR("The buffer_usage and descriptor_type do not match.")
+      LOG_ERROR("The buffer_usage and descriptor_type do not match.");
       return false;
     }
     if (render_engine_->gpu_properties_.limits.maxUniformBufferRange <
         range_size) {
       LOG_ERROR(
-          "The uniform buffer range size you want to create is too large.")
+          "The uniform buffer range size you want to create is too large.");
       return false;
     }
   } else if (buffer_usage & VK_BUFFER_USAGE_STORAGE_TEXEL_BUFFER_BIT) {
     if (descriptor_type != VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER) {
-      LOG_ERROR("The buffer_usage and descriptor_type do not match.")
+      LOG_ERROR("The buffer_usage and descriptor_type do not match.");
       return false;
     }
   } else if (buffer_usage & VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT) {
     if (descriptor_type != VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER &&
         descriptor_type != VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC) {
-      LOG_ERROR("The buffer_usage and descriptor_type do not match.")
+      LOG_ERROR("The buffer_usage and descriptor_type do not match.");
       return false;
     }
     if (render_engine_->gpu_properties_.limits.maxUniformBufferRange <
         range_size) {
-      LOG_ERROR("The uniform buffer you want to create is too large.")
+      LOG_ERROR("The uniform buffer you want to create is too large.");
       return false;
     }
   } else if (buffer_usage & VK_BUFFER_USAGE_STORAGE_BUFFER_BIT) {
     if (descriptor_type != VK_DESCRIPTOR_TYPE_STORAGE_BUFFER &&
         descriptor_type != VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC) {
-      LOG_ERROR("The buffer_usage and descriptor_type do not match.")
+      LOG_ERROR("The buffer_usage and descriptor_type do not match.");
       return false;
     }
   } else {
-    LOG_ERROR("The buffer_usage not currently supported.")
+    LOG_ERROR("The buffer_usage not currently supported.");
     return false;
   }
 
   if (size == 0 || range_size == 0) {
-    LOG_ERROR("Buffer size pr range size must great than 0.")
+    LOG_ERROR("Buffer size pr range size must great than 0.");
     return false;
   }
 
   if (Utils::DescriptorTypeIsDynamicBuffer(descriptor_type)) {
     if (offset > ULLONG_MAX - dynamic_offset) {
-      LOG_ERROR("The sum of the offset and dynamic_offset too lager.")
+      LOG_ERROR("The sum of the offset and dynamic_offset too lager.");
       return false;
     }
     if (offset + dynamic_offset > size) {
-      LOG_ERROR("The sum of offset and dynamic_offset is greater than size.")
+      LOG_ERROR("The sum of offset and dynamic_offset is greater than size.");
       return false;
     }
   } else {
     if (offset > size) {
-      LOG_ERROR("The offset is greater than size.")
+      LOG_ERROR("The offset is greater than size.");
       return false;
     }
   }
 
   if (!OffsetIsAlignment(engine, descriptor_type, offset, dynamic_offset)) {
-    LOG_ERROR("The offset value does not meet memory alignment requirements.")
+    LOG_ERROR("The offset value does not meet memory alignment requirements.");
     return false;
   }
 
   if (data != nullptr) {
     if (copy_offset > ULLONG_MAX - copy_offset) {
-      LOG_ERROR("The sum of the copy_offset and copy_offset too lager.")
+      LOG_ERROR("The sum of the copy_offset and copy_offset too lager.");
       return false;
     }
     if (copy_offset + copy_size > size) {
-      LOG_ERROR("The sum of copy_offset and copy_size is greater than size.")
+      LOG_ERROR("The sum of copy_offset and copy_size is greater than size.");
       return false;
     }
   }
@@ -1747,7 +1748,7 @@ bool MM::RenderSystem::RenderResourceBuffer::CopyDataToBuffer(
       VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT, false);
 
   if (!stage_buffer.IsValid()) {
-    LOG_ERROR("Failed to create stage buffer.")
+    LOG_ERROR("Failed to create stage buffer.");
     return false;
   }
 
@@ -1773,7 +1774,7 @@ bool MM::RenderSystem::RenderResourceBuffer::CopyDataToBuffer(
             vkCmdCopyBuffer2(cmd, &buffer_copy_info);
           },
           true)) {
-    LOG_ERROR("Failed to copy data form stage_buffer to buffer_.")
+    LOG_ERROR("Failed to copy data form stage_buffer to buffer_.");
     return false;
   }
 
@@ -1822,7 +1823,8 @@ bool MM::RenderSystem::RenderResourceBuffer::OffsetIsAlignment(
                                              .minStorageBufferOffsetAlignment);
     default:
       LOG_ERROR(
-          "The type referred to by descriptor_type is not currently supported.")
+          "The type referred to by descriptor_type is not currently "
+          "supported.");
       return false;
   }
 }

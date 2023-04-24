@@ -110,6 +110,12 @@ MM::ExecuteResult MM::LogSystem::LogSystem::CheckResult(
     case ExecuteResult::TIMEOUT:
       LogError(log_prefix + "The operation timed out.");
       break;
+    case ExecuteResult::OPERATION_NOT_SUPPORTED:
+      LogError(log_prefix + "An unsupported operation was performed.");
+      break;
+    case ExecuteResult::INPUT_PARAMETERS_ARE_NOT_SUITABLE:
+      LogError(log_prefix + "The input parameters are not suitable.");
+      break;
   }
 
   return result;
@@ -175,6 +181,12 @@ MM::ExecuteResult MM::LogSystem::LogSystem::CheckMultipleResult(
   }
   if ((result & ExecuteResult::TIMEOUT) == ExecuteResult::TIMEOUT) {
     LogError(log_prefix + "The operation timed out.");
+  }
+  if ((result & ExecuteResult::OPERATION_NOT_SUPPORTED) == ExecuteResult::OPERATION_NOT_SUPPORTED) {
+    LogError(log_prefix + "An unsupported operation was performed.");
+  }
+  if ((result & ExecuteResult::INPUT_PARAMETERS_ARE_NOT_SUITABLE) == ExecuteResult::INPUT_PARAMETERS_ARE_NOT_SUITABLE) {
+    LogError(log_prefix + "The input parameters are not suitable.");
   }
 
   return result;

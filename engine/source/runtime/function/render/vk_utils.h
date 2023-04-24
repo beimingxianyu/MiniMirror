@@ -5,6 +5,7 @@
 
 #include <vector>
 
+#include "vk_command.h"
 #include "runtime/function/render/pre_header.h"
 
 namespace MM {
@@ -94,6 +95,10 @@ VkSubmitInfo GetCommandSubmitInfo(const std::vector<VkCommandBuffer>& command_bu
 VkSubmitInfo GetSubmitInfo(
     const std::vector<AllocatedCommandBuffer>& command_buffers);
 
+ExecuteResult SubmitCommandBuffers(
+    VkQueue queue, const std::vector<VkSubmitInfo>& submit_infos,
+    VkFence fence);
+
 /**
  * \brief Get \ref VkImageMemoryBarrier2, but performance is poor.
  * \param image The image that this barrier will affect.
@@ -124,9 +129,10 @@ VkImageMemoryBarrier2 GetImageMemoryBarrier(AllocatedImage& image,
                                               const VkImageLayout& old_layout,
                                               const VkImageLayout& new_layout);
 
-VkBufferMemoryBarrier2 GetBufferMemoryBarrier() {
-  VkBufferMemoryBarrier2 
-}
+// TODO Cross queue family memory barrier
+//VkBufferMemoryBarrier2 GetBufferMemoryBarrier() {
+//  VkBufferMemoryBarrier2 
+//}
 
 VkDependencyInfo GetImageDependencyInfo(VkImageMemoryBarrier2& image_barrier,
                                         const VkDependencyFlags& flags = 0);
@@ -270,10 +276,21 @@ VkCopyImageInfo2 GetCopyImageInfo(
     const VkImageLayout& src_layout, const VkImageLayout& dest_layout,
     const std::vector<VkImageCopy2>& copy_regions);
 
-bool GetEndSizeAndOffset(
-    const AllocatedBuffer& buffer, std::list<std::shared_ptr<BufferChunkInfo>>& buffer_chunks_info,
+ExecuteResult GetEndSizeAndOffset(
+    const AllocatedBuffer& buffer,
+    std::list<std::shared_ptr<BufferChunkInfo>>& buffer_chunks_info,
     VkDeviceSize& output_end_size,
     VkDeviceSize& output_offset);
+
+VkCommandBufferBeginInfo GetCommandBufferBeginInfo(
+    VkCommandBufferUsageFlags flags = 0,
+    const VkCommandBufferInheritanceInfo* inheritance_info = nullptr);
+
+ExecuteResult BeginCommandBuffer(
+    AllocatedCommandBuffer& command_buffer, VkCommandBufferUsageFlags flags = 0,
+    const VkCommandBufferInheritanceInfo* inheritance_info = nullptr);
+
+ExecuteResult EndCommandBuffer(AllocatedCommandBuffer& command_buffer);
 }
 }
 }

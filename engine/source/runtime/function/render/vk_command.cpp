@@ -240,7 +240,7 @@ MM::RenderSystem::AllocatedCommandBuffer::AllocatedCommandBufferWrapper::
     queue_ = nullptr;
     command_pool_ = nullptr;
     command_buffer_ = nullptr;
-    LOG_ERROR("Failed to create AllocatedCommandBuffer!")
+    LOG_ERROR("Failed to create AllocatedCommandBuffer!");
     return;
   }
 
@@ -250,7 +250,7 @@ MM::RenderSystem::AllocatedCommandBuffer::AllocatedCommandBufferWrapper::
     queue_ = nullptr;
     command_pool_ = nullptr;
     command_buffer_ = nullptr;
-    LOG_ERROR("Failed to create AllocatedCommandBuffer!")
+    LOG_ERROR("Failed to create AllocatedCommandBuffer!");
   }
 }
 
@@ -417,6 +417,10 @@ void MM::RenderSystem::CommandTaskFlow::Clear() {
 
 bool MM::RenderSystem::CommandTaskFlow::HaveRing() const {
   std::uint32_t task_count = GetTaskNumber();
+  if (task_count == 0 || task_count == 1) {
+    return false;
+  }
+
   const std::vector<CommandTaskEdge> command_task_edges = GetCommandTaskEdges();
 
   std::unordered_map<std::unique_ptr<CommandTask>*, std::uint32_t> penetrations;
@@ -457,7 +461,7 @@ bool MM::RenderSystem::CommandTaskFlow::HaveRing() const {
   return false;
 }
 
-bool MM::RenderSystem::CommandTaskFlow::IsValid() const { return HaveRing(); }
+bool MM::RenderSystem::CommandTaskFlow::IsValid() const { return GetTaskNumber() != 0 && !HaveRing(); }
 
 MM::RenderSystem::CommandTaskFlow::CommandTaskEdge::CommandTaskEdge(
     std::unique_ptr<CommandTask>* start, std::unique_ptr<CommandTask>* end)
@@ -540,6 +544,9 @@ MM::RenderSystem::RenderFuture& MM::RenderSystem::RenderFuture::operator=(
 }
 
 MM::ExecuteResult MM::RenderSystem::RenderFuture::Get() {
+  if (!IsValid()) {
+    return ExecuteResult::RENDER_COMMAND_RECORD_OR_SUBMIT_FAILED;
+  }
   std::unique_lock<std::mutex> guard{command_executor_->wait_tasks_mutex_};
   command_executor_->wait_tasks_.emplace_back(task_flow_ID_);
   guard.unlock();
@@ -556,6 +563,12 @@ MM::ExecuteResult MM::RenderSystem::RenderFuture::Get() {
       return *execute_result_;
     }
   }
+}
+
+bool MM::RenderSystem::RenderFuture::IsValid() { if (command_executor_ == nullptr) {
+    return false;
+  }
+  return true;
 }
 
 MM::RenderSystem::CommandExecutor::CommandExecutor(RenderEngine* engine)
@@ -592,7 +605,7 @@ MM::RenderSystem::CommandExecutor::CommandExecutor(RenderEngine* engine)
       submit_failed_to_be_recycled_command_buffer_(),
       submit_failed_to_be_recycled_command_buffer_mutex_() {
   if (engine == nullptr || !engine->IsValid()) {
-    LOG_ERROR("Engine is invalid.")
+    LOG_ERROR("Engine is invalid.");
     render_engine_ = nullptr;
     return;
   }
@@ -677,7 +690,7 @@ MM::RenderSystem::CommandExecutor::CommandExecutor(
       submit_failed_to_be_recycled_command_buffer_(),
       submit_failed_to_be_recycled_command_buffer_mutex_() {
   if (engine == nullptr || !engine->IsValid()) {
-    LOG_ERROR("Engine is invalid.")
+    LOG_ERROR("Engine is invalid.");
     render_engine_ = nullptr;
     return;
   }
@@ -686,7 +699,7 @@ MM::RenderSystem::CommandExecutor::CommandExecutor(
       transform_command_number < 1) {
     LOG_ERROR(
         "graph_command_number,compute_command_number and "
-        "transform_command_number must greater than 1.")
+        "transform_command_number must greater than 1.");
     render_engine_ = nullptr;
     return;
   }
@@ -767,7 +780,12 @@ GetFreeTransformCommandNumber() const {
 }
 
 MM::RenderSystem::RenderFuture MM::RenderSystem::CommandExecutor::Run(
-    CommandTaskFlow& command_task_flow) {
+    CommandTaskFlow&& command_task_flow) {
+  if (!command_task_flow.IsValid()) {
+    LOG_ERROR("Command task flow is valid.");
+    return RenderFuture{};
+  }
+
   std::uint32_t task_id = Math::Random::GetRandomUint32();
   std::shared_ptr<ExecuteResult> execute_result{
       std::make_shared<ExecuteResult>(ExecuteResult::SUCCESS)};
@@ -792,8 +810,13 @@ MM::RenderSystem::RenderFuture MM::RenderSystem::CommandExecutor::Run(
   return RenderFuture{this, task_id, execute_result, complete_states};
 }
 
-void MM::RenderSystem::CommandExecutor::RunAndWait(
-    CommandTaskFlow& command_task_flow) {
+MM::ExecuteResult MM::RenderSystem::CommandExecutor::RunAndWait(
+    CommandTaskFlow&& command_task_flow) {
+  if (!command_task_flow.IsValid()) {
+    LOG_ERROR("Command task flow is valid.");
+    return ExecuteResult::RENDER_COMMAND_RECORD_OR_SUBMIT_FAILED;
+  }
+
   std::uint32_t task_id = Math::Random::GetRandomUint32();
   std::shared_ptr<ExecuteResult> execute_result{
       std::make_shared<ExecuteResult>(ExecuteResult::SUCCESS)};
@@ -815,7 +838,17 @@ void MM::RenderSystem::CommandExecutor::RunAndWait(
     TASK_SYSTEM->Run(TaskSystem::TaskType::Render, task_flow);
   }
 
-  RenderFuture{this, task_id, execute_result, complete_states}.Get();
+  return RenderFuture{this, task_id, execute_result, complete_states}.Get();
+}
+
+MM::RenderSystem::RenderFuture MM::RenderSystem::CommandExecutor::Run(
+    CommandTaskFlow& command_task_flow) {
+  return Run(std::move(command_task_flow));
+}
+
+MM::ExecuteResult MM::RenderSystem::CommandExecutor::RunAndWait(
+    CommandTaskFlow& command_task_flow) {
+  return RunAndWait(std::move(command_task_flow));
 }
 
 bool MM::RenderSystem::CommandExecutor::IsValid() const {
@@ -973,7 +1006,7 @@ MM::ExecuteResult MM::RenderSystem::CommandExecutor::InitAllocateCommandBuffers(
         graph_command_buffers[i]));
 
     if (!free_graph_command_buffers_.top()->IsValid()) {
-      LOG_ERROR("Failed to create graph allocate command buffer.")
+      LOG_ERROR("Failed to create graph allocate command buffer.");
       ClearWhenConstructFailed(graph_command_pools, compute_command_pools,
                                transform_command_pools);
       return ExecuteResult::INITIALIZATION_FAILED;
@@ -989,7 +1022,7 @@ MM::ExecuteResult MM::RenderSystem::CommandExecutor::InitAllocateCommandBuffers(
         compute_command_buffers[i]));
 
     if (!free_compute_command_buffers_.top()->IsValid()) {
-      LOG_ERROR("Failed to create compute allocate command buffer.")
+      LOG_ERROR("Failed to create compute allocate command buffer.");
       ClearWhenConstructFailed(graph_command_pools, compute_command_pools,
                                transform_command_pools);
       return ExecuteResult::INITIALIZATION_FAILED;
@@ -1006,7 +1039,7 @@ MM::ExecuteResult MM::RenderSystem::CommandExecutor::InitAllocateCommandBuffers(
             transform_command_buffers[i]));
 
     if (!free_transform_command_buffers_.top()->IsValid()) {
-      LOG_ERROR("Failed to create transform allocate command buffer.")
+      LOG_ERROR("Failed to create transform allocate command buffer.");
       ClearWhenConstructFailed(graph_command_pools, compute_command_pools,
                                transform_command_pools);
       return ExecuteResult::INITIALIZATION_FAILED;
@@ -1124,7 +1157,7 @@ MM::ExecuteResult MM::RenderSystem::CommandExecutor::AddCommandBuffer(
         command_buffers[i]);
 
     if (!new_allocated_command_buffers.back().IsValid()) {
-      LOG_ERROR("The construction of AllocateCommandBuffer failed.")
+      LOG_ERROR("The construction of AllocateCommandBuffer failed.");
       for (auto& command_pool : command_pools) {
         if (command_pool == nullptr) {
           continue;
@@ -1738,7 +1771,7 @@ void MM::RenderSystem::CommandExecutor::ProcessOneCanSubmitTask(
         *free_command_buffer_number = GetFreeTransformCommandNumber();
         break;
       default:
-        LOG_ERROR("Command type is error.")
+        LOG_ERROR("Command type is error.");
     }
 
     if (command_task_to_be_submit->command_task_
@@ -1880,7 +1913,7 @@ MM::ExecuteResult MM::RenderSystem::CommandExecutor::SubmitTasks(
       }
       semaphore_guard.unlock();
       delete input_tasks;
-      LOG_ERROR("Render command submit failed.")
+      LOG_ERROR("Render command submit failed.");
       return result;
     }
   }
@@ -2031,7 +2064,10 @@ void MM::RenderSystem::CommandExecutor::ProcessTask() {
   } while (executing_graph_command_buffers_.empty() &&
            executing_compute_command_buffers_.empty() &&
            executing_transform_command_buffers_.empty() &&
-           task_flow_queue_.empty());
+           task_flow_queue_.empty() && 
+           recoding_graph_command_buffer_number_ == 0 && 
+           recording_compute_command_buffer_number_ == 0 &&
+           recording_transform_command_buffer_number_ == 0);
 
   processing_task_flow_queue_ = false;
 }

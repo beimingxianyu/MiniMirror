@@ -16,74 +16,77 @@ namespace Utils {
 
 #define CODE_LOCATION CODE_LOCATION_IMP(__LINE__)
 
-
 #define CONFIG_SYSTEM config_system
 
-#define IMPORT_CONFIG_SYSTEM                            \
-  inline MM::ConfigSystem::ConfigSystem* CONFIG_SYSTEM{ \
-      MM::ConfigSystem::ConfigSystem::GetInstance()};
+#define IMPORT_CONFIG_SYSTEM                             \
+  inline MM::ConfigSystem::ConfigSystem* CONFIG_SYSTEM { \
+    MM::ConfigSystem::ConfigSystem::GetInstance()        \
+  }
 
 #define FILE_SYSTEM file_system
 
-#define IMPORT_FILE_SYSTEM                        \
-  inline MM::FileSystem::FileSystem* FILE_SYSTEM{ \
-      MM::FileSystem::FileSystem::GetInstance()};
+#define IMPORT_FILE_SYSTEM                         \
+  inline MM::FileSystem::FileSystem* FILE_SYSTEM { \
+    MM::FileSystem::FileSystem::GetInstance()      \
+  }
 
 #define TASK_SYSTEM task_system
 
-#define IMPORT_TASK_SYSTEM                        \
-  inline MM::TaskSystem::TaskSystem* TASK_SYSTEM{ \
-      MM::TaskSystem::TaskSystem::GetInstance()};
+#define IMPORT_TASK_SYSTEM                         \
+  inline MM::TaskSystem::TaskSystem* TASK_SYSTEM { \
+    MM::TaskSystem::TaskSystem::GetInstance()      \
+  }
 
 #define LOG_SYSTEM log_system
 
-#define IMPORT_LOG_SYSTEM                      \
-  inline MM::LogSystem::LogSystem* LOG_SYSTEM{ \
-      MM::LogSystem::LogSystem::GetInstance()};
+#define IMPORT_LOG_SYSTEM                       \
+  inline MM::LogSystem::LogSystem* LOG_SYSTEM { \
+    MM::LogSystem::LogSystem::GetInstance()     \
+  }
 
-#define LOG(log_level, ...)                                      \
-  LOG_SYSTEM->Log(log_level, CODE_LOCATION + __VA_ARGS__);
+#define LOG(log_level, ...) \
+  LOG_SYSTEM->Log(log_level, CODE_LOCATION + __VA_ARGS__)
 
 #define LOG_DEBUG(...) \
-  LOG(MM::LogSystem::LogSystem::LogLevel::Debug, __VA_ARGS__);
+  LOG(MM::LogSystem::LogSystem::LogLevel::Debug, __VA_ARGS__)
 
-#define LOG_INFO(...) \
-  LOG(MM::LogSystem::LogSystem::LogLevel::Info, __VA_ARGS__);
+#define LOG_INFO(...) LOG(MM::LogSystem::LogSystem::LogLevel::Info, __VA_ARGS__)
 
-#define LOG_WARN(...) \
-  LOG(MM::LogSystem::LogSystem::LogLevel::Warn, __VA_ARGS__);
+#define LOG_WARN(...) LOG(MM::LogSystem::LogSystem::LogLevel::Warn, __VA_ARGS__)
 
 #define LOG_ERROR(...) \
-  LOG(MM::LogSystem::LogSystem::LogLevel::Error, __VA_ARGS__);
+  LOG(MM::LogSystem::LogSystem::LogLevel::Error, __VA_ARGS__)
 
 #define LOG_FATAL(...) \
-  LOG(MM::LogSystem::LogSystem::LogLevel::Fatal, __VA_ARGS__);
+  LOG(MM::LogSystem::LogSystem::LogLevel::Fatal, __VA_ARGS__)
 
-#define RESULT_CODE __MM__result_code_name
+#define MM_RESULT_CODE __MM__result_code_name
 
-#define MM_CHECK(executor, failed_callback)                \
-  {                                                        \
-    if (ExecuteResult RESULT_CODE = executor;              \
-        RESULT_CODE != MM::ExecuteResult::SUCCESS) {       \
-      LOG_SYSTEM->CheckResult(RESULT_CODE, CODE_LOCATION); \
-      failed_callback                                      \
-    }                                                      \
+#define MM_CHECK(executor, failed_callback)                   \
+  {                                                           \
+    if (ExecuteResult MM_RESULT_CODE = executor;              \
+        MM_RESULT_CODE != MM::ExecuteResult::SUCCESS) {       \
+      LOG_SYSTEM->CheckResult(MM_RESULT_CODE, CODE_LOCATION); \
+      failed_callback                                         \
+    }                                                         \
   }
-#define MM_MULTIPLE_CHECK(executor, failed_callback)            \
-  {                                                             \
-    if (ExecuteResult RESULT_CODE = executor;                   \
-        RESULT_CODE != MM::ExecuteResult::SUCCESS) {             \
-      LOG_SYSTEM->CheckMultipleResult(RESULT_CODE, CODE_LOCATION); \
-      failed_callback                                           \
-    }                                                           \
+#define MM_MULTIPLE_CHECK(executor, failed_callback)                  \
+  {                                                                   \
+    if (ExecuteResult MM_RESULT_CODE = executor;                      \
+        MM_RESULT_CODE != MM::ExecuteResult::SUCCESS) {               \
+      LOG_SYSTEM->CheckMultipleResult(MM_RESULT_CODE, CODE_LOCATION); \
+      failed_callback                                                 \
+    }                                                                 \
   }
-#define MM_RESULT_CODE_EQUAL(result, target_error_code) (result) == (target_error_code)
+#define MM_RESULT_CODE_EQUAL(result, target_error_code) \
+  (result) == (target_error_code)
 
 #define ASSET_SYSTEM asset_system
 
-#define IMPORT_ASSET_SYSTEM                          \
-  inline MM::AssetSystem::AssetSystem* ASSET_SYSTEM{ \
-      MM::AssetSystem::AssetSystem::GetInstance()};
+#define IMPORT_ASSET_SYSTEM                           \
+  inline MM::AssetSystem::AssetSystem* ASSET_SYSTEM { \
+    MM::AssetSystem::AssetSystem::GetInstance()       \
+  }
 
 #define VK_RESULT_CODE __MM_vk_result_code_name
 

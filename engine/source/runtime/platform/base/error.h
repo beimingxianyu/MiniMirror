@@ -21,7 +21,9 @@ enum class ExecuteResult : std::uint32_t {
   PARENT_OBJECT_NOT_CONTAIN_SPECIFIC_CHILD_OBJECT = 1u << 10,
   RENDER_COMMAND_RECORD_OR_SUBMIT_FAILED = 1u << 11,
   INPUT_PARAMETERS_ARE_INCORRECT = 1u << 12,
-  TIMEOUT = 1u << 13
+  TIMEOUT = 1u << 13,
+  OPERATION_NOT_SUPPORTED = 1U << 14,
+  INPUT_PARAMETERS_ARE_NOT_SUITABLE = 1U << 15
 };
 
 ExecuteResult operator|(ExecuteResult l_result, ExecuteResult r_result);

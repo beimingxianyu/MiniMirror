@@ -275,8 +275,8 @@ void CommandTask::IsPostTaskTo(CommandTasks&&... command_tasks) {
 
 class RenderFuture {
 public:
-  RenderFuture() = delete;
- RenderFuture( CommandExecutor* command_executor,
+  RenderFuture() = default;
+  RenderFuture( CommandExecutor* command_executor,
                const std::uint32_t& task_flow_ID,
                const std::shared_ptr<ExecuteResult>& future_execute_result,
                const std::vector<std::shared_ptr<bool>>& command_complete_states);
@@ -289,8 +289,10 @@ public:
 public:
   ExecuteResult Get();
 
+  bool IsValid();
+
 private:
-  CommandExecutor* command_executor_;
+  CommandExecutor* command_executor_{nullptr};
   std::uint32_t task_flow_ID_{0};
   std::shared_ptr<ExecuteResult> execute_result_{};
   std::vector<std::shared_ptr<bool>> command_complete_states_{};
@@ -325,6 +327,16 @@ public:
 
   std::uint32_t GetFreeTransformCommandNumber() const;
 
+   /**
+   * \remark \ref command_task_flow is invalid after call this function.
+   */
+  RenderFuture Run(CommandTaskFlow&& command_task_flow);
+
+  /**
+   * \remark The \ref command_task_flow is invalid after call this function.
+   */
+  ExecuteResult RunAndWait(CommandTaskFlow&& command_task_flow);
+
   /**
    * \remark \ref command_task_flow is invalid after call this function.
    */
@@ -333,7 +345,7 @@ public:
   /**
    * \remark The \ref command_task_flow is invalid after call this function.
    */
-  void RunAndWait(CommandTaskFlow& command_task_flow);
+  ExecuteResult RunAndWait(CommandTaskFlow& command_task_flow);
 
   // TODO RunOneFrame
   ///**

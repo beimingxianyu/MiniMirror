@@ -19,6 +19,7 @@
 #include "runtime/function/render/vk_utils.h"
 #include "runtime/platform/config_system/config_system.h"
 #include "runtime/platform/file_system/file_system.h"
+#include "runtime/function/render/vk_command.h"
 #include "utils/utils.h"
 
 namespace MM {
@@ -123,7 +124,7 @@ class RenderEngine {
       const CommandBufferType& command_buffer_type,
       const std::function<bool(VkCommandBuffer& cmd)>& function,
       const bool& auto_start_end_submit = false,
-      const bool& record_new_command = true,
+      const bool& record_new_command = true, 
       const std::shared_ptr<VkSubmitInfo>& submit_info_ptr = nullptr);
 
   /**
@@ -148,31 +149,74 @@ class RenderEngine {
       const bool& auto_start_end_submit_wait = false);
 
   /**
+   * \remark The executed \ref command_task_flow will be moved, and no other
+   * operations can be performed on \ref command_task_flow after calling this function.
+   */
+  RenderFuture RunCommand(CommandTaskFlow&& command_task_flow);
+
+  /**
+   * \remark The executed \ref command_task_flow will be moved, and no other
+   * operations can be performed on \ref command_task_flow after calling this
+   * function.
+   */
+  ExecuteResult RunCommandAndWait(CommandTaskFlow&& command_task_flow);
+
+  /**
+   * \remark The executed \ref command_task_flow will be moved, and no other
+   * operations can be performed on \ref command_task_flow after calling this
+   * function.
+   */
+  RenderFuture RunCommand(CommandTaskFlow& command_task_flow);
+
+  /**
+   * \remark The executed \ref command_task_flow will be moved, and no other
+   * operations can be performed on \ref command_task_flow after calling this
+   * function.
+   */
+  ExecuteResult RunCommandAndWait(CommandTaskFlow& command_task_flow);
+
+  RenderFuture RunSingleCommand(
+      CommandBufferType command_type,
+      const std::function<
+      ExecuteResult(
+        AllocatedCommandBuffer& cmd)>&
+      commands);
+
+  ExecuteResult RunSingleCommandAndWait(
+      CommandBufferType command_type,
+      const std::function<ExecuteResult(
+        AllocatedCommandBuffer& cmd)>&
+      commands);
+
+  /**
    * \remark The range specified by \ref regions cannot overlap.
   */
-  bool CopyBuffer(AllocatedBuffer& src_buffer, AllocatedBuffer& dest_buffer,
-                  const std::vector<VkBufferCopy2>& regions);
+  ExecuteResult CopyBuffer(AllocatedBuffer& src_buffer,
+                           AllocatedBuffer& dest_buffer,
+                           const std::vector<VkBufferCopy2>& regions);
 
   /**
    * \remark The range specified by \ref regions cannot overlap and src_buffer can equal to dest_buffer.
    */
-  bool CopyBuffer(const AllocatedBuffer& src_buffer,
-                  AllocatedBuffer& dest_buffer,
-                  const std::vector<VkBufferCopy2>& regions);
+  ExecuteResult CopyBuffer(const AllocatedBuffer& src_buffer,
+                           AllocatedBuffer& dest_buffer,
+                           const std::vector<VkBufferCopy2>& regions);
 
   /**
    * \remark The areas specified for each \ref VkBufferCopy2 in the vector cannot overlap,
    * but the areas specified between each \ref VkBufferCopy2 can overlap.
    */
-  bool CopyBuffer(AllocatedBuffer& src_buffer, AllocatedBuffer& dest_buffer,
-                  const std::vector<std::vector<VkBufferCopy2>>& regions_vector);
+  ExecuteResult CopyBuffer(AllocatedBuffer& src_buffer,
+                           AllocatedBuffer& dest_buffer,
+                           const std::vector<std::vector<VkBufferCopy2>>&
+                           regions_vector);
 
   /**
    * \remark The areas specified for each \ref VkBufferCopy2 in the vector
    * cannot overlap, but the areas specified between each \ref VkBufferCopy2 can
    * overlap.
    */
-  bool CopyBuffer(
+  ExecuteResult CopyBuffer(
       const AllocatedBuffer& src_buffer, AllocatedBuffer& dest_buffer,
       const std::vector<std::vector<VkBufferCopy2>>& regions_vector);
 
@@ -252,9 +296,7 @@ class RenderEngine {
   void InitAllocator();
   void InitSwapChain();
   void InitSwapChainImageView();
-  // void InitCommandPool();
-  // void InitCommandBuffers();
-  void InitCommandExecutors();
+  void InitCommandExecutor();
   
 
   std::vector<VkExtensionProperties> GetExtensionProperties();
@@ -325,15 +367,8 @@ class RenderEngine {
   VkSurfaceKHR surface_{nullptr};
   // TODO 添加重置swapchain的函数
   VkSwapchainKHR swapchain_{nullptr};
-  // VkCommandPool graph_command_pool_{nullptr};
-  // VkCommandPool compute_command_pool_{nullptr};
-  uint32_t rendered_frame_count_{0};
-  // std::vector<VkCommandBuffer> graph_command_buffers_{};
-  // std::vector<VkCommandBuffer> compute_command_buffers_{};
-  // std::vector<std::mutex> graph_command_record_mutex_{3};
-  // std::vector<std::mutex> compute_command_record_mutex_{3};
-  std::vector<AllocatedCommandBuffer> graph_command_executors_{};
-  std::vector<AllocatedCommandBuffer> compute_command_executors_{};
+  std::uint64_t rendered_frame_count_{0};
+  std::unique_ptr<CommandExecutor> command_executor_{nullptr};
   
   RenderEngineInfo render_engine_info_{};
 };
