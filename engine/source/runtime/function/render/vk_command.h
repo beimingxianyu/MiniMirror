@@ -13,7 +13,7 @@ class CommandTaskFlow;
 using CommandType = CommandBufferType;
 
 struct WaitSemaphore {
-  VkSemaphore wait_semaphore_;
+  VkSemaphore wait_semaphore_{nullptr};
   VkPipelineStageFlags wait_stage_{VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT};
 
   bool IsValid() const;
@@ -136,7 +136,7 @@ class CommandTaskFlow {
 
  public:
   CommandTaskFlow() = default;
-  ~CommandTaskFlow();
+  ~CommandTaskFlow() = default;
   CommandTaskFlow(const CommandTaskFlow& other) = delete;
   CommandTaskFlow(CommandTaskFlow&& other) noexcept;
   CommandTaskFlow& operator=(const CommandTaskFlow& other) = delete;
@@ -161,8 +161,6 @@ class CommandTaskFlow {
         std::function<ExecuteResult(AllocatedCommandBuffer& cmd)>>& commands,
       const std::vector<WaitAllocatedSemaphore>& wait_semaphores,
       const std::vector<AllocateSemaphore>& signal_semaphores);
-
-  // TODO Merge
 
   std::uint32_t GetTaskNumber() const;
 
@@ -198,9 +196,13 @@ private:
 
   std::vector<CommandTaskEdge> GetCommandTaskEdges() const;
 
+  void RemoveTask(CommandTask& command_task);
+
  private:
-  std::vector<std::unique_ptr<CommandTask>*> root_tasks_{};
-  std::vector<std::unique_ptr<CommandTask>> tasks_{};
+  std::list<std::unique_ptr<CommandTask>*> root_tasks_{};
+  std::list<std::unique_ptr<CommandTask>> tasks_{};
+
+  std::array<std::uint32_t, 3> task_numbers_{};
 
   std::shared_mutex task_sync_{};
 };
@@ -225,19 +227,37 @@ public:
   const std::vector<std::function<ExecuteResult(AllocatedCommandBuffer& cmd)>>&
   GetCommands() const;
 
+  std::vector<const std::function<ExecuteResult(AllocatedCommandBuffer& cmd)>*>
+  GetCommandsIncludeSubTasks() const;
+
   std::uint32_t GetRequireCommandBufferNumber() const;
+
+  std::uint32_t GetRequireCommandBufferNumberIncludeSuBTasks() const;
 
   const std::vector<WaitAllocatedSemaphore>& GetWaitSemaphore() const;
 
+  std::vector<const WaitAllocatedSemaphore*>
+  GetWaitSemaphoreIncludeSubTasks() const;
+
   const std::vector<AllocateSemaphore>& GetSignalSemaphore() const;
 
-  // TODO merge
+  std::vector<const AllocateSemaphore*> GetSignalSemaphoreIncludeTasks() const;
+
+  const std::vector<std::unique_ptr<CommandTask>>&
+  GetSubTasks() const;
+
+  std::uint32_t GetSubTasksNumber() const;
+
+  template<typename... CommandTasks>
+  ExecuteResult Merge(CommandTasks&&... command_tasks);
 
   template <typename... CommandTasks>
-  void IsPreTaskTo(CommandTasks&& ...command_tasks);
+  ExecuteResult IsPreTaskTo(CommandTasks&& ...command_tasks);
 
   template <typename... CommandTasks>
-  void IsPostTaskTo(CommandTasks&& ...command_tasks);
+  ExecuteResult IsPostTaskTo(CommandTasks&& ...command_tasks);
+
+  bool HaveSubTasks() const;
 
   bool IsValid() const;
 
@@ -259,22 +279,105 @@ private:
   std::vector<AllocateSemaphore> signal_semaphore_{};
   mutable std::list<std::unique_ptr<CommandTask>*> pre_tasks_{};
   mutable std::list<std::unique_ptr<CommandTask>*> post_tasks_{};
+
+  mutable std::vector<std::unique_ptr<CommandTask>> sub_tasks_{};
+  bool is_sub_task_{false};
 };
 
 template <typename ... CommandTasks>
-void CommandTask::IsPreTaskTo(CommandTasks&&... command_tasks) {
-  (assert(&command_tasks != this), ...);
-  (command_tasks.pre_tasks_.push_back(this_unique_ptr_), ...);
-  (task_flow_->RemoveRootTask(command_tasks),...);
-  (post_tasks_.push_back(&command_tasks.this_unique_ptr_), ...);
+ExecuteResult CommandTask::Merge(CommandTasks&&... command_tasks) {
+  bool input_parameters_is_right = true;
+  ((input_parameters_is_right &= (&command_tasks != this)), ...);
+  if (!input_parameters_is_right) {
+    LOG_ERROR(
+        "The predecessor of an object of type MM::RenderSystem::CommandTask "
+        "cannot be itself.");
+    return ExecuteResult::INPUT_PARAMETERS_ARE_INCORRECT;
+  }
+  ((input_parameters_is_right &= (task_flow_ == command_tasks.task_flow_)),
+   ...);
+  if (!input_parameters_is_right) {
+    LOG_ERROR("Two MM::RenderSystem::CommandTask's task_flow_ are not equal.");
+    return ExecuteResult::INPUT_PARAMETERS_ARE_INCORRECT;
+  }
+  // TODO Optimize the algorithm to remove this limitation.
+  ((input_parameters_is_right &= (command_tasks.pre_tasks_.size() == 0 &&
+                                  command_tasks.post_tasks_.size() == 0)),
+   ...);
+  if (!input_parameters_is_right) {
+    LOG_ERROR("Two MM::RenderSystem::CommandTask's task_flow_ are not equal.");
+    return ExecuteResult::INPUT_PARAMETERS_ARE_INCORRECT;
+  }
+  ((input_parameters_is_right &= (command_tasks.command_type_ == command_type_)),
+   ...);
+  if (!input_parameters_is_right) {
+    LOG_ERROR("Two MM::RenderSystem::CommandTask's command_type_ are not equal.");
+    return ExecuteResult::INPUT_PARAMETERS_ARE_INCORRECT;
+  }
+  // TODO Optimize the algorithm to remove this limitation.
+  ((input_parameters_is_right &= (!command_tasks.HaveSubTasks())), ...);
+  if (!input_parameters_is_right) {
+    LOG_ERROR(
+        "Cannot nest merge MM::RenderSystem::CommandTask.");
+    return ExecuteResult::INPUT_PARAMETERS_ARE_INCORRECT;
+  }
+
+  (task_flow_->RemoveRootTask(command_tasks), ...);
+  (sub_tasks_.emplace_back(std::move(*command_tasks.this_unique_ptr_)), ...);
+  ((command_tasks.is_sub_task_ = true), ...);
+
+  (task_flow_->RemoveTask(command_tasks), ...);
+
+  return ExecuteResult::SUCCESS;
 }
 
 template <typename ... CommandTasks>
-void CommandTask::IsPostTaskTo(CommandTasks&&... command_tasks) {
-  (assert(!(&command_tasks == this)), ...);
+ExecuteResult CommandTask::IsPreTaskTo(CommandTasks&&... command_tasks) {
+  bool input_parameters_is_right = true;
+  ((input_parameters_is_right &= (&command_tasks != this)), ...);
+  if (!input_parameters_is_right) {
+    LOG_ERROR(
+        "The predecessor of an object of type MM::RenderSystem::CommandTask "
+        "cannot be itself.");
+    return ExecuteResult::INPUT_PARAMETERS_ARE_INCORRECT;
+  }
+  ((input_parameters_is_right &= (task_flow_ == command_tasks.task_flow_)),
+   ...);
+  if (!input_parameters_is_right) {
+    LOG_ERROR(
+        "Two MM::RenderSystem::CommandTask's task_flow_ are not equal.");
+    return ExecuteResult::INPUT_PARAMETERS_ARE_INCORRECT;
+  }
+
+  (command_tasks.pre_tasks_.push_back(this_unique_ptr_), ...);
+  (task_flow_->RemoveRootTask(command_tasks),...);
+  (post_tasks_.push_back(&command_tasks.this_unique_ptr_), ...);
+
+  return ExecuteResult::SUCCESS;
+}
+
+template <typename ... CommandTasks>
+ExecuteResult CommandTask::IsPostTaskTo(CommandTasks&&... command_tasks) {
+  bool input_parameters_is_right = true;
+  ((input_parameters_is_right &= (&command_tasks != this)), ...);
+  if (!input_parameters_is_right) {
+    LOG_ERROR(
+        "The post task of an object of type MM::RenderSystem::CommandTask "
+        "cannot be itself.");
+    return ExecuteResult::INPUT_PARAMETERS_ARE_INCORRECT;
+  }
+  ((input_parameters_is_right &= (task_flow_ == command_tasks.task_flow_)),
+   ...);
+  if (!input_parameters_is_right) {
+    LOG_ERROR("Two MM::RenderSystem::CommandTask's task_flow_ are not equal.");
+    return ExecuteResult::INPUT_PARAMETERS_ARE_INCORRECT;
+  }
+
   (command_tasks.post_tasks_.push_back(this_unique_ptr_), ...);
   (pre_tasks_.push_back(&command_tasks.this_unique_ptr_), ...);
   task_flow_->RemoveRootTask(*this);
+
+  return ExecuteResult::SUCCESS;
 }
 
 class RenderFuture {
@@ -453,9 +556,7 @@ private:
                   const std::weak_ptr<ExecuteResult>& execute_result,
                   const std::optional<std::weak_ptr<bool>>& is_complete,
                   std::vector<VkSemaphore>&& default_wait_semaphore,
-                  std::vector<VkSemaphore>&& default_signal_semaphore,
-                  const std::vector<WaitAllocatedSemaphore>& external_wait_semaphores,
-                  const std::vector<AllocateSemaphore>& external_signal_semaphores);
+                  std::vector<VkSemaphore>&& default_signal_semaphore,);
     ExecutingTask(const ExecutingTask& other) = delete;
     ExecutingTask(ExecutingTask&& other) noexcept;
     ExecutingTask& operator=(ExecutingTask&& other) noexcept;
@@ -468,13 +569,14 @@ private:
     std::weak_ptr<ExecuteResult> execute_result_{};
     std::optional<std::weak_ptr<bool>> is_complete_{};
 
-    std::vector<VkSemaphore> wait_semaphore_;
-    std::vector<VkSemaphore> signal_semaphore_;
+    std::vector<std::vector<VkSemaphore>> wait_semaphore_;
+    std::vector<std::vector<VkPipelineStageFlags>> wait_semaphore_stages_;
+    std::vector<std::vector<VkSemaphore>> signal_semaphore_;
     std::uint32_t default_wait_semaphore_number_{0};
     std::uint32_t default_signal_semaphore_number_{0};
     // Prevent external semaphores from being destroyed during render runtime
-    std::vector<WaitAllocatedSemaphore> external_wait_semaphores_;
-    std::vector<AllocateSemaphore> external_signal_semaphores_;
+    std::vector<std::vector<WaitAllocatedSemaphore>> external_wait_semaphores_;
+    std::vector<std::vector<AllocateSemaphore>> external_signal_semaphores_;
 
     bool IsComplete() const;
   };
@@ -508,6 +610,9 @@ private:
       std::uint32_t free_graph_command_buffer_number,
       std::uint32_t free_compute_command_buffer_number,
       std::uint32_t free_transform_command_buffer_number);
+
+  void ProcessWhenOneFailedSubmit(
+      std::list<CommandTaskToBeSubmit>& next_can_be_submitted_tasks);
 
   void ProcessNextStepCanSubmitTask(
       std::list<CommandTaskToBeSubmit>& next_can_be_submitted_tasks,

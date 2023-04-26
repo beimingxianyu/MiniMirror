@@ -2,7 +2,7 @@
 
 #include "runtime/core/reflection/database.h"
 
-#include "runtime/platform/cross_platform_header/cross_platform_header.h"
+#include "runtime/platform/base/cross_platform_header.h"
 
 namespace MM {
 namespace Reflection {

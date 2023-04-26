@@ -113,191 +113,6 @@ const VkQueue& MM::RenderSystem::RenderEngine::GetComputeQueue() const {
   return compute_queue_;
 }
 
-bool MM::RenderSystem::RenderEngine::RecordAndSubmitCommand(
-    const CommandBufferType& command_buffer_type,
-    const std::function<void(VkCommandBuffer& cmd)>& function,
-    const bool& auto_start_end_submit, const bool& record_new_command,
-    const std::shared_ptr<VkSubmitInfo>& submit_info_ptr) {
-  if (!IsValid()) {
-    return false;
-  }
-  if (command_buffer_type == CommandBufferType::GRAPH) {
-    return graph_command_executors_[GetCurrentFrame()].RecordAndSubmitCommand(
-        function, auto_start_end_submit, record_new_command, submit_info_ptr);
-  }
-  if (command_buffer_type == CommandBufferType::COMPUTE) {
-    return compute_command_executors_[GetCurrentFrame()].RecordAndSubmitCommand(
-        function, auto_start_end_submit, record_new_command, submit_info_ptr);
-  }
-  return false;
-}
-
-bool MM::RenderSystem::RenderEngine::RecordAndSubmitCommand(
-    const CommandBufferType& command_buffer_type,
-    const std::function<bool(VkCommandBuffer& cmd)>& function,
-    const bool& auto_start_end_submit, const bool& record_new_command,
-    const std::shared_ptr<VkSubmitInfo>& submit_info_ptr) {
-  if (!IsValid()) {
-    return false;
-  }
-  if (command_buffer_type == CommandBufferType::GRAPH) {
-    return graph_command_executors_[GetCurrentFrame()].RecordAndSubmitCommand(
-        function, auto_start_end_submit, record_new_command, submit_info_ptr);
-  }
-  if (command_buffer_type == CommandBufferType::COMPUTE) {
-    return compute_command_executors_[GetCurrentFrame()].RecordAndSubmitCommand(
-        function, auto_start_end_submit, record_new_command, submit_info_ptr);
-  }
-  return false;
-}
-
-bool MM::RenderSystem::RenderEngine::RecordAndSubmitSingleTimeCommand(
-    const CommandBufferType& command_buffer_type,
-    const std::function<void(VkCommandBuffer& cmd)>& function,
-    const bool& auto_start_end_submit_wait) {
-  if (!IsValid()) {
-    return false;
-  }
-  AllocatedCommandBuffer command_executor =
-      command_buffer_type == CommandBufferType::GRAPH
-        ? graph_command_executors_[GetCurrentFrame()]
-        : compute_command_executors_[GetCurrentFrame()];
-  const VkCommandBufferAllocateInfo allocInfo =
-      Utils::GetCommandBufferAllocateInfo(command_executor.GetCommandPool(), 1);
-
-  VkCommandBuffer command_buffer;
-  VK_CHECK(vkAllocateCommandBuffers(device_, &allocInfo, &command_buffer),
-           LOG_ERROR("Failed to create single Time command buffer.");
-           return false;)
-
-  if (auto_start_end_submit_wait) {
-    VkCommandBufferBeginInfo beginInfo = Utils::GetCommandBufferBeginInfo(
-        VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
-
-    VK_CHECK(vkBeginCommandBuffer(command_buffer, &beginInfo),
-             LOG_ERROR("Failed to begin single time command buffer.");
-             vkFreeCommandBuffers(device_, command_executor.GetCommandPool(), 1,
-               &command_buffer);
-             return false;)
-  }
-
-  function(command_buffer);
-
-  if (auto_start_end_submit_wait) {
-    VK_CHECK(vkEndCommandBuffer(command_buffer),
-             LOG_ERROR("Failed to end single time command buffer.");
-             vkFreeCommandBuffers(device_, command_executor.GetCommandPool(), 1,
-               &command_buffer);
-             return false;)
-
-    const VkSubmitInfo submit_info =
-        Utils::GetCommandSubmitInfo(command_buffer);
-
-    const VkFenceCreateInfo fence_create_info = Utils::GetFenceCreateInfo();
-    VkFence temp_fence{nullptr};
-    VK_CHECK(vkCreateFence(device_, &fence_create_info, nullptr, &temp_fence),
-             LOG_ERROR("Failed to create VkFence.");
-             vkFreeCommandBuffers(device_, command_executor.GetCommandPool(), 1,
-               &command_buffer);
-             return false;)
-
-    VK_CHECK(
-        vkWaitForFences(device_, 1, &temp_fence, VK_FALSE, 99999999999),
-        LOG_FATAL(
-          "The wait time for VkFence timed out.An error is expected in the "
-          "program, and the render system will be restarted.(single "
-          "buffer)");)
-
-    VK_CHECK(
-        vkQueueSubmit(command_executor.GetQueue(), 1, &submit_info, temp_fence),
-        LOG_ERROR("Failed to submit single time command buffer.");
-        vkFreeCommandBuffers(device_, command_executor.GetCommandPool(), 1,
-          &command_buffer);
-        return false;)
-  }
-
-  vkFreeCommandBuffers(device_, command_executor.GetCommandPool(), 1,
-                       &command_buffer);
-
-  return true;
-}
-
-bool MM::RenderSystem::RenderEngine::RecordAndSubmitSingleTimeCommand(
-    const CommandBufferType& command_buffer_type,
-    const std::function<bool(VkCommandBuffer& cmd)>& function,
-    const bool& auto_start_end_submit_wait) {
-  if (!IsValid()) {
-    return false;
-  }
-  AllocatedCommandBuffer command_executor =
-      command_buffer_type == CommandBufferType::GRAPH
-        ? graph_command_executors_[GetCurrentFrame()]
-        : compute_command_executors_[GetCurrentFrame()];
-  const VkCommandBufferAllocateInfo allocInfo =
-      Utils::GetCommandBufferAllocateInfo(command_executor.GetCommandPool(), 1);
-
-  VkCommandBuffer command_buffer;
-  VK_CHECK(vkAllocateCommandBuffers(device_, &allocInfo, &command_buffer),
-           LOG_ERROR("Failed to create single Time command buffer.");
-           return false;)
-
-  if (auto_start_end_submit_wait) {
-    VkCommandBufferBeginInfo beginInfo = Utils::GetCommandBufferBeginInfo(
-        VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
-
-    VK_CHECK(vkBeginCommandBuffer(command_buffer, &beginInfo),
-             LOG_ERROR("Failed to begin single time command buffer.");
-             vkFreeCommandBuffers(device_, command_executor.GetCommandPool(), 1,
-               &command_buffer);
-             return false;)
-  }
-
-  if (!function(command_buffer)) {
-    LOG_ERROR(
-        "Failed to execute function that input to "
-        "RecordAndSubmitSingleTimeCommand.")
-    return false;
-  }
-
-  if (auto_start_end_submit_wait) {
-    VK_CHECK(vkEndCommandBuffer(command_buffer),
-             LOG_ERROR("Failed to end single time command buffer.");
-             vkFreeCommandBuffers(device_, command_executor.GetCommandPool(), 1,
-               &command_buffer);
-             return false;)
-
-    const VkSubmitInfo submit_info =
-        Utils::GetCommandSubmitInfo(command_buffer);
-
-    const VkFenceCreateInfo fence_create_info = Utils::GetFenceCreateInfo();
-    VkFence temp_fence{nullptr};
-    VK_CHECK(vkCreateFence(device_, &fence_create_info, nullptr, &temp_fence),
-             LOG_ERROR("Failed to create VkFence.");
-             vkFreeCommandBuffers(device_, command_executor.GetCommandPool(), 1,
-               &command_buffer);
-             return false;)
-
-    VK_CHECK(
-        vkWaitForFences(device_, 1, &temp_fence, VK_FALSE, 99999999999),
-        LOG_FATAL(
-          "The wait time for VkFence timed out.An error is expected in the "
-          "program, and the render system will be restarted.(single "
-          "buffer)");)
-
-    VK_CHECK(
-        vkQueueSubmit(command_executor.GetQueue(), 1, &submit_info, temp_fence),
-        LOG_ERROR("Failed to submit single time command buffer.");
-        vkFreeCommandBuffers(device_, command_executor.GetCommandPool(), 1,
-          &command_buffer);
-        return false;)
-  }
-
-  vkFreeCommandBuffers(device_, command_executor.GetCommandPool(), 1,
-                       &command_buffer);
-
-  return true;
-}
-
 MM::RenderSystem::RenderFuture MM::RenderSystem::RenderEngine::RunCommand(
     CommandTaskFlow&& command_task_flow) {
   return command_executor_->Run(std::move(command_task_flow));
@@ -442,10 +257,14 @@ MM::ExecuteResult MM::RenderSystem::RenderEngine::CopyBuffer(
 
   MM_CHECK(RunSingleCommandAndWait(
                CommandBufferType::TRANSFORM,
-               [&copy_buffer](AllocatedCommandBuffer& cmd) {
+               [&copy_buffer, &src_buffer,
+                &dest_buffer](AllocatedCommandBuffer& cmd) {
                  MM_CHECK(Utils::BeginCommandBuffer(cmd),
                           LOG_ERROR("Failed to begin command buffer.");
                           return MM_RESULT_CODE;);
+
+                 auto buffer_barrier = Utils::GetBufferMemoryBarrier(VK_PIPELINE_STAGE_2_TRANSFER_BIT, VK_ACCESS_2_TRANSFER_WRITE_BIT, )
+
                  vkCmdCopyBuffer2(cmd.GetCommandBuffer(), &copy_buffer);
                  MM_CHECK(Utils::EndCommandBuffer(cmd),
                           LOG_ERROR("Failed to end command buffer.");
@@ -728,7 +547,6 @@ MM::ExecuteResult MM::RenderSystem::RenderEngine::CopyImage(
     const VkImageLayout& dest_layout,
     const std::vector<VkImageCopy2>&
     regions) {
-  // TODO Add "#ifdef CHECK_PARAMETERS" to all parameter check.
 #ifdef CHECK_PARAMETERS
   if (!src_image.IsValid()) {
     LOG_ERROR("Src_image is invalid.");

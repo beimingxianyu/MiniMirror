@@ -594,6 +594,11 @@ struct ImageBindInfo {
   void Reset();
 };
 
+struct ImageRange {
+
+  VkImageSubresource range_;
+};
+
 struct ImageInfo {
   VkExtent3D image_extent_{0, 0, 0};
   VkDeviceSize image_size_{0};
@@ -941,9 +946,9 @@ public:
 
   const AllocatedBuffer& GetIndexBuffer() const;
 
-  const MM::RenderSystem::BufferInfo& GetVertexBufferInfo() const;
+  const BufferInfo& GetVertexBufferInfo() const;
 
-  const MM::RenderSystem::BufferInfo& GetIndexBufferInfo() const;
+  const BufferInfo& GetIndexBufferInfo() const;
 
   ExecuteResult AllocateBuffer(
       const std::vector<AssetType::Vertex>& vertices,

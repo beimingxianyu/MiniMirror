@@ -89,66 +89,6 @@ class RenderEngine {
   const VkQueue& GetComputeQueue() const;
 
   /**
-   * \brief Record commands in the command buffer.
-   * \param command_buffer_type The type of command buffer that the command to
-   * be record belongs to
-   * \param function A function that contains the record
-   * operations you want to perform.
-   * \param auto_start_end_submit If this item is true, the start command, end command,
-   * and submit command (etc.) are automatically recorded. The default value is false.
-   * If this item is true, please do not perform automatically completed work in the function again.
-   * \param record_new_command Whether to not use the last submitted command buffer.
-   * The default value is true.
-   * \param submit_info_ptr Custom VkSubmitInfo.
-   * \return If there are no errors in the entire recording and submission
-   * process, it returns true, otherwise it returns false.
-   * \remark If \ref auto_start_end_submit is set to true and \ref function also has a start
-   * command or an end command, an error will occur.
-   * \remark Please do not create a VkFence in the \ref function and wait it. Doing so
-   * will cause the program to permanently block.
-   */
-  bool RecordAndSubmitCommand(
-      const CommandBufferType& command_buffer_type,
-      const std::function<void(VkCommandBuffer& cmd)>& function,
-      const bool& auto_start_end_submit = false,
-      const bool& record_new_command = true,
-      const std::shared_ptr<VkSubmitInfo>& submit_info_ptr = nullptr);
-
-  /**
-   * \remark This function is mostly the same as \ref RecordAndSubmitCommand,
-   * except that the \ref function can return a value point out the \ref
-   * function execute result.If the \ref function return true specifies
-   * execution succeeded, otherwise return false.
-   */
-  bool RecordAndSubmitCommand(
-      const CommandBufferType& command_buffer_type,
-      const std::function<bool(VkCommandBuffer& cmd)>& function,
-      const bool& auto_start_end_submit = false,
-      const bool& record_new_command = true, 
-      const std::shared_ptr<VkSubmitInfo>& submit_info_ptr = nullptr);
-
-  /**
-   * \remark This function is mostly the same as \ref RecordAndSubmitCommand, except that
-   * when \ref auto_start_end_submit_wait is false, you can create a VkFence in the
-   * function and wait it.
-   */
-  bool RecordAndSubmitSingleTimeCommand(
-      const CommandBufferType& command_buffer_type,
-      const std::function<void(VkCommandBuffer& cmd)>& function,
-      const bool& auto_start_end_submit_wait = false);
-
-  /**
-   * \remark This function is mostly the same as \ref RecordAndSubmitSingleTimeCommand,
-   * except that the \ref function can return a value point out the \ref
-   * function execute result.If the \ref function return true specifies
-   * execution succeeded, otherwise return false.
-   */
-  bool RecordAndSubmitSingleTimeCommand(
-      const CommandBufferType& command_buffer_type,
-      const std::function<bool(VkCommandBuffer& cmd)>& function,
-      const bool& auto_start_end_submit_wait = false);
-
-  /**
    * \remark The executed \ref command_task_flow will be moved, and no other
    * operations can be performed on \ref command_task_flow after calling this function.
    */

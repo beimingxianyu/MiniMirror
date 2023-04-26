@@ -236,7 +236,7 @@ VkSubmitInfo MM::RenderSystem::Utils::GetCommandSubmitInfo(
   return submit_info;
 }
 
-VkSubmitInfo MM::RenderSystem::Utils::GetSubmitInfo(
+VkSubmitInfo MM::RenderSystem::Utils::GetCommandSubmitInfo(
     const std::vector<AllocatedCommandBuffer>& command_buffers) {
   std::vector<VkCommandBuffer> vk_command_buffers;
   vk_command_buffers.reserve(command_buffers.size());
@@ -412,9 +412,185 @@ VkDependencyInfo MM::RenderSystem::Utils::GetImageDependencyInfo(
   return dep_info;
 }
 
+VkMemoryBarrier2 MM::RenderSystem::Utils::GetMemoryBarrier(
+    VkPipelineStageFlags2 src_stage, VkAccessFlags2 src_access,
+    VkPipelineStageFlags2 dest_stage, VkAccessFlags2 dest_access) {
+  return VkMemoryBarrier2{VK_STRUCTURE_TYPE_MEMORY_BARRIER_2,
+                          nullptr,
+                          src_stage,
+                          src_access,
+                          dest_stage,
+                          dest_access};
+}
+
+VkBufferMemoryBarrier2 MM::RenderSystem::Utils::GetBufferMemoryBarrier(
+    VkPipelineStageFlags2 src_stage, VkAccessFlags2 src_access,
+    VkPipelineStageFlags2 dest_stage, VkAccessFlags2 dest_access,
+    std::uint32_t src_queue_family_index, std::uint32_t dest_queue_family_index,
+    const AllocatedBuffer& buffer, VkDeviceSize offset,
+    VkDeviceSize size) {
+  return VkBufferMemoryBarrier2{VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER_2,
+                                nullptr,
+                                src_stage,
+                                src_access,
+                                dest_stage,
+                                dest_access,
+                                src_queue_family_index,
+                                dest_queue_family_index,
+                                buffer.GetBuffer(),
+                                offset,
+                                size};
+}
+
+VkImageMemoryBarrier2 MM::RenderSystem::Utils::GetImageMemoryBarrier(
+    VkPipelineStageFlags2 src_stage, VkAccessFlags2 src_access,
+    VkPipelineStageFlags2 dest_stage, VkAccessFlags2 dest_access,
+    VkImageLayout old_layout, VkImageLayout new_layout,
+    std::uint32_t src_queue_family_index, std::uint32_t dest_queue_family_index,
+    const AllocatedImage& image,
+    const VkImageSubresourceRange& sub_resource_range) {
+  return VkImageMemoryBarrier2{VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2,
+                               nullptr,
+                               src_stage,
+                               src_access,
+                               dest_stage,
+                               dest_access,
+                               old_layout,
+                               new_layout,
+                               src_queue_family_index,
+                               dest_queue_family_index,
+                               image.GetImage(),
+                               sub_resource_range};
+}
+
+VkImageMemoryBarrier2 MM::RenderSystem::Utils::GetImageMemoryBarrier(
+    VkPipelineStageFlags2 src_stage, VkAccessFlags2 src_access,
+    VkPipelineStageFlags2 dest_stage, VkAccessFlags2 dest_access,
+    VkImageLayout old_layout, VkImageLayout new_layout,
+    std::uint32_t src_queue_family_index, std::uint32_t dest_queue_family_index,
+    const AllocatedImage& image, VkImageAspectFlags aspect_mask,
+    std::uint32_t base_mipmap_level, std::uint32_t level_count,
+    std::uint32_t base_array_layer,
+    std::uint32_t layer_count) {
+  return VkImageMemoryBarrier2{VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2,
+                               nullptr,
+                               src_stage,
+                               src_access,
+                               dest_stage,
+                               dest_access,
+                               old_layout,
+                               new_layout,
+                               src_queue_family_index,
+                               dest_queue_family_index,
+                               image.GetImage(),
+                               VkImageSubresourceRange{
+                                   aspect_mask, base_mipmap_level, level_count,
+                                   base_array_layer, layer_count}};
+}
+
+VkDependencyInfo MM::RenderSystem::Utils::GetMemoryDependencyInfo(
+    const std::vector<VkMemoryBarrier2>& memory_barriers,
+    VkDependencyFlags dependency_flags) {
+  return VkDependencyInfo{VK_STRUCTURE_TYPE_DEPENDENCY_INFO,
+                          nullptr,
+                          dependency_flags,
+                          static_cast<uint32_t>(memory_barriers.size()),
+                          memory_barriers.data(),
+                          0,
+                          nullptr,
+                          0,
+                          nullptr};
+}
+
+VkDependencyInfo MM::RenderSystem::Utils::GetMemoryDependencyInfo(
+    const VkMemoryBarrier2& memory_barriers,
+    VkDependencyFlags dependency_flags) {
+  return VkDependencyInfo{VK_STRUCTURE_TYPE_DEPENDENCY_INFO,
+                          nullptr,
+                          dependency_flags,
+                          1,
+                          &memory_barriers,
+                          0,
+                          nullptr,
+                          0,
+                          nullptr};
+}
+
+VkDependencyInfo MM::RenderSystem::Utils::GetBufferMemoryDependencyInfo(
+    const std::vector<VkBufferMemoryBarrier2>& buffer_barriers,
+    VkDependencyFlags dependency_flags) {
+  return VkDependencyInfo{VK_STRUCTURE_TYPE_DEPENDENCY_INFO,
+                          nullptr,
+                          dependency_flags,
+                          0,
+                          nullptr,
+                          static_cast<uint32_t>(buffer_barriers.size()),
+                          buffer_barriers.data(),
+                          0,
+                          nullptr};
+}
+
+VkDependencyInfo MM::RenderSystem::Utils::GetBufferMemoryDependencyInfo(
+    const VkBufferMemoryBarrier2& buffer_barriers,
+    VkDependencyFlags dependency_flags) {
+  return VkDependencyInfo{VK_STRUCTURE_TYPE_DEPENDENCY_INFO,
+                          nullptr,
+                          dependency_flags,
+                          0,
+                          nullptr,
+                          1,
+                          &buffer_barriers,
+                          0,
+                          nullptr};
+}
+
+VkDependencyInfo MM::RenderSystem::Utils::GetImageMemoryDependencyInfo(
+    const std::vector<VkImageMemoryBarrier2>& image_barriers,
+    VkDependencyFlags dependency_flags) {
+  return VkDependencyInfo{VK_STRUCTURE_TYPE_DEPENDENCY_INFO,
+                          nullptr,
+                          dependency_flags,
+                          0,
+                          nullptr,
+                          0,
+                          nullptr,
+                          static_cast<uint32_t>(image_barriers.size()),
+                          image_barriers.data()};
+}
+
+VkDependencyInfo MM::RenderSystem::Utils::GetImageMemoryDependencyInfo(
+    const VkImageMemoryBarrier2& image_barriers,
+    VkDependencyFlags dependency_flags) {
+  return VkDependencyInfo{VK_STRUCTURE_TYPE_DEPENDENCY_INFO,
+                          nullptr,
+                          dependency_flags,
+                          0,
+                          nullptr,
+                          0,
+                          nullptr,
+                          1,
+                          &image_barriers};
+}
+
+VkDependencyInfo MM::RenderSystem::Utils::GetDependencyInfo(
+    const std::vector<VkMemoryBarrier2>& memory_barriers,
+    const std::vector<VkBufferMemoryBarrier2>& buffer_barriers,
+    const std::vector<VkImageMemoryBarrier2>& image_barriers,
+    VkDependencyFlags dependency_flags) {
+  return VkDependencyInfo{VK_STRUCTURE_TYPE_DEPENDENCY_INFO,
+                          nullptr,
+                          dependency_flags,
+                          static_cast<uint32_t>(memory_barriers.size()),
+                          memory_barriers.data(),
+                          static_cast<uint32_t>(buffer_barriers.size()),
+                          buffer_barriers.data(),
+                          static_cast<uint32_t>(image_barriers.size()),
+                          image_barriers.data()};
+}
+
 void MM::RenderSystem::Utils::AddTransferImageCommands(VkCommandBuffer& command_buffer,
-    AllocatedImage& image, const ImageTransferMode& transfer_mode,
-    const VkDependencyFlags& flags) {
+                                                       AllocatedImage& image, const ImageTransferMode& transfer_mode,
+                                                       const VkDependencyFlags& flags) {
   auto image_barrier = Utils::GetImageMemoryBarrier(image, transfer_mode);
   const auto image_transfer_dependency = Utils::GetImageDependencyInfo(image_barrier, flags);
 

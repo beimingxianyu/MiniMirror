@@ -92,7 +92,7 @@ VkSubmitInfo GetCommandSubmitInfo(const VkCommandBuffer& command_buffer, const u
 
 VkSubmitInfo GetCommandSubmitInfo(const std::vector<VkCommandBuffer>& command_buffers);
 
-VkSubmitInfo GetSubmitInfo(
+VkSubmitInfo GetCommandSubmitInfo(
     const std::vector<AllocatedCommandBuffer>& command_buffers);
 
 ExecuteResult SubmitCommandBuffers(
@@ -125,35 +125,112 @@ VkImageMemoryBarrier2 GetImageMemoryBarrier(AllocatedImage& image,
  * \return The \ref VkImageMemoryBarrier2
  * \remark Blockage at all stages, poor performance.
  */
+[[deprecated]]
 VkImageMemoryBarrier2 GetImageMemoryBarrier(AllocatedImage& image,
-                                              const VkImageLayout& old_layout,
+                                            const VkImageLayout& old_layout,
                                               const VkImageLayout& new_layout);
 
-// TODO Cross queue family memory barrier
-//VkBufferMemoryBarrier2 GetBufferMemoryBarrier() {
-//  VkBufferMemoryBarrier2 
-//}
-
+[[deprecated]]
 VkDependencyInfo GetImageDependencyInfo(VkImageMemoryBarrier2& image_barrier,
                                         const VkDependencyFlags& flags = 0);
+
+VkMemoryBarrier2 GetMemoryBarrier(VkPipelineStageFlags2 src_stage,
+                                  VkAccessFlags2 src_access,
+                                  VkPipelineStageFlags2 dest_stage,
+                                  VkAccessFlags2 dest_access);
+
+VkBufferMemoryBarrier2 GetBufferMemoryBarrier(VkPipelineStageFlags2 src_stage,
+                                              VkAccessFlags2 src_access,
+                                              VkPipelineStageFlags2 dest_stage,
+                                              VkAccessFlags2 dest_access, 
+                                              std::uint32_t src_queue_family_index,
+                                              std::uint32_t dest_queue_family_index,
+                                              const AllocatedBuffer& buffer,
+                                              VkDeviceSize offset,
+                                              VkDeviceSize size);
+// TODO stage buffer memory barrier
+//VkBufferMemoryBarrier2 GetBufferMemoryBarrier(
+//    VkPipelineStageFlags2 src_stage, VkAccessFlags2 src_access,
+//    VkPipelineStageFlags2 dest_stage, VkAccessFlags2 dest_access,
+//    std::uint32_t src_queue_family_index, std::uint32_t dest_queue_family_index,
+//    const AllocatedStageBuffer& allocated_buffer, VkDeviceSize offset,
+//    VkDeviceSize size);
+
+VkImageMemoryBarrier2 GetImageMemoryBarrier(
+    VkPipelineStageFlags2 src_stage, VkAccessFlags2 src_access,
+    VkPipelineStageFlags2 dest_stage, VkAccessFlags2 dest_access,
+    VkImageLayout old_layout, VkImageLayout new_layout,
+    std::uint32_t src_queue_family_index, std::uint32_t dest_queue_family_index,
+    const AllocatedImage& image,
+    const VkImageSubresourceRange& sub_resource_range);
+
+VkImageMemoryBarrier2 GetImageMemoryBarrier(
+    VkPipelineStageFlags2 src_stage, VkAccessFlags2 src_access,
+    VkPipelineStageFlags2 dest_stage, VkAccessFlags2 dest_access,
+    VkImageLayout old_layout, VkImageLayout new_layout,
+    std::uint32_t src_queue_family_index, std::uint32_t dest_queue_family_index,
+    const AllocatedImage& image, VkImageAspectFlags aspect_mask,
+    std::uint32_t base_mipmap_level, std::uint32_t level_count,
+    std::uint32_t base_array_layer, std::uint32_t layer_count);
+
+VkDependencyInfo GetMemoryDependencyInfo(
+    const std::vector<VkMemoryBarrier2>& memory_barriers,
+    VkDependencyFlags dependency_flags = 0);
+
+VkDependencyInfo GetMemoryDependencyInfo(
+    const VkMemoryBarrier2& memory_barriers,
+    VkDependencyFlags dependency_flags = 0);
+
+VkDependencyInfo GetBufferMemoryDependencyInfo(
+    const std::vector<VkBufferMemoryBarrier2>& buffer_barriers,
+    VkDependencyFlags dependency_flags = 0);
+
+VkDependencyInfo GetBufferMemoryDependencyInfo(
+    const VkBufferMemoryBarrier2& buffer_barriers,
+    VkDependencyFlags dependency_flags = 0);
+
+VkDependencyInfo GetImageMemoryDependencyInfo(
+    const std::vector<VkImageMemoryBarrier2>& image_barriers,
+    VkDependencyFlags dependency_flags = 0);
+
+VkDependencyInfo GetImageMemoryDependencyInfo(
+    const VkImageMemoryBarrier2& image_barriers,
+    VkDependencyFlags dependency_flags = 0);
+
+VkDependencyInfo GetDependencyInfo(
+    const std::vector<VkMemoryBarrier2>& memory_barriers,
+    const std::vector<VkBufferMemoryBarrier2>& buffer_barriers,
+    const std::vector<VkImageMemoryBarrier2>& image_barriers,
+    VkDependencyFlags dependency_flags = 0);
+
+VkDependencyInfo GetBufferQueueFamilyOwnershipTransformDependencyInfo(AllocatedBuffer& buffer, std::uint32_t dest_queue_family_index);
+
+// TODO stage buffer memory ownership transform
+//VkDependencyInfo GetBufferQueueFamilyOwnershipTransformDependencyInfo(
+//    AllocatedStageBuffer& buffer, std::uint32_t dest_queue_family_index);
+
 /**
  * \remark Blockage at all stages, poor performance.
 */
+[[deprecated]]
 void AddTransferImageCommands(VkCommandBuffer& command_buffer, AllocatedImage& image,
                               const ImageTransferMode& transfer_mode,
                               const VkDependencyFlags& flags = 0);
 
+[[deprecated]]
 void AddTransferImageCommands(VkCommandBuffer& command_buffer,
                               AllocatedImage& image,
                               const VkImageLayout& old_layout,
                               const VkImageLayout& new_layout,
                               const VkDependencyFlags& flags = 0);
 
+[[deprecated]]
 void AddTransferImageCommands(AllocatedCommandBuffer& command_buffer,
                               AllocatedImage& image,
                               const ImageTransferMode& transfer_mode,
                               const VkDependencyFlags& flags = 0);
 
+[[deprecated]]
 void AddTransferImageCommands(AllocatedCommandBuffer& command_buffer,
                               AllocatedImage& image,
                               const VkImageLayout& old_layout,
