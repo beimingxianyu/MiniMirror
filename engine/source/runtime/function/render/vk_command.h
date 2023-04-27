@@ -411,7 +411,7 @@ class CommandExecutor {
  public:
   CommandExecutor() = delete;
   CommandExecutor(RenderEngine* engine);
-  ~CommandExecutor() = default;
+  ~CommandExecutor();
   CommandExecutor(RenderEngine* engine,
                  const uint32_t& graph_command_number,
                  const uint32_t& compute_command_number,
@@ -519,8 +519,34 @@ private:
     std::stack<std::weak_ptr<bool>> is_completes_{};
   };
 
+  struct CommandTaskToBeSubmit;
+
+  struct ExecutingCommandTaskFlow {
+    ExecutingCommandTaskFlow() = delete;
+    ~ExecutingCommandTaskFlow() = default;
+    ExecutingCommandTaskFlow(
+        CommandTaskFlowToBeRun&& command_task_flow_to_be_run);
+    ExecutingCommandTaskFlow(const ExecutingCommandTaskFlow& other) = delete;
+    ExecutingCommandTaskFlow(ExecutingCommandTaskFlow&& other) noexcept;
+    ExecutingCommandTaskFlow& operator=(const ExecutingCommandTaskFlow& other) =
+        delete;
+    ExecutingCommandTaskFlow& operator=(
+        ExecutingCommandTaskFlow&& other) noexcept;
+
+    CommandTaskFlow command_task_flow_{};
+    std::uint32_t task_flow_ID_{0};
+    std::shared_ptr<ExecuteResult> execute_result_{};
+    std::stack<std::weak_ptr<bool>> is_completes_{};
+
+    std::unordered_set<std::unique_ptr<CommandTask>*>
+        task_that_have_already_been_accessed_;
+    std::unordered_set<std::unique_ptr<CommandTask>*> submitted_task_;
+    std::list<CommandTaskToBeSubmit> can_be_submitted_tasks_;
+    std::list<CommandTaskToBeSubmit> pre_task_not_submit_task_;
+  };
+
   static void UpdateCommandTaskLine(
-      CommandExecutor* command_executor,
+      ExecutingCommandTaskFlow& command_task_flow,
       std::unique_ptr<CommandTask>& new_command_task, std::unique_ptr<CommandTask>
       * old_command_task_ptr);
 
@@ -529,6 +555,7 @@ private:
     ~CommandTaskToBeSubmit() = default;
     CommandTaskToBeSubmit(
         CommandExecutor* command_executor,
+        const std::shared_ptr<ExecutingCommandTaskFlow>& command_task_flow,
         std::unique_ptr<CommandTask>&& command_task,
         std::vector<VkSemaphore>&& default_wait_semaphore,
         std::vector<VkSemaphore>&& default_signal_semaphore);
@@ -538,8 +565,9 @@ private:
         delete;
     CommandTaskToBeSubmit& operator=(CommandTaskToBeSubmit&& other) noexcept;
 
-    CommandExecutor* command_executor_;
-    std::unique_ptr<CommandTask> command_task_;
+    CommandExecutor* command_executor_{nullptr};
+    std::weak_ptr<ExecutingCommandTaskFlow> command_task_flow_;
+    std::unique_ptr<CommandTask> command_task_{nullptr};
     std::vector<VkSemaphore> default_wait_semaphore_{};
     std::vector<VkSemaphore> default_signal_semaphore_{};
 
@@ -551,12 +579,13 @@ private:
     ~ExecutingTask() = default;
     ExecutingTask(RenderEngine* engine,
                   CommandExecutor* command_executor,
+                  const std::shared_ptr<ExecutingCommandTaskFlow>& command_task_flow,
                   std::vector<std::unique_ptr<AllocatedCommandBuffer>>&&
                       command_buffer, std::unique_ptr<CommandTask>&& command_task,
                   const std::weak_ptr<ExecuteResult>& execute_result,
                   const std::optional<std::weak_ptr<bool>>& is_complete,
                   std::vector<VkSemaphore>&& default_wait_semaphore,
-                  std::vector<VkSemaphore>&& default_signal_semaphore,);
+                  std::vector<VkSemaphore>&& default_signal_semaphore);
     ExecutingTask(const ExecutingTask& other) = delete;
     ExecutingTask(ExecutingTask&& other) noexcept;
     ExecutingTask& operator=(ExecutingTask&& other) noexcept;
@@ -564,6 +593,7 @@ private:
 
     RenderEngine* render_engine_;
     CommandExecutor* command_executor_;
+    std::weak_ptr<ExecutingCommandTaskFlow> command_task_flow_;
     std::vector<std::unique_ptr<AllocatedCommandBuffer>> command_buffers_;
     std::unique_ptr<CommandTask> command_task_{};
     std::weak_ptr<ExecuteResult> execute_result_{};
@@ -590,9 +620,9 @@ private:
   void ProcessWaitTask();
 
   void ProcessRequireCommandBufferNumberLagerThanExecutorHaveCommandBufferNumber(
-      const CommandTaskFlowToBeRun& command_task_flow, bool& skip_task_flow);
+      const std::shared_ptr<ExecutingCommandTaskFlow>& command_task_flow, bool& skip_task_flow);
 
-  void ProcessRootTaskAndSubTask(CommandTaskFlowToBeRun& command_task_flow);
+  void ProcessRootTaskAndSubTask(const std::shared_ptr<ExecutingCommandTaskFlow>& command_task_flow);
 
   void ChooseVariableByCommandType(
       CommandType command_type, std::uint32_t*& free_command_buffer_number,
@@ -606,19 +636,19 @@ private:
 
   void ProcessOneCanSubmitTask(
       std::list<CommandTaskToBeSubmit>::iterator& command_task_to_be_submit,
-      CommandTaskFlowToBeRun& command_task_flow,
+      const std::shared_ptr<ExecutingCommandTaskFlow>& command_task_flow,
       std::uint32_t free_graph_command_buffer_number,
       std::uint32_t free_compute_command_buffer_number,
       std::uint32_t free_transform_command_buffer_number);
 
   void ProcessWhenOneFailedSubmit(
-      std::list<CommandTaskToBeSubmit>& next_can_be_submitted_tasks);
+      const std::shared_ptr<ExecutingCommandTaskFlow>& command_task_flow, std::list<CommandTaskToBeSubmit>& next_can_be_submitted_tasks);
 
   void ProcessNextStepCanSubmitTask(
       std::list<CommandTaskToBeSubmit>& next_can_be_submitted_tasks,
-      CommandTaskFlowToBeRun& command_task_flow);
+      const std::shared_ptr<ExecutingCommandTaskFlow>& command_task_flow);
 
-  ExecuteResult SubmitTasks(ExecutingTask* input_tasks);
+  ExecuteResult SubmitTasks(std::shared_ptr<ExecutingCommandTaskFlow>& command_task_flow, std::unique_ptr<ExecutingTask>&& input_tasks);
 
   void ProcessTask();
 
@@ -648,13 +678,12 @@ private:
   std::list<std::uint32_t> wait_tasks_;
   std::mutex wait_tasks_mutex_{};
 
-  std::set<std::unique_ptr<CommandTask>*> task_that_have_already_been_accessed_;
+  /*std::set<std::unique_ptr<CommandTask>*> task_that_have_already_been_accessed_;
   std::set<std::unique_ptr<CommandTask>*> submitted_task_;
   std::list<CommandTaskToBeSubmit> can_be_submitted_tasks_;
-  std::list<CommandTaskToBeSubmit> pre_task_not_submit_task_;
+  std::list<CommandTaskToBeSubmit> pre_task_not_submit_task_;*/
 
   std::stack<VkSemaphore> semaphores_;
-
 
   std::array<std::set<VkSemaphore>, 2> submit_failed_to_be_recycled_semaphore_;
   std::uint32_t submit_failed_to_be_recycled_semaphore_current_index_;
