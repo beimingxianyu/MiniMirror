@@ -1406,8 +1406,32 @@ MM::RenderSystem::CommandExecutor::CommandTaskToBeSubmit::CommandTaskToBeSubmit(
     : command_executor_(command_executor),
       command_task_flow_(command_task_flow),
       command_task_(std::move(command_task)),
-      default_wait_semaphore_(std::move(default_wait_semaphore)),
-      default_signal_semaphore_(std::move(default_signal_semaphore)) {
+      default_wait_semaphore_(),
+      default_signal_semaphore_() {
+  assert(!command_task_flow_.expired());
+  const auto vector_number =
+      static_cast<std::uint32_t>(1 + command_task_->sub_tasks_.size());
+  const auto one_wait_vector_semaphore_number =
+      static_cast<std::uint32_t>(default_wait_semaphore.size() / vector_number);
+  const auto one_signal_vector_semaphore_number = static_cast<std::uint32_t>(
+      default_signal_semaphore.size() / vector_number);
+  default_wait_semaphore_.reserve(vector_number);
+  default_signal_semaphore_.reserve(vector_number);
+  for (std::uint32_t i = 0; i < vector_number; ++i) {
+    default_wait_semaphore_.emplace_back(one_wait_vector_semaphore_number);
+    default_signal_semaphore_.emplace_back(one_signal_vector_semaphore_number);
+    auto& wait_back = default_wait_semaphore_.back();
+    auto& signal_back = default_signal_semaphore_.back();
+    for (std::uint32_t j = 0; j < one_wait_vector_semaphore_number; ++j) {
+      wait_back[j] =
+          default_wait_semaphore[i * one_wait_vector_semaphore_number + j];
+    }
+    for (std::uint32_t j = 0; j < one_signal_vector_semaphore_number; ++j) {
+      signal_back[j] =
+          default_wait_semaphore[i * one_signal_vector_semaphore_number + j];
+    }
+  }
+  
   if (!command_task_flow_.expired()) {
     UpdateCommandTaskLine(*(command_task_flow_.lock()), command_task_, &command_task);    
   }
@@ -1462,73 +1486,74 @@ MM::RenderSystem::CommandExecutor::ExecutingTask::ExecutingTask(
     std::unique_ptr<CommandTask>&& command_task,
     const std::weak_ptr<ExecuteResult>& execute_result,
     const std::optional<std::weak_ptr<bool>>& is_complete,
-    std::vector<VkSemaphore>&& default_wait_semaphore,
-    std::vector<VkSemaphore>&& default_signal_semaphore)
+    std::vector<std::vector<VkSemaphore>>&& default_wait_semaphore,
+    std::vector<std::vector<VkSemaphore>>&& default_signal_semaphore)
     : render_engine_(engine),
       command_executor_(command_executor),
       command_task_flow_(command_task_flow),
       command_buffers_(std::move(command_buffer)),
-      command_task_(std::move(std::move(command_task))),
+      command_task_(std::move(command_task)),
       execute_result_(execute_result),
       is_complete_(is_complete),
-      wait_semaphore_(),
-      signal_semaphore_(),
-      default_wait_semaphore_number_(default_wait_semaphore.size()),
-      default_signal_semaphore_number_(default_signal_semaphore.size()),
-      external_wait_semaphores_(),
-      external_signal_semaphores_(){
-  wait_semaphore_.reserve(1 + command_task_->GetSubTasksNumber()); // default + main:1, sub:GetSubTasksNumber
-  wait_semaphore_stages_.reserve(wait_semaphore_.size());
-  signal_semaphore_.reserve(wait_semaphore_.size());
+      wait_semaphore_(std::move(default_wait_semaphore)),
+      wait_semaphore_stages_(wait_semaphore_.size()),
+      signal_semaphore_(std::move(default_signal_semaphore)),
+      default_wait_semaphore_number_(wait_semaphore_[0].size()),
+      default_signal_semaphore_number_(signal_semaphore_[0].size()) {
+  assert(!command_task_flow_.expired());
+  for (std::uint32_t i = 0; i != wait_semaphore_.size(); ++i) {
+    if (i == 0) {
+      wait_semaphore_[0].reserve(wait_semaphore_[0].size() +
+                                 command_task_->wait_semaphore_.size());
+      wait_semaphore_stages_[0].reserve(wait_semaphore_[0].capacity());
+      signal_semaphore_[0].reserve(signal_semaphore_[0].size() +
+                                   command_task_->signal_semaphore_.size());
 
-  external_wait_semaphores_.reserve(1 + command_task_->GetSubTasksNumber()); // main:1, sub:GetSubTasksNumber
-  external_signal_semaphores_.reserve(external_wait_semaphores_.size());
+      std::fill_n(wait_semaphore_stages_.begin(),
+                    wait_semaphore_[0].size(),
+                VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT);
 
-  wait_semaphore_.emplace_back(std::move(default_wait_semaphore));
-  wait_semaphore_stages_.emplace_back(
-      default_wait_semaphore_number_, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT);
-  signal_semaphore_.emplace_back(std::move(default_signal_semaphore));
-  for (const auto& external_semaphore: command_task_->wait_semaphore_) {
-    wait_semaphore_.begin()->emplace_back(
-        external_semaphore.wait_semaphore_.GetSemaphore());
-    wait_semaphore_stages_.begin()->emplace_back(
-        external_semaphore.wait_stage_);
-  }
-  for (const auto& external_semaphore: command_task_->signal_semaphore_) {
-    signal_semaphore_.begin()->emplace_back(external_semaphore.GetSemaphore());
-  }
+      for (const auto& external_wait_semaphore: command_task_->wait_semaphore_) {
+        wait_semaphore_[0].emplace_back(
+            external_wait_semaphore.wait_semaphore_.GetSemaphore());
+        wait_semaphore_stages_[0].emplace_back(
+            external_wait_semaphore.wait_stage_);
+      }
 
-  for (const auto& sub_task: command_task_->sub_tasks_) {
-    std::vector<VkSemaphore> sub_wait_semaphores;
-    std::vector<VkPipelineStageFlags> sub_wait_semaphores_stages;
-    std::vector<VkSemaphore> sub_signal_semaphores;
-
-    sub_wait_semaphores.reserve(sub_task->wait_semaphore_.size());
-    sub_wait_semaphores_stages.reserve(sub_wait_semaphores.size());
-    sub_signal_semaphores.reserve(sub_task->signal_semaphore_.size());
-
-    for (const auto& sub_semaphore: sub_task->wait_semaphore_) {
-      sub_wait_semaphores.emplace_back(
-          sub_semaphore.wait_semaphore_.GetSemaphore());
-      sub_wait_semaphores_stages.emplace_back(sub_semaphore.wait_stage_);
+      for (const auto& external_signal_semaphore: command_task_->signal_semaphore_) {
+        signal_semaphore_[0].emplace_back(
+            external_signal_semaphore.GetSemaphore());
+      }
+      continue;
     }
 
-    for (const auto& sub_semaphore: sub_task->signal_semaphore_) {
-      sub_signal_semaphores.emplace_back(sub_semaphore.GetSemaphore());
+    wait_semaphore_[i].reserve(
+        wait_semaphore_[i].size() +
+        command_task_->sub_tasks_[i - 1]->wait_semaphore_.size());
+    wait_semaphore_stages_[i].reserve(wait_semaphore_[i].capacity());
+    signal_semaphore_[i].reserve(signal_semaphore_[i].size() +
+                                 command_task_->sub_tasks_[i - 1]->signal_semaphore_.size());
+
+    std::fill_n(wait_semaphore_stages_[i].begin(), wait_semaphore_.size(),
+                VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT);
+
+    for (const auto& external_wait_semaphore : command_task_->sub_tasks_[i - 1]->wait_semaphore_) {
+      wait_semaphore_[i].emplace_back(
+          external_wait_semaphore.wait_semaphore_.GetSemaphore());
+      wait_semaphore_stages_[i].emplace_back(
+          external_wait_semaphore.wait_stage_);
     }
 
-    external_wait_semaphores_.emplace_back(sub_task->wait_semaphore_);
-    external_signal_semaphores_.emplace_back(sub_task->signal_semaphore_);
-
-    wait_semaphore_.emplace_back(std::move(sub_wait_semaphores));
-    wait_semaphore_stages_.emplace_back(std::move(sub_wait_semaphores_stages));
-    signal_semaphore_.emplace_back(std::move(sub_signal_semaphores));
+    for (const auto& external_signal_semaphore : command_task_->sub_tasks_[i - 1]->signal_semaphore_) {
+      signal_semaphore_[i].emplace_back(
+          external_signal_semaphore.GetSemaphore());
+    }
   }
-
 
   if (!command_task_flow_.expired()) {
     UpdateCommandTaskLine(*(command_task_flow_.lock()), command_task_, &command_task);
-  } }
+  }
+}
 
 MM::RenderSystem::CommandExecutor::ExecutingTask::ExecutingTask(
     ExecutingTask&& other) noexcept
@@ -1543,10 +1568,7 @@ MM::RenderSystem::CommandExecutor::ExecutingTask::ExecutingTask(
       wait_semaphore_stages_(std::move(other.wait_semaphore_stages_)),
       signal_semaphore_(std::move(other.signal_semaphore_)),
       default_wait_semaphore_number_(other.default_wait_semaphore_number_),
-      default_signal_semaphore_number_(other.default_signal_semaphore_number_),
-      external_wait_semaphores_(std::move(other.external_wait_semaphores_)),
-      external_signal_semaphores_(
-          std::move(other.external_signal_semaphores_)) {
+      default_signal_semaphore_number_(other.default_signal_semaphore_number_) {
 
   if (!command_task_flow_.expired()) {
     UpdateCommandTaskLine(*(command_task_flow_.lock()), command_task_,
@@ -1577,8 +1599,6 @@ MM::RenderSystem::CommandExecutor::ExecutingTask::operator=(
   signal_semaphore_ = std::move(other.signal_semaphore_);
   default_wait_semaphore_number_ = other.default_wait_semaphore_number_;
   default_signal_semaphore_number_ = other.default_signal_semaphore_number_;
-  external_wait_semaphores_ = std::move(other.external_wait_semaphores_);
-  external_signal_semaphores_ = std::move(other.external_signal_semaphores_);
 
   if (!command_task_flow_.expired()) {
     UpdateCommandTaskLine(*(command_task_flow_.lock()), command_task_,
@@ -1834,7 +1854,9 @@ void MM::RenderSystem::CommandExecutor::ProcessRootTaskAndSubTask(
         // TODO 给sub_task也添加同步Semaphore
         command_task_flow->can_be_submitted_tasks_.emplace_back(
             this, command_task_flow,std::move(*iter), std::vector<VkSemaphore>{},
-            GetSemaphore((*iter)->post_tasks_.size()));
+            GetSemaphore(
+                static_cast<std::uint32_t>((*iter)->post_tasks_.size()) *
+                static_cast<std::uint32_t>(1 + (*iter)->sub_tasks_.size())));
         command_task_flow->task_that_have_already_been_accessed_.emplace(root_task);  // deletable
         command_task_flow->command_task_flow_.tasks_.erase(iter);
       }
@@ -1853,7 +1875,9 @@ void MM::RenderSystem::CommandExecutor::ProcessRootTaskAndSubTask(
                 std::vector<VkSemaphore>{
                     command_task_flow->can_be_submitted_tasks_.back().default_signal_semaphore_.at(
                         post_index)},
-                GetSemaphore((*iter)->post_tasks_.size()));
+                GetSemaphore(
+                    static_cast<std::uint32_t>((*iter)->post_tasks_.size()) *
+                    static_cast<std::uint32_t>((1 + (*iter)->sub_tasks_.size()))));
             command_task_flow->task_that_have_already_been_accessed_.emplace(post_task);
             command_task_flow->command_task_flow_.tasks_.erase(iter);
           }
@@ -1944,9 +1968,9 @@ void MM::RenderSystem::CommandExecutor::ProcessOneCanSubmitTask(
       free_command_buffers->pop();
       ++(*recording_command_buffer_number);
     }
-    // is_complete 的数量确定
+
     std::optional<std::weak_ptr<bool>> is_complete;
-    if (command_task_to_be_submit->command_task_->post_tasks_.empty()) {
+    if (!command_task_to_be_submit->command_task_->post_tasks_.empty()) {
       is_complete = command_task_flow->is_completes_.top();
       command_task_flow->is_completes_.pop();
     }
@@ -2073,7 +2097,9 @@ void MM::RenderSystem::CommandExecutor::ProcessNextStepCanSubmitTask(
                 std::vector<VkSemaphore>{
                     next_can_be_submitted_task.default_signal_semaphore_.at(
                         sub_index)},
-                GetSemaphore((*iter)->post_tasks_.size()));
+                GetSemaphore(
+                    static_cast<std::uint32_t>((*iter)->post_tasks_.size())
+                    * static_cast<std::uint32_t>((1 + (*iter)->sub_tasks_.size()))));
             command_task_flow->task_that_have_already_been_accessed_.emplace(sub_task);
             command_task_flow->command_task_flow_.tasks_.erase(iter);
           }
@@ -2117,7 +2143,7 @@ MM::ExecuteResult MM::RenderSystem::CommandExecutor::SubmitTasks(
     command_buffers.emplace_back();
     command_buffers.begin()->reserve(
         execute_command_task->command_task_->GetRequireCommandBufferNumber());
-    for (; buffer_index <
+    for (; buffer_index !=
            execute_command_task->command_task_->GetRequireCommandBufferNumber();
          ++buffer_index) {
       command_buffers.begin()->emplace_back(
@@ -2134,6 +2160,7 @@ MM::ExecuteResult MM::RenderSystem::CommandExecutor::SubmitTasks(
             execute_command_task->command_buffers_.at(buffer_index)
                 ->GetCommandBuffer());
       }
+      command_buffers.emplace_back(std::move(temp_buffers));
     }
 
     submit_infos.emplace_back(
@@ -2155,15 +2182,16 @@ MM::ExecuteResult MM::RenderSystem::CommandExecutor::SubmitTasks(
       submit_infos.emplace_back(
           Utils::GetCommandSubmitInfo(command_buffers.at(sub_task_index)));
       submit_infos.back().waitSemaphoreCount = static_cast<uint32_t>(
-          execute_command_task->wait_semaphore_.at(0).size());
+          execute_command_task->wait_semaphore_.at(sub_task_index).size());
       submit_infos.back().pWaitDstStageMask =
-          execute_command_task->wait_semaphore_stages_.at(0).data();
+          execute_command_task->wait_semaphore_stages_.at(sub_task_index)
+              .data();
       submit_infos.back().pWaitSemaphores =
-          execute_command_task->wait_semaphore_.at(0).data();
+          execute_command_task->wait_semaphore_.at(sub_task_index).data();
       submit_infos.back().signalSemaphoreCount = static_cast<uint32_t>(
-          execute_command_task->signal_semaphore_.at(0).size());
+          execute_command_task->signal_semaphore_.at(sub_task_index).size());
       submit_infos.back().pSignalSemaphores =
-          execute_command_task->signal_semaphore_.at(0).data();
+          execute_command_task->signal_semaphore_.at(sub_task_index).data();
 
       ++sub_task_index;
     }
@@ -2205,7 +2233,7 @@ MM::ExecuteResult MM::RenderSystem::CommandExecutor::SubmitTasks(
 
   if (!input_tasks->execute_result_.expired()) {
     *(input_tasks->execute_result_.lock()) |= result;
-    if (result != ExecuteResult::SUCCESS) {
+    if (*(input_tasks->execute_result_.lock()) != ExecuteResult::SUCCESS) {
       std::unique_lock<std::mutex> command_buffer_guard{
           submit_failed_to_be_recycled_command_buffer_mutex_};
       for (auto& command_buffer: input_tasks->command_buffers_) {

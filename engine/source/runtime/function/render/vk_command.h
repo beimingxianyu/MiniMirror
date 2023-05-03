@@ -568,8 +568,8 @@ private:
     CommandExecutor* command_executor_{nullptr};
     std::weak_ptr<ExecutingCommandTaskFlow> command_task_flow_;
     std::unique_ptr<CommandTask> command_task_{nullptr};
-    std::vector<VkSemaphore> default_wait_semaphore_{};
-    std::vector<VkSemaphore> default_signal_semaphore_{};
+    std::vector<std::vector<VkSemaphore>> default_wait_semaphore_{};
+    std::vector<std::vector<VkSemaphore>> default_signal_semaphore_{};
 
     bool operator<(const CommandTaskToBeSubmit& other) const;
   };
@@ -584,8 +584,8 @@ private:
                       command_buffer, std::unique_ptr<CommandTask>&& command_task,
                   const std::weak_ptr<ExecuteResult>& execute_result,
                   const std::optional<std::weak_ptr<bool>>& is_complete,
-                  std::vector<VkSemaphore>&& default_wait_semaphore,
-                  std::vector<VkSemaphore>&& default_signal_semaphore);
+                  std::vector<std::vector<VkSemaphore>>&& default_wait_semaphore,
+                  std::vector<std::vector<VkSemaphore>>&& default_signal_semaphore);
     ExecutingTask(const ExecutingTask& other) = delete;
     ExecutingTask(ExecutingTask&& other) noexcept;
     ExecutingTask& operator=(ExecutingTask&& other) noexcept;
@@ -604,9 +604,6 @@ private:
     std::vector<std::vector<VkSemaphore>> signal_semaphore_;
     std::uint32_t default_wait_semaphore_number_{0};
     std::uint32_t default_signal_semaphore_number_{0};
-    // Prevent external semaphores from being destroyed during render runtime
-    std::vector<std::vector<WaitAllocatedSemaphore>> external_wait_semaphores_;
-    std::vector<std::vector<AllocateSemaphore>> external_signal_semaphores_;
 
     bool IsComplete() const;
   };
