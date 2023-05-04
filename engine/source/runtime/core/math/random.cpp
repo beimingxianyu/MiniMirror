@@ -26,9 +26,9 @@ float Random::Normal(const float& mean, const float& sigma) {
   return temp(*rng32_);
 }
 
-std::uint32_t Random::GetRandomUint32() { return uid_32_(rng32_); }
+std::uint32_t Random::GetRandomUint32() { return uid_32_(*rng32_); }
 
-std::uint64_t Random::GetRandomUint64() { return uid_64_(uid64_rng_); }
+std::uint64_t Random::GetRandomUint64() { return uid_64_(*uid64_rng_); }
 
 std::uint64_t Random::NewGuid(const std::size_t& hash) {
   std::lock_guard<std::mutex> guard{sync_flag_};

@@ -43,3 +43,5 @@
 /build_test
 /TODO.md
 /CMakeSettings.json
+/cmake-build-debug/
+/.idea

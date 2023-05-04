@@ -152,17 +152,17 @@ bool MM::Math::NearOne(const float& value) { return std::abs(value - 1) < 1e-6; 
 bool MM::Math::NearOne(const double& value) { return std::abs(value - 1) < 1e-15; }
 
 bool MM::Math::IsNormalize(const vec2& vec) {
-  const float result = std::powf(vec.x, 2) + std::powf(vec.y, 2);
+  const float result = std::pow(vec.x, 2) + std::pow(vec.y, 2);
   return NearOne(result);
 }
 
 bool MM::Math::IsNormalize(const vec3& vec) {
-  const float result = std::powf(vec.x, 2) + std::powf(vec.y, 2) + std::powf(vec.z, 2);
+  const float result = std::pow(vec.x, 2) + std::pow(vec.y, 2) + std::pow(vec.z, 2);
   return NearOne(result);
 }
 
 bool MM::Math::IsNormalize(const vec4& vec) {
-  const float result = std::powf(vec.x, 2) + std::powf(vec.y, 2) + std::powf(vec.z, 2) + std::powf(vec.w, 2);
+  const float result = std::pow(vec.x, 2) + std::pow(vec.y, 2) + std::pow(vec.z, 2) + std::pow(vec.w, 2);
   return NearOne(result);
 }
 

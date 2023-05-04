@@ -78,15 +78,13 @@
 
 #define IMPORT_RESOURCE_START layout(push_constant) uniform __CONSTANT_TYPE_NAME__ {
 
-#define IMPORT_RESOURCE_END } __CONSTANT_VARIABLE_NAME__;                                                                        \
-	layout(SAMPLER_TEXTURE2D_SET_AND_BINDING) uniform sampler2D __SAMPLER_TEXTURE2D_VECTOR_NAME__[];                             \
-	layout(SAMPLER_TEXTURE3D_SET_AND_BINDING) uniform sampler3D __SAMPLER_TEXTURE3D_VECTOR_NAME__[];                             \
-	layout(SAMPLER_TEXTURECUBE_SET_AND_BINDING) uniform samplerCube __SAMPLER_TEXTURECUBE_VECTOR_NAME__[];                       \
+#define IMPORT_RESOURCE_END } __CONSTANT_VARIABLE_NAME__;                                                           \
+	layout(SAMPLER_TEXTURE2D_SET_AND_BINDING) uniform sampler2D __SAMPLER_TEXTURE2D_VECTOR_NAME__[];                         \
+	layout(SAMPLER_TEXTURE3D_SET_AND_BINDING) uniform sampler3D __SAMPLER_TEXTURE3D_VECTOR_NAME__[];                         \
+	layout(SAMPLER_TEXTURECUBE_SET_AND_BINDING) uniform samplerCube __SAMPLER_TEXTURECUBE_VECTOR_NAME__[];                   \
 	layout(STORAGE_TEXTURE2D_SET_AND_BINDING, STORAGE_TEXTURE_FORMAT) uniform image2D __STORAGE_TEXTURE2D_VECTOR_NAME__[];       \
 	layout(STORAGE_TEXTURE3D_SET_AND_BINDING, STORAGE_TEXTURE_FORMAT) uniform image3D __STORAGE_TEXTURE3D_VECTOR_NAME__[];       \
 	layout(STORAGE_TEXTURECUBE_SET_AND_BINDING, STORAGE_TEXTURE_FORMAT) uniform imageCube __STORAGE_TEXTURECUBE_VECTOR_NAME__[]; \
-
-#define IMPORT_CONSTANT(type_name, variable_name) type_name variable_name;
 
 #define IMPORT_UNIFORM_BUFFER(type_name) type_name GET_UNIFORM_BUFFER_NAME(type_name);
 

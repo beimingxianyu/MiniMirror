@@ -20,15 +20,13 @@ MM::FileSystem::Path::Path(const std::string& other) {
     return;
   }
   // Turn the drive letter of win to uppercase.
-  if (other[0] > 96) {
+  if ((other[0] > 96 && othet[0] < 123) || (other[0] > 64 && other[0] < 91)) {
     std::string temp = other;
     temp[0] = temp[0] - 32;
     path_ = std::make_unique<std::filesystem::path>(RemoveDotAndDotDot(
         std::filesystem::path(temp).make_preferred().string()));
     return;
   }
-  path_ = std::make_unique<std::filesystem::path>(RemoveDotAndDotDot(
-      std::filesystem::path(other).make_preferred().string()));
 #else
   // Determine whether it is a relative path.
   if (other[0] == '.') {
@@ -37,8 +35,10 @@ MM::FileSystem::Path::Path(const std::string& other) {
         std::filesystem::path(temp).make_preferred().string()));
     return;
   }
-  path_ = std::make_unique<std::filesystem::path>(RemoveDotAndDotDot(
-      std::filesystem::path(other).make_preferred().string()));
+  if (other[0] == '/') {
+    path_ = std::make_unique<std::filesystem::path>(RemoveDotAndDotDot(
+        std::filesystem::path(other).make_preferred().string()));
+  }
 #endif
 }
 
@@ -62,9 +62,10 @@ bool MM::FileSystem::Path::operator==(const Path& other) const {
   return *path_ == *(other.path_);
 }
 
-const MM::FileSystem::Path MM::FileSystem::Path::operator+(
+const MM::FileSystem::Path& MM::FileSystem::Path::operator+(
     const std::string& path) const {
-  return Path(this->path_->string() + path);
+  *path_ += path;
+  return *this;
 }
 
 MM::FileSystem::Path& MM::FileSystem::Path::operator+=(
@@ -79,7 +80,10 @@ MM::FileSystem::Path::operator std::filesystem::path() const { return *path_; }
 
 std::string MM::FileSystem::Path::String() const { return (*path_).string(); }
 
-bool MM::FileSystem::Path::Exists() const {
+bool MM::FileSystem::Path::IsExists() const {
+  if (!path_) {
+    return false;
+  }
   return std::filesystem::exists(*path_);
 }
 
@@ -106,6 +110,9 @@ void MM::FileSystem::Path::Swap(const Path& other) const {
 }
 
 std::string MM::FileSystem::Path::RelativePath(const Path& root_path) const {
+  if (!root_path.IsExists()) {
+    return std::string();
+  }
   const std::string original_path_string = (*path_).string();
   const std::string root_path_string = (*root_path.path_).string();
 #ifdef WIN32
@@ -241,7 +248,7 @@ MM::FileSystem::FileSystem::GetInstance() {
 }
 
 bool MM::FileSystem::FileSystem::Exists(const Path& path) const {
-  return path.Exists();
+  return path.IsExists();
 }
 
 bool MM::FileSystem::FileSystem::IsDirectory(const Path& path) const {
@@ -250,7 +257,7 @@ bool MM::FileSystem::FileSystem::IsDirectory(const Path& path) const {
 
 std::size_t MM::FileSystem::FileSystem::DirectorySize(
     const Path& dir_path) const {
-  if (!dir_path.Exists()) {
+  if (!dir_path.IsExists()) {
     return 0;
   }
   std::size_t size{0};
@@ -271,7 +278,7 @@ bool MM::FileSystem::FileSystem::DeleteDirectory(const Path& dir_path) const {
 
 bool MM::FileSystem::FileSystem::CopyDirectory(const Path& dir_path,
                                    const Path& dest_dir) const {
-  if (!dir_path.Exists()) {
+  if (!dir_path.IsExists()) {
     return false;
   }
   std::filesystem::copy(*dir_path.path_, *dest_dir.path_);
@@ -281,7 +288,7 @@ bool MM::FileSystem::FileSystem::CopyDirectory(const Path& dir_path,
 bool MM::FileSystem::FileSystem::RenameDirectory(
     const Path& dir_path,
                                      const std::string& new_name) const {
-  if (!dir_path.Exists()) {
+  if (!dir_path.IsExists()) {
     return false;
   }
   std::filesystem::rename(*dir_path.path_, new_name);
@@ -289,7 +296,7 @@ bool MM::FileSystem::FileSystem::RenameDirectory(
 }
 
 bool MM::FileSystem::FileSystem::DirectoryIsEmpty(const Path& dir_path) const {
-  if (!dir_path.Exists()) {
+  if (!dir_path.IsExists()) {
     return false;
   }
   return std::filesystem::is_empty(*dir_path.path_);
@@ -309,14 +316,14 @@ std::vector<MM::FileSystem::Path> MM::FileSystem::FileSystem::GetDirectories(
 }
 
 std::size_t MM::FileSystem::FileSystem::FileSize(const Path& file_path) const {
-  if (!file_path.Exists()) {
+  if (!file_path.IsExists()) {
     return 0;
   }
   return std::filesystem::file_size(*file_path.path_);
 }
 
 bool MM::FileSystem::FileSystem::CreateFile(const Path& file_path) const {
-  if (file_path.Exists()) {
+  if (file_path.IsExists()) {
     return false;
   }
   std::fstream create_file;
@@ -334,7 +341,7 @@ bool MM::FileSystem::FileSystem::DeleteFile(const Path& file_path) const {
 
 bool MM::FileSystem::FileSystem::CopyFile(const Path& file_path,
                               const Path& dest_dir) const {
-  if (!file_path.Exists()) {
+  if (!file_path.IsExists()) {
     return false;
   }
   return std::filesystem::copy_file(*file_path.path_, *dest_dir.path_);
@@ -342,7 +349,7 @@ bool MM::FileSystem::FileSystem::CopyFile(const Path& file_path,
 
 bool MM::FileSystem::FileSystem::RenameFile(const Path& file_path,
                                 const std::string& new_name) const {
-  if (!file_path.Exists()) {
+  if (!file_path.IsExists()) {
     return false;
   }
   std::filesystem::rename(*file_path.path_, new_name);

@@ -6,6 +6,7 @@
 #include <fstream>
 #include <iostream>
 #include <utility>
+#include <list>
 
 #include "runtime/platform/base/error.h"
 #include "runtime/platform/base//cross_platform_header.h"
@@ -26,7 +27,7 @@ public:
   Path& operator=(const Path& other);
   Path& operator=(Path&& other) noexcept;
   bool operator==(const Path& other) const;
-  const Path operator+(const std::string& path) const;
+  const Path& operator+(const std::string& path) const;
   Path& operator+=(const std::string& path);
   explicit operator std::string() const;
   explicit operator std::filesystem::path() const;
@@ -43,7 +44,7 @@ public:
    * \return If the file or directory exists, return true;otherwise, return
    * false.
    */
-  bool Exists() const;
+  bool IsExists() const;
 
   /**
    * \brief Check if the path is a directory.
@@ -127,8 +128,6 @@ private:
 };
 
 class FileSystem {
-  friend std::shared_ptr<FileSystem> std::make_shared();
-
 public:
   FileSystem(const FileSystem&) = delete;
   FileSystem(const FileSystem&&) = delete;

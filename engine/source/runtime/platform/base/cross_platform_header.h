@@ -57,5 +57,5 @@
 #if MM_PLATFORM == 1
 #define PATH_SEPARATOR '\\'
 #else
-#define PATH_SEPARATOR "/"
+#define PATH_SEPARATOR '/'
 #endif

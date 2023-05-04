@@ -4,6 +4,9 @@
 #define GLM_FORCE_DEFAULT_ALIGNED_GENTYPES
 #include <glm/glm.hpp>
 
+#include <cmath>
+#include <functional>
+
 namespace MM {
 namespace Math {
 //using Qualifier = glm::qualifier;

@@ -115,7 +115,7 @@ public:
    * \brief Return the count of all setting.
    * \return The count of all setting.
    */
-  const size_t& Size();
+  std::size_t Size();
 
 
    /**

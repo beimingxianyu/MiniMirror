@@ -75,8 +75,9 @@ MM::ConfigSystem::ConfigSystem
     if (!config_system_) {
       config_system_ = new ConfigSystem{};
       config_data_base_["config_dir"] = CONFIG_DIR;
-      ExecuteResult load_result = config_system_->LoadConfigFromIni(config_data_base_["config_dir"] +
-                                        "/init_config.ini");
+      std::cout << CONFIG_DIR << std::endl;
+      ExecuteResult load_result = config_system_->LoadConfigFromIni(FileSystem::Path(config_data_base_["config_dir"] +
+                                        "/init_config.ini"));
     }
     CheckInit();
   }
@@ -163,7 +164,7 @@ MM::ConfigSystem::ConfigSystem::GetAllConfig() const {
   return config_data_base_;
 }
 
-const size_t& MM::ConfigSystem::ConfigSystem::Size() {
+std::size_t MM::ConfigSystem::ConfigSystem::Size() {
   return config_data_base_.size();
 }
 
@@ -191,7 +192,7 @@ void MM::ConfigSystem::ConfigSystem::CheckInit() {
 }
 
 bool MM::ConfigSystem::ConfigSystem::CheckAllNeedConfigLoaded() {
-  if (config_data_base_.size() != 16) {
+  if (config_data_base_.size() != 18) {
     return false;
   }
   if (config_data_base_.find("version_major") == config_data_base_.end()) {

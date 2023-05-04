@@ -93,7 +93,7 @@ void MM::AssetType::Mesh::Release() {
 
 void MM::AssetType::Mesh::LoadModel(const FileSystem::Path& mesh_path,
     const uint64_t& mesh_index) {
-  if (!mesh_path.Exists()) {
+  if (!mesh_path.IsExists()) {
     return;
   }
   Assimp::Importer mesh_importer;
