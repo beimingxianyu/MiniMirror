@@ -1,7 +1,9 @@
+#pragma clang diagnostic push
+#pragma ide diagnostic ignored "readability-identifier-naming"
 #pragma once
 
-#include "runtime/function/render/vk_utils.h"
 #include "runtime/function/render/vk_type.h"
+#include "runtime/function/render/vk_utils.h"
 
 namespace MM {
 namespace RenderSystem {
@@ -34,8 +36,9 @@ struct WaitAllocatedSemaphore {
 struct CommandBufferInfo {
   CommandBufferInfo() = default;
   ~CommandBufferInfo() = default;
-  CommandBufferInfo(std::uint32_t queue_index, CommandBufferType command_buffer_type);
-  CommandBufferInfo(const CommandBufferInfo& other);
+  CommandBufferInfo(std::uint32_t queue_index,
+                    CommandBufferType command_buffer_type);
+  CommandBufferInfo(const CommandBufferInfo& other) = default;
   CommandBufferInfo(CommandBufferInfo&& other) noexcept;
   CommandBufferInfo& operator=(const CommandBufferInfo& other);
   CommandBufferInfo& operator=(CommandBufferInfo&& other) noexcept;
@@ -89,8 +92,7 @@ class AllocatedCommandBuffer {
    public:
     AllocatedCommandBufferWrapper() = default;
     ~AllocatedCommandBufferWrapper();
-    AllocatedCommandBufferWrapper(RenderEngine* engine,
-                                  const VkQueue& queue,
+    AllocatedCommandBufferWrapper(RenderEngine* engine, const VkQueue& queue,
                                   const VkCommandPool& command_pool,
                                   const VkCommandBuffer& command_buffer);
     AllocatedCommandBufferWrapper(const AllocatedCommandBufferWrapper& other) =
@@ -158,7 +160,7 @@ class CommandTaskFlow {
   CommandTask& AddTask(
       const CommandType& command_type,
       const std::vector<
-        std::function<ExecuteResult(AllocatedCommandBuffer& cmd)>>& commands,
+          std::function<ExecuteResult(AllocatedCommandBuffer& cmd)>>& commands,
       const std::vector<WaitAllocatedSemaphore>& wait_semaphores,
       const std::vector<AllocateSemaphore>& signal_semaphores);
 
@@ -178,21 +180,21 @@ class CommandTaskFlow {
 
   bool IsValid() const;
 
-private:
+ private:
   struct CommandTaskEdge {
-    CommandTaskEdge(std::unique_ptr<CommandTask>* start,
-                    std::unique_ptr<CommandTask>* end);
+    CommandTaskEdge(const std::unique_ptr<CommandTask>* start,
+                    const std::unique_ptr<CommandTask>* end);
 
-    std::unique_ptr<CommandTask>* start_command_task_{nullptr};
-    std::unique_ptr<CommandTask>* end_command_task_{nullptr};
+    const std::unique_ptr<CommandTask>* start_command_task_{nullptr};
+    const std::unique_ptr<CommandTask>* end_command_task_{nullptr};
 
     bool operator<(const CommandTaskEdge& other) const;
   };
 
   void RemoveRootTask(const CommandTask& command_task);
 
-  [[deprecated]]
-  void GetCommandTaskEdges(std::vector<CommandTaskEdge>& command_task_edges) const;
+  [[deprecated]] void GetCommandTaskEdges(
+      std::vector<CommandTaskEdge>& command_task_edges) const;
 
   std::vector<CommandTaskEdge> GetCommandTaskEdges() const;
 
@@ -211,16 +213,16 @@ class CommandTask {
   friend class CommandExecutor;
   friend class CommandTaskFlow;
 
-public:
+ public:
   CommandTask() = delete;
   ~CommandTask();
   CommandTask(const CommandTask& other) = delete;
   CommandTask(CommandTask&& other) = delete;
   CommandTask& operator=(const CommandTask& other) = delete;
-  CommandTask& operator=(CommandTask&& other) = delete; 
+  CommandTask& operator=(CommandTask&& other) = delete;
 
-public:
- const CommandBufferType& GetCommandType() const;
+ public:
+  const CommandBufferType& GetCommandType() const;
 
   const CommandTaskFlow& GetCommandTaskFlow() const;
 
@@ -236,37 +238,35 @@ public:
 
   const std::vector<WaitAllocatedSemaphore>& GetWaitSemaphore() const;
 
-  std::vector<const WaitAllocatedSemaphore*>
-  GetWaitSemaphoreIncludeSubTasks() const;
+  std::vector<const WaitAllocatedSemaphore*> GetWaitSemaphoreIncludeSubTasks()
+      const;
 
   const std::vector<AllocateSemaphore>& GetSignalSemaphore() const;
 
   std::vector<const AllocateSemaphore*> GetSignalSemaphoreIncludeTasks() const;
 
-  const std::vector<std::unique_ptr<CommandTask>>&
-  GetSubTasks() const;
+  const std::vector<std::unique_ptr<CommandTask>>& GetSubTasks() const;
 
   std::uint32_t GetSubTasksNumber() const;
 
-  template<typename... CommandTasks>
+  template <typename... CommandTasks>
   ExecuteResult Merge(CommandTasks&&... command_tasks);
 
   template <typename... CommandTasks>
-  ExecuteResult IsPreTaskTo(CommandTasks&& ...command_tasks);
+  ExecuteResult IsPreTaskTo(CommandTasks&&... command_tasks);
 
   template <typename... CommandTasks>
-  ExecuteResult IsPostTaskTo(CommandTasks&& ...command_tasks);
+  ExecuteResult IsPostTaskTo(CommandTasks&&... command_tasks);
 
   bool HaveSubTasks() const;
 
   bool IsValid() const;
 
-private:
+ private:
   CommandTask(
-      CommandTaskFlow* task_flow,
-      const CommandType& command_type,
-      const std::vector<std::function<ExecuteResult(AllocatedCommandBuffer& cmd)>>&
-              commands,
+      CommandTaskFlow* task_flow, const CommandType& command_type,
+      const std::vector<
+          std::function<ExecuteResult(AllocatedCommandBuffer& cmd)>>& commands,
       const std::vector<WaitAllocatedSemaphore>& wait_semaphore,
       const std::vector<AllocateSemaphore>& signal_semaphore);
 
@@ -274,7 +274,8 @@ private:
   CommandTaskFlow* task_flow_;
   std::unique_ptr<CommandTask>* this_unique_ptr_{nullptr};
   CommandType command_type_{CommandType::UNDEFINED};
-  std::vector<std::function<ExecuteResult(AllocatedCommandBuffer& cmd)>> commands_{};
+  std::vector<std::function<ExecuteResult(AllocatedCommandBuffer& cmd)>>
+      commands_{};
   std::vector<WaitAllocatedSemaphore> wait_semaphore_{};
   std::vector<AllocateSemaphore> signal_semaphore_{};
   mutable std::list<std::unique_ptr<CommandTask>*> pre_tasks_{};
@@ -284,7 +285,7 @@ private:
   bool is_sub_task_{false};
 };
 
-template <typename ... CommandTasks>
+template <typename... CommandTasks>
 ExecuteResult CommandTask::Merge(CommandTasks&&... command_tasks) {
   bool input_parameters_is_right = true;
   ((input_parameters_is_right &= (&command_tasks != this)), ...);
@@ -308,17 +309,18 @@ ExecuteResult CommandTask::Merge(CommandTasks&&... command_tasks) {
     LOG_ERROR("Two MM::RenderSystem::CommandTask's task_flow_ are not equal.");
     return ExecuteResult::INPUT_PARAMETERS_ARE_INCORRECT;
   }
-  ((input_parameters_is_right &= (command_tasks.command_type_ == command_type_)),
+  ((input_parameters_is_right &=
+    (command_tasks.command_type_ == command_type_)),
    ...);
   if (!input_parameters_is_right) {
-    LOG_ERROR("Two MM::RenderSystem::CommandTask's command_type_ are not equal.");
+    LOG_ERROR(
+        "Two MM::RenderSystem::CommandTask's command_type_ are not equal.");
     return ExecuteResult::INPUT_PARAMETERS_ARE_INCORRECT;
   }
   // TODO Optimize the algorithm to remove this limitation.
   ((input_parameters_is_right &= (!command_tasks.HaveSubTasks())), ...);
   if (!input_parameters_is_right) {
-    LOG_ERROR(
-        "Cannot nest merge MM::RenderSystem::CommandTask.");
+    LOG_ERROR("Cannot nest merge MM::RenderSystem::CommandTask.");
     return ExecuteResult::INPUT_PARAMETERS_ARE_INCORRECT;
   }
 
@@ -331,7 +333,7 @@ ExecuteResult CommandTask::Merge(CommandTasks&&... command_tasks) {
   return ExecuteResult::SUCCESS;
 }
 
-template <typename ... CommandTasks>
+template <typename... CommandTasks>
 ExecuteResult CommandTask::IsPreTaskTo(CommandTasks&&... command_tasks) {
   bool input_parameters_is_right = true;
   ((input_parameters_is_right &= (&command_tasks != this)), ...);
@@ -344,19 +346,18 @@ ExecuteResult CommandTask::IsPreTaskTo(CommandTasks&&... command_tasks) {
   ((input_parameters_is_right &= (task_flow_ == command_tasks.task_flow_)),
    ...);
   if (!input_parameters_is_right) {
-    LOG_ERROR(
-        "Two MM::RenderSystem::CommandTask's task_flow_ are not equal.");
+    LOG_ERROR("Two MM::RenderSystem::CommandTask's task_flow_ are not equal.");
     return ExecuteResult::INPUT_PARAMETERS_ARE_INCORRECT;
   }
 
   (command_tasks.pre_tasks_.push_back(this_unique_ptr_), ...);
-  (task_flow_->RemoveRootTask(command_tasks),...);
+  (task_flow_->RemoveRootTask(command_tasks), ...);
   (post_tasks_.push_back(&command_tasks.this_unique_ptr_), ...);
 
   return ExecuteResult::SUCCESS;
 }
 
-template <typename ... CommandTasks>
+template <typename... CommandTasks>
 ExecuteResult CommandTask::IsPostTaskTo(CommandTasks&&... command_tasks) {
   bool input_parameters_is_right = true;
   ((input_parameters_is_right &= (&command_tasks != this)), ...);
@@ -381,24 +382,24 @@ ExecuteResult CommandTask::IsPostTaskTo(CommandTasks&&... command_tasks) {
 }
 
 class RenderFuture {
-public:
+ public:
   RenderFuture() = default;
-  RenderFuture( CommandExecutor* command_executor,
-               const std::uint32_t& task_flow_ID,
-               const std::shared_ptr<ExecuteResult>& future_execute_result,
-               const std::vector<std::shared_ptr<bool>>& command_complete_states);
+  RenderFuture(
+      CommandExecutor* command_executor, const std::uint32_t& task_flow_ID,
+      const std::shared_ptr<ExecuteResult>& future_execute_result,
+      const std::vector<std::shared_ptr<bool>>& command_complete_states);
   ~RenderFuture() = default;
   RenderFuture(const RenderFuture& other) = default;
   RenderFuture(RenderFuture&& other) noexcept = default;
   RenderFuture& operator=(const RenderFuture& other);
   RenderFuture& operator=(RenderFuture&& other) noexcept;
 
-public:
+ public:
   ExecuteResult Get();
 
   bool IsValid();
 
-private:
+ private:
   CommandExecutor* command_executor_{nullptr};
   std::uint32_t task_flow_ID_{0};
   std::shared_ptr<ExecuteResult> execute_result_{};
@@ -410,18 +411,17 @@ class CommandExecutor {
 
  public:
   CommandExecutor() = delete;
-  CommandExecutor(RenderEngine* engine);
+  explicit CommandExecutor(RenderEngine* engine);
   ~CommandExecutor();
-  CommandExecutor(RenderEngine* engine,
-                 const uint32_t& graph_command_number,
-                 const uint32_t& compute_command_number,
-                 const uint32_t& transform_command_number);
+  CommandExecutor(RenderEngine* engine, const uint32_t& graph_command_number,
+                  const uint32_t& compute_command_number,
+                  const uint32_t& transform_command_number);
   CommandExecutor(const CommandExecutor& other) = delete;
   CommandExecutor(CommandExecutor&& other) = delete;
   CommandExecutor& operator=(const CommandExecutor& other) = delete;
   CommandExecutor& operator=(CommandExecutor&& other) = delete;
 
-public:
+ public:
   std::uint32_t GetGraphCommandNumber() const;
 
   std::uint32_t GetComputeCommandNumber() const;
@@ -434,7 +434,7 @@ public:
 
   std::uint32_t GetFreeTransformCommandNumber() const;
 
-   /**
+  /**
    * \remark \ref command_task_flow is invalid after call this function.
    */
   RenderFuture Run(CommandTaskFlow&& command_task_flow);
@@ -456,24 +456,26 @@ public:
 
   // TODO RunOneFrame
   ///**
-  // * \brief The \ref command_task_flow contain all render commands in one frame,
+  // * \brief The \ref command_task_flow contain all render commands in one
+  // frame,
   // * and will be use in next frame if the render state not change.
   // * \remark This function must be the last call to the rendering call,
   // * otherwise this call is invalid.
   // * \remark Default wait this call.
   // */
-  //RenderFuture RunOneFrame(CommandTaskFlow& command_task_flow);
+  // RenderFuture RunOneFrame(CommandTaskFlow& command_task_flow);
 
   bool IsValid() const;
 
-private:
+ private:
   void ClearWhenConstructFailed(
       std::vector<VkCommandPool>& graph_command_pools,
       std::vector<VkCommandPool>& compute_command_pools,
       std::vector<VkCommandPool>& transform_command_pools);
 
   ExecuteResult InitCommandPolls(
-      std::vector<VkCommandPool>& graph_command_pools, std::vector<VkCommandPool>& compute_command_pools,
+      std::vector<VkCommandPool>& graph_command_pools,
+      std::vector<VkCommandPool>& compute_command_pools,
       std::vector<VkCommandPool>& transform_command_pools);
 
   ExecuteResult InitCommandBuffers(
@@ -510,7 +512,8 @@ private:
         const std::vector<std::shared_ptr<bool>>& is_completes);
     CommandTaskFlowToBeRun(const CommandTaskFlowToBeRun& other) = delete;
     CommandTaskFlowToBeRun(CommandTaskFlowToBeRun&& other) noexcept;
-    CommandTaskFlowToBeRun& operator=(const CommandTaskFlowToBeRun& other) = delete;
+    CommandTaskFlowToBeRun& operator=(const CommandTaskFlowToBeRun& other) =
+        delete;
     CommandTaskFlowToBeRun& operator=(CommandTaskFlowToBeRun&& other) noexcept;
 
     CommandTaskFlow command_task_flow_{};
@@ -524,7 +527,7 @@ private:
   struct ExecutingCommandTaskFlow {
     ExecutingCommandTaskFlow() = delete;
     ~ExecutingCommandTaskFlow() = default;
-    ExecutingCommandTaskFlow(
+    explicit ExecutingCommandTaskFlow(
         CommandTaskFlowToBeRun&& command_task_flow_to_be_run);
     ExecutingCommandTaskFlow(const ExecutingCommandTaskFlow& other) = delete;
     ExecutingCommandTaskFlow(ExecutingCommandTaskFlow&& other) noexcept;
@@ -547,8 +550,8 @@ private:
 
   static void UpdateCommandTaskLine(
       ExecutingCommandTaskFlow& command_task_flow,
-      std::unique_ptr<CommandTask>& new_command_task, std::unique_ptr<CommandTask>
-      * old_command_task_ptr);
+      std::unique_ptr<CommandTask>& new_command_task,
+      std::unique_ptr<CommandTask>* old_command_task_ptr);
 
   struct CommandTaskToBeSubmit {
     CommandTaskToBeSubmit() = delete;
@@ -557,8 +560,8 @@ private:
         CommandExecutor* command_executor,
         const std::shared_ptr<ExecutingCommandTaskFlow>& command_task_flow,
         std::unique_ptr<CommandTask>&& command_task,
-        std::vector<VkSemaphore>&& default_wait_semaphore,
-        std::vector<VkSemaphore>&& default_signal_semaphore);
+        const std::vector<VkSemaphore>& default_wait_semaphore,
+        const std::vector<VkSemaphore>& default_signal_semaphore);
     CommandTaskToBeSubmit(const CommandTaskToBeSubmit& other) = delete;
     CommandTaskToBeSubmit(CommandTaskToBeSubmit&& other) noexcept;
     CommandTaskToBeSubmit& operator=(const CommandTaskToBeSubmit& other) =
@@ -577,15 +580,15 @@ private:
   struct ExecutingTask {
     ExecutingTask() = delete;
     ~ExecutingTask() = default;
-    ExecutingTask(RenderEngine* engine,
-                  CommandExecutor* command_executor,
-                  const std::shared_ptr<ExecutingCommandTaskFlow>& command_task_flow,
-                  std::vector<std::unique_ptr<AllocatedCommandBuffer>>&&
-                      command_buffer, std::unique_ptr<CommandTask>&& command_task,
-                  const std::weak_ptr<ExecuteResult>& execute_result,
-                  const std::optional<std::weak_ptr<bool>>& is_complete,
-                  std::vector<std::vector<VkSemaphore>>&& default_wait_semaphore,
-                  std::vector<std::vector<VkSemaphore>>&& default_signal_semaphore);
+    ExecutingTask(
+        RenderEngine* engine, CommandExecutor* command_executor,
+        const std::shared_ptr<ExecutingCommandTaskFlow>& command_task_flow,
+        std::vector<std::unique_ptr<AllocatedCommandBuffer>>&& command_buffer,
+        std::unique_ptr<CommandTask>&& command_task,
+        const std::weak_ptr<ExecuteResult>& execute_result,
+        const std::optional<std::weak_ptr<bool>>& is_complete,
+        std::vector<std::vector<VkSemaphore>>&& default_wait_semaphore,
+        std::vector<std::vector<VkSemaphore>>&& default_signal_semaphore);
     ExecutingTask(const ExecutingTask& other) = delete;
     ExecutingTask(ExecutingTask&& other) noexcept;
     ExecutingTask& operator=(ExecutingTask&& other) noexcept;
@@ -616,15 +619,18 @@ private:
 
   void ProcessWaitTask();
 
-  void ProcessRequireCommandBufferNumberLagerThanExecutorHaveCommandBufferNumber(
-      const std::shared_ptr<ExecutingCommandTaskFlow>& command_task_flow, bool& skip_task_flow);
+  void
+  ProcessRequireCommandBufferNumberLagerThanExecutorHaveCommandBufferNumber(
+      const std::shared_ptr<ExecutingCommandTaskFlow>& command_task_flow,
+      bool& skip_task_flow);
 
-  void ProcessRootTaskAndSubTask(const std::shared_ptr<ExecutingCommandTaskFlow>& command_task_flow);
+  void ProcessRootTaskAndSubTask(
+      const std::shared_ptr<ExecutingCommandTaskFlow>& command_task_flow);
 
   void ChooseVariableByCommandType(
       CommandType command_type, std::uint32_t*& free_command_buffer_number,
       std::stack<std::unique_ptr<AllocatedCommandBuffer>>*&
-      free_command_buffers,
+          free_command_buffers,
       std::list<ExecutingTask>*& executing_task_list,
       std::atomic_uint32_t*& recording_command_buffer_number,
       std::uint32_t free_graph_command_buffer_number,
@@ -639,21 +645,27 @@ private:
       std::uint32_t free_transform_command_buffer_number);
 
   void ProcessWhenOneFailedSubmit(
-      const std::shared_ptr<ExecutingCommandTaskFlow>& command_task_flow, std::list<CommandTaskToBeSubmit>& next_can_be_submitted_tasks);
+      const std::shared_ptr<ExecutingCommandTaskFlow>& command_task_flow,
+      std::list<CommandTaskToBeSubmit>& next_can_be_submitted_tasks);
 
   void ProcessNextStepCanSubmitTask(
       std::list<CommandTaskToBeSubmit>& next_can_be_submitted_tasks,
       const std::shared_ptr<ExecutingCommandTaskFlow>& command_task_flow);
 
-  ExecuteResult SubmitTasks(std::shared_ptr<ExecutingCommandTaskFlow>& command_task_flow, std::unique_ptr<ExecutingTask>&& input_tasks);
+  ExecuteResult SubmitTasks(
+      std::shared_ptr<ExecutingCommandTaskFlow>& command_task_flow,
+      std::unique_ptr<ExecutingTask>&& input_tasks);
 
   void ProcessTask();
 
  private:
   RenderEngine* render_engine_{nullptr};
-  std::stack<std::unique_ptr<AllocatedCommandBuffer>> free_graph_command_buffers_{};
-  std::stack<std::unique_ptr<AllocatedCommandBuffer>> free_compute_command_buffers_{};
-  std::stack<std::unique_ptr<AllocatedCommandBuffer>> free_transform_command_buffers_{};
+  std::stack<std::unique_ptr<AllocatedCommandBuffer>>
+      free_graph_command_buffers_{};
+  std::stack<std::unique_ptr<AllocatedCommandBuffer>>
+      free_compute_command_buffers_{};
+  std::stack<std::unique_ptr<AllocatedCommandBuffer>>
+      free_transform_command_buffers_{};
 
   std::atomic_uint32_t recoding_graph_command_buffer_number_{0};
   std::atomic_uint32_t recording_compute_command_buffer_number_{0};
@@ -675,9 +687,9 @@ private:
   std::list<std::uint32_t> wait_tasks_;
   std::mutex wait_tasks_mutex_{};
 
-  /*std::set<std::unique_ptr<CommandTask>*> task_that_have_already_been_accessed_;
-  std::set<std::unique_ptr<CommandTask>*> submitted_task_;
-  std::list<CommandTaskToBeSubmit> can_be_submitted_tasks_;
+  /*std::set<std::unique_ptr<CommandTask>*>
+  task_that_have_already_been_accessed_; std::set<std::unique_ptr<CommandTask>*>
+  submitted_task_; std::list<CommandTaskToBeSubmit> can_be_submitted_tasks_;
   std::list<CommandTaskToBeSubmit> pre_task_not_submit_task_;*/
 
   std::stack<VkSemaphore> semaphores_;
@@ -694,3 +706,4 @@ private:
 };
 }  // namespace RenderSystem
 }  // namespace MM
+#pragma clang diagnostic pop

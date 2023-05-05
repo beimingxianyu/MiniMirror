@@ -43,8 +43,9 @@ std::uint32_t MM::RenderSystem::CommandTask::GetRequireCommandBufferNumber()
   return commands_.size();
 }
 
-std::uint32_t MM::RenderSystem::CommandTask::
-GetRequireCommandBufferNumberIncludeSuBTasks() const {
+std::uint32_t
+MM::RenderSystem::CommandTask::GetRequireCommandBufferNumberIncludeSuBTasks()
+    const {
   std::uint32_t require_command_number = commands_.size();
   for (const auto& sub_task : sub_tasks_) {
     require_command_number += sub_task->GetRequireCommandBufferNumber();
@@ -57,17 +58,17 @@ MM::RenderSystem::CommandTask::GetWaitSemaphore() const {
   return wait_semaphore_;
 }
 
-std::vector<const MM::RenderSystem::WaitAllocatedSemaphore*> MM::RenderSystem::
-CommandTask::GetWaitSemaphoreIncludeSubTasks() const {
+std::vector<const MM::RenderSystem::WaitAllocatedSemaphore*>
+MM::RenderSystem::CommandTask::GetWaitSemaphoreIncludeSubTasks() const {
   std::vector<const MM::RenderSystem::WaitAllocatedSemaphore*> result;
   result.reserve(wait_semaphore_.size());
 
-  for (const auto& main_semaphore: wait_semaphore_) {
+  for (const auto& main_semaphore : wait_semaphore_) {
     result.emplace_back(&main_semaphore);
   }
 
-  for (const auto& sub_task: sub_tasks_) {
-    for (const auto& sub_semaphore: sub_task->wait_semaphore_) {
+  for (const auto& sub_task : sub_tasks_) {
+    for (const auto& sub_semaphore : sub_task->wait_semaphore_) {
       result.emplace_back(&sub_semaphore);
     }
   }
@@ -80,8 +81,8 @@ MM::RenderSystem::CommandTask::GetSignalSemaphore() const {
   return signal_semaphore_;
 }
 
-std::vector<const MM::RenderSystem::AllocateSemaphore*> MM::RenderSystem::
-CommandTask::GetSignalSemaphoreIncludeTasks() const {
+std::vector<const MM::RenderSystem::AllocateSemaphore*>
+MM::RenderSystem::CommandTask::GetSignalSemaphoreIncludeTasks() const {
   std::vector<const AllocateSemaphore*> result;
   result.reserve(signal_semaphore_.size());
 
@@ -99,8 +100,7 @@ CommandTask::GetSignalSemaphoreIncludeTasks() const {
 }
 
 const std::vector<std::unique_ptr<MM::RenderSystem::CommandTask>>&
-MM::
-RenderSystem::CommandTask::GetSubTasks() const {
+MM::RenderSystem::CommandTask::GetSubTasks() const {
   return sub_tasks_;
 }
 
@@ -109,7 +109,7 @@ std::uint32_t MM::RenderSystem::CommandTask::GetSubTasksNumber() const {
 }
 
 bool MM::RenderSystem::CommandTask::HaveSubTasks() const {
-  return sub_tasks_.size() != 0;
+  return !sub_tasks_.empty();
 }
 
 bool MM::RenderSystem::CommandTask::IsValid() const {
@@ -126,8 +126,7 @@ MM::RenderSystem::CommandTask::CommandTask(
       command_type_(command_type),
       commands_(commands),
       wait_semaphore_(wait_semaphore),
-      signal_semaphore_(signal_semaphore),
-      sub_tasks_() {}
+      signal_semaphore_(signal_semaphore) {}
 
 bool MM::RenderSystem::WaitSemaphore::IsValid() const {
   return wait_semaphore_ != nullptr;
@@ -147,14 +146,7 @@ bool MM::RenderSystem::WaitAllocatedSemaphore::IsValid() const {
 
 MM::RenderSystem::CommandBufferInfo::CommandBufferInfo(
     std::uint32_t queue_index, CommandBufferType command_buffer_type)
-  : queue_index_(queue_index), command_buffer_type(command_buffer_type){
-}
-
-MM::RenderSystem::CommandBufferInfo::CommandBufferInfo(
-    const CommandBufferInfo& other)
-  : queue_index_(other.queue_index_),
-    command_buffer_type(other.command_buffer_type){
-}
+    : queue_index_(queue_index), command_buffer_type(command_buffer_type) {}
 
 MM::RenderSystem::CommandBufferInfo::CommandBufferInfo(
     CommandBufferInfo&& other) noexcept
@@ -163,8 +155,8 @@ MM::RenderSystem::CommandBufferInfo::CommandBufferInfo(
   command_buffer_type = CommandBufferType::UNDEFINED;
 }
 
-MM::RenderSystem::CommandBufferInfo& MM::RenderSystem::CommandBufferInfo::
-operator=(const CommandBufferInfo& other) {
+MM::RenderSystem::CommandBufferInfo&
+MM::RenderSystem::CommandBufferInfo::operator=(const CommandBufferInfo& other) {
   if (&other == this) {
     return *this;
   }
@@ -175,8 +167,9 @@ operator=(const CommandBufferInfo& other) {
   return *this;
 }
 
-MM::RenderSystem::CommandBufferInfo& MM::RenderSystem::CommandBufferInfo::
-operator=(CommandBufferInfo&& other) noexcept {
+MM::RenderSystem::CommandBufferInfo&
+MM::RenderSystem::CommandBufferInfo::operator=(
+    CommandBufferInfo&& other) noexcept {
   if (&other == this) {
     return *this;
   }
@@ -193,7 +186,9 @@ void MM::RenderSystem::CommandBufferInfo::Reset() {
   command_buffer_type = CommandBufferType::UNDEFINED;
 }
 
-bool MM::RenderSystem::CommandBufferInfo::IsValid() const { return command_buffer_type != CommandBufferType::UNDEFINED; }
+bool MM::RenderSystem::CommandBufferInfo::IsValid() const {
+  return command_buffer_type != CommandBufferType::UNDEFINED;
+}
 
 MM::RenderSystem::AllocatedCommandBuffer::AllocatedCommandBuffer(
     RenderEngine* engine, const std::uint32_t& queue_index,
@@ -262,8 +257,8 @@ std::uint32_t MM::RenderSystem::AllocatedCommandBuffer::GetQueueIndex() const {
   return command_buffer_info_.queue_index_;
 }
 
-MM::RenderSystem::CommandBufferType MM::RenderSystem::AllocatedCommandBuffer::
-GetCommandBufferType() const {
+MM::RenderSystem::CommandBufferType
+MM::RenderSystem::AllocatedCommandBuffer::GetCommandBufferType() const {
   return command_buffer_info_.command_buffer_type;
 }
 
@@ -280,7 +275,6 @@ MM::RenderSystem::AllocatedCommandBuffer::GetCommandBuffer() const {
 const VkFence& MM::RenderSystem::AllocatedCommandBuffer::GetFence() const {
   return wrapper_->GetFence();
 }
-
 
 bool MM::RenderSystem::AllocatedCommandBuffer::ResetCommandBuffer() {
   return wrapper_->ResetCommandBuffer();
@@ -414,8 +408,8 @@ MM::RenderSystem::CommandTask& MM::RenderSystem::CommandTaskFlow::AddTask(
       temp{commands};
   std::unique_lock<std::shared_mutex> guard(task_sync_);
 
-  tasks_.emplace_back(std::make_unique<CommandTask>(
-      this, command_type, temp, wait_semaphores, signal_semaphores));
+  tasks_.emplace_back(new CommandTask(this, command_type, temp, wait_semaphores,
+                                      signal_semaphores));
 
   root_tasks_.emplace_back(&(tasks_.back()));
   tasks_.back()->this_unique_ptr_ = &(tasks_.back());
@@ -446,8 +440,8 @@ MM::RenderSystem::CommandTask& MM::RenderSystem::CommandTaskFlow::AddTask(
 
   std::unique_lock<std::shared_mutex> guard(task_sync_);
 
-  tasks_.emplace_back(std::make_unique<CommandTask>(
-      this, command_type, commands, wait_semaphores, signal_semaphores));
+  tasks_.emplace_back(new CommandTask(this, command_type, commands,
+                                      wait_semaphores, signal_semaphores));
 
   root_tasks_.emplace_back(&(tasks_.back()));
   tasks_.back()->this_unique_ptr_ = &(tasks_.back());
@@ -503,12 +497,13 @@ bool MM::RenderSystem::CommandTaskFlow::HaveRing() const {
 
   const std::vector<CommandTaskEdge> command_task_edges = GetCommandTaskEdges();
 
-  std::unordered_map<std::unique_ptr<CommandTask>*, std::uint32_t> penetrations;
+  std::unordered_map<const std::unique_ptr<CommandTask>*, std::uint32_t>
+      penetrations;
   for (const auto& task_edge : command_task_edges) {
     ++penetrations[task_edge.end_command_task_];
   }
 
-  std::stack<std::unique_ptr<CommandTask>*> penetration_zero;
+  std::stack<const std::unique_ptr<CommandTask>*> penetration_zero;
 
   for (const auto& count : penetrations) {
     if (count.second == 0) {
@@ -534,17 +529,16 @@ bool MM::RenderSystem::CommandTaskFlow::HaveRing() const {
     }
   }
 
-  if (task_count == 0) {
-    return true;
-  }
-
-  return false;
+  return task_count == 0;
 }
 
-bool MM::RenderSystem::CommandTaskFlow::IsValid() const { return GetTaskNumber() != 0 && !HaveRing(); }
+bool MM::RenderSystem::CommandTaskFlow::IsValid() const {
+  return GetTaskNumber() != 0 && !HaveRing();
+}
 
 MM::RenderSystem::CommandTaskFlow::CommandTaskEdge::CommandTaskEdge(
-    std::unique_ptr<CommandTask>* start, std::unique_ptr<CommandTask>* end)
+    const std::unique_ptr<CommandTask>* start,
+    const std::unique_ptr<CommandTask>* end)
     : start_command_task_(start), end_command_task_(end) {}
 
 bool MM::RenderSystem::CommandTaskFlow::CommandTaskEdge::operator<(
@@ -565,11 +559,11 @@ void MM::RenderSystem::CommandTaskFlow::RemoveRootTask(
 
 void MM::RenderSystem::CommandTaskFlow::GetCommandTaskEdges(
     std::vector<CommandTaskEdge>& command_task_edges) const {
-  for (auto task : tasks_) {
+  for (const auto& task : tasks_) {
     if (task->is_sub_task_) {
       continue;
     }
-    for (auto last_task : task->post_tasks_) {
+    for (auto& last_task : task->post_tasks_) {
       command_task_edges.emplace_back(&task, last_task);
     }
   }
@@ -578,11 +572,11 @@ void MM::RenderSystem::CommandTaskFlow::GetCommandTaskEdges(
 std::vector<MM::RenderSystem::CommandTaskFlow::CommandTaskEdge>
 MM::RenderSystem ::CommandTaskFlow::GetCommandTaskEdges() const {
   std::vector<CommandTaskEdge> command_task_edges;
-  for (auto task : tasks_) {
+  for (const auto& task : tasks_) {
     if (task->is_sub_task_) {
       continue;
     }
-    for (auto last_task : task->post_tasks_) {
+    for (const auto& last_task : task->post_tasks_) {
       command_task_edges.emplace_back(&task, last_task);
     }
   }
@@ -659,10 +653,8 @@ MM::ExecuteResult MM::RenderSystem::RenderFuture::Get() {
   }
 }
 
-bool MM::RenderSystem::RenderFuture::IsValid() { if (command_executor_ == nullptr) {
-    return false;
-  }
-  return true;
+bool MM::RenderSystem::RenderFuture::IsValid() {
+  return command_executor_ != nullptr;
 }
 
 MM::RenderSystem::CommandExecutor::CommandExecutor(RenderEngine* engine)
@@ -700,11 +692,11 @@ MM::RenderSystem::CommandExecutor::CommandExecutor(RenderEngine* engine)
     return;
   }
 
-  constexpr std::uint32_t graph_command_number =
+  std::uint32_t graph_command_number =
       15 * render_engine_->GetFlightFrameNumber();
-  constexpr std::uint32_t compute_command_number =
+  std::uint32_t compute_command_number =
       5 * render_engine_->GetFlightFrameNumber();
-  constexpr std::uint32_t transform_command_number =
+  std::uint32_t transform_command_number =
       5 * render_engine_->GetFlightFrameNumber();
 
   std::vector<VkCommandPool> graph_command_pools(graph_command_number, nullptr);
@@ -740,7 +732,9 @@ MM::RenderSystem::CommandExecutor::CommandExecutor(RenderEngine* engine)
            return;)
 
   TaskSystem::Taskflow taskflow;
-  taskflow.emplace([this_object = this]() { this_object->RecycledSemaphoreThatSubmittedFailed(); });
+  taskflow.emplace([this_object = this]() {
+    this_object->RecycledSemaphoreThatSubmittedFailed();
+  });
   TASK_SYSTEM->Run(TaskSystem::TaskType::Render, taskflow);
 }
 
@@ -845,32 +839,32 @@ std::uint32_t MM::RenderSystem::CommandExecutor::GetGraphCommandNumber() const {
          executing_graph_command_buffers_.size();
 }
 
-std::uint32_t MM::RenderSystem::CommandExecutor::
-GetComputeCommandNumber() const {
+std::uint32_t MM::RenderSystem::CommandExecutor::GetComputeCommandNumber()
+    const {
   return free_compute_command_buffers_.size() +
          recording_compute_command_buffer_number_ +
          executing_compute_command_buffers_.size();
 }
 
-std::uint32_t MM::RenderSystem::CommandExecutor::
-GetTransformCommandNumber() const {
+std::uint32_t MM::RenderSystem::CommandExecutor::GetTransformCommandNumber()
+    const {
   return free_transform_command_buffers_.size() +
          recording_transform_command_buffer_number_ +
          executing_transform_command_buffers_.size();
 }
 
-std::uint32_t MM::RenderSystem::CommandExecutor::
-GetFreeGraphCommandNumber() const {
+std::uint32_t MM::RenderSystem::CommandExecutor::GetFreeGraphCommandNumber()
+    const {
   return free_graph_command_buffers_.size();
 }
 
-std::uint32_t MM::RenderSystem::CommandExecutor::
-GetFreeComputeCommandNumber() const {
+std::uint32_t MM::RenderSystem::CommandExecutor::GetFreeComputeCommandNumber()
+    const {
   return free_compute_command_buffers_.size();
 }
 
-std::uint32_t MM::RenderSystem::CommandExecutor::
-GetFreeTransformCommandNumber() const {
+std::uint32_t MM::RenderSystem::CommandExecutor::GetFreeTransformCommandNumber()
+    const {
   return free_transform_command_buffers_.size();
 }
 
@@ -1216,7 +1210,7 @@ MM::ExecuteResult MM::RenderSystem::CommandExecutor::AddCommandBuffer(
                                  &new_command_pool),
              result = Utils::VkResultToMMResult(VK_RESULT_CODE);
              execute_state = false;)
-    if (execute_state == false) {
+    if (!execute_state) {
       for (auto& command_pool : command_pools) {
         vkDestroyCommandPool(render_engine_->GetDevice(), command_pool,
                              nullptr);
@@ -1234,7 +1228,7 @@ MM::ExecuteResult MM::RenderSystem::CommandExecutor::AddCommandBuffer(
                                       &new_command_buffer),
              result = Utils::VkResultToMMResult(VK_RESULT_CODE);
              execute_state = false;)
-    if (execute_state == false) {
+    if (!execute_state) {
       for (auto& command_pool : command_pools) {
         vkDestroyCommandPool(render_engine_->GetDevice(), command_pool,
                              nullptr);
@@ -1313,31 +1307,34 @@ MM::RenderSystem::CommandExecutor::CommandTaskFlowToBeRun::operator=(
 }
 
 MM::RenderSystem::CommandExecutor::ExecutingCommandTaskFlow::
-ExecutingCommandTaskFlow(CommandTaskFlowToBeRun&& command_task_flow_to_be_run)
-  : command_task_flow_(std::move(command_task_flow_to_be_run.command_task_flow_)),
-    task_flow_ID_(command_task_flow_to_be_run.task_flow_ID_),
-    execute_result_(std::move(command_task_flow_to_be_run.execute_result_)),
-    is_completes_(std::move(command_task_flow_to_be_run.is_completes_)),
-    task_that_have_already_been_accessed_(),
-    submitted_task_(),
-    can_be_submitted_tasks_(),
-    pre_task_not_submit_task_(){}
+    ExecutingCommandTaskFlow(
+        CommandTaskFlowToBeRun&& command_task_flow_to_be_run)
+    : command_task_flow_(
+          std::move(command_task_flow_to_be_run.command_task_flow_)),
+      task_flow_ID_(command_task_flow_to_be_run.task_flow_ID_),
+      execute_result_(std::move(command_task_flow_to_be_run.execute_result_)),
+      is_completes_(std::move(command_task_flow_to_be_run.is_completes_)),
+      task_that_have_already_been_accessed_(),
+      submitted_task_(),
+      can_be_submitted_tasks_(),
+      pre_task_not_submit_task_() {}
 
 MM::RenderSystem::CommandExecutor::ExecutingCommandTaskFlow::
-ExecutingCommandTaskFlow(ExecutingCommandTaskFlow&& other) noexcept
-  : command_task_flow_(std::move(other.command_task_flow_)),
-    task_flow_ID_(other.task_flow_ID_),
-    execute_result_(std::move(other.execute_result_)),
-    is_completes_(std::move(other.is_completes_)),
-    task_that_have_already_been_accessed_(std::move(other.task_that_have_already_been_accessed_)),
-    submitted_task_(std::move(other.submitted_task_)),
-    can_be_submitted_tasks_(std::move(other.can_be_submitted_tasks_)),
-    pre_task_not_submit_task_(std::move(other.pre_task_not_submit_task_)){
+    ExecutingCommandTaskFlow(ExecutingCommandTaskFlow&& other) noexcept
+    : command_task_flow_(std::move(other.command_task_flow_)),
+      task_flow_ID_(other.task_flow_ID_),
+      execute_result_(std::move(other.execute_result_)),
+      is_completes_(std::move(other.is_completes_)),
+      task_that_have_already_been_accessed_(
+          std::move(other.task_that_have_already_been_accessed_)),
+      submitted_task_(std::move(other.submitted_task_)),
+      can_be_submitted_tasks_(std::move(other.can_be_submitted_tasks_)),
+      pre_task_not_submit_task_(std::move(other.pre_task_not_submit_task_)) {
   task_flow_ID_ = 0;
 }
 
-MM::RenderSystem::CommandExecutor::ExecutingCommandTaskFlow& MM::RenderSystem::
-CommandExecutor::ExecutingCommandTaskFlow::operator=(
+MM::RenderSystem::CommandExecutor::ExecutingCommandTaskFlow&
+MM::RenderSystem::CommandExecutor::ExecutingCommandTaskFlow::operator=(
     ExecutingCommandTaskFlow&& other) noexcept {
   if (&other == this) {
     return *this;
@@ -1359,8 +1356,7 @@ CommandExecutor::ExecutingCommandTaskFlow::operator=(
 }
 
 void MM::RenderSystem::CommandExecutor::UpdateCommandTaskLine(
-    ExecutingCommandTaskFlow&
-    command_task_flow,
+    ExecutingCommandTaskFlow& command_task_flow,
     std::unique_ptr<CommandTask>& new_command_task,
     std::unique_ptr<CommandTask>* old_command_task_ptr) {
   if (&new_command_task == old_command_task_ptr) {
@@ -1401,8 +1397,8 @@ MM::RenderSystem::CommandExecutor::CommandTaskToBeSubmit::CommandTaskToBeSubmit(
     CommandExecutor* command_executor,
     const std::shared_ptr<ExecutingCommandTaskFlow>& command_task_flow,
     std::unique_ptr<CommandTask>&& command_task,
-    std::vector<VkSemaphore>&& default_wait_semaphore,
-    std::vector<VkSemaphore>&& default_signal_semaphore)
+    const std::vector<VkSemaphore>& default_wait_semaphore,
+    const std::vector<VkSemaphore>& default_signal_semaphore)
     : command_executor_(command_executor),
       command_task_flow_(command_task_flow),
       command_task_(std::move(command_task)),
@@ -1428,12 +1424,13 @@ MM::RenderSystem::CommandExecutor::CommandTaskToBeSubmit::CommandTaskToBeSubmit(
     }
     for (std::uint32_t j = 0; j < one_signal_vector_semaphore_number; ++j) {
       signal_back[j] =
-          default_wait_semaphore[i * one_signal_vector_semaphore_number + j];
+          default_signal_semaphore[i * one_signal_vector_semaphore_number + j];
     }
   }
-  
+
   if (!command_task_flow_.expired()) {
-    UpdateCommandTaskLine(*(command_task_flow_.lock()), command_task_, &command_task);    
+    UpdateCommandTaskLine(*(command_task_flow_.lock()), command_task_,
+                          &command_task);
   }
 }
 
@@ -1509,18 +1506,19 @@ MM::RenderSystem::CommandExecutor::ExecutingTask::ExecutingTask(
       signal_semaphore_[0].reserve(signal_semaphore_[0].size() +
                                    command_task_->signal_semaphore_.size());
 
-      std::fill_n(wait_semaphore_stages_.begin(),
-                    wait_semaphore_[0].size(),
-                VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT);
+      std::fill_n(wait_semaphore_stages_[0].begin(), wait_semaphore_[0].size(),
+                  VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT);
 
-      for (const auto& external_wait_semaphore: command_task_->wait_semaphore_) {
+      for (const auto& external_wait_semaphore :
+           command_task_->wait_semaphore_) {
         wait_semaphore_[0].emplace_back(
             external_wait_semaphore.wait_semaphore_.GetSemaphore());
         wait_semaphore_stages_[0].emplace_back(
             external_wait_semaphore.wait_stage_);
       }
 
-      for (const auto& external_signal_semaphore: command_task_->signal_semaphore_) {
+      for (const auto& external_signal_semaphore :
+           command_task_->signal_semaphore_) {
         signal_semaphore_[0].emplace_back(
             external_signal_semaphore.GetSemaphore());
       }
@@ -1531,27 +1529,31 @@ MM::RenderSystem::CommandExecutor::ExecutingTask::ExecutingTask(
         wait_semaphore_[i].size() +
         command_task_->sub_tasks_[i - 1]->wait_semaphore_.size());
     wait_semaphore_stages_[i].reserve(wait_semaphore_[i].capacity());
-    signal_semaphore_[i].reserve(signal_semaphore_[i].size() +
-                                 command_task_->sub_tasks_[i - 1]->signal_semaphore_.size());
+    signal_semaphore_[i].reserve(
+        signal_semaphore_[i].size() +
+        command_task_->sub_tasks_[i - 1]->signal_semaphore_.size());
 
     std::fill_n(wait_semaphore_stages_[i].begin(), wait_semaphore_.size(),
                 VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT);
 
-    for (const auto& external_wait_semaphore : command_task_->sub_tasks_[i - 1]->wait_semaphore_) {
+    for (const auto& external_wait_semaphore :
+         command_task_->sub_tasks_[i - 1]->wait_semaphore_) {
       wait_semaphore_[i].emplace_back(
           external_wait_semaphore.wait_semaphore_.GetSemaphore());
       wait_semaphore_stages_[i].emplace_back(
           external_wait_semaphore.wait_stage_);
     }
 
-    for (const auto& external_signal_semaphore : command_task_->sub_tasks_[i - 1]->signal_semaphore_) {
+    for (const auto& external_signal_semaphore :
+         command_task_->sub_tasks_[i - 1]->signal_semaphore_) {
       signal_semaphore_[i].emplace_back(
           external_signal_semaphore.GetSemaphore());
     }
   }
 
   if (!command_task_flow_.expired()) {
-    UpdateCommandTaskLine(*(command_task_flow_.lock()), command_task_, &command_task);
+    UpdateCommandTaskLine(*(command_task_flow_.lock()), command_task_,
+                          &command_task);
   }
 }
 
@@ -1569,7 +1571,6 @@ MM::RenderSystem::CommandExecutor::ExecutingTask::ExecutingTask(
       signal_semaphore_(std::move(other.signal_semaphore_)),
       default_wait_semaphore_number_(other.default_wait_semaphore_number_),
       default_signal_semaphore_number_(other.default_signal_semaphore_number_) {
-
   if (!command_task_flow_.expired()) {
     UpdateCommandTaskLine(*(command_task_flow_.lock()), command_task_,
                           &(other.command_task_));
@@ -1648,7 +1649,8 @@ void MM::RenderSystem::CommandExecutor::RecycledSemaphoreThatSubmittedFailed() {
   while (true) {
     std::lock(submit_failed_to_be_recycled_semaphore_mutex_,
               recycled_semaphore_mutex_);
-    for (const auto& semaphore: submit_failed_to_be_recycled_semaphore_.at(submit_failed_to_be_recycled_semaphore_current_index_)) {
+    for (const auto& semaphore : submit_failed_to_be_recycled_semaphore_.at(
+             submit_failed_to_be_recycled_semaphore_current_index_)) {
       recycled_semaphore_.emplace_back(semaphore);
     }
     recycled_semaphore_mutex_.unlock();
@@ -1664,8 +1666,9 @@ void MM::RenderSystem::CommandExecutor::RecycledSemaphoreThatSubmittedFailed() {
 
 void MM::RenderSystem::CommandExecutor::ProcessCompleteTask() {
   // TODO 回收sub_task的semaphore
-  std::unique_lock<std::mutex> recycled_semaphore_guard{recycled_semaphore_mutex_};
-  for (const auto& semaphore: recycled_semaphore_) {
+  std::unique_lock<std::mutex> recycled_semaphore_guard{
+      recycled_semaphore_mutex_};
+  for (const auto& semaphore : recycled_semaphore_) {
     semaphores_.push(semaphore);
   }
   recycled_semaphore_.clear();
@@ -1676,14 +1679,16 @@ void MM::RenderSystem::CommandExecutor::ProcessCompleteTask() {
   std::uint32_t graph_buffer_number = 0;
   std::uint32_t compute_buffer_number = 0;
   std::uint32_t transform_buffer_number = 0;
-  for (auto& command_buffer: submit_failed_to_be_recycled_command_buffer_) {
+  for (auto& command_buffer : submit_failed_to_be_recycled_command_buffer_) {
     if (command_buffer->GetCommandBufferType() == CommandBufferType::GRAPH) {
       free_graph_command_buffers_.push(std::move(command_buffer));
       ++graph_buffer_number;
-    } else if (command_buffer->GetCommandBufferType() == CommandBufferType::COMPUTE) {
+    } else if (command_buffer->GetCommandBufferType() ==
+               CommandBufferType::COMPUTE) {
       free_compute_command_buffers_.push(std::move(command_buffer));
       ++compute_buffer_number;
-    } else if (command_buffer->GetCommandBufferType() == CommandBufferType::TRANSFORM) {
+    } else if (command_buffer->GetCommandBufferType() ==
+               CommandBufferType::TRANSFORM) {
       free_transform_command_buffers_.push(std::move(command_buffer));
       ++transform_buffer_number;
     }
@@ -1795,15 +1800,17 @@ void MM::RenderSystem::CommandExecutor::ProcessWaitTask() {
       }
     }
 
-    task_flow_queue_.merge(wait_task_list);
+    task_flow_queue_.splice(task_flow_queue_.end(), wait_task_list);
   }
   wait_guard.unlock();
 }
 
 void MM::RenderSystem::CommandExecutor::
     ProcessRequireCommandBufferNumberLagerThanExecutorHaveCommandBufferNumber(
-    const std::shared_ptr<MM::RenderSystem::CommandExecutor::
-    ExecutingCommandTaskFlow>& command_task_flow, bool& skip_task_flow) {
+        const std::shared_ptr<
+            MM::RenderSystem::CommandExecutor::ExecutingCommandTaskFlow>&
+            command_task_flow,
+        bool& skip_task_flow) {
   for (const auto& task : command_task_flow->command_task_flow_.tasks_) {
     std::uint32_t require_command_number =
         task->HaveSubTasks()
@@ -1845,49 +1852,64 @@ void MM::RenderSystem::CommandExecutor::
 }
 
 void MM::RenderSystem::CommandExecutor::ProcessRootTaskAndSubTask(
-    const std::shared_ptr<MM::RenderSystem::CommandExecutor::
-    ExecutingCommandTaskFlow>& command_task_flow) {
+    const std::shared_ptr<
+        MM::RenderSystem::CommandExecutor::ExecutingCommandTaskFlow>&
+        command_task_flow) {
   for (auto& root_task : command_task_flow->command_task_flow_.root_tasks_) {
     for (auto iter = command_task_flow->command_task_flow_.tasks_.begin();
          iter != command_task_flow->command_task_flow_.tasks_.end(); ++iter) {
       if (&(*iter) == root_task) {
-        // TODO 给sub_task也添加同步Semaphore
+        command_task_flow->task_that_have_already_been_accessed_.emplace(
+            root_task);  // deletable
         command_task_flow->can_be_submitted_tasks_.emplace_back(
-            this, command_task_flow,std::move(*iter), std::vector<VkSemaphore>{},
+            this, command_task_flow, std::move(*iter),
+            std::vector<VkSemaphore>{},
             GetSemaphore(
                 static_cast<std::uint32_t>((*iter)->post_tasks_.size()) *
                 static_cast<std::uint32_t>(1 + (*iter)->sub_tasks_.size())));
-        command_task_flow->task_that_have_already_been_accessed_.emplace(root_task);  // deletable
         command_task_flow->command_task_flow_.tasks_.erase(iter);
       }
     }
+    CommandTaskToBeSubmit& new_root_task =
+        command_task_flow->can_be_submitted_tasks_.back();
     std::uint32_t post_index = 0;
-    for (const auto& post_task :
-         command_task_flow->can_be_submitted_tasks_.back().command_task_->post_tasks_) {
-      if (command_task_flow->task_that_have_already_been_accessed_.find(post_task) !=
+    std::vector<VkSemaphore> semaphore_to_be_wait(
+        new_root_task.command_task_->sub_tasks_.size() + 1);
+    for (const auto& post_task : new_root_task.command_task_->post_tasks_) {
+      if (command_task_flow->task_that_have_already_been_accessed_.find(
+              post_task) !=
           command_task_flow->task_that_have_already_been_accessed_.end()) {
         for (auto iter = command_task_flow->command_task_flow_.tasks_.begin();
              iter != command_task_flow->command_task_flow_.tasks_.end();
              ++iter) {
           if (&(*iter) == post_task) {
+            std::uint32_t vector_number = semaphore_to_be_wait.size();
+            for (std::uint32_t i = 0; i != vector_number; ++i) {
+              semaphore_to_be_wait[i] =
+                  new_root_task.default_wait_semaphore_[i][post_index];
+            }
+            command_task_flow->task_that_have_already_been_accessed_.emplace(
+                post_task);
             command_task_flow->pre_task_not_submit_task_.emplace_back(
-                this, command_task_flow, std::move(*iter),
-                std::vector<VkSemaphore>{
-                    command_task_flow->can_be_submitted_tasks_.back().default_signal_semaphore_.at(
-                        post_index)},
+                this, command_task_flow, std::move(*iter), semaphore_to_be_wait,
                 GetSemaphore(
                     static_cast<std::uint32_t>((*iter)->post_tasks_.size()) *
-                    static_cast<std::uint32_t>((1 + (*iter)->sub_tasks_.size()))));
-            command_task_flow->task_that_have_already_been_accessed_.emplace(post_task);
+                    static_cast<std::uint32_t>(
+                        (1 + (*iter)->sub_tasks_.size()))));
             command_task_flow->command_task_flow_.tasks_.erase(iter);
           }
         }
       } else {
         for (auto& task : command_task_flow->pre_task_not_submit_task_) {
           if (task.command_task_->this_unique_ptr_ == post_task) {
+            for (std::size_t wait_semaphore_vector_index = 0;
+                 wait_semaphore_vector_index !=
+                 task.default_wait_semaphore_.size();
+                 ++wait_semaphore_vector_index) {
+            }
             task.default_wait_semaphore_.emplace_back(
-                command_task_flow->can_be_submitted_tasks_.back().default_signal_semaphore_.at(
-                    post_index));
+                command_task_flow->can_be_submitted_tasks_.back()
+                    .default_signal_semaphore_.at(post_index));
           }
         }
       }
@@ -1961,8 +1983,7 @@ void MM::RenderSystem::CommandExecutor::ProcessOneCanSubmitTask(
     std::vector<std::unique_ptr<AllocatedCommandBuffer>>
         acquired_command_buffer;
     acquired_command_buffer.reserve(require_command_buffer_numbers);
-    for (std::uint32_t i = 0; i < require_command_buffer_numbers;
-         ++i) {
+    for (std::uint32_t i = 0; i < require_command_buffer_numbers; ++i) {
       acquired_command_buffer.emplace_back(
           free_command_buffers->top().release());
       free_command_buffers->pop();
@@ -1975,12 +1996,14 @@ void MM::RenderSystem::CommandExecutor::ProcessOneCanSubmitTask(
       command_task_flow->is_completes_.pop();
     }
 
-    std::unique_ptr<ExecutingTask> temp_execute_task = std::make_unique<ExecutingTask>(
-        render_engine_, this, command_task_flow, std::move(acquired_command_buffer),
-        std::move(command_task_to_be_submit->command_task_),
-        command_task_flow->execute_result_, is_complete,
-        std::move(command_task_to_be_submit->default_wait_semaphore_),
-        std::move(command_task_to_be_submit->default_signal_semaphore_));
+    std::unique_ptr<ExecutingTask> temp_execute_task =
+        std::make_unique<ExecutingTask>(
+            render_engine_, this, command_task_flow,
+            std::move(acquired_command_buffer),
+            std::move(command_task_to_be_submit->command_task_),
+            command_task_flow->execute_result_, is_complete,
+            std::move(command_task_to_be_submit->default_wait_semaphore_),
+            std::move(command_task_to_be_submit->default_signal_semaphore_));
 
     *free_command_buffer_number -= require_command_buffer_numbers;
 
@@ -1990,11 +2013,12 @@ void MM::RenderSystem::CommandExecutor::ProcessOneCanSubmitTask(
 
     TaskSystem::Taskflow task_flow;
     task_flow.emplace([command_task_flow = command_task_flow,
-                       input_tasks = std::move(temp_execute_task), this_object = this]() mutable  {
-      this_object->SubmitTasks(command_task_flow, std::move(input_tasks));
+                       input_tasks = temp_execute_task.release(),
+                       this_object = this]() mutable {
+      this_object->SubmitTasks(command_task_flow,
+                               std::unique_ptr<ExecutingTask>(input_tasks));
     });
     TASK_SYSTEM->Run(TaskSystem::TaskType::Render, task_flow);
-
   } else {
     ProcessCompleteTask();
     switch (command_task_to_be_submit->command_task_->GetCommandType()) {
@@ -2018,7 +2042,7 @@ void MM::RenderSystem::CommandExecutor::ProcessOneCanSubmitTask(
 }
 
 void MM::RenderSystem::CommandExecutor::ProcessWhenOneFailedSubmit(
-    const std::shared_ptr<ExecutingCommandTaskFlow>& command_task_flow, 
+    const std::shared_ptr<ExecutingCommandTaskFlow>& command_task_flow,
     std::list<CommandTaskToBeSubmit>& next_can_be_submitted_tasks) {
   // TODO Poor performance, awaiting optimization.
   std::unique_lock<std::mutex> guard{
@@ -2086,7 +2110,8 @@ void MM::RenderSystem::CommandExecutor::ProcessNextStepCanSubmitTask(
     std::uint32_t sub_index = 0;
     for (auto& sub_task :
          next_can_be_submitted_task.command_task_->post_tasks_) {
-      if (command_task_flow->task_that_have_already_been_accessed_.find(sub_task) !=
+      if (command_task_flow->task_that_have_already_been_accessed_.find(
+              sub_task) !=
           command_task_flow->task_that_have_already_been_accessed_.end()) {
         for (auto iter = command_task_flow->command_task_flow_.tasks_.begin();
              iter != command_task_flow->command_task_flow_.tasks_.end();
@@ -2098,9 +2123,11 @@ void MM::RenderSystem::CommandExecutor::ProcessNextStepCanSubmitTask(
                     next_can_be_submitted_task.default_signal_semaphore_.at(
                         sub_index)},
                 GetSemaphore(
-                    static_cast<std::uint32_t>((*iter)->post_tasks_.size())
-                    * static_cast<std::uint32_t>((1 + (*iter)->sub_tasks_.size()))));
-            command_task_flow->task_that_have_already_been_accessed_.emplace(sub_task);
+                    static_cast<std::uint32_t>((*iter)->post_tasks_.size()) *
+                    static_cast<std::uint32_t>(
+                        (1 + (*iter)->sub_tasks_.size()))));
+            command_task_flow->task_that_have_already_been_accessed_.emplace(
+                sub_task);
             command_task_flow->command_task_flow_.tasks_.erase(iter);
           }
         }
@@ -2116,13 +2143,16 @@ void MM::RenderSystem::CommandExecutor::ProcessNextStepCanSubmitTask(
       ++sub_index;
     }
   }
-  command_task_flow->can_be_submitted_tasks_.merge(next_can_be_submitted_tasks);
+  command_task_flow->can_be_submitted_tasks_.splice(
+      command_task_flow->can_be_submitted_tasks_.end(),
+      next_can_be_submitted_tasks);
 }
 
 MM::ExecuteResult MM::RenderSystem::CommandExecutor::SubmitTasks(
-    std::shared_ptr<MM::RenderSystem::CommandExecutor::ExecutingCommandTaskFlow>
-    & command_task_flow, std::unique_ptr<ExecutingTask>&&
-    input_tasks) {
+    std::shared_ptr<
+        MM::RenderSystem::CommandExecutor::ExecutingCommandTaskFlow>&
+        command_task_flow,
+    std::unique_ptr<ExecutingTask>&& input_tasks) {
   assert(input_tasks != nullptr);
   assert(input_tasks->command_task_->GetCommandType() !=
          CommandBufferType::UNDEFINED);
@@ -2205,19 +2235,17 @@ MM::ExecuteResult MM::RenderSystem::CommandExecutor::SubmitTasks(
   });
 
   std::uint32_t buffer_index = 0;
-  for (;
-       buffer_index <
-       input_tasks->command_task_->GetRequireCommandBufferNumber();
+  for (; buffer_index <
+         input_tasks->command_task_->GetRequireCommandBufferNumber();
        ++buffer_index) {
     auto record_command = taskflow.emplace(
-        [&command =
-             input_tasks->command_task_->GetCommands().at(buffer_index),
+        [&command = input_tasks->command_task_->GetCommands().at(buffer_index),
          &buffer = input_tasks->command_buffers_.at(buffer_index)]() {
           command(*buffer);
         });
     record_command.precede(submit_task);
   }
-  for (const auto& sub_task: input_tasks->command_task_->sub_tasks_) {
+  for (const auto& sub_task : input_tasks->command_task_->sub_tasks_) {
     for (std::uint32_t i = 0; i < sub_task->GetRequireCommandBufferNumber();
          ++i, ++buffer_index) {
       auto record_command = taskflow.emplace(
@@ -2236,7 +2264,7 @@ MM::ExecuteResult MM::RenderSystem::CommandExecutor::SubmitTasks(
     if (*(input_tasks->execute_result_.lock()) != ExecuteResult::SUCCESS) {
       std::unique_lock<std::mutex> command_buffer_guard{
           submit_failed_to_be_recycled_command_buffer_mutex_};
-      for (auto& command_buffer: input_tasks->command_buffers_) {
+      for (auto& command_buffer : input_tasks->command_buffers_) {
         command_buffer->ResetCommandBuffer();
         submit_failed_to_be_recycled_command_buffer_.emplace_back(
             std::move(command_buffer));
@@ -2244,9 +2272,11 @@ MM::ExecuteResult MM::RenderSystem::CommandExecutor::SubmitTasks(
       command_buffer_guard.unlock();
 
       std::unique_lock<std::mutex> semaphore_guard{
-              submit_failed_to_be_recycled_semaphore_mutex_};
-      const std::uint32_t submit_failed_to_be_recycled_semaphore_index = (submit_failed_to_be_recycled_semaphore_current_index_ + 1) % 2;
-      for (std::uint32_t i = 0; i < input_tasks->default_wait_semaphore_number_; ++i) {
+          submit_failed_to_be_recycled_semaphore_mutex_};
+      const std::uint32_t submit_failed_to_be_recycled_semaphore_index =
+          (submit_failed_to_be_recycled_semaphore_current_index_ + 1) % 2;
+      for (std::uint32_t i = 0; i < input_tasks->default_wait_semaphore_number_;
+           ++i) {
         submit_failed_to_be_recycled_semaphore_
             .at(submit_failed_to_be_recycled_semaphore_index)
             .insert(input_tasks->wait_semaphore_.at(0).at(i));
@@ -2260,46 +2290,52 @@ MM::ExecuteResult MM::RenderSystem::CommandExecutor::SubmitTasks(
   if (input_tasks->command_task_->GetCommandType() ==
       CommandBufferType::GRAPH) {
     std::lock_guard<std::mutex> guard{executing_graph_command_buffers_mutex_};
-    const std::uint32_t temp = static_cast<std::uint32_t>(input_tasks->command_buffers_.size());
+    const std::uint32_t temp =
+        static_cast<std::uint32_t>(input_tasks->command_buffers_.size());
     executing_graph_command_buffers_.emplace_back(std::move(*input_tasks));
-    /*if (executing_graph_command_buffers_.back().wait_semaphore_.at(0).size() !=
-        executing_graph_command_buffers_.back()
-            .default_wait_semaphore_number_) {
-      submitted_task_.insert(executing_graph_command_buffers_.back()
+    /*if (executing_graph_command_buffers_.back().wait_semaphore_.at(0).size()
+    != executing_graph_command_buffers_.back() .default_wait_semaphore_number_)
+    { submitted_task_.insert(executing_graph_command_buffers_.back()
                                  .command_task_->this_unique_ptr_);
     }*/
-    command_task_flow->submitted_task_.insert(executing_graph_command_buffers_.back()
-                               .command_task_->this_unique_ptr_);
+    command_task_flow->submitted_task_.insert(
+        executing_graph_command_buffers_.back()
+            .command_task_->this_unique_ptr_);
 
     recoding_graph_command_buffer_number_ -= temp;
   } else if (input_tasks->command_task_->GetCommandType() ==
              CommandBufferType::COMPUTE) {
     std::lock_guard<std::mutex> guard{executing_compute_command_buffers_mutex_};
-    const std::uint32_t temp = static_cast<std::uint32_t>(input_tasks->command_buffers_.size());
+    const std::uint32_t temp =
+        static_cast<std::uint32_t>(input_tasks->command_buffers_.size());
     executing_compute_command_buffers_.emplace_back(std::move(*input_tasks));
-    /*if (executing_compute_command_buffers_.back().wait_semaphore_.at(0).size() !=
-        executing_compute_command_buffers_.back()
+    /*if (executing_compute_command_buffers_.back().wait_semaphore_.at(0).size()
+    != executing_compute_command_buffers_.back()
             .default_wait_semaphore_number_) {
       submitted_task_.insert(executing_compute_command_buffers_.back()
                                  .command_task_->this_unique_ptr_);
     }*/
-    command_task_flow->submitted_task_.insert(executing_compute_command_buffers_.back()
-                               .command_task_->this_unique_ptr_);
+    command_task_flow->submitted_task_.insert(
+        executing_compute_command_buffers_.back()
+            .command_task_->this_unique_ptr_);
 
     recording_compute_command_buffer_number_ -= temp;
   } else {
     std::lock_guard<std::mutex> guard{
         executing_transform_command_buffers_mutex_};
-    const std::uint32_t temp = static_cast<std::uint32_t>(input_tasks->command_buffers_.size());
+    const std::uint32_t temp =
+        static_cast<std::uint32_t>(input_tasks->command_buffers_.size());
     executing_transform_command_buffers_.emplace_back(std::move(*input_tasks));
-    /*if (executing_transform_command_buffers_.back().wait_semaphore_.at(0).size() !=
+    /*if
+    (executing_transform_command_buffers_.back().wait_semaphore_.at(0).size() !=
         executing_transform_command_buffers_.back()
             .default_wait_semaphore_number_) {
       submitted_task_.insert(executing_transform_command_buffers_.back()
                                  .command_task_->this_unique_ptr_);
     }*/
-    command_task_flow->submitted_task_.insert(executing_transform_command_buffers_.back()
-                               .command_task_->this_unique_ptr_);
+    command_task_flow->submitted_task_.insert(
+        executing_transform_command_buffers_.back()
+            .command_task_->this_unique_ptr_);
 
     recording_transform_command_buffer_number_ -= temp;
   }
@@ -2311,52 +2347,56 @@ void MM::RenderSystem::CommandExecutor::ProcessTask() {
   do {
     ProcessCompleteTask();
 
-    std::unique_lock<std::mutex> task_guard{task_flow_queue_mutex_};
-    if (!task_flow_queue_.empty()) {
-      ProcessWaitTask();
+    {
+      std::unique_lock<std::mutex> task_guard{task_flow_queue_mutex_};
+      if (!task_flow_queue_.empty()) {
+        ProcessWaitTask();
+        std::shared_ptr<ExecutingCommandTaskFlow> command_task_flow{
+            std::make_shared<ExecutingCommandTaskFlow>(
+                std::move(task_flow_queue_.back()))};
+        task_flow_queue_.erase(--task_flow_queue_.end());
+        task_guard.unlock();
 
-      std::shared_ptr<ExecutingCommandTaskFlow> command_task_flow{
-          std::make_shared <ExecutingCommandTaskFlow>{
-              std::move(task_flow_queue_.back())}};
-      task_flow_queue_.erase(--task_flow_queue_.end());
-      task_guard.unlock();
-
-      bool skip_task_flow = false;
-      ProcessRequireCommandBufferNumberLagerThanExecutorHaveCommandBufferNumber(
-          command_task_flow, skip_task_flow);
-      if (skip_task_flow) {
-        continue;
-      }
-
-      ProcessRootTaskAndSubTask(command_task_flow);
-
-      while (!command_task_flow->can_be_submitted_tasks_.empty()) {
-        std::uint32_t free_graph_command_buffer_number =
-            GetFreeGraphCommandNumber();
-        std::uint32_t free_compute_command_buffer_number =
-            GetFreeComputeCommandNumber();
-        std::uint32_t free_transform_command_buffer_number =
-            GetFreeTransformCommandNumber();
-
-        std::list<CommandTaskToBeSubmit> next_can_be_submitted_tasks;
-        for (auto command_task_to_be_submit = command_task_flow->can_be_submitted_tasks_.begin();
-             command_task_to_be_submit !=
-             command_task_flow->can_be_submitted_tasks_.end();) {
-          assert(command_task_to_be_submit->command_task_->GetCommandType() !=
-                 CommandBufferType::UNDEFINED);
-          ProcessOneCanSubmitTask(command_task_to_be_submit, command_task_flow,
-                                  free_graph_command_buffer_number,
-                                  free_compute_command_buffer_number,
-                                  free_transform_command_buffer_number);
+        bool skip_task_flow = false;
+        ProcessRequireCommandBufferNumberLagerThanExecutorHaveCommandBufferNumber(
+            command_task_flow, skip_task_flow);
+        if (skip_task_flow) {
+          continue;
         }
 
-        if (*command_task_flow->execute_result_ != ExecuteResult::SUCCESS) {
-          ProcessWhenOneFailedSubmit(command_task_flow, next_can_be_submitted_tasks);
-          break;
-        }
+        ProcessRootTaskAndSubTask(command_task_flow);
 
-        ProcessNextStepCanSubmitTask(next_can_be_submitted_tasks,
-                                     command_task_flow);
+        while (!command_task_flow->can_be_submitted_tasks_.empty()) {
+          std::uint32_t free_graph_command_buffer_number =
+              GetFreeGraphCommandNumber();
+          std::uint32_t free_compute_command_buffer_number =
+              GetFreeComputeCommandNumber();
+          std::uint32_t free_transform_command_buffer_number =
+              GetFreeTransformCommandNumber();
+
+          std::list<CommandTaskToBeSubmit> next_can_be_submitted_tasks;
+          for (auto command_task_to_be_submit =
+                   command_task_flow->can_be_submitted_tasks_.begin();
+               command_task_to_be_submit !=
+               command_task_flow->can_be_submitted_tasks_.end();) {
+            assert(command_task_to_be_submit->command_task_->GetCommandType() !=
+                   CommandBufferType::UNDEFINED);
+            ProcessOneCanSubmitTask(command_task_to_be_submit,
+                                    command_task_flow,
+                                    free_graph_command_buffer_number,
+                                    free_compute_command_buffer_number,
+                                    free_transform_command_buffer_number);
+          }
+
+          if (*command_task_flow->execute_result_ != ExecuteResult::SUCCESS) {
+            ProcessWhenOneFailedSubmit(command_task_flow,
+                                       next_can_be_submitted_tasks);
+            break;
+          }
+
+          ProcessNextStepCanSubmitTask(next_can_be_submitted_tasks,
+                                       command_task_flow);
+        }
       }
     }
 
@@ -2364,8 +2404,8 @@ void MM::RenderSystem::CommandExecutor::ProcessTask() {
   } while (executing_graph_command_buffers_.empty() &&
            executing_compute_command_buffers_.empty() &&
            executing_transform_command_buffers_.empty() &&
-           task_flow_queue_.empty() && 
-           recoding_graph_command_buffer_number_ == 0 && 
+           task_flow_queue_.empty() &&
+           recoding_graph_command_buffer_number_ == 0 &&
            recording_compute_command_buffer_number_ == 0 &&
            recording_transform_command_buffer_number_ == 0);
 
