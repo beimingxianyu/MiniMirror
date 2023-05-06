@@ -546,6 +546,8 @@ class CommandExecutor {
     std::unordered_set<std::unique_ptr<CommandTask>*> submitted_task_;
     std::list<CommandTaskToBeSubmit> can_be_submitted_tasks_;
     std::list<CommandTaskToBeSubmit> pre_task_not_submit_task_;
+
+    std::mutex submitted_task_mutex_{};
   };
 
   static void UpdateCommandTaskLine(
@@ -562,6 +564,13 @@ class CommandExecutor {
         std::unique_ptr<CommandTask>&& command_task,
         const std::vector<VkSemaphore>& default_wait_semaphore,
         const std::vector<VkSemaphore>& default_signal_semaphore);
+    CommandTaskToBeSubmit(
+        CommandExecutor* command_executor,
+        const std::shared_ptr<ExecutingCommandTaskFlow>& command_task_flow,
+        std::unique_ptr<CommandTask>&& command_task,
+        const std::vector<VkSemaphore>& default_wait_semaphore,
+        const std::vector<VkSemaphore>& default_signal_semaphore,
+        std::vector<std::uint32_t>&& post_task_sub_task_numbers);
     CommandTaskToBeSubmit(const CommandTaskToBeSubmit& other) = delete;
     CommandTaskToBeSubmit(CommandTaskToBeSubmit&& other) noexcept;
     CommandTaskToBeSubmit& operator=(const CommandTaskToBeSubmit& other) =
@@ -573,6 +582,7 @@ class CommandExecutor {
     std::unique_ptr<CommandTask> command_task_{nullptr};
     std::vector<std::vector<VkSemaphore>> default_wait_semaphore_{};
     std::vector<std::vector<VkSemaphore>> default_signal_semaphore_{};
+    std::vector<std::uint32_t> post_task_sub_task_numbers_{};
 
     bool operator<(const CommandTaskToBeSubmit& other) const;
   };
@@ -624,6 +634,10 @@ class CommandExecutor {
       const std::shared_ptr<ExecutingCommandTaskFlow>& command_task_flow,
       bool& skip_task_flow);
 
+  void ProcessPreTaskNoSubmitTask(
+      const std::shared_ptr<ExecutingCommandTaskFlow>& command_task_flow,
+      const CommandTaskToBeSubmit& to_be_submit_task);
+
   void ProcessRootTaskAndSubTask(
       const std::shared_ptr<ExecutingCommandTaskFlow>& command_task_flow);
 
@@ -645,11 +659,9 @@ class CommandExecutor {
       std::uint32_t free_transform_command_buffer_number);
 
   void ProcessWhenOneFailedSubmit(
-      const std::shared_ptr<ExecutingCommandTaskFlow>& command_task_flow,
-      std::list<CommandTaskToBeSubmit>& next_can_be_submitted_tasks);
+      const std::shared_ptr<ExecutingCommandTaskFlow>& command_task_flow);
 
   void ProcessNextStepCanSubmitTask(
-      std::list<CommandTaskToBeSubmit>& next_can_be_submitted_tasks,
       const std::shared_ptr<ExecutingCommandTaskFlow>& command_task_flow);
 
   ExecuteResult SubmitTasks(
@@ -660,6 +672,9 @@ class CommandExecutor {
 
  private:
   RenderEngine* render_engine_{nullptr};
+
+  bool valid_{true};
+
   std::stack<std::unique_ptr<AllocatedCommandBuffer>>
       free_graph_command_buffers_{};
   std::stack<std::unique_ptr<AllocatedCommandBuffer>>
