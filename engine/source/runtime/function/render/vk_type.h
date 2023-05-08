@@ -7,12 +7,11 @@
 #include <memory>
 #include <mutex>
 #include <optional>
-#include <vector>
 #include <utility>
+#include <vector>
 
 #include "runtime/function/render/pre_header.h"
 #include "runtime/resource/asset_type/asset_type.h"
-
 
 // TODO Split these classes into different files.
 namespace MM {
@@ -54,7 +53,7 @@ struct DataToBufferInfo {
 };
 
 class ManagedObjectBase {
-public:
+ public:
   ManagedObjectBase() = default;
   virtual ~ManagedObjectBase() = default;
   ManagedObjectBase(const std::string& object_name,
@@ -70,39 +69,77 @@ public:
   friend bool operator!=(const ManagedObjectBase& lhs,
                          const ManagedObjectBase& rhs);
 
-public:
+ public:
   const std::string& GetObjectName() const;
 
   const std::uint32_t& GetObjectID() const;
 
   virtual void Release();
 
-protected:
+ protected:
   void SetObjectName(const std::string& new_object_name);
   void SetObjectID(const std::uint32_t& new_object_ID);
 
-private:
+ private:
   std::string object_name_{};
   std::uint32_t object_ID_{0};
 };
 
-template <typename ObjectType,
-          typename IsDeriveType = std::enable_if<
-            std::is_base_of<ManagedObjectBase, ObjectType>::value, void>::type>
-class RenderManageDataWrapper;
+template <typename ObjectType>
+class RenderManageBase;
+
+template <
+    typename ObjectType,
+    typename IsDeriveType = std::enable_if<
+        std::is_base_of<ManagedObjectBase, ObjectType>::value, void>::type>
+class RenderManageDataWrapper {
+  friend class RenderManageBase<ObjectType>;
+
+ public:
+  RenderManageDataWrapper() = delete;
+  ~RenderManageDataWrapper() = default;
+  RenderManageDataWrapper(const RenderManageDataWrapper& other) = delete;
+  RenderManageDataWrapper(RenderManageDataWrapper&& other) noexcept;
+  RenderManageDataWrapper& operator=(const RenderManageDataWrapper& other) =
+      delete;
+  RenderManageDataWrapper& operator=(RenderManageDataWrapper&& other) noexcept =
+      delete;
+
+ public:
+  ObjectType& GetData();
+  const ObjectType& GetData() const;
+  std::unique_ptr<ObjectType> GetDataDeepCopy(
+      const std::string& new_name_of_copy) const;
+  std::unique_ptr<ObjectType> GetDataLightCopy(
+      const std::string& new_name_of_copy) const;
+  uint32_t GetUseCount() const;
+
+ protected:
+  template <typename... Args>
+  explicit RenderManageDataWrapper(Args... args);
+
+  template <typename DerivedType, typename... Args>
+  explicit RenderManageDataWrapper(Args... args);
+
+  explicit RenderManageDataWrapper(std::unique_ptr<ObjectType>&& object);
+
+ private:
+  std::uint32_t use_count_{1};
+  std::unique_ptr<ObjectType> object_;
+};
 
 template <typename ObjectType>
 class RenderManageBase {
   friend class RenderManageDataWrapper<ObjectType>;
   friend class RenderObject;
 
-public:
+ public:
   RenderManageBase(const RenderManageBase& other) = delete;
   RenderManageBase(RenderManageBase&& other) = delete;
   RenderManageBase& operator=(const RenderManageBase& other) = delete;
   RenderManageBase& operator=(RenderManageBase&& other) = delete;
 
-public:
+ public:
   static RenderManageBase* GetInstanceBase();
 
   uint32_t GetIncreaseIndex();
@@ -115,18 +152,19 @@ public:
 
   const std::string& GetObjectNameFromID(const std::uint32_t& object_ID) const;
 
-  //virtual void UseData(const std::string& object_name);
+  // virtual void UseData(const std::string& object_name);
 
-  //virtual void UseDate(const std::uint32_t& object_ID);
+  // virtual void UseDate(const std::uint32_t& object_ID);
 
-  //virtual void DiscardData(const std::string& object_name);
+  // virtual void DiscardData(const std::string& object_name);
 
-  //virtual void DiscardData(const std::uint32_t& object_ID);
+  // virtual void DiscardData(const std::uint32_t& object_ID);
 
-  //virtual void UpdateManage();
+  // virtual void UpdateManage();
 
   /**
-   * \remark Return value is object id, but will return 0 when \ref object_name is not exist.
+   * \remark Return value is object id, but will return 0 when \ref object_name
+   * is not exist.
    */
   virtual std::uint32_t GetDeepCopy(const std::string& new_name_of_object,
                                     const std::string& object_name);
@@ -154,15 +192,15 @@ public:
 
   virtual void ReleaseUse(const std::string& object_name);
 
-protected:
+ protected:
   RenderManageBase() = default;
   ~RenderManageBase() = default;
   static RenderManageBase* render_manager_;
 
-private:
+ private:
   static bool DestroyBase();
 
-private:
+ private:
   static std::mutex sync_flag_base;
 
   mutable std::shared_mutex data_lock_{};
@@ -170,54 +208,14 @@ private:
   std::mutex increase_index_lock{};
   std::unordered_map<std::string, uint32_t> object_name_to_ID_{};
   std::unordered_map<uint32_t, RenderManageDataWrapper<ObjectType>>
-  object_ID_to_object_{};
-};
-
-template <typename ObjectType,
-          typename IsDeriveType = std::enable_if<
-            std::is_base_of<ManagedObjectBase, ObjectType>::value, void>::type>
-class RenderManageDataWrapper {
-  friend class RenderManageBase<ObjectType>;
-
-public:
-  RenderManageDataWrapper() = delete;
-  ~RenderManageDataWrapper() = default;
-  RenderManageDataWrapper(const RenderManageDataWrapper& other) = delete;
-  RenderManageDataWrapper(RenderManageDataWrapper&& other) noexcept;
-  RenderManageDataWrapper& operator=(
-      const RenderManageDataWrapper& other) = delete;
-  RenderManageDataWrapper& operator=(RenderManageDataWrapper&& other) noexcept
-  = delete;
-
-public:
-  ObjectType& GetData();
-  const ObjectType& GetData() const;
-  std::unique_ptr<ObjectType> GetDataDeepCopy(
-      const std::string& new_name_of_copy) const;
-  std::unique_ptr<ObjectType> GetDataLightCopy(
-      const std::string& new_name_of_copy) const;
-  uint32_t GetUseCount() const;
-
-protected:
-  template <typename... Args>
- explicit RenderManageDataWrapper(Args... args);
-
-  template <typename DerivedType, typename ...Args>
-  explicit RenderManageDataWrapper(Args... args);
-
-  explicit RenderManageDataWrapper(std::unique_ptr<ObjectType>&& object);
-
-private:
-  std::uint32_t use_count_{1};
-  std::unique_ptr<ObjectType> object_;
+      object_ID_to_object_{};
 };
 
 template <typename ObjectType>
 std::mutex RenderManageBase<ObjectType>::sync_flag_base{};
 
 template <typename ObjectType>
-RenderManageBase<ObjectType>* RenderManageBase<ObjectType>::
-GetInstanceBase() {
+RenderManageBase<ObjectType>* RenderManageBase<ObjectType>::GetInstanceBase() {
   if (render_manager_) {
   } else {
     std::lock_guard<std::mutex> guard{sync_flag_base};
@@ -278,46 +276,49 @@ const std::string& RenderManageBase<ObjectType>::GetObjectNameFromID(
   return object_ID_to_object_.at(object_ID).GetData().GetObjectName();
 }
 
-//template <typename ObjectType>
-//void RenderManageBase<ObjectType>::UseData(const std::string& object_name) {
-//  assert(HaveData(object_name));
-//  std::unique_lock<std::shared_mutex> guard(data_lock_);
-//  ++update_buffer[object_name_to_ID_[object_name]];
-//}
+// template <typename ObjectType>
+// void RenderManageBase<ObjectType>::UseData(const std::string& object_name) {
+//   assert(HaveData(object_name));
+//   std::unique_lock<std::shared_mutex> guard(data_lock_);
+//   ++update_buffer[object_name_to_ID_[object_name]];
+// }
 //
-//template <typename ObjectType>
-//void RenderManageBase<ObjectType>::UseDate(const std::uint32_t& object_ID) {
-//  std::unique_lock<std::shared_mutex> guard(data_lock_);
-//  ++update_buffer[object_ID];
-//}
+// template <typename ObjectType>
+// void RenderManageBase<ObjectType>::UseDate(const std::uint32_t& object_ID) {
+//   std::unique_lock<std::shared_mutex> guard(data_lock_);
+//   ++update_buffer[object_ID];
+// }
 //
-//template <typename ObjectType>
-//void RenderManageBase<ObjectType>::DiscardData(const std::string& object_name) {
-//  assert(HaveData(object_name));
-//  std::unique_lock<std::shared_mutex> guard(data_lock_);
-//  const auto use_count = --update_buffer[object_name_to_ID_[object_name]];
-//}
+// template <typename ObjectType>
+// void RenderManageBase<ObjectType>::DiscardData(const std::string&
+// object_name) {
+//   assert(HaveData(object_name));
+//   std::unique_lock<std::shared_mutex> guard(data_lock_);
+//   const auto use_count = --update_buffer[object_name_to_ID_[object_name]];
+// }
 //
-//template <typename ObjectType>
-//void RenderManageBase<ObjectType>::DiscardData(const std::uint32_t& object_ID) {
-//  std::unique_lock<std::shared_mutex> guard(data_lock_);
-//  --update_buffer[object_ID];
-//}
+// template <typename ObjectType>
+// void RenderManageBase<ObjectType>::DiscardData(const std::uint32_t&
+// object_ID) {
+//   std::unique_lock<std::shared_mutex> guard(data_lock_);
+//   --update_buffer[object_ID];
+// }
 //
-//template <typename ObjectType>
-//void RenderManageBase<ObjectType>::UpdateManage() {
-//  for (const auto& data : update_buffer) {
-//    std::unique_lock<std::shared_mutex> guard{data_lock_};
-//    assert(data.second >= 0 ||
-//           data.second * -1 > object_ID_to_object_.at(data.first).use_count_);
-//    object_ID_to_object_[data.first].use_count_ += data.second;
-//    if (object_ID_to_object_.at(data.first).use_count_ == 0) {
-//      object_name_to_ID_.erase(
-//          object_ID_to_object_.at(data.first).GetData().GetObjectName());
-//      object_ID_to_object_.erase(data.first);
-//    }
-//  }
-//}
+// template <typename ObjectType>
+// void RenderManageBase<ObjectType>::UpdateManage() {
+//   for (const auto& data : update_buffer) {
+//     std::unique_lock<std::shared_mutex> guard{data_lock_};
+//     assert(data.second >= 0 ||
+//            data.second * -1 >
+//            object_ID_to_object_.at(data.first).use_count_);
+//     object_ID_to_object_[data.first].use_count_ += data.second;
+//     if (object_ID_to_object_.at(data.first).use_count_ == 0) {
+//       object_name_to_ID_.erase(
+//           object_ID_to_object_.at(data.first).GetData().GetObjectName());
+//       object_ID_to_object_.erase(data.first);
+//     }
+//   }
+// }
 
 template <typename ObjectType>
 std::uint32_t RenderManageBase<ObjectType>::GetDeepCopy(
@@ -338,8 +339,7 @@ std::uint32_t RenderManageBase<ObjectType>::GetDeepCopy(
       return 0;
     }
 
-    object.reset(
-        std::move(new_object));
+    object.reset(std::move(new_object));
   }
 
   {
@@ -393,7 +393,7 @@ std::uint32_t RenderManageBase<ObjectType>::GetLightCopy(
   {
     std::shared_lock<std::shared_mutex> guard{data_lock_};
     auto new_object = object_ID_to_object_.at(name_to_ID)
-                                          .GetDataLightCopy(new_name_of_object);
+                          .GetDataLightCopy(new_name_of_object);
     if (!new_object) {
       return 0;
     }
@@ -419,8 +419,8 @@ std::uint32_t RenderManageBase<ObjectType>::GetLightCopy(
   std::unique_ptr<ObjectType> object{nullptr};
   {
     std::shared_lock<std::shared_mutex> guard{data_lock_};
-    auto new_object = object_ID_to_object_.at(object_ID)
-                                          .GetDataLightCopy(new_name_of_object);
+    auto new_object =
+        object_ID_to_object_.at(object_ID).GetDataLightCopy(new_name_of_object);
     if (!new_object) {
       return 0;
     }
@@ -515,8 +515,7 @@ bool RenderManageBase<ObjectType>::DestroyBase() {
 template <typename ObjectType, typename IsDeriveType>
 RenderManageDataWrapper<ObjectType, IsDeriveType>::RenderManageDataWrapper(
     RenderManageDataWrapper&& other) noexcept
-  : use_count_(other.use_count_),
-    object_(std::move(other.use_count_)) {
+    : use_count_(other.use_count_), object_(std::move(other.use_count_)) {
   other.use_count_ = 0;
 }
 
@@ -526,49 +525,47 @@ ObjectType& RenderManageDataWrapper<ObjectType, IsDeriveType>::GetData() {
 }
 
 template <typename ObjectType, typename IsDeriveType>
-const ObjectType& RenderManageDataWrapper<
-  ObjectType, IsDeriveType>::GetData() const {
+const ObjectType& RenderManageDataWrapper<ObjectType, IsDeriveType>::GetData()
+    const {
   return *object_;
 }
 
 template <typename ObjectType, typename IsDeriveType>
-std::unique_ptr<ObjectType> RenderManageDataWrapper<ObjectType, IsDeriveType>::
-GetDataDeepCopy(const std::string& new_name_of_copy) const {
+std::unique_ptr<ObjectType>
+RenderManageDataWrapper<ObjectType, IsDeriveType>::GetDataDeepCopy(
+    const std::string& new_name_of_copy) const {
   return object_->GetDeepCopy(new_name_of_copy);
 }
 
 template <typename ObjectType, typename IsDeriveType>
-std::unique_ptr<ObjectType> RenderManageDataWrapper<ObjectType, IsDeriveType>::
-GetDataLightCopy(const std::string& new_name_of_copy) const {
+std::unique_ptr<ObjectType>
+RenderManageDataWrapper<ObjectType, IsDeriveType>::GetDataLightCopy(
+    const std::string& new_name_of_copy) const {
   return object_->GetLightCopy(new_name_of_copy);
 }
 
 template <typename ObjectType, typename IsDeriveType>
-uint32_t RenderManageDataWrapper<
-  ObjectType, IsDeriveType>::GetUseCount() const {
+uint32_t RenderManageDataWrapper<ObjectType, IsDeriveType>::GetUseCount()
+    const {
   return use_count_;
 }
 
 template <typename ObjectType, typename IsDeriveType>
-template <typename ... Args>
+template <typename... Args>
 RenderManageDataWrapper<ObjectType, IsDeriveType>::RenderManageDataWrapper(
     Args... args)
-  : use_count_(1),
-    object_(new ObjectType{std::forward<Args>(args)...}) {
-}
+    : use_count_(1), object_(new ObjectType{std::forward<Args>(args)...}) {}
 
 template <typename ObjectType, typename IsDeriveType>
-template <typename DerivedType, typename ... Args>
+template <typename DerivedType, typename... Args>
 RenderManageDataWrapper<ObjectType, IsDeriveType>::RenderManageDataWrapper(
     Args... args)
-  : use_count_(1),
-    object_(new DerivedType(std::forward<Args>(args)...)) {}
+    : use_count_(1), object_(new DerivedType(std::forward<Args>(args)...)) {}
 
 template <typename ObjectType, typename IsDeriveType>
 RenderManageDataWrapper<ObjectType, IsDeriveType>::RenderManageDataWrapper(
     std::unique_ptr<ObjectType>&& object)
-  : object_(std::move(object)) {
-}
+    : object_(std::move(object)) {}
 
 struct RenderEngineInfo {
   VkSampleCountFlagBits multi_sample_count_{VK_SAMPLE_COUNT_1_BIT};
@@ -595,7 +592,6 @@ struct ImageBindInfo {
 };
 
 struct ImageRange {
-
   VkImageSubresource range_;
 };
 
@@ -652,12 +648,12 @@ struct BufferInfo {
 };
 
 class VertexInputState {
-public:
+ public:
   VertexInputState();
   ~VertexInputState() = default;
   /**
-   * \brief Construct object with a vertex buffer offset.(No instance description)
-   * \param vertex_buffer_offset The offset of vertex buffer.
+   * \brief Construct object with a vertex buffer offset.(No instance
+   * description) \param vertex_buffer_offset The offset of vertex buffer.
    */
   VertexInputState(const VkDeviceSize& vertex_buffer_offset);
   VertexInputState(
@@ -665,20 +661,21 @@ public:
       const std::vector<VkVertexInputBindingDescription>& instance_binds,
       const std::vector<VkDeviceSize>& instance_buffer_offset,
       const std::vector<VkVertexInputAttributeDescription>&
-      instance_attributes);
+          instance_attributes);
   VertexInputState(const VertexInputState& other) = default;
   VertexInputState(VertexInputState&& other) noexcept;
   VertexInputState& operator=(const VertexInputState& other);
   VertexInputState& operator=(VertexInputState&& other) noexcept;
 
-public:
+ public:
   bool IsValid() const;
 
   void Reset();
 
   /**
-   * \remark When a layout error occurs, the \ref error_message will be set as an
-   * error message, otherwise the \ref error_message will be set to "succeeded".
+   * \remark When a layout error occurs, the \ref error_message will be set as
+   * an error message, otherwise the \ref error_message will be set to
+   * "succeeded".
    */
   bool CheckLayoutIsCorrect(std::string& error_message) const;
 
@@ -689,19 +686,19 @@ public:
   const VkDeviceSize& GetVertexBufferOffset() const;
 
   const std::vector<VkVertexInputAttributeDescription>& GetVertexAttributes()
-  const;
+      const;
 
   const std::vector<VkVertexInputBindingDescription>& GetInstanceBinds() const;
 
   const std::vector<VkDeviceSize>& GetInstanceBufferOffset() const;
 
-  const std::vector<VkVertexInputAttributeDescription>&
-  GetInstanceAttributes() const;
+  const std::vector<VkVertexInputAttributeDescription>& GetInstanceAttributes()
+      const;
 
-private:
+ private:
   void InitDefaultVertexInput();
 
-private:
+ private:
   VkVertexInputBindingDescription vertex_bind_{};
   VkDeviceSize vertex_buffer_offset_{0};
   std::vector<VkVertexInputAttributeDescription> vertex_attributes_{5};
@@ -711,7 +708,7 @@ private:
 };
 
 class AllocatedBuffer {
-public:
+ public:
   AllocatedBuffer() = default;
   ~AllocatedBuffer() = default;
   AllocatedBuffer(const VmaAllocator& allocator, const VkBuffer& buffer,
@@ -722,7 +719,7 @@ public:
   AllocatedBuffer& operator=(const AllocatedBuffer& other);
   AllocatedBuffer& operator=(AllocatedBuffer&& other) noexcept;
 
-public:
+ public:
   const VkDeviceSize& GetBufferSize() const;
 
   bool CanMapped() const;
@@ -747,12 +744,12 @@ public:
 
   bool IsValid() const;
 
-private:
+ private:
   class AllocatedBufferWrapper {
     friend class RenderEngine;
     friend class RenderResourceTexture;
 
-  public:
+   public:
     AllocatedBufferWrapper() = default;
     ~AllocatedBufferWrapper();
     AllocatedBufferWrapper(const VmaAllocator& allocator,
@@ -760,11 +757,11 @@ private:
                            const VmaAllocation& allocation);
     AllocatedBufferWrapper(const AllocatedBufferWrapper& other) = delete;
     AllocatedBufferWrapper(AllocatedBufferWrapper&& other) = delete;
-    AllocatedBufferWrapper& operator=(const AllocatedBufferWrapper& other)
-    = delete;
+    AllocatedBufferWrapper& operator=(const AllocatedBufferWrapper& other) =
+        delete;
     AllocatedBufferWrapper& operator=(AllocatedBufferWrapper&& other) = delete;
 
-  public:
+   public:
     const VmaAllocator& GetAllocator() const;
 
     const VkBuffer& GetBuffer() const;
@@ -773,19 +770,19 @@ private:
 
     bool IsValid() const;
 
-  private:
+   private:
     VmaAllocator allocator_{nullptr};
     VkBuffer buffer_{nullptr};
     VmaAllocation allocation_{nullptr};
   };
 
-private:
+ private:
   BufferInfo buffer_info_{};
   std::shared_ptr<AllocatedBufferWrapper> wrapper_{nullptr};
 };
 
 class ImageChunkInfo {
-public:
+ public:
   ImageChunkInfo() = default;
   ~ImageChunkInfo() = default;
   ImageChunkInfo(const VkOffset3D& offset, const VkExtent3D& extent);
@@ -794,7 +791,7 @@ public:
   ImageChunkInfo& operator=(const ImageChunkInfo& other);
   ImageChunkInfo& operator=(ImageChunkInfo&& other) noexcept;
 
-public:
+ public:
   VkOffset3D& GetOffset();
   const VkOffset3D& GetOffset() const;
 
@@ -809,7 +806,7 @@ public:
 
   bool IsValid() const;
 
-private:
+ private:
   VkOffset3D offset_{0, 0, 0};
   VkExtent3D extent_{0, 0, 0};
 };
@@ -817,7 +814,7 @@ private:
 class AllocatedImage {
   friend class RenderResourceTexture;
 
-public:
+ public:
   AllocatedImage() = default;
   ~AllocatedImage() = default;
   AllocatedImage(const VmaAllocator& allocator, const VkImage& image,
@@ -827,7 +824,7 @@ public:
   AllocatedImage& operator=(const AllocatedImage& other);
   AllocatedImage& operator=(AllocatedImage&& other) noexcept;
 
-public:
+ public:
   const VkExtent3D& GetImageExtent() const;
 
   const VkDeviceSize& GetImageSize() const;
@@ -862,23 +859,23 @@ public:
 
   bool IsValid() const;
 
-private:
+ private:
   class AllocatedImageWrapper {
     friend class RenderEngine;
     friend class RenderResourceTexture;
 
-  public:
+   public:
     AllocatedImageWrapper() = default;
     ~AllocatedImageWrapper();
     AllocatedImageWrapper(const VmaAllocator& allocator, const VkImage& image,
                           const VmaAllocation& allocation);
     AllocatedImageWrapper(const AllocatedImageWrapper& other) = delete;
     AllocatedImageWrapper(AllocatedImageWrapper&& other) = delete;
-    AllocatedImageWrapper& operator=(const AllocatedImageWrapper& other)
-    = delete;
+    AllocatedImageWrapper& operator=(const AllocatedImageWrapper& other) =
+        delete;
     AllocatedImageWrapper& operator=(AllocatedImageWrapper&& other) = delete;
 
-  public:
+   public:
     const VmaAllocator& GetAllocator() const;
 
     const VkImage& GetImage() const;
@@ -887,19 +884,19 @@ private:
 
     bool IsValid() const;
 
-  private:
+   private:
     VmaAllocator allocator_{nullptr};
     VkImage image_{nullptr};
     VmaAllocation allocation_{nullptr};
   };
 
-private:
+ private:
   ImageInfo image_info_{};
   std::shared_ptr<const AllocatedImageWrapper> wrapper_{nullptr};
 };
 
 class BufferChunkInfo {
-public:
+ public:
   BufferChunkInfo() = default;
   ~BufferChunkInfo() = default;
   BufferChunkInfo(const VkDeviceSize& start_offset,
@@ -909,7 +906,7 @@ public:
   BufferChunkInfo& operator=(const BufferChunkInfo& other) noexcept;
   BufferChunkInfo& operator=(BufferChunkInfo&& other) noexcept;
 
-public:
+ public:
   VkDeviceSize& GetOffset();
   const VkDeviceSize& GetOffset() const;
 
@@ -924,13 +921,13 @@ public:
 
   bool IsValid() const;
 
-private:
+ private:
   VkDeviceSize offset_{0};
   VkDeviceSize size_{0};
 };
 
 class VertexAndIndexBuffer {
-public:
+ public:
   VertexAndIndexBuffer() = delete;
   ~VertexAndIndexBuffer() = default;
   VertexAndIndexBuffer(RenderEngine* engine);
@@ -939,7 +936,7 @@ public:
   VertexAndIndexBuffer& operator=(const VertexAndIndexBuffer& other) = delete;
   VertexAndIndexBuffer& operator=(VertexAndIndexBuffer&& other) = delete;
 
-public:
+ public:
   bool IsValid() const;
 
   const AllocatedBuffer& GetVertexBuffer() const;
@@ -954,46 +951,41 @@ public:
       const std::vector<AssetType::Vertex>& vertices,
       const std::vector<uint32_t>& indexes,
       const std::shared_ptr<BufferChunkInfo>& output_vertex_buffer_chunk_info,
-      const
-      std::shared_ptr<MM::RenderSystem::BufferChunkInfo>
-      &
-      output_index_buffer_chunk_info);
+      const std::shared_ptr<MM::RenderSystem::BufferChunkInfo>&
+          output_index_buffer_chunk_info);
 
   void Release();
 
-private:
-  enum class BufferType {
-    VERTEX,
-    INDEX
-  };
- bool ChooseVertexBufferReserveSize(const VkDeviceSize& require_size, VkDeviceSize& output_reserve_size);
+ private:
+  enum class BufferType { VERTEX, INDEX };
+  bool ChooseVertexBufferReserveSize(const VkDeviceSize& require_size,
+                                     VkDeviceSize& output_reserve_size);
 
- bool ChooseIndexBufferReserveSize(const VkDeviceSize& require_size,
+  bool ChooseIndexBufferReserveSize(const VkDeviceSize& require_size,
                                     VkDeviceSize& output_reserve_size);
 
- bool ChooseReserveSize(const BufferType& buffer_type,
-                        const VkDeviceSize& require_size, VkDeviceSize& output_reserve_size);
+  bool ChooseReserveSize(const BufferType& buffer_type,
+                         const VkDeviceSize& require_size,
+                         VkDeviceSize& output_reserve_size);
 
   void GetEndSizeAndOffset(
-      const AllocatedBuffer& buffer, std::list<std::shared_ptr<BufferChunkInfo>>& buffer_chunks_info,
-      VkDeviceSize& output_end_size,
-      VkDeviceSize& output_offset);
+      const AllocatedBuffer& buffer,
+      std::list<std::shared_ptr<BufferChunkInfo>>& buffer_chunks_info,
+      VkDeviceSize& output_end_size, VkDeviceSize& output_offset);
 
-  ExecuteResult ScanBufferToFindSuitableArea(AllocatedBuffer& buffer,
-                                             std::list<std::shared_ptr<
-                                               BufferChunkInfo>>&
-                                             buffer_chunks_info,
-                                             const VkDeviceSize& require_size,
-                                             VkDeviceSize& output_offset);
+  ExecuteResult ScanBufferToFindSuitableArea(
+      AllocatedBuffer& buffer,
+      std::list<std::shared_ptr<BufferChunkInfo>>& buffer_chunks_info,
+      const VkDeviceSize& require_size, VkDeviceSize& output_offset);
 
   bool ReserveVertexBuffer(const VkDeviceSize& new_buffer_size);
 
   bool ReserveIndexBuffer(const VkDeviceSize& new_buffer_size);
 
-  bool Reserve(const VkDeviceSize& new_vertex_buffer_size, const VkDeviceSize&
-               new_index_buffer_size);
+  bool Reserve(const VkDeviceSize& new_vertex_buffer_size,
+               const VkDeviceSize& new_index_buffer_size);
 
-private:
+ private:
   RenderEngine* render_engine_{nullptr};
   AllocatedBuffer vertex_buffer_{};
   AllocatedBuffer index_buffer_{};
@@ -1047,8 +1039,7 @@ class AllocateSemaphore {
 
 class AllocateFence {
  public:
-  explicit AllocateFence(RenderEngine* engine,
-                             VkFenceCreateFlags flags = 0);
+  explicit AllocateFence(RenderEngine* engine, VkFenceCreateFlags flags = 0);
   ~AllocateFence() = default;
   AllocateFence(const AllocateFence& other) = default;
   AllocateFence(AllocateFence&& other) noexcept = default;
@@ -1069,10 +1060,8 @@ class AllocateFence {
     ~AllocateFenceWrapper();
     AllocateFenceWrapper(const AllocateFenceWrapper& other) = delete;
     AllocateFenceWrapper(AllocateFenceWrapper&& other) noexcept;
-    AllocateFenceWrapper& operator=(const AllocateFenceWrapper& other) =
-        delete;
-    AllocateFenceWrapper& operator=(
-        AllocateFenceWrapper&& other) noexcept;
+    AllocateFenceWrapper& operator=(const AllocateFenceWrapper& other) = delete;
+    AllocateFenceWrapper& operator=(AllocateFenceWrapper&& other) noexcept;
 
    public:
     VkFence& GetFence();
@@ -1088,5 +1077,5 @@ class AllocateFence {
  private:
   std::shared_ptr<AllocateFenceWrapper> wrapper_{nullptr};
 };
-} // namespace RenderSystem
-} // namespace MM
+}  // namespace RenderSystem
+}  // namespace MM

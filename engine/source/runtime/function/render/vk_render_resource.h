@@ -8,15 +8,90 @@
 #include <mutex>
 #include <unordered_map>
 
-#include "runtime/function/render/vk_render_resource.h"
 #include "runtime/function/render/pre_header.h"
+#include "runtime/function/render/vk_render_resource.h"
 #include "runtime/function/render/vk_type.h"
 #include "runtime/function/render/vk_utils.h"
 
 namespace MM {
 namespace RenderSystem {
 class RenderEngine;
-class RenderResourceBase;
+
+class RenderResourceBase : public ManagedObjectBase {
+  friend class RenderResourceTexture;
+  friend class RenderResourceBuffer;
+  friend class RenderResourceMesh;
+  friend class RenderResourceFrameBuffer;
+  template <typename ConstantType>
+  friend class RenderResourceConstants;
+
+ public:
+  RenderResourceBase();
+  ~RenderResourceBase() override = default;
+  RenderResourceBase(const RenderResourceBase& other) = default;
+  RenderResourceBase(RenderResourceBase&& other) noexcept;
+  RenderResourceBase& operator=(const RenderResourceBase& other);
+  RenderResourceBase& operator=(RenderResourceBase&& other) noexcept;
+
+ public:
+  const std::string& GetResourceName() const;
+
+  const uint32_t& GetResourceID() const;
+
+  virtual bool IsValid() const = 0;
+
+  /**
+   * \brief Release ownership of the resources held.
+   */
+  void Release() override;
+
+  /**
+   * \brief replaces the managed object
+   * \param other The resource to be taken ownership.
+   */
+  virtual void Reset(MM::RenderSystem::RenderResourceBase* other);
+
+  /**
+   * \brief Returns the number of  \ref RenderResourceBase objects referring to
+   * the same managed resource. \return The number of  \ref RenderResourceBase
+   * objects referring to the same managed resource.
+   */
+  virtual uint32_t UseCount() const = 0;
+
+  virtual ResourceType GetResourceType() const;
+
+  /**
+   * \brief Gets the memory size occupied by the resource.
+   * \return The size of the resource.
+   * \remark If this object held is a resource array, the sum of the memory
+   * occupied by all resources in the array is returned.
+   */
+  virtual const VkDeviceSize& GetSize() const = 0;
+
+  /**
+   * \brief Determine whether the resource is a array.
+   * \return Returns true if resource is a array, otherwise returns false.
+   */
+  virtual bool IsArray() const = 0;
+
+  virtual bool CanWrite() const = 0;
+
+  virtual std::unique_ptr<RenderResourceBase> GetLightCopy(
+      const std::string& new_name_of_copy_resource) const;
+
+  virtual std::unique_ptr<RenderResourceBase> GetDeepCopy(
+      const std::string& new_name_of_copy_resource) const;
+
+ protected:
+  RenderResourceBase(const std::string& resource_name);
+
+  RenderResourceBase(const std::string& resource_name,
+                     const std::uint32_t& resource_ID);
+
+  void SetResourceName(const std::string& new_resource_name);
+
+  void SetResourceID(const std::uint32_t& new_resource_ID);
+};
 
 // TODO RenderSystem memory collection
 class RenderResourceManager : public RenderManageBase<RenderResourceBase> {
@@ -115,82 +190,6 @@ class RenderResourceManager : public RenderManageBase<RenderResourceBase> {
   // TODO Add vertex buffer and stage buffer
 };
 
-class RenderResourceBase : ManagedObjectBase {
-  friend class RenderResourceTexture;
-  friend class RenderResourceBuffer;
-  friend class RenderResourceMesh;
-  friend class RenderResourceFrameBuffer;
-  template <typename ConstantType>
-  friend class RenderResourceConstants;
-
- public:
-  RenderResourceBase();
-  ~RenderResourceBase() override = default;
-  RenderResourceBase(const RenderResourceBase& other) = default;
-  RenderResourceBase(RenderResourceBase&& other) noexcept;
-  RenderResourceBase& operator=(const RenderResourceBase& other);
-  RenderResourceBase& operator=(RenderResourceBase&& other) noexcept;
-
- public:
-  const std::string& GetResourceName() const;
-
-  const uint32_t& GetResourceID() const;
-
-  virtual bool IsValid() const = 0;
-
-  /**
-   * \brief Release ownership of the resources held.
-   */
-  void Release() override;
-
-  /**
-   * \brief replaces the managed object
-   * \param other The resource to be taken ownership.
-   */
-  virtual void Reset(MM::RenderSystem::RenderResourceBase* other);
-
-  /**
-   * \brief Returns the number of  \ref RenderResourceBase objects referring to
-   * the same managed resource. \return The number of  \ref RenderResourceBase
-   * objects referring to the same managed resource.
-   */
-  virtual uint32_t UseCount() const = 0;
-
-  virtual ResourceType GetResourceType() const;
-
-  /**
-   * \brief Gets the memory size occupied by the resource.
-   * \return The size of the resource.
-   * \remark If this object held is a resource array, the sum of the memory
-   * occupied by all resources in the array is returned.
-   */
-  virtual const VkDeviceSize& GetSize() const = 0;
-
-  /**
-   * \brief Determine whether the resource is a array.
-   * \return Returns true if resource is a array, otherwise returns false.
-   */
-  virtual bool IsArray() const = 0;
-
-  virtual bool CanWrite() const = 0;
-
-  virtual std::unique_ptr<RenderResourceBase> GetLightCopy(
-      const std::string& new_name_of_copy_resource) const;
-
-  virtual std::unique_ptr<RenderResourceBase> GetDeepCopy(
-      const std::string& new_name_of_copy_resource) const;
-
- protected:
-  RenderResourceBase(const std::string& resource_name);
-
-  RenderResourceBase(const std::string& resource_name,
-                     const std::uint32_t& resource_ID);
-  
-  void SetResourceName(const std::string& new_resource_name);
-
-  void SetResourceID(const std::uint32_t& new_resource_ID);
-};
-
 class RenderResourceTexture final : public RenderResourceBase {
  public:
   RenderResourceTexture() = default;
@@ -202,7 +201,8 @@ class RenderResourceTexture final : public RenderResourceBase {
       const std::vector<std::uint32_t>& queue_index =
           std::vector<std::uint32_t>{},
       const VkSharingMode& sharing_mode = VK_SHARING_MODE_EXCLUSIVE,
-      const VkImageLayout& image_layout, const uint32_t mipmap_levels& = 1,
+      const VkImageLayout& image_layout = VK_IMAGE_LAYOUT_UNDEFINED,
+      const uint32_t& mipmap_levels = 1,
       const VmaMemoryUsage& memory_usage = VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE,
       const VmaAllocationCreateFlags& allocation_flags = 0);
 
@@ -446,7 +446,7 @@ class RenderResourceBuffer final : public RenderResourceBase {
   std::unique_ptr<RenderResourceBase> GetDeepCopy(
       const std::string& new_name_of_copy_resource) const override;
 
-private:
+ private:
   bool CheckInitParameter(
       const RenderEngine* engine, const VkDescriptorType& descriptor_type,
       const VkBufferUsageFlags& buffer_usage, const VkDeviceSize& size,
@@ -458,9 +458,9 @@ private:
       const VkDeviceSize& size, const VkBufferUsageFlags& buffer_usage,
       const VkBufferCreateFlags& buffer_flags,
       const VmaMemoryUsage& memory_usage = VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE,
-      const VmaAllocationCreateFlags& allocation_flags = 0, const std::vector<std
-      ::uint32_t>& queue_index, const VkSharingMode&
-      sharing_mode);
+      const VmaAllocationCreateFlags& allocation_flags = 0,
+      const std::vector<std ::uint32_t>& queue_index,
+      const VkSharingMode& sharing_mode);
 
   /**
    * \remark Returns true if the \ref data is nullptr or the data is

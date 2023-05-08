@@ -193,13 +193,10 @@ class CommandTaskFlow {
 
   void RemoveRootTask(const CommandTask& command_task);
 
-  [[deprecated]] void GetCommandTaskEdges(
-      std::vector<CommandTaskEdge>& command_task_edges) const;
-
   std::vector<CommandTaskEdge> GetCommandTaskEdges() const;
 
   void RemoveTask(CommandTask& command_task);
-
+  
  private:
   std::list<std::unique_ptr<CommandTask>*> root_tasks_{};
   std::list<std::unique_ptr<CommandTask>> tasks_{};
@@ -260,6 +257,12 @@ class CommandTask {
 
   bool HaveSubTasks() const;
 
+  void AddCrossTaskFLowSyncRenderResourceIDs(
+      const std::vector<std::uint32_t>& render_resource_IDs);
+
+  void AddCrossTaskFLowSyncRenderResourceIDs(
+      std::vector<std::uint32_t>&& render_resource_IDs);
+
   bool IsValid() const;
 
  private:
@@ -283,6 +286,8 @@ class CommandTask {
 
   mutable std::vector<std::unique_ptr<CommandTask>> sub_tasks_{};
   bool is_sub_task_{false};
+
+  std::vector<std::uint32_t> cross_task_flow_sync_render_resource_IDs_;
 };
 
 template <typename... CommandTasks>
@@ -323,6 +328,19 @@ ExecuteResult CommandTask::Merge(CommandTasks&&... command_tasks) {
     LOG_ERROR("Cannot nest merge MM::RenderSystem::CommandTask.");
     return ExecuteResult::INPUT_PARAMETERS_ARE_INCORRECT;
   }
+
+  std::uint32_t new_cross_task_flow_sync_render_resource_IDs_vector_size =
+      cross_task_flow_sync_render_resource_IDs_.size();
+  ((new_cross_task_flow_sync_render_resource_IDs_vector_size +=
+    command_tasks.cross_task_flow_sync_render_resource_IDs_.size()),
+   ...);
+  cross_task_flow_sync_render_resource_IDs_.reserve(
+      new_cross_task_flow_sync_render_resource_IDs_vector_size);
+  ((cross_task_flow_sync_render_resource_IDs_.insert(
+       cross_task_flow_sync_render_resource_IDs_.begin(),
+       command_tasks.cross_task_flow_sync_render_resource_IDs_.begin(),
+       command_tasks.cross_task_flow_sync_render_resource_IDs_.end())),
+   ...);
 
   (task_flow_->RemoveRootTask(command_tasks), ...);
   (sub_tasks_.emplace_back(std::move(*command_tasks.this_unique_ptr_)), ...);
@@ -520,6 +538,12 @@ class CommandExecutor {
     std::uint32_t task_flow_ID_{0};
     std::shared_ptr<ExecuteResult> execute_result_{};
     std::stack<std::weak_ptr<bool>> is_completes_{};
+
+    std::uint32_t the_maximum_number_of_graph_buffers_required_for_one_task_{0};
+    std::uint32_t the_maximum_number_of_compute_buffers_required_for_one_task_{
+        0};
+    std::uint32_t
+        the_maximum_number_of_transform_buffers_required_for_one_task_{0};
   };
 
   struct CommandTaskToBeSubmit;
@@ -536,8 +560,19 @@ class CommandExecutor {
     ExecutingCommandTaskFlow& operator=(
         ExecutingCommandTaskFlow&& other) noexcept;
 
+    std::uint32_t GetRequireGraphCommandBufferNumber() const;
+
+    std::uint32_t GetRequireComputeCommandBufferNumber() const;
+
+    std::uint32_t GetRequireTransformCommandBufferNumber() const;
+
+    std::tuple<std::uint32_t, std::uint32_t, std::uint32_t>
+    GetRequireCommandBufferNumber() const;
+
     CommandTaskFlow command_task_flow_{};
     std::uint32_t task_flow_ID_{0};
+    bool initialize_or_not_{false};
+    bool have_wait_one_task_{false};
     std::shared_ptr<ExecuteResult> execute_result_{};
     std::stack<std::weak_ptr<bool>> is_completes_{};
 
@@ -584,6 +619,9 @@ class CommandExecutor {
     std::vector<std::vector<VkSemaphore>> default_signal_semaphore_{};
     std::vector<std::uint32_t> post_task_sub_task_numbers_{};
 
+    std::uint32_t require_command_buffer_{0};
+    std::uint32_t require_command_buffer_include_sub_task_{0};
+
     bool operator<(const CommandTaskToBeSubmit& other) const;
   };
 
@@ -627,12 +665,16 @@ class CommandExecutor {
 
   void ProcessCompleteTask();
 
-  void ProcessWaitTask();
+  void ProcessWaitTask(std::list<std::shared_ptr<ExecutingCommandTaskFlow>>&
+                           no_render_resource_ownership_transfer_task_flow,
+                       std::list<std::shared_ptr<ExecutingCommandTaskFlow>>&
+                           have_render_resource_ownership_transfer_task_flow);
 
-  void
-  ProcessRequireCommandBufferNumberLagerThanExecutorHaveCommandBufferNumber(
-      const std::shared_ptr<ExecutingCommandTaskFlow>& command_task_flow,
-      bool& skip_task_flow);
+  void ProcessCommandFlowList(
+      std::list<std::shared_ptr<ExecutingCommandTaskFlow>>&
+          no_render_resource_ownership_transfer_task_flow,
+      std::list<std::shared_ptr<ExecutingCommandTaskFlow>>&
+          have_render_resource_ownership_transfer_task_flow);
 
   void ProcessPreTaskNoSubmitTask(
       const std::shared_ptr<ExecutingCommandTaskFlow>& command_task_flow,
@@ -653,10 +695,7 @@ class CommandExecutor {
 
   void ProcessOneCanSubmitTask(
       std::list<CommandTaskToBeSubmit>::iterator& command_task_to_be_submit,
-      const std::shared_ptr<ExecutingCommandTaskFlow>& command_task_flow,
-      std::uint32_t free_graph_command_buffer_number,
-      std::uint32_t free_compute_command_buffer_number,
-      std::uint32_t free_transform_command_buffer_number);
+      const std::shared_ptr<ExecutingCommandTaskFlow>& command_task_flow);
 
   void ProcessWhenOneFailedSubmit(
       const std::shared_ptr<ExecutingCommandTaskFlow>& command_task_flow);
@@ -672,6 +711,9 @@ class CommandExecutor {
 
  private:
   RenderEngine* render_engine_{nullptr};
+  std::uint32_t graph_command_number_{0};
+  std::uint32_t compute_command_number_{0};
+  std::uint32_t transform_command_number_{0};
 
   bool valid_{true};
 
@@ -689,9 +731,9 @@ class CommandExecutor {
   std::list<ExecutingTask> executing_graph_command_buffers_{};
   std::list<ExecutingTask> executing_compute_command_buffers_{};
   std::list<ExecutingTask> executing_transform_command_buffers_{};
-  std::mutex executing_graph_command_buffers_mutex_{};
-  std::mutex executing_compute_command_buffers_mutex_{};
-  std::mutex executing_transform_command_buffers_mutex_{};
+  mutable std::mutex executing_graph_command_buffers_mutex_{};
+  mutable std::mutex executing_compute_command_buffers_mutex_{};
+  mutable std::mutex executing_transform_command_buffers_mutex_{};
 
   std::list<CommandTaskFlowToBeRun> task_flow_queue_{};
   std::mutex task_flow_queue_mutex_{};
