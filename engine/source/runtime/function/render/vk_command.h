@@ -196,12 +196,14 @@ class CommandTaskFlow {
   std::vector<CommandTaskEdge> GetCommandTaskEdges() const;
 
   void RemoveTask(CommandTask& command_task);
-  
+
  private:
   std::list<std::unique_ptr<CommandTask>*> root_tasks_{};
   std::list<std::unique_ptr<CommandTask>> tasks_{};
 
   std::array<std::uint32_t, 3> task_numbers_{};
+
+  std::uint32_t increase_task_ID_{0};
 
   std::shared_mutex task_sync_{};
 };
@@ -263,11 +265,15 @@ class CommandTask {
   void AddCrossTaskFLowSyncRenderResourceIDs(
       std::vector<std::uint32_t>&& render_resource_IDs);
 
+  std::uint32_t GetCommandTaskID();
+  ;
+
   bool IsValid() const;
 
  private:
   CommandTask(
-      CommandTaskFlow* task_flow, const CommandType& command_type,
+      CommandTaskFlow* task_flow, uint32_t command_task_ID,
+      const CommandType& command_type,
       const std::vector<
           std::function<ExecuteResult(AllocatedCommandBuffer& cmd)>>& commands,
       const std::vector<WaitAllocatedSemaphore>& wait_semaphore,
@@ -275,6 +281,7 @@ class CommandTask {
 
  private:
   CommandTaskFlow* task_flow_;
+  std::uint32_t command_task_ID_{0};
   std::unique_ptr<CommandTask>* this_unique_ptr_{nullptr};
   CommandType command_type_{CommandType::UNDEFINED};
   std::vector<std::function<ExecuteResult(AllocatedCommandBuffer& cmd)>>
@@ -452,6 +459,8 @@ class CommandExecutor {
 
   std::uint32_t GetFreeTransformCommandNumber() const;
 
+  std::uint32_t GetFreeCommandNumber(CommandType command_type) const;
+
   /**
    * \remark \ref command_task_flow is invalid after call this function.
    */
@@ -546,6 +555,18 @@ class CommandExecutor {
         the_maximum_number_of_transform_buffers_required_for_one_task_{0};
   };
 
+  enum class CommandBufferState {
+    Recording,
+    Executiong,
+  };
+
+  struct CommandTaskRenderResourceState {
+    std::uint32_t task_flow_ID_{0};
+    std::uint32_t task_ID_{0};
+    CommandType command_type_{};
+    CommandBufferState command_buffer_state_{};
+  };
+
   struct CommandTaskToBeSubmit;
 
   struct ExecutingCommandTaskFlow {
@@ -613,6 +634,7 @@ class CommandExecutor {
     CommandTaskToBeSubmit& operator=(CommandTaskToBeSubmit&& other) noexcept;
 
     CommandExecutor* command_executor_{nullptr};
+    std::uint32_t task_flow_ID_{0};
     std::weak_ptr<ExecutingCommandTaskFlow> command_task_flow_;
     std::unique_ptr<CommandTask> command_task_{nullptr};
     std::vector<std::vector<VkSemaphore>> default_wait_semaphore_{};
@@ -621,6 +643,10 @@ class CommandExecutor {
 
     std::uint32_t require_command_buffer_{0};
     std::uint32_t require_command_buffer_include_sub_task_{0};
+
+    // When the \ref waiting_coefficient is greater than the number of command
+    // buffers required by the task, it will wait for the task.
+    std::uint32_t wait_coefficient_{0};
 
     bool operator<(const CommandTaskToBeSubmit& other) const;
   };
@@ -644,6 +670,7 @@ class CommandExecutor {
 
     RenderEngine* render_engine_;
     CommandExecutor* command_executor_;
+    std::uint32_t task_flow_ID_{0};
     std::weak_ptr<ExecutingCommandTaskFlow> command_task_flow_;
     std::vector<std::unique_ptr<AllocatedCommandBuffer>> command_buffers_;
     std::unique_ptr<CommandTask> command_task_{};
@@ -665,16 +692,9 @@ class CommandExecutor {
 
   void ProcessCompleteTask();
 
-  void ProcessWaitTask(std::list<std::shared_ptr<ExecutingCommandTaskFlow>>&
-                           no_render_resource_ownership_transfer_task_flow,
-                       std::list<std::shared_ptr<ExecutingCommandTaskFlow>>&
-                           have_render_resource_ownership_transfer_task_flow);
+  void ProcessWaitTask();
 
-  void ProcessCommandFlowList(
-      std::list<std::shared_ptr<ExecutingCommandTaskFlow>>&
-          no_render_resource_ownership_transfer_task_flow,
-      std::list<std::shared_ptr<ExecutingCommandTaskFlow>>&
-          have_render_resource_ownership_transfer_task_flow);
+  void ProcessCommandFlowList();
 
   void ProcessPreTaskNoSubmitTask(
       const std::shared_ptr<ExecutingCommandTaskFlow>& command_task_flow,
@@ -693,9 +713,15 @@ class CommandExecutor {
       std::uint32_t free_compute_command_buffer_number,
       std::uint32_t free_transform_command_buffer_number);
 
+  void ProcessCrossTaskFlowRenderResourceSync(
+      std::list<CommandTaskToBeSubmit>::iterator& command_task_to_be_submit,
+      const std::shared_ptr<ExecutingCommandTaskFlow>& command_task_flow,
+      bool& command_submit_condition);
+
   void ProcessOneCanSubmitTask(
       std::list<CommandTaskToBeSubmit>::iterator& command_task_to_be_submit,
-      const std::shared_ptr<ExecutingCommandTaskFlow>& command_task_flow);
+      const std::shared_ptr<ExecutingCommandTaskFlow>& command_task_flow,
+      std::uint32_t& number_of_blocked_cross_task_flow);
 
   void ProcessWhenOneFailedSubmit(
       const std::shared_ptr<ExecutingCommandTaskFlow>& command_task_flow);
@@ -744,9 +770,16 @@ class CommandExecutor {
   std::list<std::uint32_t> wait_tasks_;
   std::mutex wait_tasks_mutex_{};
 
+  std::list<std::shared_ptr<ExecutingCommandTaskFlow>>
+      executing_command_task_flows_{};
+  std::unordered_map<std::uint32_t, std::list<CommandTaskRenderResourceState>>
+      command_task_render_resource_states_{};
+  std::mutex command_task_render_resource_states_mutex_{};
+
   /*std::set<std::unique_ptr<CommandTask>*>
-  task_that_have_already_been_accessed_; std::set<std::unique_ptr<CommandTask>*>
-  submitted_task_; std::list<CommandTaskToBeSubmit> can_be_submitted_tasks_;
+  task_that_have_already_been_accessed_;
+  std::set<std::unique_ptr<CommandTask>*> submitted_task_;
+  std::list<CommandTaskToBeSubmit> can_be_submitted_tasks_;
   std::list<CommandTaskToBeSubmit> pre_task_not_submit_task_;*/
 
   std::stack<VkSemaphore> semaphores_;

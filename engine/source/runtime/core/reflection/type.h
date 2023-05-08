@@ -1,7 +1,5 @@
 #pragma once
 
-#include <vcruntime_typeinfo.h>
-
 #include <memory>
 #include <string>
 
@@ -272,7 +270,6 @@ class TypeWrapper final : public TypeWrapperBase {
   template <typename OtherType>
   bool Convertible(OtherType&& other) const;
 
-
   /**
    * \brief Get size of \ref TypeName.
    * \return The size of \ref TypeName.
@@ -339,7 +336,7 @@ class Type {
   template <typename TypeName>
   static Type CreateType(TypeName&& object) {
     Type result{};
-    result.type_wrapper_ = std::make_shared<TypeWrapperBase<TypeName>>();
+    result.type_wrapper_ = std::make_shared<TypeWrapper<TypeName>>();
     return result;
   }
 
@@ -653,11 +650,10 @@ std::string TypeWrapper<TypeName>::GetOriginalTypeName() const {
 template <typename TypeName>
 std::weak_ptr<Meta> TypeWrapper<TypeName>::GetMeta() const {
   if (!IsRegistered()) {
-    return std::make_shared<Meta>(
-        g_meta_database[std::string{}]);
+    return std::make_shared<Meta>(g_meta_database[std::string{}]);
   }
   return std::make_shared<Meta>(g_meta_database[GetOriginalTypeName()]);
-} 
+}
 
 template <typename TypeName>
 Type CreateType(TypeName&& object) {

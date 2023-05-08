@@ -35,6 +35,14 @@ std::shared_ptr<ElementType> MakeSharedWithDestructor(Destructor destructor,
 }
 
 std::size_t StringHash(const std::string& target);
-}
-}
 
+template <typename IntegerType,
+          typename IsInterType = typename std::enable_if<
+              std::is_integral<IntegerType>::value, void>::type>
+typename std::decay<IntegerType>::type IntegerMult(IntegerType integer_value,
+                                                   float float_value) {
+  return static_cast<typename std::decay<IntegerType>::type>(
+      std::floor(static_cast<float>(integer_value) * float_value + 0.5));
+}
+}  // namespace Utils
+}  // namespace MM
