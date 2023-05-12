@@ -7,11 +7,11 @@
 #include <set>
 #include <shared_mutex>
 
-#include "runtime/resource/asset_system/asset_system.h"
-#include "runtime/resource/asset_type/asset_type.h"
 #include "runtime/core/log/log_system.h"
 #include "runtime/platform/config_system/config_system.h"
 #include "runtime/platform/file_system/file_system.h"
+#include "runtime/resource/asset_system/asset_system.h"
+#include "runtime/resource/asset_type/asset_type.h"
 #include "utils/marco.h"
 
 namespace MM {
@@ -41,14 +41,15 @@ class AssetManager {
   std::vector<std::shared_ptr<AssetType::AssetBase>> GetAssetsByName(
       const std::string& asset_name) const;
 
-  std::shared_ptr<AssetType::AssetBase> GetAssetByID(const uint32_t& asset_ID) const;
+  std::shared_ptr<AssetType::AssetBase> GetAssetByID(
+      const std::uint64_t& asset_ID) const;
 
-  bool Erase(const uint32_t& asset_ID);
+  bool Erase(const uint64_t& asset_ID);
 
-  bool ChangeAssetName(const uint32_t& asset_ID,
+  bool ChangeAssetName(const std::uint64_t& asset_ID,
                        const std::string& new_asset_name);
 
-private:
+ private:
   ~AssetManager() = default;
 
   static bool Destroy();
@@ -58,11 +59,11 @@ private:
   static AssetManager* asset_manager_;
 
  private:
-  std::multimap<std::string, uint32_t> asset_name_to_asset_ID_{};
-  std::unordered_map<uint32_t, std::shared_ptr<AssetType::AssetBase>> asset_ID_to_asset_{};
+  std::unordered_multimap<std::string, std::uint64_t> asset_name_to_asset_ID_{};
+  std::unordered_map<uint64_t, std::shared_ptr<AssetType::AssetBase>>
+      asset_ID_to_asset_{};
   mutable std::shared_mutex writer_mutex_{};
 
-  static std::atomic_uint32_t increase_ID_;
   static std::mutex sync_flag_;
   static std::set<std::string> support_image_format;
 };
@@ -78,7 +79,7 @@ class AssetSystem {
   static AssetSystem* GetInstance();
   AssetManager& GetAssetManager() const;
 
-private:
+ private:
   static bool Destroy();
 
  protected:

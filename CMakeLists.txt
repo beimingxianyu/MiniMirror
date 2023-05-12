@@ -1,19 +1,19 @@
-﻿cmake_minimum_required (VERSION 3.8)
+﻿cmake_minimum_required(VERSION 3.8)
 
-project ("MiniMirror")
+project("MiniMirror")
 
 option(enable_test "Whether to open unit test." on)
 
-if(WIN32) 
-	set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS on)
-endif()
+if (WIN32)
+    set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS on)
+endif ()
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/script/cmake")
 set(CMAKE_BINARY_DIR "${CMAKE_CURRENT_SOURCE_DIR}/build/${CMAKE_BUILD_TYPE}")
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin")
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin")
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY  "${CMAKE_BINARY_DIR}/bin")
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin")
 
 set(version_major "0")
 set(version_minor "1")
@@ -36,6 +36,6 @@ set(config_dir "${engine_dir}/config")
 add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/engine")
 
 if (enable_test)
-	set(engine_dir_test "${CMAKE_CURRENT_SOURCE_DIR}/build_test/${CMAKE_BUILD_TYPE}")
-	add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/test")
-endif()
+    set(engine_dir_test "${CMAKE_CURRENT_SOURCE_DIR}/build_test/${CMAKE_BUILD_TYPE}")
+    add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/test")
+endif ()

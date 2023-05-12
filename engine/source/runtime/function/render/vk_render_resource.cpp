@@ -454,13 +454,17 @@ MM::RenderSystem::RenderResourceBase::GetResourceType() const {
 std::unique_ptr<MM::RenderSystem::RenderResourceBase>
 MM::RenderSystem::RenderResourceBase::GetLightCopy(
     const std::string& new_name_of_copy_resource) const {
-  return std::make_unique<RenderResourceBase>(new_name_of_copy_resource);
+  RenderResourceBase* new_render_resource =
+      new RenderResourceBase(new_name_of_copy_resource);
+  return std::unique_ptr<RenderResourceBase>(new_render_resource);
 }
 
 std::unique_ptr<MM::RenderSystem::RenderResourceBase>
 MM::RenderSystem::RenderResourceBase::GetDeepCopy(
     const std::string& new_name_of_copy_resource) const {
-  return std::make_unique<RenderResourceBase>(new_name_of_copy_resource);
+  RenderResourceBase* new_render_resource =
+      new RenderResourceBase(new_name_of_copy_resource);
+  return std::unique_ptr<RenderResourceBase>(new_render_resource);
 }
 
 void MM::RenderSystem::RenderResourceBase::SetResourceName(
@@ -489,14 +493,19 @@ void MM::RenderSystem::RenderResourceBase::Reset(
   }
   operator=(*other);
 }
+bool MM::RenderSystem::RenderResourceBase::IsArray() const { return false; }
+bool MM::RenderSystem::RenderResourceBase::CanWrite() const { return false; }
+VkDeviceSize MM::RenderSystem::RenderResourceBase::GetSize() const { return 0; }
+uint32_t MM::RenderSystem::RenderResourceBase::UseCount() const { return 0; }
+bool MM::RenderSystem::RenderResourceBase::IsValid() const { return false; }
 
 MM::RenderSystem::RenderResourceTexture::RenderResourceTexture(
     const std::string& resource_name, RenderEngine* engine,
     const VkDescriptorType& descriptor_type,
     const std::shared_ptr<AssetType::Image>& image, VkImageUsageFlags usages,
-    const std::vector<std::uint32_t>& queue_index, const VkSharingMode& sharing_mode,
-    const VkImageLayout& image_layout, const uint32_t& mipmap_levels,
-    const VmaMemoryUsage& memory_usage,
+    const std::vector<std::uint32_t>& queue_index,
+    const VkSharingMode& sharing_mode, const VkImageLayout& image_layout,
+    const uint32_t& mipmap_levels, const VmaMemoryUsage& memory_usage,
     const VmaAllocationCreateFlags& allocation_flags)
     : RenderResourceBase(resource_name), render_engine_(engine) {
 #ifdef CHECK_PARAMETERS
@@ -530,13 +539,13 @@ MM::RenderSystem::RenderResourceTexture::RenderResourceTexture(
   temp_info.queue_index_ = queue_index;
 
   const uint32_t recommend_mipmap_level =
-      static_cast<uint32_t>(std::floor(std::log2(max(
+      static_cast<uint32_t>(std::floor(std::log2(std::max(
           temp_info.image_extent_.width, temp_info.image_extent_.height)))) +
       1;
 
   temp_info.mipmap_levels_ = mipmap_levels > recommend_mipmap_level
-                                ? recommend_mipmap_level
-                                : mipmap_levels;
+                                 ? recommend_mipmap_level
+                                 : mipmap_levels;
   temp_info.array_layers_ = 1;
 
   AllocatedBuffer stage_buffer;
@@ -548,8 +557,7 @@ MM::RenderSystem::RenderResourceTexture::RenderResourceTexture(
   MM_CHECK(InitImage(stage_buffer, usages, memory_usage, allocation_flags,
                      temp_info),
            RenderResourceTexture::Release();
-           return;
-    )
+           return;)
 
   MM_CHECK(GenerateMipmap(), RenderResourceTexture::Release(); return;)
 
@@ -635,13 +643,13 @@ const VkImageLayout& MM::RenderSystem::RenderResourceTexture::GetImageLayout()
   return image_.GetImageLayout();
 }
 
-const std::uint32_t& MM::RenderSystem::RenderResourceTexture::
-GetMipmapLevels() const {
+const std::uint32_t& MM::RenderSystem::RenderResourceTexture::GetMipmapLevels()
+    const {
   return image_.GetMipmapLevels();
 }
 
-const std::uint32_t& MM::RenderSystem::RenderResourceTexture::
-GetArrayLayers() const {
+const std::uint32_t& MM::RenderSystem::RenderResourceTexture::GetArrayLayers()
+    const {
   return image_.GetArrayLayers();
 }
 
@@ -650,8 +658,8 @@ MM::RenderSystem::RenderResourceTexture::GetImageInfo() const {
   return image_.GetImageInfo();
 }
 
-const MM::RenderSystem::ImageBindInfo& MM::RenderSystem::RenderResourceTexture::
-GetImageBindInfo() const {
+const MM::RenderSystem::ImageBindInfo&
+MM::RenderSystem::RenderResourceTexture::GetImageBindInfo() const {
   return image_bind_info_;
 }
 
@@ -789,8 +797,9 @@ MM::RenderSystem::RenderResourceTexture::GetDeepCopy(
   const VmaAllocationCreateInfo new_allocation_create_info =
       Utils::GetVmaAllocationCreateInfo(
           VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE,
-          image_.CanMapped() ? VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT
-                             : 0);
+          image_.CanMapped()
+              ? VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT
+              : 0);
 
   VkImage new_image{nullptr};
   VmaAllocation new_allocation{nullptr};
@@ -809,16 +818,15 @@ MM::RenderSystem::RenderResourceTexture::GetDeepCopy(
 
   std::vector<VkImageSubresourceLayers> sub_resource_vector(
       static_cast<std::vector<VkImageSubresourceLayers>::size_type>(
-        image_.GetMipmapLevels() * image_.GetArrayLayers()));
+          image_.GetMipmapLevels() * image_.GetArrayLayers()));
   for (std::uint32_t i = 0; i < image_.GetMipmapLevels(); ++i) {
     VkImageSubresourceLayers temp_src_region = Utils::GetImageSubResourceLayers(
-        VK_IMAGE_ASPECT_COLOR_BIT, i + 1, 1,
-        image_.GetArrayLayers());
+        VK_IMAGE_ASPECT_COLOR_BIT, i + 1, 1, image_.GetArrayLayers());
     sub_resource_vector.push_back(temp_src_region);
   }
 
   std::vector<VkImageCopy2> image_region_vector;
-  for (const auto& sub_resource: sub_resource_vector) {
+  for (const auto& sub_resource : sub_resource_vector) {
     VkImageCopy2 temp_image_copy =
         Utils::GetImageCopy(sub_resource, sub_resource, VkOffset3D{0, 0, 0},
                             VkOffset3D{0, 0, 0}, image_.GetImageExtent());
@@ -874,7 +882,7 @@ MM::RenderSystem::RenderResourceTexture::GetResourceType() const {
   return ResourceType::Texture;
 }
 
-const VkDeviceSize& MM::RenderSystem::RenderResourceTexture::GetSize() const {
+VkDeviceSize MM::RenderSystem::RenderResourceTexture::GetSize() const {
   return RenderResourceBase::GetSize();
 }
 
@@ -1015,140 +1023,143 @@ MM::ExecuteResult MM::RenderSystem::RenderResourceTexture::InitImage(
   image_ = AllocatedImage{render_engine_->allocator_, temp_image,
                           temp_allocation, image_info};
 
-  MM_CHECK(
-      render_engine_->RunSingleCommandAndWait(
-          CommandBufferType::TRANSFORM,
-          [&image = image_, &stage = stage_buffer,
-           &image_extent = image_.GetImageExtent(),
-           &image_layout = image_.GetImageLayout()](AllocatedCommandBuffer& cmd) {
-            MM_CHECK(Utils::BeginCommandBuffer(cmd),
-                     LOG_ERROR("Failed to begin command buffer.");
-                     return MM_RESULT_CODE;)
+  MM_CHECK(render_engine_->RunSingleCommandAndWait(
+               CommandBufferType::TRANSFORM,
+               [&image = image_, &stage = stage_buffer,
+                &image_extent = image_.GetImageExtent(),
+                &image_layout =
+                    image_.GetImageLayout()](AllocatedCommandBuffer& cmd) {
+                 MM_CHECK(Utils::BeginCommandBuffer(cmd),
+                          LOG_ERROR("Failed to begin command buffer.");
+                          return MM_RESULT_CODE;)
 
-            Utils::AddTransferImageCommands(
-                cmd, image, ImageTransferMode::INIT_TO_TRANSFER_DESTINATION);
+                 Utils::AddTransferImageCommands(
+                     cmd, image,
+                     ImageTransferMode::INIT_TO_TRANSFER_DESTINATION);
 
-            const auto copy_region = Utils::GetBufferToImageCopyRegion(
-                VK_IMAGE_ASPECT_COLOR_BIT, image_extent);
+                 const auto copy_region = Utils::GetBufferToImageCopyRegion(
+                     VK_IMAGE_ASPECT_COLOR_BIT, image_extent);
 
-            vkCmdCopyBufferToImage(cmd.GetCommandBuffer(), stage.GetBuffer(),
-                                   image.GetImage(), image_layout, 1,
-                                   &copy_region);
+                 vkCmdCopyBufferToImage(cmd.GetCommandBuffer(),
+                                        stage.GetBuffer(), image.GetImage(),
+                                        image_layout, 1, &copy_region);
 
-            MM_CHECK(Utils::EndCommandBuffer(cmd),
-                     LOG_ERROR("Failed to end command buffer.");
-                     return MM_RESULT_CODE;);
+                 MM_CHECK(Utils::EndCommandBuffer(cmd),
+                          LOG_ERROR("Failed to end command buffer.");
+                          return MM_RESULT_CODE;);
 
-            return ExecuteResult::SUCCESS;
-          }),
-      LOG_ERROR("Copying image data to the GPU failed.");
-      return MM_RESULT_CODE;)
+                 return ExecuteResult::SUCCESS;
+               }),
+           LOG_ERROR("Copying image data to the GPU failed.");
+           return MM_RESULT_CODE;)
 
   return ExecuteResult::SUCCESS;
 }
 
 MM::ExecuteResult MM::RenderSystem::RenderResourceTexture::GenerateMipmap() {
-  MM_CHECK(render_engine_->RunSingleCommandAndWait(
-      CommandBufferType::TRANSFORM, [&image = image_](AllocatedCommandBuffer& cmd) {
-        MM_CHECK(Utils::BeginCommandBuffer(cmd),
-                 LOG_ERROR("Failed to begin command buffer.");
-                 return MM_RESULT_CODE;)
+  MM_CHECK(
+      render_engine_->RunSingleCommandAndWait(
+          CommandBufferType::TRANSFORM,
+          [&image = image_](AllocatedCommandBuffer& cmd) {
+            MM_CHECK(Utils::BeginCommandBuffer(cmd),
+                     LOG_ERROR("Failed to begin command buffer.");
+                     return MM_RESULT_CODE;)
 
-        VkImageMemoryBarrier2 barrier{};
-        barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
-        barrier.image = image.GetImage();
-        barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-        barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-        barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-        barrier.subresourceRange.baseArrayLayer = 0;
-        barrier.subresourceRange.layerCount = 1;
-        barrier.subresourceRange.levelCount = 1;
+            VkImageMemoryBarrier2 barrier{};
+            barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+            barrier.image = image.GetImage();
+            barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+            barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+            barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+            barrier.subresourceRange.baseArrayLayer = 0;
+            barrier.subresourceRange.layerCount = 1;
+            barrier.subresourceRange.levelCount = 1;
 
-        const auto dependency_info = Utils::GetImageDependencyInfo(barrier);
+            const auto dependency_info = Utils::GetImageDependencyInfo(barrier);
 
-        int32_t mip_width = static_cast<int32_t>(image.GetImageExtent().width);
-        int32_t mip_height =
-            static_cast<int32_t>(image.GetImageExtent().height);
+            int32_t mip_width =
+                static_cast<int32_t>(image.GetImageExtent().width);
+            int32_t mip_height =
+                static_cast<int32_t>(image.GetImageExtent().height);
 
-        for (uint32_t i = 1; i < image.GetMipmapLevels(); ++i) {
-          barrier.subresourceRange.baseMipLevel = i - 1;
-          barrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
-          barrier.newLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
-          barrier.srcStageMask = VK_PIPELINE_STAGE_2_TRANSFER_BIT;
-          barrier.dstStageMask = VK_PIPELINE_STAGE_2_TRANSFER_BIT;
-          barrier.srcAccessMask = VK_ACCESS_2_TRANSFER_WRITE_BIT;
-          barrier.dstStageMask = VK_ACCESS_2_TRANSFER_READ_BIT;
+            for (uint32_t i = 1; i < image.GetMipmapLevels(); ++i) {
+              barrier.subresourceRange.baseMipLevel = i - 1;
+              barrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+              barrier.newLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
+              barrier.srcStageMask = VK_PIPELINE_STAGE_2_TRANSFER_BIT;
+              barrier.dstStageMask = VK_PIPELINE_STAGE_2_TRANSFER_BIT;
+              barrier.srcAccessMask = VK_ACCESS_2_TRANSFER_WRITE_BIT;
+              barrier.dstStageMask = VK_ACCESS_2_TRANSFER_READ_BIT;
 
-          vkCmdPipelineBarrier2(cmd.GetCommandBuffer(), &dependency_info);
+              vkCmdPipelineBarrier2(cmd.GetCommandBuffer(), &dependency_info);
 
-          barrier.subresourceRange.baseMipLevel = i;
-          barrier.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-          barrier.newLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
-          barrier.srcStageMask = VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT;
-          barrier.dstStageMask = VK_PIPELINE_STAGE_2_TRANSFER_BIT;
-          barrier.srcAccessMask = 0;
-          barrier.dstStageMask = VK_ACCESS_2_TRANSFER_WRITE_BIT;
+              barrier.subresourceRange.baseMipLevel = i;
+              barrier.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+              barrier.newLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+              barrier.srcStageMask = VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT;
+              barrier.dstStageMask = VK_PIPELINE_STAGE_2_TRANSFER_BIT;
+              barrier.srcAccessMask = 0;
+              barrier.dstStageMask = VK_ACCESS_2_TRANSFER_WRITE_BIT;
 
-          vkCmdPipelineBarrier2(cmd.GetCommandBuffer(), &dependency_info);
+              vkCmdPipelineBarrier2(cmd.GetCommandBuffer(), &dependency_info);
 
-          VkImageBlit blit{};
-          blit.srcOffsets[0] = {0, 0, 0};
-          blit.srcOffsets[1] = {mip_width, mip_height, 1};
-          blit.srcSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-          blit.srcSubresource.mipLevel = i - 1;
-          blit.srcSubresource.baseArrayLayer = 0;
-          blit.srcSubresource.layerCount = 1;
-          blit.dstOffsets[0] = {0, 0, 0};
-          blit.dstOffsets[1] = {mip_width > 1 ? mip_width / 2 : 1,
-                                mip_height > 1 ? mip_height / 2 : 1, 1};
-          blit.dstSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-          blit.dstSubresource.mipLevel = i;
-          blit.dstSubresource.baseArrayLayer = 0;
-          blit.dstSubresource.layerCount = 1;
+              VkImageBlit blit{};
+              blit.srcOffsets[0] = {0, 0, 0};
+              blit.srcOffsets[1] = {mip_width, mip_height, 1};
+              blit.srcSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+              blit.srcSubresource.mipLevel = i - 1;
+              blit.srcSubresource.baseArrayLayer = 0;
+              blit.srcSubresource.layerCount = 1;
+              blit.dstOffsets[0] = {0, 0, 0};
+              blit.dstOffsets[1] = {mip_width > 1 ? mip_width / 2 : 1,
+                                    mip_height > 1 ? mip_height / 2 : 1, 1};
+              blit.dstSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+              blit.dstSubresource.mipLevel = i;
+              blit.dstSubresource.baseArrayLayer = 0;
+              blit.dstSubresource.layerCount = 1;
 
-          vkCmdBlitImage(
-              cmd.GetCommandBuffer(), image.GetImage(), VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
-              image.GetImage(), VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &blit,
-              VK_FILTER_LINEAR);
+              vkCmdBlitImage(cmd.GetCommandBuffer(), image.GetImage(),
+                             VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+                             image.GetImage(),
+                             VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &blit,
+                             VK_FILTER_LINEAR);
 
-          barrier.subresourceRange.baseMipLevel = i - 1;
-          barrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
-          barrier.newLayout = image.GetImageLayout();
-          barrier.srcStageMask = VK_PIPELINE_STAGE_2_TRANSFER_BIT;
-          barrier.dstStageMask = VK_PIPELINE_STAGE_2_VERTEX_SHADER_BIT;
-          barrier.srcAccessMask = VK_ACCESS_2_TRANSFER_READ_BIT;
-          barrier.dstAccessMask = VK_ACCESS_2_SHADER_READ_BIT;
+              barrier.subresourceRange.baseMipLevel = i - 1;
+              barrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
+              barrier.newLayout = image.GetImageLayout();
+              barrier.srcStageMask = VK_PIPELINE_STAGE_2_TRANSFER_BIT;
+              barrier.dstStageMask = VK_PIPELINE_STAGE_2_VERTEX_SHADER_BIT;
+              barrier.srcAccessMask = VK_ACCESS_2_TRANSFER_READ_BIT;
+              barrier.dstAccessMask = VK_ACCESS_2_SHADER_READ_BIT;
 
-          vkCmdPipelineBarrier2(cmd.GetCommandBuffer(), &dependency_info);
+              vkCmdPipelineBarrier2(cmd.GetCommandBuffer(), &dependency_info);
 
-          if (mip_width > 1) {
-            mip_width >>= 1;
-          }
-          if (mip_height > 1) {
-            mip_height >>= 1;
-          }
-        }
+              if (mip_width > 1) {
+                mip_width >>= 1;
+              }
+              if (mip_height > 1) {
+                mip_height >>= 1;
+              }
+            }
 
-        barrier.subresourceRange.baseMipLevel = image.GetMipmapLevels() - 1;
-        barrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
-        barrier.newLayout = image.GetImageLayout();
-        barrier.srcStageMask = VK_PIPELINE_STAGE_2_TRANSFER_BIT;
-        barrier.dstStageMask = VK_PIPELINE_STAGE_2_VERTEX_SHADER_BIT;
-        barrier.srcAccessMask = VK_ACCESS_2_TRANSFER_WRITE_BIT;
-        barrier.dstAccessMask = VK_ACCESS_2_SHADER_READ_BIT;
+            barrier.subresourceRange.baseMipLevel = image.GetMipmapLevels() - 1;
+            barrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+            barrier.newLayout = image.GetImageLayout();
+            barrier.srcStageMask = VK_PIPELINE_STAGE_2_TRANSFER_BIT;
+            barrier.dstStageMask = VK_PIPELINE_STAGE_2_VERTEX_SHADER_BIT;
+            barrier.srcAccessMask = VK_ACCESS_2_TRANSFER_WRITE_BIT;
+            barrier.dstAccessMask = VK_ACCESS_2_SHADER_READ_BIT;
 
-        vkCmdPipelineBarrier2(cmd.GetCommandBuffer(), &dependency_info);
+            vkCmdPipelineBarrier2(cmd.GetCommandBuffer(), &dependency_info);
 
-        MM_CHECK(Utils::EndCommandBuffer(cmd),
-                 LOG_ERROR("Failed to end command buffer.");
-                 return MM_RESULT_CODE;
-          )
-        return ExecuteResult::SUCCESS;
-      }),
+            MM_CHECK(Utils::EndCommandBuffer(cmd),
+                     LOG_ERROR("Failed to end command buffer.");
+                     return MM_RESULT_CODE;)
+            return ExecuteResult::SUCCESS;
+          }),
       LOG_ERROR("Mipmap generation failed.");
-      return MM_RESULT_CODE;
-    )
-  
+      return MM_RESULT_CODE;)
+
   return ExecuteResult::SUCCESS;
 }
 
@@ -1213,10 +1224,10 @@ MM::RenderSystem::RenderResourceBuffer::RenderResourceBuffer(
     const std::string& resource_name, RenderEngine* engine,
     const VkDescriptorType& descriptor_type, VkBufferUsageFlags buffer_usage,
     const VkDeviceSize& size, const VkDeviceSize& offset,
-    const std::vector<std::uint32_t>& queue_index, const VkSharingMode& sharing_mode,
-    const VkDeviceSize& size_range, const VkDeviceSize& dynamic_offset,
-    const DataToBufferInfo& data_info, const VkBufferCreateFlags& buffer_flags,
-    const VmaMemoryUsage& memory_usage,
+    const std::vector<std::uint32_t>& queue_index,
+    const VkSharingMode& sharing_mode, const VkDeviceSize& size_range,
+    const VkDeviceSize& dynamic_offset, const DataToBufferInfo& data_info,
+    const VkBufferCreateFlags& buffer_flags, const VmaMemoryUsage& memory_usage,
     const VmaAllocationCreateFlags& allocation_flags)
     : RenderResourceBase(resource_name), render_engine_(engine) {
   if (size_range == VK_WHOLE_SIZE) {
@@ -1252,10 +1263,9 @@ MM::RenderSystem::RenderResourceBuffer::RenderResourceBuffer(
     return;
   }
 
-  if (!CopyDataToBuffer(data_info.data_, offset, size)) {
-    RenderResourceBuffer::Release();
-    return;
-  }
+  MM_CHECK(CopyDataToBuffer(data_info.data_, offset, size),
+           RenderResourceBuffer::Release();
+           return;)
 }
 
 MM::RenderSystem::RenderResourceBuffer::RenderResourceBuffer(
@@ -1310,120 +1320,127 @@ MM::RenderSystem::RenderResourceBuffer::GetDescriptorType() const {
   return buffer_bind_info_.bind_.descriptorType;
 }
 
-// TODO change signature
-MM::RenderSystem::RenderResourceBuffer
-MM::RenderSystem::RenderResourceBuffer::GetCopyWithNewOffset(
-    const VkDeviceSize& new_offset) const {
-  VkDeviceSize new_offset_in = new_offset;
-  if (IsDynamic()) {
-    if (new_offset_in > UINT64_MAX - buffer_bind_info_.dynamic_offset_) {
-      LOG_WARN("New offset is too large.");
-      new_offset_in =
-          buffer_.GetBufferSize() - buffer_bind_info_.dynamic_offset_;
-    }
-    if (new_offset_in + buffer_bind_info_.dynamic_offset_ >
-        buffer_.GetBufferSize()) {
-      LOG_WARN("New offset is too large.");
-      new_offset_in =
-          buffer_.GetBufferSize() - buffer_bind_info_.dynamic_offset_;
-    }
-  } else {
-    if (new_offset_in > buffer_.GetBufferSize()) {
-      new_offset_in = buffer_.GetBufferSize();
-    }
-  }
-
-  auto new_buffer = GetLightCopy();
-  new_buffer.buffer_bind_info_.offset_ = new_offset_in;
-
-  return new_buffer;
-}
-
-MM::RenderSystem::RenderResourceBuffer
-MM::RenderSystem::RenderResourceBuffer::GetCopyWithNewDynamicOffset(
-    const VkDeviceSize& new_dynamic_offset) const {
-  VkDeviceSize new_dynamic_offset_in = new_dynamic_offset;
-
-  if (new_dynamic_offset > UINT64_MAX - buffer_bind_info_.offset_) {
-    LOG_WARN("New_Dynamic_offset is too larger.");
-    new_dynamic_offset_in = buffer_.GetBufferSize() - buffer_bind_info_.offset_;
-  }
-  if (new_dynamic_offset_in + buffer_bind_info_.offset_ >
-      buffer_.GetBufferSize()) {
-    LOG_WARN("New_Dynamic_offset is too large.")
-    new_dynamic_offset_in = buffer_.GetBufferSize() - buffer_bind_info_.offset_;
-  }
-
-  auto new_buffer = GetLightCopy();
-  new_buffer.buffer_bind_info_.dynamic_offset_ = new_dynamic_offset_in;
-
-  return new_buffer;
-}
-
-MM::RenderSystem::RenderResourceBuffer
-MM::RenderSystem::RenderResourceBuffer::GetCopyWithNewOffsetAndDynamicOffset(
-    const VkDeviceSize& new_offset,
-    const VkDeviceSize& new_dynamic_offset) const {
-  VkDeviceSize new_offset_in = new_offset;
-  VkDeviceSize new_dynamic_offset_in = new_dynamic_offset;
-  if (IsDynamic()) {
-    if (new_offset_in > UINT64_MAX - buffer_bind_info_.dynamic_offset_) {
-      LOG_WARN("The sum of new offset and new dynamic offset is too large.");
-      new_offset_in =
-          buffer_.GetBufferSize() - buffer_bind_info_.dynamic_offset_;
-      new_dynamic_offset_in = buffer_bind_info_.dynamic_offset_;
-    }
-    if (new_offset_in + new_dynamic_offset_in > buffer_.GetBufferSize()) {
-      LOG_WARN("The sum of new offset and new dynamic offset is too large.");
-      new_offset_in =
-          buffer_.GetBufferSize() - buffer_bind_info_.dynamic_offset_;
-      new_dynamic_offset_in = buffer_bind_info_.dynamic_offset_;
-    }
-  } else {
-    if (new_offset_in > buffer_.GetBufferSize()) {
-      new_offset_in = buffer_.GetBufferSize();
-    }
-  }
-
-  auto new_buffer = GetLightCopy();
-  new_buffer.buffer_bind_info_.offset_ = new_offset_in;
-
-  if (IsDynamic()) {
-    new_buffer.buffer_bind_info_.dynamic_offset_ = new_dynamic_offset_in;
-  }
-
-  return new_buffer;
-}
-
-MM::RenderSystem::RenderResourceBuffer
-MM::RenderSystem::RenderResourceBuffer::GetCopyWithDynamicBuffer(
-    const VkDeviceSize& new_offset,
-    const VkDeviceSize& new_dynamic_offset) const {
-  if (IsTexel()) {
-    return *this;
-  }
-
-  if (IsDynamic()) {
-    return *this;
-  }
-
-  auto new_buffer = GetLightCopy();
-  if (IsStorage()) {
-    new_buffer.buffer_bind_info_.bind_.descriptorType =
-        VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC;
-  } else {
-    new_buffer.buffer_bind_info_.bind_.descriptorType =
-        VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC;
-  }
-
-  if (new_offset < UINT64_MAX - new_dynamic_offset &&
-      new_offset + new_dynamic_offset < buffer_.GetBufferSize()) {
-    new_buffer.buffer_bind_info_.offset_ = new_offset;
-    new_buffer.buffer_bind_info_.dynamic_offset_ = new_dynamic_offset;
-  }
-
-  return new_buffer;
-}
+// MM::RenderSystem::RenderResourceBuffer
+// MM::RenderSystem::RenderResourceBuffer::GetCopyWithNewOffset(
+//     const std::string& new_render_resource_name,
+//     const VkDeviceSize& new_offset) const {
+//   VkDeviceSize new_offset_in = new_offset;
+//   if (IsDynamic()) {
+//     if (new_offset_in > UINT64_MAX - buffer_bind_info_.dynamic_offset_) {
+//       LOG_WARN("New offset is too large.");
+//       new_offset_in =
+//           buffer_.GetBufferSize() - buffer_bind_info_.dynamic_offset_;
+//     }
+//     if (new_offset_in + buffer_bind_info_.dynamic_offset_ >
+//         buffer_.GetBufferSize()) {
+//       LOG_WARN("New offset is too large.");
+//       new_offset_in =
+//           buffer_.GetBufferSize() - buffer_bind_info_.dynamic_offset_;
+//     }
+//   } else {
+//     if (new_offset_in > buffer_.GetBufferSize()) {
+//       new_offset_in = buffer_.GetBufferSize();
+//     }
+//   }
+//
+//   std::unique_ptr<RenderResourceBuffer> new_buffer{
+//       dynamic_cast<RenderResourceBuffer*>(
+//           GetLightCopy(new_render_resource_name).release())};
+//
+//   new_buffer->buffer_bind_info_.offset_ = new_offset_in;
+//
+//   std::unique_ptr<RenderResourceBuffer> a{new_buffer.release()};
+//
+//   return *new_buffer;
+// }
+//
+// MM::RenderSystem::RenderResourceBuffer
+// MM::RenderSystem::RenderResourceBuffer::GetCopyWithNewDynamicOffset(
+//     const VkDeviceSize& new_dynamic_offset) const {
+//   VkDeviceSize new_dynamic_offset_in = new_dynamic_offset;
+//
+//   if (new_dynamic_offset > UINT64_MAX - buffer_bind_info_.offset_) {
+//     LOG_WARN("New_Dynamic_offset is too larger.");
+//     new_dynamic_offset_in = buffer_.GetBufferSize() -
+//     buffer_bind_info_.offset_;
+//   }
+//   if (new_dynamic_offset_in + buffer_bind_info_.offset_ >
+//       buffer_.GetBufferSize()) {
+//     LOG_WARN("New_Dynamic_offset is too large.");
+//     new_dynamic_offset_in = buffer_.GetBufferSize() -
+//     buffer_bind_info_.offset_;
+//   }
+//
+//   auto new_buffer = GetLightCopy();
+//   new_buffer.buffer_bind_info_.dynamic_offset_ = new_dynamic_offset_in;
+//
+//   return new_buffer;
+// }
+//
+// MM::RenderSystem::RenderResourceBuffer
+// MM::RenderSystem::RenderResourceBuffer::GetCopyWithNewOffsetAndDynamicOffset(
+//     const VkDeviceSize& new_offset,
+//     const VkDeviceSize& new_dynamic_offset) const {
+//   VkDeviceSize new_offset_in = new_offset;
+//   VkDeviceSize new_dynamic_offset_in = new_dynamic_offset;
+//   if (IsDynamic()) {
+//     if (new_offset_in > UINT64_MAX - buffer_bind_info_.dynamic_offset_) {
+//       LOG_WARN("The sum of new offset and new dynamic offset is too large.");
+//       new_offset_in =
+//           buffer_.GetBufferSize() - buffer_bind_info_.dynamic_offset_;
+//       new_dynamic_offset_in = buffer_bind_info_.dynamic_offset_;
+//     }
+//     if (new_offset_in + new_dynamic_offset_in > buffer_.GetBufferSize()) {
+//       LOG_WARN("The sum of new offset and new dynamic offset is too large.");
+//       new_offset_in =
+//           buffer_.GetBufferSize() - buffer_bind_info_.dynamic_offset_;
+//       new_dynamic_offset_in = buffer_bind_info_.dynamic_offset_;
+//     }
+//   } else {
+//     if (new_offset_in > buffer_.GetBufferSize()) {
+//       new_offset_in = buffer_.GetBufferSize();
+//     }
+//   }
+//
+//   auto new_buffer = GetLightCopy();
+//   new_buffer.buffer_bind_info_.offset_ = new_offset_in;
+//
+//   if (IsDynamic()) {
+//     new_buffer.buffer_bind_info_.dynamic_offset_ = new_dynamic_offset_in;
+//   }
+//
+//   return new_buffer;
+// }
+//
+// MM::RenderSystem::RenderResourceBuffer
+// MM::RenderSystem::RenderResourceBuffer::GetCopyWithDynamicBuffer(
+//     const VkDeviceSize& new_offset,
+//     const VkDeviceSize& new_dynamic_offset) const {
+//   if (IsTexel()) {
+//     return *this;
+//   }
+//
+//   if (IsDynamic()) {
+//     return *this;
+//   }
+//
+//   auto new_buffer = GetLightCopy();
+//   if (IsStorage()) {
+//     new_buffer.buffer_bind_info_.bind_.descriptorType =
+//         VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC;
+//   } else {
+//     new_buffer.buffer_bind_info_.bind_.descriptorType =
+//         VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC;
+//   }
+//
+//   if (new_offset < UINT64_MAX - new_dynamic_offset &&
+//       new_offset + new_dynamic_offset < buffer_.GetBufferSize()) {
+//     new_buffer.buffer_bind_info_.offset_ = new_offset;
+//     new_buffer.buffer_bind_info_.dynamic_offset_ = new_dynamic_offset;
+//   }
+//
+//   return new_buffer;
+// }
 
 bool MM::RenderSystem::RenderResourceBuffer::IsDynamic() const {
   return Utils::DescriptorTypeIsDynamicBuffer(
@@ -1441,7 +1458,8 @@ bool MM::RenderSystem::RenderResourceBuffer::IsUniform() const {
 }
 
 bool MM::RenderSystem::RenderResourceBuffer::IsTexel() const {
-  return Utils::DescriptorTypeIsTexelBuffer(buffer_bind_info_.bind_.descriptorType);
+  return Utils::DescriptorTypeIsTexelBuffer(
+      buffer_bind_info_.bind_.descriptorType);
 }
 
 bool MM::RenderSystem::RenderResourceBuffer::IsTransformSrc() const {
@@ -1457,8 +1475,8 @@ MM::RenderSystem::RenderResourceBuffer::GetBufferInfo() const {
   return buffer_.GetBufferInfo();
 }
 
-const VkDeviceSize& MM::RenderSystem::RenderResourceBuffer::
-GetBufferSize() const {
+const VkDeviceSize& MM::RenderSystem::RenderResourceBuffer::GetBufferSize()
+    const {
   return buffer_.GetBufferSize();
 }
 
@@ -1471,8 +1489,8 @@ const VkDeviceSize& MM::RenderSystem::RenderResourceBuffer::GetDynamicOffset()
   return buffer_bind_info_.dynamic_offset_;
 }
 
-const VkDeviceSize& MM::RenderSystem::RenderResourceBuffer::
-GetRangeSize() const {
+const VkDeviceSize& MM::RenderSystem::RenderResourceBuffer::GetRangeSize()
+    const {
   return buffer_bind_info_.range_size_;
 }
 
@@ -1525,7 +1543,7 @@ MM::RenderSystem::RenderResourceBuffer::GetResourceType() const {
   return ResourceType::BUFFER;
 }
 
-const VkDeviceSize& MM::RenderSystem::RenderResourceBuffer::GetSize() const {
+VkDeviceSize MM::RenderSystem::RenderResourceBuffer::GetSize() const {
   return buffer_.GetBufferSize();
 }
 
@@ -1535,8 +1553,8 @@ bool MM::RenderSystem::RenderResourceBuffer::CanWrite() const {
   return Utils::ResourceBufferCanWrite(buffer_bind_info_.bind_.descriptorType);
 }
 
-std::unique_ptr<MM::RenderSystem::RenderResourceBase> MM::RenderSystem::
-RenderResourceBuffer::GetLightCopy(
+std::unique_ptr<MM::RenderSystem::RenderResourceBase>
+MM::RenderSystem::RenderResourceBuffer::GetLightCopy(
     const std::string& new_name_of_copy_resource) const {
   auto new_buffer = std::make_unique<RenderResourceBuffer>(*this);
   new_buffer->SetResourceID(
@@ -1546,12 +1564,12 @@ RenderResourceBuffer::GetLightCopy(
   return new_buffer;
 }
 
-std::unique_ptr<MM::RenderSystem::RenderResourceBase> MM::RenderSystem::
-RenderResourceBuffer::GetDeepCopy(
+std::unique_ptr<MM::RenderSystem::RenderResourceBase>
+MM::RenderSystem::RenderResourceBuffer::GetDeepCopy(
     const std::string& new_name_of_copy_resource) const {
   VkBufferUsageFlags new_buffer_usage;
-  assert(Utils::GetBufferUsageFromDescriptorType(
-      GetDescriptorType(), new_buffer_usage));
+  assert(Utils::GetBufferUsageFromDescriptorType(GetDescriptorType(),
+                                                 new_buffer_usage));
 
   if (IsTransformSrc()) {
     new_buffer_usage |= VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
@@ -1563,18 +1581,18 @@ RenderResourceBuffer::GetDeepCopy(
       GetBufferSize(), new_buffer_usage, temp_queue_index, 0);
 
   const VmaAllocationCreateInfo new_allocation_create_info =
-      Utils::GetVmaAllocationCreateInfo(VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE,
-                                        CanMapped()
-                                          ? VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT
-                                          : 0);
+      Utils::GetVmaAllocationCreateInfo(
+          VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE,
+          CanMapped() ? VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT
+                      : 0);
   VkBuffer new_buffer{nullptr};
   VmaAllocation new_allocation{nullptr};
 
   VK_CHECK(vmaCreateBuffer(render_engine_->GetAllocator(),
                            &new_buffer_create_info, &new_allocation_create_info,
                            &new_buffer, &new_allocation, nullptr),
-           LOG_ERROR("Failed to create buffer.") return std::unique_ptr<
-               RenderResourceBuffer>())
+           LOG_ERROR("Failed to create buffer.");
+           return std::unique_ptr<RenderResourceBuffer>())
 
   BufferInfo new_buffer_info = GetBufferInfo();
   new_buffer_info.is_transform_dest_ = true;
@@ -1588,8 +1606,7 @@ RenderResourceBuffer::GetDeepCopy(
   MM_CHECK(render_engine_->CopyBuffer(buffer_, new_allocated_buffer,
                                       std::vector<VkBufferCopy2>{buffer_copy}),
            LOG_ERROR("Failed to copy buffer.");
-           return std::unique_ptr<
-               RenderResourceBuffer>{};)
+           return std::unique_ptr<RenderResourceBuffer>{};)
 
   return std::make_unique<RenderResourceBuffer>(
       new_name_of_copy_resource, render_engine_, buffer_bind_info_,
@@ -1703,11 +1720,12 @@ bool MM::RenderSystem::RenderResourceBuffer::CheckInitParameter(
 bool MM::RenderSystem::RenderResourceBuffer::InitBuffer(
     const VkDeviceSize& size, const VkBufferUsageFlags& buffer_usage,
     const VkBufferCreateFlags& buffer_flags, const VmaMemoryUsage& memory_usage,
-    const VmaAllocationCreateFlags& allocation_flags, const std::vector<std::uint32_t>& queue_index, 
+    const VmaAllocationCreateFlags& allocation_flags,
+    const std::vector<std::uint32_t>& queue_index,
     const VkSharingMode& sharing_mode) {
   std::vector<std::uint32_t> temp_queue_index = queue_index;
-  const auto buffer_create_info =
-      Utils::GetBufferCreateInfo(size, buffer_usage, temp_queue_index, buffer_flags);
+  const auto buffer_create_info = Utils::GetBufferCreateInfo(
+      size, buffer_usage, temp_queue_index, buffer_flags);
   const auto allocation_create_info =
       Utils::GetVmaAllocationCreateInfo(memory_usage, allocation_flags);
 
@@ -1724,7 +1742,8 @@ bool MM::RenderSystem::RenderResourceBuffer::InitBuffer(
   temp_buffer_info.buffer_size_ = size;
   temp_buffer_info.can_mapped_ =
       Utils::CanBeMapped(memory_usage, allocation_flags);
-  temp_buffer_info.is_transform_src_ = Utils::IsTransformSrcBuffer(buffer_flags);
+  temp_buffer_info.is_transform_src_ =
+      Utils::IsTransformSrcBuffer(buffer_flags);
   temp_buffer_info.is_transform_dest_ =
       Utils::IsTransformDestBuffer(buffer_flags);
   temp_buffer_info.is_exclusive_ =
@@ -1785,21 +1804,23 @@ MM::ExecuteResult MM::RenderSystem::RenderResourceBuffer::CopyDataToBuffer(
 
   vmaUnmapMemory(render_engine_->allocator_, stage_buffer.GetAllocation());
 
-  MM_CHECK(render_engine_->RunSingleCommandAndWait(
-      CommandBufferType::TRANSFORM,
-      [&buffer_copy_info = buffer_copy_info](AllocatedCommandBuffer& cmd) {
-        MM_CHECK(Utils::BeginCommandBuffer(cmd),
-                 LOG_ERROR("Failed to begin command buffer.");
-                 return MM_RESULT_CODE;)
+  MM_CHECK(
+      render_engine_->RunSingleCommandAndWait(
+          CommandBufferType::TRANSFORM,
+          [&buffer_copy_info = buffer_copy_info](AllocatedCommandBuffer& cmd) {
+            MM_CHECK(Utils::BeginCommandBuffer(cmd),
+                     LOG_ERROR("Failed to begin command buffer.");
+                     return MM_RESULT_CODE;)
 
-        vkCmdCopyBuffer2(cmd.GetCommandBuffer(), &buffer_copy_info);
+            vkCmdCopyBuffer2(cmd.GetCommandBuffer(), &buffer_copy_info);
 
-        MM_CHECK(Utils::EndCommandBuffer(cmd),
-                 LOG_ERROR("Failed to end command buffer.");
-                 return MM_RESULT_CODE;)
+            MM_CHECK(Utils::EndCommandBuffer(cmd),
+                     LOG_ERROR("Failed to end command buffer.");
+                     return MM_RESULT_CODE;)
 
-        return ExecuteResult::SUCCESS;
-      }))
+            return ExecuteResult::SUCCESS;
+          }),
+      return MM_RESULT_CODE;)
 
   return ExecuteResult::SUCCESS;
 }
@@ -1914,12 +1935,10 @@ MM::RenderSystem::RenderResourceMesh::operator=(
 }
 
 bool MM::RenderSystem::RenderResourceMesh::IsValid() const {
-  if (render_engine_ == nullptr || !vertex_input_state_.IsValid() ||
+  return !static_cast<bool>(
+      render_engine_ == nullptr || !vertex_input_state_.IsValid() ||
       !index_buffer_.IsValid() || index_buffer_info_.buffer_size_ == 0 ||
-      !vertex_buffer_.IsValid() || vertex_buffer_info.buffer_size_ == 0) {
-    return false;
-  }
-  return true;
+      !vertex_buffer_.IsValid() || vertex_buffer_info.buffer_size_ == 0);
 }
 
 // void MM::RenderSystem::RenderResourceTexture::RenderResourceTextureWrapper::

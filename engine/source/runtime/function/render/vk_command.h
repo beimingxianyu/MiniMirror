@@ -146,19 +146,22 @@ class CommandTaskFlow {
 
  public:
   /**
-   * \remark The \ref commands must not contain VkQueueSubmit().
+   * \remark The commands must not contain VkQueueSubmit().
    */
   CommandTask& AddTask(
-      const CommandType& command_type,
-      const std::function<ExecuteResult(AllocatedCommandBuffer& cmd)>& commands,
-      const std::vector<WaitAllocatedSemaphore>& wait_semaphores,
-      const std::vector<AllocateSemaphore>& signal_semaphores);
+      CommandType command_type,
+      const std::function<MM::ExecuteResult(
+          MM::RenderSystem::AllocatedCommandBuffer&)>& commands,
+      const std::vector<MM::RenderSystem::WaitAllocatedSemaphore>&
+          wait_semaphores,
+      const std::vector<MM::RenderSystem::AllocateSemaphore>&
+          signal_semaphores);
 
   /**
-   * \remark The \ref commands must not contain VkQueueSubmit().
+   * \remark The commands must not contain VkQueueSubmit().
    */
   CommandTask& AddTask(
-      const CommandType& command_type,
+      CommandType command_type,
       const std::vector<
           std::function<ExecuteResult(AllocatedCommandBuffer& cmd)>>& commands,
       const std::vector<WaitAllocatedSemaphore>& wait_semaphores,
@@ -674,7 +677,6 @@ class CommandExecutor {
     std::weak_ptr<ExecutingCommandTaskFlow> command_task_flow_;
     std::vector<std::unique_ptr<AllocatedCommandBuffer>> command_buffers_;
     std::unique_ptr<CommandTask> command_task_{};
-    std::weak_ptr<ExecuteResult> execute_result_{};
     std::optional<std::weak_ptr<bool>> is_complete_{};
 
     std::vector<std::vector<VkSemaphore>> wait_semaphore_;
@@ -728,6 +730,24 @@ class CommandExecutor {
 
   void ProcessNextStepCanSubmitTask(
       const std::shared_ptr<ExecutingCommandTaskFlow>& command_task_flow);
+
+  MM::ExecuteResult RecordAndSubmitCommandSync(
+      std::unique_ptr<ExecutingTask>& input_tasks);
+
+  MM::ExecuteResult RecordAndSubmitCommandASync(
+      std::unique_ptr<ExecutingTask>& input_tasks);
+
+  void PostProcessOfSubmitTask(
+      std::shared_ptr<ExecutingCommandTaskFlow>& command_task_flow,
+      std::unique_ptr<ExecutingTask>& input_tasks, ExecuteResult& result);
+
+  ExecuteResult SubmitTasksSync(
+      std::shared_ptr<ExecutingCommandTaskFlow>& command_task_flow,
+      std::unique_ptr<ExecutingTask>& input_tasks);
+
+  ExecuteResult SubmitTaskAsync(
+      std::shared_ptr<ExecutingCommandTaskFlow>& command_task_flow,
+      std::unique_ptr<ExecutingTask>& input_tasks);
 
   ExecuteResult SubmitTasks(
       std::shared_ptr<ExecutingCommandTaskFlow>& command_task_flow,

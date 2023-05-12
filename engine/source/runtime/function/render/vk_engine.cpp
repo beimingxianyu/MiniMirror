@@ -2,6 +2,8 @@
 
 #include <set>
 
+#include "runtime/function/render/vk_command.h"
+
 const std::string MM::RenderSystem::RenderEngine::validation_layers_name{
     "VK_LAYER_KHRONOS_validation"};
 
@@ -68,7 +70,8 @@ bool MM::RenderSystem::RenderEngine::IsValid() const { return is_initialized_; }
 MM::RenderSystem::AllocatedBuffer MM::RenderSystem::RenderEngine::CreateBuffer(
     const size_t& alloc_size, const VkBufferUsageFlags& usage,
     const VmaMemoryUsage& memory_usage,
-    const VmaAllocationCreateFlags& allocation_flags, const bool& is_BDA_buffer) const {
+    const VmaAllocationCreateFlags& allocation_flags,
+    const bool& is_BDA_buffer) const {
   return Utils::CreateBuffer(this, alloc_size, usage, memory_usage,
                              allocation_flags, is_BDA_buffer);
 }
@@ -81,19 +84,23 @@ const VkDevice& MM::RenderSystem::RenderEngine::GetDevice() const {
   return device_;
 }
 
-const std::uint32_t& MM::RenderSystem::RenderEngine::GetGraphQueueIndex() const {
+const std::uint32_t& MM::RenderSystem::RenderEngine::GetGraphQueueIndex()
+    const {
   return queue_family_indices_.graphics_family_.value();
 }
 
-const std::uint32_t& MM::RenderSystem::RenderEngine::GetTransformQueueIndex() const {
+const std::uint32_t& MM::RenderSystem::RenderEngine::GetTransformQueueIndex()
+    const {
   return queue_family_indices_.transform_family_.value();
 }
 
-const std::uint32_t& MM::RenderSystem::RenderEngine::GetPresentQueueIndex() const {
+const std::uint32_t& MM::RenderSystem::RenderEngine::GetPresentQueueIndex()
+    const {
   return queue_family_indices_.present_family_.value();
 }
 
-const std::uint32_t& MM::RenderSystem::RenderEngine::GetComputeQueueIndex() const {
+const std::uint32_t& MM::RenderSystem::RenderEngine::GetComputeQueueIndex()
+    const {
   return queue_family_indices_.compute_family_.value();
 }
 
@@ -135,8 +142,8 @@ MM::ExecuteResult MM::RenderSystem::RenderEngine::RunCommandAndWait(
 
 MM::RenderSystem::RenderFuture MM::RenderSystem::RenderEngine::RunSingleCommand(
     CommandBufferType command_type,
-    const std::function<MM::ExecuteResult(MM::RenderSystem::
-      AllocatedCommandBuffer& cmd)>& commands) {
+    const std::function<MM::ExecuteResult(
+        MM::RenderSystem::AllocatedCommandBuffer& cmd)>& commands) {
   CommandTaskFlow command_task_flow;
   command_task_flow.AddTask(command_type, commands,
                             std::vector<WaitAllocatedSemaphore>(),
@@ -147,8 +154,8 @@ MM::RenderSystem::RenderFuture MM::RenderSystem::RenderEngine::RunSingleCommand(
 
 MM::ExecuteResult MM::RenderSystem::RenderEngine::RunSingleCommandAndWait(
     CommandBufferType command_type,
-    const std::function<MM::ExecuteResult(MM::RenderSystem::
-      AllocatedCommandBuffer& cmd)>& commands) {
+    const std::function<MM::ExecuteResult(
+        MM::RenderSystem::AllocatedCommandBuffer& cmd)>& commands) {
   CommandTaskFlow command_task_flow;
   command_task_flow.AddTask(command_type, commands,
                             std::vector<WaitAllocatedSemaphore>(),
@@ -191,7 +198,7 @@ MM::ExecuteResult MM::RenderSystem::RenderEngine::CopyBuffer(
 
   if (src_buffer.GetBuffer() == dest_buffer.GetBuffer()) {
     std::list<BufferChunkInfo> write_areas{};
-    // Check for any overlap and over size.
+    // Check for any overlap and oversize.
     for (const auto& region : regions) {
       if (region.srcOffset + region.size > src_buffer.GetBufferSize() ||
           region.dstOffset + region.size > dest_buffer.GetBufferSize()) {
@@ -263,9 +270,11 @@ MM::ExecuteResult MM::RenderSystem::RenderEngine::CopyBuffer(
                           LOG_ERROR("Failed to begin command buffer.");
                           return MM_RESULT_CODE;);
 
-                 auto buffer_barrier = Utils::GetBufferMemoryBarrier(VK_PIPELINE_STAGE_2_TRANSFER_BIT, VK_ACCESS_2_TRANSFER_WRITE_BIT, )
+                 auto buffer_barrier = Utils::GetBufferMemoryBarrier(
+                     VK_PIPELINE_STAGE_2_TRANSFER_BIT,
+                     VK_ACCESS_2_TRANSFER_WRITE_BIT, )
 
-                 vkCmdCopyBuffer2(cmd.GetCommandBuffer(), &copy_buffer);
+                     vkCmdCopyBuffer2(cmd.GetCommandBuffer(), &copy_buffer);
                  MM_CHECK(Utils::EndCommandBuffer(cmd),
                           LOG_ERROR("Failed to end command buffer.");
                           return MM_RESULT_CODE;);
@@ -345,20 +354,15 @@ MM::ExecuteResult MM::RenderSystem::RenderEngine::CopyBuffer(
            LOG_ERROR("Failed to copy buffer.");
            return MM_RESULT_CODE;)
 
-
   return ExecuteResult::SUCCESS;
 }
 
 MM::ExecuteResult MM::RenderSystem::RenderEngine::CopyBuffer(
-    AllocatedBuffer& src_buffer,
-    AllocatedBuffer& dest_buffer,
-    const std::vector<std::vector<
-      VkBufferCopy2>>&
-    regions_vector) {
+    AllocatedBuffer& src_buffer, AllocatedBuffer& dest_buffer,
+    const std::vector<std::vector<VkBufferCopy2>>& regions_vector) {
   for (const auto& regions : regions_vector) {
-    MM_CHECK(CopyBuffer(src_buffer, dest_buffer, regions), 
-      return MM_RESULT_CODE;
-    )
+    MM_CHECK(CopyBuffer(src_buffer, dest_buffer, regions),
+             return MM_RESULT_CODE;)
   }
 
   return ExecuteResult::SUCCESS;
@@ -376,12 +380,9 @@ MM::ExecuteResult MM::RenderSystem::RenderEngine::CopyBuffer(
 }
 
 MM::ExecuteResult MM::RenderSystem::RenderEngine::CopyImage(
-    AllocatedImage& src_image,
-    AllocatedImage& dest_image,
-    const VkImageLayout& src_layout,
-    const VkImageLayout& dest_layout,
-    const std::vector<VkImageCopy2>&
-    regions) {
+    AllocatedImage& src_image, AllocatedImage& dest_image,
+    const VkImageLayout& src_layout, const VkImageLayout& dest_layout,
+    const std::vector<VkImageCopy2>& regions) {
   // TODO Add "#ifdef CHECK_PARAMETERS" to all parameter check.
 #ifdef CHECK_PARAMETERS
   if (!src_image.IsValid()) {
@@ -408,8 +409,8 @@ MM::ExecuteResult MM::RenderSystem::RenderEngine::CopyImage(
   std::unordered_map<std::uint64_t, std::vector<ImageChunkInfo>>
       image_write_areas;
   for (const auto& region : regions) {
-    if (region.extent.width == 0 || region.extent.height == 0 || region.extent.
-        depth == 0) {
+    if (region.extent.width == 0 || region.extent.height == 0 ||
+        region.extent.depth == 0) {
       LOG_ERROR("VkImageCopy::extent::width/height/depth must greater than 0.");
       return ExecuteResult::INPUT_PARAMETERS_ARE_NOT_SUITABLE;
     }
@@ -448,8 +449,8 @@ MM::ExecuteResult MM::RenderSystem::RenderEngine::CopyImage(
       return ExecuteResult::INPUT_PARAMETERS_ARE_NOT_SUITABLE;
     }
 
-    if (region.srcSubresource.mipLevel > src_image.GetMipmapLevels() || region.
-        dstSubresource.mipLevel > dest_image.GetMipmapLevels()) {
+    if (region.srcSubresource.mipLevel > src_image.GetMipmapLevels() ||
+        region.dstSubresource.mipLevel > dest_image.GetMipmapLevels()) {
       LOG_ERROR(
           "The specified number of mipmap level is greater than the number of "
           "mipmap level contained in the image itself.");
@@ -462,21 +463,22 @@ MM::ExecuteResult MM::RenderSystem::RenderEngine::CopyImage(
       return ExecuteResult::INPUT_PARAMETERS_ARE_NOT_SUITABLE;
     }
 
-    if (region.srcSubresource.baseArrayLayer + region.srcSubresource.layerCount
-        > src_image.GetImageLayout() ||
+    if (region.srcSubresource.baseArrayLayer +
+                region.srcSubresource.layerCount >
+            src_image.GetImageLayout() ||
         region.dstSubresource.baseArrayLayer +
-        region.dstSubresource.layerCount >
-        dest_image.GetImageLayout()) {
+                region.dstSubresource.layerCount >
+            dest_image.GetImageLayout()) {
       LOG_ERROR(
           "The specified number of array level is greater than the number of "
           "array level contained in the image itself.");
       return ExecuteResult::INPUT_PARAMETERS_ARE_NOT_SUITABLE;
     }
 
-    if (!Utils::ImageRegionAreaLessThanImageExtent(
-            region.srcOffset, region.extent, src_image) ||
-        !Utils::ImageRegionAreaLessThanImageExtent(
-            region.dstOffset, region.extent, dest_image)) {
+    if (!Utils::ImageRegionAreaLessThanImageExtent(region.srcOffset,
+                                                   region.extent, src_image) ||
+        !Utils::ImageRegionAreaLessThanImageExtent(region.dstOffset,
+                                                   region.extent, dest_image)) {
       LOG_ERROR(
           "The specified area is lager than src_image/dest_image extent.");
       return ExecuteResult::INPUT_PARAMETERS_ARE_NOT_SUITABLE;
@@ -496,8 +498,8 @@ MM::ExecuteResult MM::RenderSystem::RenderEngine::CopyImage(
           return ExecuteResult::INPUT_PARAMETERS_ARE_NOT_SUITABLE;
         }
       }
-      image_write_areas[hash_value].emplace_back(
-          region.dstOffset, region.extent);
+      image_write_areas[hash_value].emplace_back(region.dstOffset,
+                                                 region.extent);
     }
   }
   for (const auto& region : regions) {
@@ -541,12 +543,9 @@ MM::ExecuteResult MM::RenderSystem::RenderEngine::CopyImage(
 }
 
 MM::ExecuteResult MM::RenderSystem::RenderEngine::CopyImage(
-    const AllocatedImage& src_image,
-    AllocatedImage& dest_image,
-    const VkImageLayout& src_layout,
-    const VkImageLayout& dest_layout,
-    const std::vector<VkImageCopy2>&
-    regions) {
+    const AllocatedImage& src_image, AllocatedImage& dest_image,
+    const VkImageLayout& src_layout, const VkImageLayout& dest_layout,
+    const std::vector<VkImageCopy2>& regions) {
 #ifdef CHECK_PARAMETERS
   if (!src_image.IsValid()) {
     LOG_ERROR("Src_image is invalid.");
@@ -637,11 +636,11 @@ MM::ExecuteResult MM::RenderSystem::RenderEngine::CopyImage(
     }
 
     if (region.srcSubresource.baseArrayLayer +
-        region.srcSubresource.layerCount >
-        src_image.GetImageLayout() ||
+                region.srcSubresource.layerCount >
+            src_image.GetImageLayout() ||
         region.dstSubresource.baseArrayLayer +
-        region.dstSubresource.layerCount >
-        dest_image.GetImageLayout()) {
+                region.dstSubresource.layerCount >
+            dest_image.GetImageLayout()) {
       LOG_ERROR(
           "The specified number of array level is greater than the number of "
           "array level contained in the image itself.");
@@ -662,7 +661,7 @@ MM::ExecuteResult MM::RenderSystem::RenderEngine::CopyImage(
   VkCopyImageInfo2 copy_image_info = Utils::GetCopyImageInfo(
       src_image, dest_image, src_layout, dest_layout, regions);
 
-   MM_CHECK(RunSingleCommandAndWait(
+  MM_CHECK(RunSingleCommandAndWait(
                CommandBufferType::TRANSFORM,
                [&copy_image_info](AllocatedCommandBuffer& cmd) {
                  MM_CHECK(Utils::BeginCommandBuffer(cmd),
@@ -685,12 +684,10 @@ MM::ExecuteResult MM::RenderSystem::RenderEngine::CopyImage(
 MM::ExecuteResult MM::RenderSystem::RenderEngine::CopyImage(
     AllocatedImage& src_image, AllocatedImage& dest_image,
     const VkImageLayout& src_layout, const VkImageLayout& dest_layout,
-    const std::vector<std::vector<VkImageCopy2>&>& regions_vector) {
+    const std::vector<std::vector<VkImageCopy2>>& regions_vector) {
   for (const auto& regions : regions_vector) {
-    MM_CHECK(
-        CopyBuffer(src_image, dest_image, src_layout, dest_layout, regions),
-        return MM_RESULT_CODE;
-      )
+    MM_CHECK(CopyImage(src_image, dest_image, src_layout, dest_layout, regions),
+             return MM_RESULT_CODE;)
   }
 
   return ExecuteResult::SUCCESS;
@@ -699,7 +696,7 @@ MM::ExecuteResult MM::RenderSystem::RenderEngine::CopyImage(
 MM::ExecuteResult MM::RenderSystem::RenderEngine::CopyImage(
     const AllocatedImage& src_image, AllocatedImage& dest_image,
     const VkImageLayout& src_layout, const VkImageLayout& dest_layout,
-    const std::vector<std::vector<VkImageCopy2>&>& regions_vector) {
+    const std::vector<std::vector<VkImageCopy2>>& regions_vector) {
   for (const auto& regions : regions_vector) {
     MM_CHECK(CopyImage(src_image, dest_image, src_layout, dest_layout, regions),
              return MM_RESULT_CODE;)
@@ -740,8 +737,7 @@ MM::ExecuteResult MM::RenderSystem::RenderEngine::CopyDataToBuffer(
 }
 
 MM::ExecuteResult MM::RenderSystem::RenderEngine::RemoveBufferFragmentation(
-    AllocatedBuffer& buffer,
-    std::vector<BufferChunkInfo>& buffer_chunks_info) {
+    AllocatedBuffer& buffer, std::vector<BufferChunkInfo>& buffer_chunks_info) {
 #ifdef CHECK_PARAMETERS
   if (!buffer.IsValid()) {
     LOG_ERROR("buffer is invalid.");
@@ -779,10 +775,9 @@ MM::ExecuteResult MM::RenderSystem::RenderEngine::RemoveBufferFragmentation(
         buffer_chunks_info[i].GetOffset() - pre_valid_size;
     for (std::size_t j = 0; j < i; ++j) {
       if (stage_flag[j] != 1) {
-        if (new_offset <=
-            buffer_chunks_info[j].GetOffset() + buffer_chunks_info[j].GetSize()) {
-          if (new_offset +
-                  buffer_chunks_info[i].GetSize() >=
+        if (new_offset <= buffer_chunks_info[j].GetOffset() +
+                              buffer_chunks_info[j].GetSize()) {
+          if (new_offset + buffer_chunks_info[i].GetSize() >=
               buffer_chunks_info[j].GetOffset()) {
             stage_flag[i] = 1;
             self_copy_to_stage_regions.push_back(Utils::GetBufferCopy(
@@ -810,9 +805,12 @@ MM::ExecuteResult MM::RenderSystem::RenderEngine::RemoveBufferFragmentation(
       VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
       VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE);
 
-  auto self_copy_info = Utils::GetCopyBufferInfo(buffer, buffer, self_copy_regions);
-  auto self_copy_to_stage_info = Utils::GetCopyBufferInfo(buffer, stage_buffer, self_copy_to_stage_regions);
-  auto stage_copy_to_self_info = Utils::GetCopyBufferInfo(stage_buffer, buffer, stage_copy_to_self_regions);
+  auto self_copy_info =
+      Utils::GetCopyBufferInfo(buffer, buffer, self_copy_regions);
+  auto self_copy_to_stage_info = Utils::GetCopyBufferInfo(
+      buffer, stage_buffer, self_copy_to_stage_regions);
+  auto stage_copy_to_self_info = Utils::GetCopyBufferInfo(
+      stage_buffer, buffer, stage_copy_to_self_regions);
 
   MM_CHECK(
       RunSingleCommandAndWait(
@@ -844,8 +842,7 @@ MM::ExecuteResult MM::RenderSystem::RenderEngine::RemoveBufferFragmentation(
 }
 
 MM::ExecuteResult MM::RenderSystem::RenderEngine::RemoveBufferFragmentation(
-    AllocatedBuffer& buffer,
-    std::list<BufferChunkInfo>& buffer_chunks_info) {
+    AllocatedBuffer& buffer, std::list<BufferChunkInfo>& buffer_chunks_info) {
 #ifdef CHECK_PARAMETERS
   if (!buffer.IsValid()) {
     LOG_ERROR("buffer is invalid.");
@@ -866,7 +863,8 @@ MM::ExecuteResult MM::RenderSystem::RenderEngine::RemoveBufferFragmentation(
 
   std::uint32_t index = 0;
   for (auto buffer_chunk_info = buffer_chunks_info.begin();
-       buffer_chunk_info != buffer_chunks_info.end(); ++buffer_chunk_info, ++index) {
+       buffer_chunk_info != buffer_chunks_info.end();
+       ++buffer_chunk_info, ++index) {
     if (pre_valid_size + buffer_chunk_info->GetSize() >=
         buffer_chunk_info->GetOffset()) {
       stage_flag[index] = 1;
@@ -884,7 +882,9 @@ MM::ExecuteResult MM::RenderSystem::RenderEngine::RemoveBufferFragmentation(
     const VkDeviceSize new_offset =
         buffer_chunk_info->GetOffset() - pre_valid_size;
     std::uint32_t index2 = 0;
-    for (auto buffer_chunk_info2 = buffer_chunks_info.begin(); buffer_chunk_info2 != buffer_chunk_info; ++buffer_chunk_info2, ++index2) {
+    for (auto buffer_chunk_info2 = buffer_chunks_info.begin();
+         buffer_chunk_info2 != buffer_chunk_info;
+         ++buffer_chunk_info2, ++index2) {
       if (stage_flag[index2] != 1) {
         if (new_offset <=
             buffer_chunk_info2->GetOffset() + buffer_chunk_info2->GetSize()) {
@@ -949,18 +949,16 @@ MM::ExecuteResult MM::RenderSystem::RenderEngine::RemoveBufferFragmentation(
                 "buffer.");
       return MM_RESULT_CODE;)
 
-
-
   return ExecuteResult::SUCCESS;
 }
 
-const VkPhysicalDeviceFeatures& MM::RenderSystem::RenderEngine::
-GetPhysicalDeviceFeatures() const {
+const VkPhysicalDeviceFeatures&
+MM::RenderSystem::RenderEngine::GetPhysicalDeviceFeatures() const {
   return gpu_features_;
 }
 
-const VkPhysicalDeviceProperties& MM::RenderSystem::RenderEngine::
-GetPhysicalDeviceProperties() const {
+const VkPhysicalDeviceProperties&
+MM::RenderSystem::RenderEngine::GetPhysicalDeviceProperties() const {
   return gpu_properties_;
 }
 
@@ -972,8 +970,8 @@ uint32_t MM::RenderSystem::RenderEngine::GetFlightFrameNumber() const {
   return flight_frame_number_;
 }
 
-VkSampleCountFlagBits
-MM::RenderSystem::RenderEngine::GetMultiSampleCount() const {
+VkSampleCountFlagBits MM::RenderSystem::RenderEngine::GetMultiSampleCount()
+    const {
   return render_engine_info_.multi_sample_count_;
 }
 
@@ -984,8 +982,8 @@ bool MM::RenderSystem::RenderEngine::SupportMultiDrawIndirect() const {
 void MM::RenderSystem::RenderEngine::ChooseMultiSampleCount() {
   uint32_t count{0};
   auto max_sample_count = static_cast<VkSampleCountFlagBits>(
-    gpu_properties_.limits.framebufferColorSampleCounts &
-    gpu_properties_.limits.framebufferDepthSampleCounts);
+      gpu_properties_.limits.framebufferColorSampleCounts &
+      gpu_properties_.limits.framebufferDepthSampleCounts);
   if (max_sample_count & VK_SAMPLE_COUNT_64_BIT) {
     max_sample_count = VK_SAMPLE_COUNT_64_BIT;
   } else if (max_sample_count & VK_SAMPLE_COUNT_32_BIT) {
@@ -1003,8 +1001,8 @@ void MM::RenderSystem::RenderEngine::ChooseMultiSampleCount() {
     return;
   }
   MM_CHECK(CONFIG_SYSTEM->GetConfig("multi_sample_count", count),
-           LOG_ERROR("The setting of \"multi_sample_count\" is not exist.")
-               render_engine_info_.multi_sample_count_ = VK_SAMPLE_COUNT_4_BIT;
+           LOG_ERROR("The setting of \"multi_sample_count\" is not exist.");
+           render_engine_info_.multi_sample_count_ = VK_SAMPLE_COUNT_4_BIT;
            return;)
 
   if (count < 2) {
@@ -1056,7 +1054,6 @@ void MM::RenderSystem::RenderEngine::ChooseMultiSampleCount() {
     return;
   }
   render_engine_info_.multi_sample_count_ = VK_SAMPLE_COUNT_64_BIT;
-    
 }
 
 void MM::RenderSystem::RenderEngine::InitInstance() {
@@ -1070,7 +1067,7 @@ void MM::RenderSystem::RenderEngine::InitInstance() {
       version_major = 0;
       version_minor = 0; version_patch = 0; LOG_WARN(
           "Failed to get the engine version, set to the default version of "
-          "0.0.0."))
+          "0.0.0.");)
   if (enable_validation_layers_) {
     if (CheckValidationLayerSupport()) {
       enable_layer_.push_back(validation_layers_name.c_str());
@@ -1161,13 +1158,13 @@ void MM::RenderSystem::RenderEngine::InitLogicalDevice() {
 
   const float queue_priority = 1.0f;
   std::vector<VkDeviceQueueCreateInfo>
-      queue_create_infos; // all queues that need to be created
+      queue_create_infos;  // all queues that need to be created
   const std::set<uint32_t> queue_families{
       queue_family_indices_.graphics_family_.value(),
       queue_family_indices_.compute_family_.value(),
       queue_family_indices_.present_family_.value(),
       queue_family_indices_.transform_family_.value()};
-  for (const uint32_t queue_family : queue_families) // for every queue family
+  for (const uint32_t queue_family : queue_families)  // for every queue family
   {
     // queue create info
     VkDeviceQueueCreateInfo queue_create_info{};
@@ -1204,9 +1201,11 @@ void MM::RenderSystem::RenderEngine::InitLogicalDevice() {
   device_vulkan12_features.descriptorIndexing = VK_TRUE;
   device_vulkan12_features.descriptorBindingPartiallyBound = VK_TRUE;
   device_vulkan12_features.shaderSampledImageArrayNonUniformIndexing = VK_TRUE;
-  device_vulkan12_features.descriptorBindingSampledImageUpdateAfterBind = VK_TRUE;
+  device_vulkan12_features.descriptorBindingSampledImageUpdateAfterBind =
+      VK_TRUE;
   device_vulkan12_features.shaderStorageImageArrayNonUniformIndexing = VK_TRUE;
-  device_vulkan12_features.descriptorBindingStorageImageUpdateAfterBind = VK_TRUE;
+  device_vulkan12_features.descriptorBindingStorageImageUpdateAfterBind =
+      VK_TRUE;
   device_vulkan12_features.bufferDeviceAddress = VK_TRUE;
 
   VkPhysicalDeviceDescriptorIndexingFeatures di_features{};
@@ -1372,8 +1371,8 @@ void MM::RenderSystem::RenderEngine::InitCommandExecutor() {
       CONFIG_SYSTEM->GetConfig("single_frame_compute_command_buffer_number",
                                single_frame_compute_command_buffer_number) ==
           ExecuteResult::SUCCESS &&
-      CONFIG_SYSTEM->GetConfig("single_frame_transform_command_buffer_number", 
-                            single_frame_transform_command_buffer_number) ==
+      CONFIG_SYSTEM->GetConfig("single_frame_transform_command_buffer_number",
+                               single_frame_transform_command_buffer_number) ==
           ExecuteResult::SUCCESS) {
     command_executor_ = std::make_unique<CommandExecutor>(
         this, single_frame_graph_command_buffer_number,
@@ -1431,7 +1430,6 @@ void MM::RenderSystem::RenderEngine::InitCommandExecutor() {
 //   }
 // }
 
-
 void MM::RenderSystem::RenderEngine::SetUpDebugMessenger() {
   if (!enable_validation_layers_) {
     return;
@@ -1441,7 +1439,7 @@ void MM::RenderSystem::RenderEngine::SetUpDebugMessenger() {
   PopulateDebugMessengerCreateInfo(createInfo);
 
   auto func = reinterpret_cast<PFN_vkCreateDebugUtilsMessengerEXT>(
-    vkGetInstanceProcAddr(instance_, "vkCreateDebugUtilsMessengerEXT"));
+      vkGetInstanceProcAddr(instance_, "vkCreateDebugUtilsMessengerEXT"));
   if (func) {
     if (func(instance_, &createInfo, nullptr, &debug_messenger_) !=
         VK_SUCCESS) {
@@ -1457,13 +1455,14 @@ void MM::RenderSystem::RenderEngine::InitGlfw() {
   // Read the initialization settings.
   MM_CHECK(
       CONFIG_SYSTEM->GetConfig("window_extent_width", window_extent_.width),
-      LOG_WARN("\"Window_extent_width.\" is not set.Set to default value(1960)")
-          window_extent_.width = 1960;)
+      LOG_WARN(
+          "\"Window_extent_width.\" is not set.Set to default value(1960)");
+      window_extent_.width = 1960;)
   MM_CHECK(
       CONFIG_SYSTEM->GetConfig("window_extent_height", window_extent_.height),
       LOG_WARN(
-          "\"Window_extent_height.\" is not set.Set to default value(1080)")
-          window_extent_.height = 1080;)
+          "\"Window_extent_height.\" is not set.Set to default value(1080)");
+      window_extent_.height = 1080;)
 
   // Initialize glfw.
   glfwInit();
@@ -1576,7 +1575,7 @@ void MM::RenderSystem::RenderEngine::DestroyDebugUtilsMessengerEXT(
     VkInstance instance, VkDebugUtilsMessengerEXT debug_messenger,
     const VkAllocationCallbacks* allocator) {
   const auto func = reinterpret_cast<PFN_vkDestroyDebugUtilsMessengerEXT>(
-    vkGetInstanceProcAddr(instance, "vkDestroyDebugUtilsMessengerEXT"));
+      vkGetInstanceProcAddr(instance, "vkDestroyDebugUtilsMessengerEXT"));
   if (func != nullptr) {
     func(instance, debug_messenger, allocator);
   }
@@ -1617,7 +1616,7 @@ int MM::RenderSystem::RenderEngine::RateDeviceSuitability(
   score += device_properties.limits.maxImageDimension2D;
 
   score += device_properties.limits.framebufferColorSampleCounts +
-      device_properties.limits.framebufferDepthSampleCounts;
+           device_properties.limits.framebufferDepthSampleCounts;
 
   if (device_properties.limits.maxUniformBufferRange != 0) {
     score += 20;
@@ -1677,7 +1676,8 @@ MM::RenderSystem::RenderEngine::FindQueueFamily(
     i++;
   }
 
-  if (!indices.transform_family_.has_value() && indices.graphics_family_.has_value()) {
+  if (!indices.transform_family_.has_value() &&
+      indices.graphics_family_.has_value()) {
     indices.transform_family_ = indices.graphics_family_;
   }
 

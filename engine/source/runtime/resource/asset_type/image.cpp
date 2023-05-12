@@ -49,12 +49,12 @@ MM::AssetType::Image::Image(const std::string& asset_name,
 }
 
 MM::AssetType::Image::Image(Image&& other) noexcept
-  : image_width_(other.image_width_),
-    image_height_(other.image_height_),
-    image_channels_(other.image_channels_),
-    image_size_(other.image_size_),
-    image_format_(other.image_format_),
-    image_pixels_(std::move(image_pixels_)) {
+    : image_width_(other.image_width_),
+      image_height_(other.image_height_),
+      image_channels_(other.image_channels_),
+      image_size_(other.image_size_),
+      image_format_(other.image_format_),
+      image_pixels_(std::move(image_pixels_)) {
   other.image_width_ = 0;
   other.image_height_ = 0;
   other.image_channels_ = 0;
@@ -123,7 +123,7 @@ const MM::AssetType::ImageFormat& MM::AssetType::Image::GetImageFormat() const {
 
 bool MM::AssetType::Image::IsValid() const { return image_pixels_ != nullptr; }
 
-MM::AssetType::AssetType MM::AssetType::Image::GetAssetType() {
+MM::AssetType::AssetType MM::AssetType::Image::GetAssetType() const {
   return AssetType::IMAGE;
 }
 
@@ -156,4 +156,7 @@ void MM::AssetType::swap(Image& lhs, Image& rhs) noexcept {
   swap(lhs.image_size_, rhs.image_size_);
   swap(lhs.image_format_, rhs.image_format_);
   swap(lhs.image_pixels_, rhs.image_pixels_);
+}
+const void* MM::AssetType::Image::GetData() const {
+  return image_pixels_.get();
 }

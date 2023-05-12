@@ -33,7 +33,7 @@ class AssetBase {
     return !(lhs == rhs);
   }
 
-public:
+ public:
   const std::string& GetAssetName() const;
   AssetBase& SetAssetName(const std::string& new_asset_name);
 
@@ -41,7 +41,9 @@ public:
 
   virtual bool IsValid() const = 0;
 
-  virtual AssetType GetAssetType() = 0;
+  virtual AssetType GetAssetType() const = 0;
+
+  virtual const void* GetData() const = 0;
 
   virtual void Release() = 0;
 
@@ -49,9 +51,9 @@ public:
 
   friend void swap(AssetBase& lhs, AssetBase& rhs) noexcept;
 
-private:
+ private:
   std::string asset_name_{};
   uint64_t asset_ID_{0};
 };
-}
-}
+}  // namespace AssetType
+}  // namespace MM

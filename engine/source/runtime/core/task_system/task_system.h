@@ -7,12 +7,7 @@
 
 namespace MM {
 namespace TaskSystem {
-enum class TaskType {
-  Total,
-  Common,
-  Render,
-  Physical
-};
+enum class TaskType { Total, Common, Render, Physical };
 
 class TaskSystem {
  public:
@@ -29,32 +24,42 @@ class TaskSystem {
   tf::Future<void> Run(const TaskType& task_type, Taskflow&& task_flow);
 
   template <typename C>
-  tf::Future<void> Run(const TaskType& task_type, Taskflow& task_flow, C&& callable);
+  tf::Future<void> Run(const TaskType& task_type, Taskflow& task_flow,
+                       C&& callable);
 
   template <typename C>
-  tf::Future<void> Run(const TaskType& task_type, Taskflow&& task_flow, C&& callable);
+  tf::Future<void> Run(const TaskType& task_type, Taskflow&& task_flow,
+                       C&& callable);
 
-  tf::Future<void> RunN(const TaskType& task_type, Taskflow& task_flow, size_t N);
+  tf::Future<void> RunN(const TaskType& task_type, Taskflow& task_flow,
+                        size_t N);
 
-  tf::Future<void> RunN(const TaskType& task_type, Taskflow&& task_flow, size_t N);
+  tf::Future<void> RunN(const TaskType& task_type, Taskflow&& task_flow,
+                        size_t N);
 
   template <typename C>
-  tf::Future<void> RunN(const TaskType& task_type, Taskflow& task_flow, size_t N, C&& callable);
+  tf::Future<void> RunN(const TaskType& task_type, Taskflow& task_flow,
+                        size_t N, C&& callable);
 
   template <typename C>
-  tf::Future<void> RunN(const TaskType& task_type, Taskflow&& task_flow, size_t N, C&& callable);
+  tf::Future<void> RunN(const TaskType& task_type, Taskflow&& task_flow,
+                        size_t N, C&& callable);
 
   template <typename P>
-  tf::Future<void> RunUntil(const TaskType& task_type, Taskflow& task_flow, P&& pred);
+  tf::Future<void> RunUntil(const TaskType& task_type, Taskflow& task_flow,
+                            P&& pred);
 
   template <typename P>
-  tf::Future<void> RunUntil(const TaskType& task_type, Taskflow&& task_flow, P&& pred);
+  tf::Future<void> RunUntil(const TaskType& task_type, Taskflow&& task_flow,
+                            P&& pred);
 
   template <typename P, typename C>
-  tf::Future<void> RunUntil(const TaskType& task_type, Taskflow& task_flow, P&& pred, C&& callable);
+  tf::Future<void> RunUntil(const TaskType& task_type, Taskflow& task_flow,
+                            P&& pred, C&& callable);
 
   template <typename P, typename C>
-  tf::Future<void> RunUntil(const TaskType& task_type, Taskflow&& task_flow, P&& pred, C&& callable);
+  tf::Future<void> RunUntil(const TaskType& task_type, Taskflow&& task_flow,
+                            P&& pred, C&& callable);
 
   template <typename T>
   void RunAndWait(const TaskType& task_type, T& target);
@@ -96,7 +101,7 @@ class TaskSystem {
 
   size_t NumObservers(const TaskType& task_type) const noexcept;
 
-private:
+ private:
   ~TaskSystem() = default;
 
   static bool Destroy();
@@ -106,7 +111,7 @@ private:
   const Executor& ChooseExecutor(const TaskType& task_type) const;
 
  protected:
-  TaskSystem() = default;
+  TaskSystem();
   static TaskSystem* task_system_;
 
  private:
@@ -119,54 +124,64 @@ private:
 };
 
 template <typename C>
-tf::Future<void> TaskSystem::Run(const TaskType& task_type, Taskflow& task_flow, C&& callable) {
+tf::Future<void> TaskSystem::Run(const TaskType& task_type, Taskflow& task_flow,
+                                 C&& callable) {
   auto& executor = ChooseExecutor(task_type);
   return executor.run(task_flow, std::forward<C>(callable));
 }
 
 template <typename C>
-tf::Future<void> TaskSystem::Run(const TaskType& task_type, Taskflow&& task_flow, C&& callable) {
+tf::Future<void> TaskSystem::Run(const TaskType& task_type,
+                                 Taskflow&& task_flow, C&& callable) {
   auto& executor = ChooseExecutor(task_type);
   return executor.run(std::move(task_flow), std::forward<C>(callable));
 }
 
 template <typename C>
-tf::Future<void> TaskSystem::RunN(const TaskType& task_type, Taskflow& task_flow, size_t N, C&& callable) {
+tf::Future<void> TaskSystem::RunN(const TaskType& task_type,
+                                  Taskflow& task_flow, size_t N, C&& callable) {
   auto& executor = ChooseExecutor(task_type);
   return executor.run_n(task_flow, N, std::forward<C>(callable));
 }
 
 template <typename C>
-tf::Future<void> TaskSystem::RunN(const TaskType& task_type, Taskflow&& task_flow, size_t N, C&& callable) {
+tf::Future<void> TaskSystem::RunN(const TaskType& task_type,
+                                  Taskflow&& task_flow, size_t N,
+                                  C&& callable) {
   auto& executor = ChooseExecutor(task_type);
   return executor.run_n(std::move(task_flow), N, std::forward<C>(callable));
 }
 
 template <typename P>
-tf::Future<void> TaskSystem::RunUntil(const TaskType& task_type, Taskflow& task_flow, P&& pred) {
+tf::Future<void> TaskSystem::RunUntil(const TaskType& task_type,
+                                      Taskflow& task_flow, P&& pred) {
   auto& executor = ChooseExecutor(task_type);
   return executor.run_until(task_flow, std::forward<P>(pred));
 }
 
 template <typename P>
-tf::Future<void> TaskSystem::RunUntil(const TaskType& task_type, Taskflow&& task_flow, P&& pred) {
+tf::Future<void> TaskSystem::RunUntil(const TaskType& task_type,
+                                      Taskflow&& task_flow, P&& pred) {
   auto& executor = ChooseExecutor(task_type);
   return executor.run_until(std::move(task_flow), std::forward<P>(pred));
 }
 
 template <typename P, typename C>
-tf::Future<void> TaskSystem::RunUntil(const TaskType& task_type, Taskflow& task_flow,
-                                      P&& pred, C&& callable) {
+tf::Future<void> TaskSystem::RunUntil(const TaskType& task_type,
+                                      Taskflow& task_flow, P&& pred,
+                                      C&& callable) {
   auto& executor = ChooseExecutor(task_type);
-  return executor.run_until(task_flow, std::forward<P>(pred), std::forward<C>(callable));
+  return executor.run_until(task_flow, std::forward<P>(pred),
+                            std::forward<C>(callable));
 }
 
 template <typename P, typename C>
-tf::Future<void> TaskSystem::RunUntil(const TaskType& task_type, Taskflow&& task_flow,
-                                      P&& pred, C&& callable) {
+tf::Future<void> TaskSystem::RunUntil(const TaskType& task_type,
+                                      Taskflow&& task_flow, P&& pred,
+                                      C&& callable) {
   auto& executor = ChooseExecutor(task_type);
   return executor.run_until(std::move(task_flow), std::forward<P>(pred),
-                             std::forward<C>(callable));
+                            std::forward<C>(callable));
 }
 
 template <typename T>
@@ -181,37 +196,37 @@ void TaskSystem::LoopUntil(const TaskType& task_type, P&& predicate) {
   executor.loop_until(std::forward<P>(predicate));
 }
 
-template <typename F, typename ... ArgsT>
+template <typename F, typename... ArgsT>
 auto TaskSystem::Async(const TaskType& task_type, F&& f, ArgsT&&... args) {
   auto& executor = ChooseExecutor(task_type);
   return executor.async(std::forward<F>(f), std::forward<ArgsT>(args)...);
 }
 
-template <typename F, typename ... ArgsT>
+template <typename F, typename... ArgsT>
 auto TaskSystem::NamedAsync(const TaskType& task_type, const std::string& name,
                             F&& f, ArgsT&&... args) {
   auto& executor = ChooseExecutor(task_type);
   return executor.named_async(name, std::forward<F>(f),
-                               std::forward<ArgsT>(args)...);
+                              std::forward<ArgsT>(args)...);
 }
 
-template <typename F, typename ... ArgsT>
+template <typename F, typename... ArgsT>
 void TaskSystem::SilentAsync(const TaskType& task_type, F&& f,
                              ArgsT&&... args) {
   auto& executor = ChooseExecutor(task_type);
   executor.silent_async(std::forward<F>(f), std::forward<ArgsT>(args)...);
 }
 
-template <typename F, typename ... ArgsT>
+template <typename F, typename... ArgsT>
 void TaskSystem::NamedSilentAsync(const TaskType& task_type,
                                   const std::string& name, F&& f,
-    ArgsT&&... args) {
+                                  ArgsT&&... args) {
   auto& executor = ChooseExecutor(task_type);
   executor.named_silent_async(name, std::forward<F>(f),
-                               std::forward<ArgsT>(args)...);
+                              std::forward<ArgsT>(args)...);
 }
 
-template <typename Observer, typename ... ArgsT>
+template <typename Observer, typename... ArgsT>
 std::shared_ptr<Observer> TaskSystem::MakeObserver(const TaskType& task_type,
                                                    ArgsT&&... args) {
   auto& executor = ChooseExecutor(task_type);

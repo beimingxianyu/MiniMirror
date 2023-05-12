@@ -3,8 +3,7 @@
 MM::TaskSystem::TaskSystem* MM::TaskSystem::TaskSystem::task_system_{nullptr};
 std::mutex MM::TaskSystem::TaskSystem::sync_flag_{};
 
-MM::TaskSystem::TaskSystem* MM::TaskSystem::TaskSystem::
-GetInstance() {
+MM::TaskSystem::TaskSystem* MM::TaskSystem::TaskSystem::GetInstance() {
   if (task_system_) {
   } else {
     std::lock_guard<std::mutex> guard{sync_flag_};
@@ -17,24 +16,26 @@ GetInstance() {
   return task_system_;
 }
 
-tf::Future<void> MM::TaskSystem::TaskSystem::Run(const MM::TaskSystem::TaskType& task_type, Taskflow& task_flow) {
+tf::Future<void> MM::TaskSystem::TaskSystem::Run(
+    const MM::TaskSystem::TaskType& task_type, Taskflow& task_flow) {
   auto& executor = ChooseExecutor(task_type);
   return executor.run(task_flow);
 }
 
-tf::Future<void> MM::TaskSystem::TaskSystem::Run(const MM::TaskSystem::TaskType& task_type, Taskflow&& task_flow) {
+tf::Future<void> MM::TaskSystem::TaskSystem::Run(
+    const MM::TaskSystem::TaskType& task_type, Taskflow&& task_flow) {
   auto& executor = ChooseExecutor(task_type);
   return executor.run(std::move(task_flow));
 }
 
-tf::Future<void> MM::TaskSystem::TaskSystem::
-RunN(const MM::TaskSystem::TaskType& task_type, Taskflow& task_flow, size_t N) {
+tf::Future<void> MM::TaskSystem::TaskSystem::RunN(
+    const MM::TaskSystem::TaskType& task_type, Taskflow& task_flow, size_t N) {
   auto& executor = ChooseExecutor(task_type);
   return executor.run_n(task_flow, N);
 }
 
-tf::Future<void> MM::TaskSystem::TaskSystem::
-RunN(const MM::TaskSystem::TaskType& task_type, Taskflow&& task_flow, size_t N) {
+tf::Future<void> MM::TaskSystem::TaskSystem::RunN(
+    const MM::TaskSystem::TaskType& task_type, Taskflow&& task_flow, size_t N) {
   auto& executor = ChooseExecutor(task_type);
   return executor.run_n(std::move(task_flow), N);
 }
@@ -62,8 +63,7 @@ size_t MM::TaskSystem::TaskSystem::NumTaskFlows(
   return executor.num_taskflows();
 }
 
-int MM::TaskSystem::TaskSystem::ThisWorkerId(
-    const TaskType& task_type) const {
+int MM::TaskSystem::TaskSystem::ThisWorkerId(const TaskType& task_type) const {
   auto& executor = ChooseExecutor(task_type);
   return executor.this_worker_id();
 }
@@ -104,7 +104,7 @@ tf::Executor& MM::TaskSystem::TaskSystem::ChooseExecutor(
 
 const tf::Executor& MM::TaskSystem::TaskSystem::ChooseExecutor(
     const TaskType& task_type) const {
-  switch(task_type) {
+  switch (task_type) {
     case TaskType::Common:
       return logic_executor_;
     case TaskType::Render:
@@ -117,4 +117,8 @@ const tf::Executor& MM::TaskSystem::TaskSystem::ChooseExecutor(
 
   return total_executor_;
 }
-
+MM::TaskSystem::TaskSystem::TaskSystem()
+    : total_executor_(3),
+      logic_executor_(4),
+      render_executor_(4),
+      physical_executor_(4) {}

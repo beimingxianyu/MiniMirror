@@ -38,7 +38,8 @@ class RenderResourceBase : public ManagedObjectBase {
 
   const uint32_t& GetResourceID() const;
 
-  virtual bool IsValid() const = 0;
+  virtual bool IsValid() const;
+  ;
 
   /**
    * \brief Release ownership of the resources held.
@@ -56,7 +57,8 @@ class RenderResourceBase : public ManagedObjectBase {
    * the same managed resource. \return The number of  \ref RenderResourceBase
    * objects referring to the same managed resource.
    */
-  virtual uint32_t UseCount() const = 0;
+  virtual uint32_t UseCount() const;
+  ;
 
   virtual ResourceType GetResourceType() const;
 
@@ -66,15 +68,16 @@ class RenderResourceBase : public ManagedObjectBase {
    * \remark If this object held is a resource array, the sum of the memory
    * occupied by all resources in the array is returned.
    */
-  virtual const VkDeviceSize& GetSize() const = 0;
+  virtual VkDeviceSize GetSize() const;
+  ;
 
   /**
    * \brief Determine whether the resource is a array.
    * \return Returns true if resource is a array, otherwise returns false.
    */
-  virtual bool IsArray() const = 0;
+  virtual bool IsArray() const;
 
-  virtual bool CanWrite() const = 0;
+  virtual bool CanWrite() const;
 
   virtual std::unique_ptr<RenderResourceBase> GetLightCopy(
       const std::string& new_name_of_copy_resource) const;
@@ -83,7 +86,7 @@ class RenderResourceBase : public ManagedObjectBase {
       const std::string& new_name_of_copy_resource) const;
 
  protected:
-  RenderResourceBase(const std::string& resource_name);
+  explicit RenderResourceBase(const std::string& resource_name);
 
   RenderResourceBase(const std::string& resource_name,
                      const std::uint32_t& resource_ID);
@@ -283,7 +286,7 @@ class RenderResourceTexture final : public RenderResourceBase {
 
   ResourceType GetResourceType() const override;
 
-  const VkDeviceSize& GetSize() const override;
+  VkDeviceSize GetSize() const override;
 
   bool IsArray() const override;
 
@@ -304,7 +307,7 @@ class RenderResourceTexture final : public RenderResourceBase {
       const AllocatedBuffer& stage_buffer, VkImageUsageFlags usages,
       const VmaMemoryUsage& memory_usage = VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE,
       const VmaAllocationCreateFlags& allocation_flags = 0,
-      const ImageInfo& image_info);
+      const ImageInfo& image_info = ImageInfo{});
 
   ExecuteResult GenerateMipmap();
 
@@ -335,7 +338,8 @@ class RenderResourceBuffer final : public RenderResourceBase {
           std::vector<std::uint32_t>{},
       const VkSharingMode& sharing_mode = VK_SHARING_MODE_EXCLUSIVE,
       const VkDeviceSize& size_range = VK_WHOLE_SIZE,
-      const VkDeviceSize& dynamic_offset = 0, const DataToBufferInfo& data_info,
+      const VkDeviceSize& dynamic_offset = 0,
+      const DataToBufferInfo& data_info = DataToBufferInfo{},
       const VkBufferCreateFlags& buffer_flags = 0,
       const VmaMemoryUsage& memory_usage = VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE,
       const VmaAllocationCreateFlags& allocation_flags = 0);
@@ -354,49 +358,59 @@ class RenderResourceBuffer final : public RenderResourceBase {
  public:
   const VkDescriptorType& GetDescriptorType() const;
 
-  /**
-   * \remark Returns a RenderResourceBuffer with an offset value of \ref
-   * new_offset. When the size of the buffer held by the resource is smaller
-   * than \ref new_offset and the buffer is not a dynamic buffer, the new offset
-   * is \ref buffer_size; When the buffer is a dynamic buffer and \ref
-   * new_offset+dynamic_offset>buffer_size, the \ref new_offset is \ref
-   * buffer_size - dynamic_offset.
-   */
-  RenderResourceBuffer GetCopyWithNewOffset(
-      const VkDeviceSize& new_offset) const;
-
-  /**
-   * \remark Returns a RenderResourceBuffer with an offset value of \ref
-   * new_dynamic_offset. When the buffer_size of the buffer held by the resource
-   * is smaller than \ref new_dynamic_offset, the \ref new_dynamic_size is \ref
-   * buffer_size - offset.If the buffer held by this resource is not a dynamic
-   * buffer, the value of its \ref dynamic_buffer will not be changed.
-   */
-  RenderResourceBuffer GetCopyWithNewDynamicOffset(
-      const VkDeviceSize& new_dynamic_offset) const;
-
-  /**
-   * \remark It is equivalent to executing \ref GetBackupWithNewOffset first and
-   * then GetBackupWithNewDynamicOffset. \remark \ref new_offset and \ref
-   * new_dynamic_offset will only be set when \ref new_offset +
-   * new_dynamic_offset < buffer_size is true.
-   */
-  RenderResourceBuffer GetCopyWithNewOffsetAndDynamicOffset(
-      const VkDeviceSize& new_offset,
-      const VkDeviceSize& new_dynamic_offset) const;
-
-  /**
-   * \remark If the buffer held by the resource is already a dynamic buffer, a
-   * copy of the resource is returned (shallow copy, instead of copying the
-   * buffer held by the resource, only the shared_ptr pointing to the buffer).
-   * If the buffer held by this resource is not a dynamic buffer, a new resource
-   * that holds this resource buffer but supports dynamic offset is returned. If
-   * the buffer held by this resource does not support dynamic offset, this
-   * resource will be returned.
-   */
-  RenderResourceBuffer GetCopyWithDynamicBuffer(
-      const VkDeviceSize& new_offset = VK_WHOLE_SIZE,
-      const VkDeviceSize& new_dynamic_offset = VK_WHOLE_SIZE) const;
+  //  /**
+  //   * \remark Returns a RenderResourceBuffer with an offset value of \ref
+  //   * new_offset. When the size of the buffer held by the resource is smaller
+  //   * than \ref new_offset and the buffer is not a dynamic buffer, the new
+  //   offset
+  //   * is \ref buffer_size; When the buffer is a dynamic buffer and \ref
+  //   * new_offset+dynamic_offset>buffer_size, the \ref new_offset is \ref
+  //   * buffer_size - dynamic_offset.
+  //   */
+  //  MM::RenderSystem::RenderResourceBuffer GetCopyWithNewOffset(
+  //      const std::string& new_render_resource_name,
+  //      const VkDeviceSize& new_offset) const;
+  //
+  //  /**
+  //   * \remark Returns a RenderResourceBuffer with an offset value of \ref
+  //   * new_dynamic_offset. When the buffer_size of the buffer held by the
+  //   resource
+  //   * is smaller than \ref new_dynamic_offset, the \ref new_dynamic_size is
+  //   \ref
+  //   * buffer_size - offset.If the buffer held by this resource is not a
+  //   dynamic
+  //   * buffer, the value of its \ref dynamic_buffer will not be changed.
+  //   */
+  //  RenderResourceBuffer GetCopyWithNewDynamicOffset(
+  //      const VkDeviceSize& new_dynamic_offset) const;
+  //
+  //  /**
+  //   * \remark It is equivalent to executing \ref GetBackupWithNewOffset first
+  //   and
+  //   * then GetBackupWithNewDynamicOffset. \remark \ref new_offset and \ref
+  //   * new_dynamic_offset will only be set when \ref new_offset +
+  //   * new_dynamic_offset < buffer_size is true.
+  //   */
+  //  RenderResourceBuffer GetCopyWithNewOffsetAndDynamicOffset(
+  //      const VkDeviceSize& new_offset,
+  //      const VkDeviceSize& new_dynamic_offset) const;
+  //
+  //  /**
+  //   * \remark If the buffer held by the resource is already a dynamic buffer,
+  //   a
+  //   * copy of the resource is returned (shallow copy, instead of copying the
+  //   * buffer held by the resource, only the shared_ptr pointing to the
+  //   buffer).
+  //   * If the buffer held by this resource is not a dynamic buffer, a new
+  //   resource
+  //   * that holds this resource buffer but supports dynamic offset is
+  //   returned. If
+  //   * the buffer held by this resource does not support dynamic offset, this
+  //   * resource will be returned.
+  //   */
+  //  RenderResourceBuffer GetCopyWithDynamicBuffer(
+  //      const VkDeviceSize& new_offset = VK_WHOLE_SIZE,
+  //      const VkDeviceSize& new_dynamic_offset = VK_WHOLE_SIZE) const;
 
   bool IsDynamic() const;
 
@@ -434,7 +448,7 @@ class RenderResourceBuffer final : public RenderResourceBase {
 
   ResourceType GetResourceType() const override;
 
-  const VkDeviceSize& GetSize() const override;
+  VkDeviceSize GetSize() const override;
 
   bool IsArray() const override;
 
@@ -459,8 +473,9 @@ class RenderResourceBuffer final : public RenderResourceBase {
       const VkBufferCreateFlags& buffer_flags,
       const VmaMemoryUsage& memory_usage = VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE,
       const VmaAllocationCreateFlags& allocation_flags = 0,
-      const std::vector<std ::uint32_t>& queue_index,
-      const VkSharingMode& sharing_mode);
+      const std::vector<std ::uint32_t>& queue_index =
+          std::vector<std::uint32_t>{},
+      const VkSharingMode& sharing_mode = VK_SHARING_MODE_EXCLUSIVE);
 
   /**
    * \remark Returns true if the \ref data is nullptr or the data is
@@ -496,7 +511,7 @@ class RenderResourceMesh final : public RenderResourceBase {
   void Reset(MM::RenderSystem::RenderResourceBase* other) override;
   uint32_t UseCount() const override;
   ResourceType GetResourceType() const override;
-  const VkDeviceSize& GetSize() const override;
+  VkDeviceSize GetSize() const override;
   bool IsArray() const override;
   bool CanWrite() const override;
 
@@ -547,7 +562,7 @@ class RenderResourceConstants final : public RenderResourceBase {
       const uint32_t& new_offset, const uint32_t& new_size,
       const std::shared_ptr<ConstantType>& new_value);
 
-  const VkDeviceSize& GetSize() const override;
+  VkDeviceSize GetSize() const override;
 
   RenderResourceConstants GetCopyWithNewOffsetAndNewSize(
       const uint32_t& new_offset, const uint32_t& new_size);
@@ -670,7 +685,7 @@ RenderResourceConstants<ConstantType>::GetCopyWithNewValue(
 }
 
 template <typename ConstantType>
-const VkDeviceSize& RenderResourceConstants<ConstantType>::GetSize() const {
+VkDeviceSize RenderResourceConstants<ConstantType>::GetSize() const {
   return size_;
 }
 

@@ -17,7 +17,6 @@
 namespace MM {
 namespace RenderSystem {
 class RenderEngine;
-class RenderObject;
 
 struct QueueFamilyIndices {
   std::optional<uint32_t> graphics_family_;
@@ -90,7 +89,7 @@ class RenderManageBase;
 
 template <
     typename ObjectType,
-    typename IsDeriveType = std::enable_if<
+    typename IsDeriveType = typename std::enable_if<
         std::is_base_of<ManagedObjectBase, ObjectType>::value, void>::type>
 class RenderManageDataWrapper {
   friend class RenderManageBase<ObjectType>;
@@ -105,6 +104,14 @@ class RenderManageDataWrapper {
   RenderManageDataWrapper& operator=(RenderManageDataWrapper&& other) noexcept =
       delete;
 
+  template <typename... Args>
+  explicit RenderManageDataWrapper(Args... args);
+
+  template <typename DerivedType, typename... Args>
+  explicit RenderManageDataWrapper(Args... args);
+
+  explicit RenderManageDataWrapper(std::unique_ptr<ObjectType>&& object);
+
  public:
   ObjectType& GetData();
   const ObjectType& GetData() const;
@@ -114,15 +121,6 @@ class RenderManageDataWrapper {
       const std::string& new_name_of_copy) const;
   uint32_t GetUseCount() const;
 
- protected:
-  template <typename... Args>
-  explicit RenderManageDataWrapper(Args... args);
-
-  template <typename DerivedType, typename... Args>
-  explicit RenderManageDataWrapper(Args... args);
-
-  explicit RenderManageDataWrapper(std::unique_ptr<ObjectType>&& object);
-
  private:
   std::uint32_t use_count_{1};
   std::unique_ptr<ObjectType> object_;
@@ -131,17 +129,16 @@ class RenderManageDataWrapper {
 template <typename ObjectType>
 class RenderManageBase {
   friend class RenderManageDataWrapper<ObjectType>;
-  friend class RenderObject;
 
  public:
+  RenderManageBase() = default;
+  ~RenderManageBase() = default;
   RenderManageBase(const RenderManageBase& other) = delete;
   RenderManageBase(RenderManageBase&& other) = delete;
   RenderManageBase& operator=(const RenderManageBase& other) = delete;
   RenderManageBase& operator=(RenderManageBase&& other) = delete;
 
  public:
-  static RenderManageBase* GetInstanceBase();
-
   uint32_t GetIncreaseIndex();
 
   bool HaveData(const std::string& object_name) const;
@@ -192,17 +189,7 @@ class RenderManageBase {
 
   virtual void ReleaseUse(const std::string& object_name);
 
- protected:
-  RenderManageBase() = default;
-  ~RenderManageBase() = default;
-  static RenderManageBase* render_manager_;
-
  private:
-  static bool DestroyBase();
-
- private:
-  static std::mutex sync_flag_base;
-
   mutable std::shared_mutex data_lock_{};
   std::uint32_t increase_index_{1};
   std::mutex increase_index_lock{};
@@ -210,21 +197,6 @@ class RenderManageBase {
   std::unordered_map<uint32_t, RenderManageDataWrapper<ObjectType>>
       object_ID_to_object_{};
 };
-
-template <typename ObjectType>
-std::mutex RenderManageBase<ObjectType>::sync_flag_base{};
-
-template <typename ObjectType>
-RenderManageBase<ObjectType>* RenderManageBase<ObjectType>::GetInstanceBase() {
-  if (render_manager_) {
-  } else {
-    std::lock_guard<std::mutex> guard{sync_flag_base};
-    if (!render_manager_) {
-      render_manager_ = new RenderManageBase{};
-    }
-  }
-  return render_manager_;
-}
 
 template <typename ObjectType>
 uint32_t RenderManageBase<ObjectType>::GetIncreaseIndex() {
@@ -339,14 +311,14 @@ std::uint32_t RenderManageBase<ObjectType>::GetDeepCopy(
       return 0;
     }
 
-    object.reset(std::move(new_object));
+    object = std::move(new_object);
   }
 
   {
     std::unique_lock<std::shared_mutex> guard{data_lock_};
     object_name_to_ID_.emplace(new_name_of_object, ID);
     object_ID_to_object_.emplace(
-        ID, RenderManageDataWrapper<ObjectType>(object.release()));
+        ID, RenderManageDataWrapper<ObjectType>(std::move(object)));
   }
 
   return ID;
@@ -360,21 +332,21 @@ std::uint32_t RenderManageBase<ObjectType>::GetDeepCopy(
   std::unique_ptr<ObjectType> object{nullptr};
   {
     std::shared_lock<std::shared_mutex> guard{data_lock_};
-    auto new_object =
+    std::unique_ptr<ObjectType> new_object =
         object_ID_to_object_.at(object_ID).GetDataDeepCopy(new_name_of_object);
 
     if (!new_object) {
       return 0;
     }
 
-    object.reset(std::move(new_object));
+    object = std::move(new_object);
   }
 
   {
     std::unique_lock<std::shared_mutex> guard{data_lock_};
     object_name_to_ID_.emplace(new_name_of_object, ID);
     object_ID_to_object_.emplace(
-        ID, RenderManageDataWrapper<ObjectType>(object.release()));
+        ID, RenderManageDataWrapper<ObjectType>(std::move(object)));
   }
 
   return ID;
@@ -398,14 +370,14 @@ std::uint32_t RenderManageBase<ObjectType>::GetLightCopy(
       return 0;
     }
 
-    object.reset(std::move(new_object));
+    object = std::move(new_object);
   }
 
   {
     std::unique_lock<std::shared_mutex> guard{data_lock_};
     object_name_to_ID_.emplace(new_name_of_object, ID);
     object_ID_to_object_.emplace(
-        ID, RenderManageDataWrapper<ObjectType>(object.release()));
+        ID, RenderManageDataWrapper<ObjectType>(std::move(object)));
   }
 
   return ID;
@@ -425,14 +397,14 @@ std::uint32_t RenderManageBase<ObjectType>::GetLightCopy(
       return 0;
     }
 
-    object.reset(std::move(new_object));
+    object = std::move(new_object);
   }
 
   {
     std::unique_lock<std::shared_mutex> guard{data_lock_};
     object_name_to_ID_.emplace(new_name_of_object, ID);
     object_ID_to_object_.emplace(
-        ID, RenderManageDataWrapper<ObjectType>(object.release()));
+        ID, RenderManageDataWrapper<ObjectType>(std::move(object)));
   }
 
   return ID;
@@ -441,14 +413,14 @@ std::uint32_t RenderManageBase<ObjectType>::GetLightCopy(
 template <typename ObjectType>
 std::uint32_t RenderManageBase<ObjectType>::SaveData(
     std::unique_ptr<ObjectType>&& object) {
-  auto object_ID = object->GetObjectName();
+  std::string object_name = object->GetObjectName();
   std::unique_lock<std::shared_mutex> guard{data_lock_};
-  object_name_to_ID_.emplace(object_ID, object->GetObjectID());
+  object_name_to_ID_.emplace(object_name, object->GetObjectID());
   object_ID_to_object_.emplace(
       object->GetObjectID(),
-      RenderManageDataWrapper<ObjectType>(object.release()));
+      RenderManageDataWrapper<ObjectType>(std::move(object)));
 
-  return object_ID;
+  return object->GetObjectID();
 }
 
 template <typename ObjectType>
@@ -499,23 +471,10 @@ void RenderManageBase<ObjectType>::ReleaseUse(const std::string& object_name) {
   }
 }
 
-template <typename ObjectType>
-bool RenderManageBase<ObjectType>::DestroyBase() {
-  std::lock_guard<std::mutex> guard{sync_flag_base};
-  if (render_manager_) {
-    delete render_manager_;
-    render_manager_ = nullptr;
-
-    return true;
-  }
-
-  return true;
-}
-
 template <typename ObjectType, typename IsDeriveType>
 RenderManageDataWrapper<ObjectType, IsDeriveType>::RenderManageDataWrapper(
     RenderManageDataWrapper&& other) noexcept
-    : use_count_(other.use_count_), object_(std::move(other.use_count_)) {
+    : use_count_(other.use_count_), object_(std::move(other.object_)) {
   other.use_count_ = 0;
 }
 
@@ -554,18 +513,22 @@ template <typename ObjectType, typename IsDeriveType>
 template <typename... Args>
 RenderManageDataWrapper<ObjectType, IsDeriveType>::RenderManageDataWrapper(
     Args... args)
-    : use_count_(1), object_(new ObjectType{std::forward<Args>(args)...}) {}
+    : use_count_(1),
+      object_(std::unique_ptr<ObjectType>(
+          new ObjectType(std::forward<Args>(args)...))) {}
 
 template <typename ObjectType, typename IsDeriveType>
 template <typename DerivedType, typename... Args>
 RenderManageDataWrapper<ObjectType, IsDeriveType>::RenderManageDataWrapper(
     Args... args)
-    : use_count_(1), object_(new DerivedType(std::forward<Args>(args)...)) {}
+    : use_count_(1),
+      object_(std::unique_ptr<DerivedType>(
+          DerivedType(std::forward<Args>(args)...))) {}
 
 template <typename ObjectType, typename IsDeriveType>
 RenderManageDataWrapper<ObjectType, IsDeriveType>::RenderManageDataWrapper(
     std::unique_ptr<ObjectType>&& object)
-    : object_(std::move(object)) {}
+    : use_count_(1), object_(std::move(object)) {}
 
 struct RenderEngineInfo {
   VkSampleCountFlagBits multi_sample_count_{VK_SAMPLE_COUNT_1_BIT};
@@ -655,7 +618,7 @@ class VertexInputState {
    * \brief Construct object with a vertex buffer offset.(No instance
    * description) \param vertex_buffer_offset The offset of vertex buffer.
    */
-  VertexInputState(const VkDeviceSize& vertex_buffer_offset);
+  explicit VertexInputState(const VkDeviceSize& vertex_buffer_offset);
   VertexInputState(
       const VkDeviceSize& vertex_buffer_offset,
       const std::vector<VkVertexInputBindingDescription>& instance_binds,
@@ -930,7 +893,7 @@ class VertexAndIndexBuffer {
  public:
   VertexAndIndexBuffer() = delete;
   ~VertexAndIndexBuffer() = default;
-  VertexAndIndexBuffer(RenderEngine* engine);
+  explicit VertexAndIndexBuffer(RenderEngine* engine);
   VertexAndIndexBuffer(const VertexAndIndexBuffer& other) = delete;
   VertexAndIndexBuffer(VertexAndIndexBuffer&& other) = delete;
   VertexAndIndexBuffer& operator=(const VertexAndIndexBuffer& other) = delete;

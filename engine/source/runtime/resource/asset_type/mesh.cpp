@@ -1,9 +1,9 @@
 #include "runtime/resource/asset_type/mesh.h"
 
-
 MM::AssetType::Mesh::Mesh(const std::string& asset_name,
-    const FileSystem::Path& mesh_path, const uint32_t& mesh_index) :
-  AssetBase(asset_name, MM::Utils::StringHash(mesh_path.String())) {
+                          const FileSystem::Path& mesh_path,
+                          const uint32_t& mesh_index)
+    : AssetBase(asset_name, MM::Utils::StringHash(mesh_path.String())) {
   LoadModel(mesh_path, mesh_index);
 }
 
@@ -11,29 +11,28 @@ MM::AssetType::Mesh::Mesh(const std::string& asset_name,
                           const uint64_t& asset_ID,
                           const RectangleBox& aabb_box,
                           const std::shared_ptr<std::vector<uint32_t>>& indexes,
-                          const std::shared_ptr<std::vector<Vertex>>& vertices) :
-  AssetBase(asset_name, asset_ID), bounding_box_(std::make_unique<BoundingBox>(aabb_box)), indexes_(indexes), vertices_(vertices)
-{}
+                          const std::shared_ptr<std::vector<Vertex>>& vertices)
+    : AssetBase(asset_name, asset_ID),
+      bounding_box_(std::make_unique<BoundingBox>(aabb_box)),
+      indexes_(indexes),
+      vertices_(vertices) {}
 
-MM::AssetType::Mesh::Mesh(
-    const std::string& asset_name, const uint64_t& asset_ID,
-    const CapsuleBox& capsule_box,
-    const std::shared_ptr<std::vector<uint32_t>>& indexes,
-    const std::shared_ptr<std::vector<Vertex>>& vertices)
-  : AssetBase(asset_name, asset_ID),
-    bounding_box_(std::make_unique<BoundingBox>(capsule_box)),
-    indexes_(indexes),
-    vertices_(vertices) {
-}
-
+MM::AssetType::Mesh::Mesh(const std::string& asset_name,
+                          const uint64_t& asset_ID,
+                          const CapsuleBox& capsule_box,
+                          const std::shared_ptr<std::vector<uint32_t>>& indexes,
+                          const std::shared_ptr<std::vector<Vertex>>& vertices)
+    : AssetBase(asset_name, asset_ID),
+      bounding_box_(std::make_unique<BoundingBox>(capsule_box)),
+      indexes_(indexes),
+      vertices_(vertices) {}
 
 MM::AssetType::Mesh::Mesh(const Mesh& other)
-  : bounding_box_(std::make_unique<BoundingBox>(*other.bounding_box_)),
-    indexes_(other.indexes_), vertices_(other.vertices_){}
+    : bounding_box_(std::make_unique<BoundingBox>(*other.bounding_box_)),
+      indexes_(other.indexes_),
+      vertices_(other.vertices_) {}
 
-MM::AssetType::Mesh::Mesh(Mesh&& other) noexcept {
-
-}
+MM::AssetType::Mesh::Mesh(Mesh&& other) noexcept {}
 
 MM::AssetType::Mesh& MM::AssetType::Mesh::operator=(const Mesh& other) {
   if (&other == this) {
@@ -60,10 +59,11 @@ MM::AssetType::Mesh& MM::AssetType::Mesh::operator=(Mesh&& other) noexcept {
 }
 
 bool MM::AssetType::Mesh::IsValid() const {
-  return indexes_.use_count() != 0 && vertices_.use_count() != 0 && bounding_box_->IsValid();
+  return indexes_.use_count() != 0 && vertices_.use_count() != 0 &&
+         bounding_box_->IsValid();
 }
 
-MM::AssetType::AssetType MM::AssetType::Mesh::GetAssetType() {
+MM::AssetType::AssetType MM::AssetType::Mesh::GetAssetType() const {
   return AssetType::MESH;
 }
 
@@ -75,13 +75,13 @@ const MM::AssetType::BoundingBox& MM::AssetType::Mesh::GetBoundingBox() const {
   return *bounding_box_;
 }
 
-std::shared_ptr<const std::vector<uint32_t>> MM::AssetType::Mesh::
-GetIndexes() const {
+std::shared_ptr<const std::vector<uint32_t>> MM::AssetType::Mesh::GetIndexes()
+    const {
   return indexes_;
 }
 
-std::shared_ptr<const std::vector<MM::AssetType::Vertex>> MM::AssetType::
-Mesh::GetVertices() const {
+std::shared_ptr<const std::vector<MM::AssetType::Vertex>>
+MM::AssetType::Mesh::GetVertices() const {
   return vertices_;
 }
 
@@ -92,7 +92,7 @@ void MM::AssetType::Mesh::Release() {
 }
 
 void MM::AssetType::Mesh::LoadModel(const FileSystem::Path& mesh_path,
-    const uint64_t& mesh_index) {
+                                    const uint64_t& mesh_index) {
   if (!mesh_path.IsExists()) {
     return;
   }
@@ -103,8 +103,7 @@ void MM::AssetType::Mesh::LoadModel(const FileSystem::Path& mesh_path,
           aiProcess_MakeLeftHanded | aiProcess_GenNormals |
           aiProcess_OptimizeMeshes);
   if (!scene || scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE ||
-      !scene->mRootNode)
-  {
+      !scene->mRootNode) {
     LOG_ERROR(std::string("Failed to create Mesh.(detail:") +
               mesh_importer.GetErrorString() + ")");
     return;
@@ -160,3 +159,4 @@ void MM::AssetType::Mesh::ProcessMesh(const aiMesh& mesh) {
     indexes_->emplace_back(mesh.mFaces->mIndices[2]);
   }
 }
+const void* MM::AssetType::Mesh::GetData() const { return }

@@ -34,7 +34,9 @@ class Image : public AssetBase {
 
   bool IsValid() const override;
 
-  AssetType GetAssetType() override;
+  AssetType GetAssetType() const override;
+
+  const void* GetData() const override;
 
   void Release() override;
 
@@ -46,5 +48,5 @@ class Image : public AssetBase {
   ImageFormat image_format_{ImageFormat::UNDEFINED};
   std::shared_ptr<stbi_uc> image_pixels_{nullptr, stbi_image_free};
 };
-}
-}
+}  // namespace AssetType
+}  // namespace MM

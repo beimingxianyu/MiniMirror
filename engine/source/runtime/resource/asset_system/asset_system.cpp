@@ -1,20 +1,21 @@
 #include "runtime/resource/asset_system/asset_system.h"
 
-MM::AssetSystem::AssetManager*
-    MM::AssetSystem::AssetManager::asset_manager_{nullptr};
-std::atomic_uint32_t MM::AssetSystem::AssetManager::increase_ID_{0};
+MM::AssetSystem::AssetManager* MM::AssetSystem::AssetManager::asset_manager_{
+    nullptr};
 std::mutex MM::AssetSystem::AssetManager::sync_flag_{};
 std::set<std::string> MM::AssetSystem::AssetManager::support_image_format{
     {"jpg", "png"}};
 
-MM::AssetSystem::AssetSystem*
-    MM::AssetSystem::AssetSystem::asset_system_{nullptr};
+MM::AssetSystem::AssetSystem* MM::AssetSystem::AssetSystem::asset_system_{
+    nullptr};
 std::mutex MM::AssetSystem::AssetSystem::sync_flag_{};
 
-bool MM::AssetSystem::AssetManager::LoadImage(const std::string& asset_name,
-    const FileSystem::Path& image_path, const int& desired_channels) {
+bool MM::AssetSystem::AssetManager::LoadImage(
+    const std::string& asset_name, const FileSystem::Path& image_path,
+    const int& desired_channels) {
   std::shared_ptr<AssetType::AssetBase> image =
-      std::make_shared<AssetType::Image>(asset_name, image_path, desired_channels);
+      std::make_shared<AssetType::Image>(asset_name, image_path,
+                                         desired_channels);
   if (!(image->IsValid())) {
     return false;
   }
@@ -27,7 +28,8 @@ bool MM::AssetSystem::AssetManager::LoadImage(const std::string& asset_name,
 }
 
 std::vector<std::shared_ptr<MM::AssetType::AssetBase>>
-MM::AssetSystem::AssetManager::GetAssetsByName(const std::string& asset_name) const {
+MM::AssetSystem::AssetManager::GetAssetsByName(
+    const std::string& asset_name) const {
   std::shared_lock<std::shared_mutex> guard(writer_mutex_);
   const std::size_t count = asset_name_to_asset_ID_.count(asset_name);
   if (count == 0) {
@@ -43,8 +45,9 @@ MM::AssetSystem::AssetManager::GetAssetsByName(const std::string& asset_name) co
   return result;
 }
 
-std::shared_ptr<MM::AssetType::AssetBase> MM::AssetSystem::AssetManager::
-GetAssetByID(const uint32_t& asset_ID) const {
+std::shared_ptr<MM::AssetType::AssetBase>
+MM::AssetSystem::AssetManager::GetAssetByID(
+    const std::uint64_t& asset_ID) const {
   std::shared_lock<std::shared_mutex> guard(writer_mutex_);
   if (asset_ID_to_asset_.count(asset_ID)) {
     return asset_ID_to_asset_.at(asset_ID);
@@ -52,11 +55,12 @@ GetAssetByID(const uint32_t& asset_ID) const {
   return nullptr;
 }
 
-bool MM::AssetSystem::AssetManager::Erase(const uint32_t& asset_ID) {
+bool MM::AssetSystem::AssetManager::Erase(const uint64_t& asset_ID) {
   std::unique_lock<std::shared_mutex> guard{writer_mutex_};
   if (asset_ID_to_asset_.count(asset_ID)) {
     const auto asset = asset_ID_to_asset_[asset_ID];
-    const auto equal_element = asset_name_to_asset_ID_.equal_range(asset->GetAssetName());
+    const auto equal_element =
+        asset_name_to_asset_ID_.equal_range(asset->GetAssetName());
     auto beg = equal_element.first;
     while (beg != equal_element.second) {
       if (beg->second == asset_ID) {
@@ -65,8 +69,9 @@ bool MM::AssetSystem::AssetManager::Erase(const uint32_t& asset_ID) {
       }
       ++beg;
     }
-    
-    assert(beg == equal_element.second); // Logic error, it is expected to find the desired element.
+
+    assert(beg == equal_element.second);  // Logic error, it is expected to find
+                                          // the desired element.
     asset_ID_to_asset_.erase(asset_ID);
     return true;
   }
@@ -74,7 +79,7 @@ bool MM::AssetSystem::AssetManager::Erase(const uint32_t& asset_ID) {
 }
 
 bool MM::AssetSystem::AssetManager::ChangeAssetName(
-    const uint32_t& asset_ID, const std::string& new_asset_name) {
+    const std::uint64_t& asset_ID, const std::string& new_asset_name) {
   if (asset_ID_to_asset_.count(asset_ID)) {
     std::unique_lock<std::shared_mutex> guard{writer_mutex_};
     const auto asset = asset_ID_to_asset_[asset_ID];
@@ -83,7 +88,7 @@ bool MM::AssetSystem::AssetManager::ChangeAssetName(
     auto beg = equal_element.first;
     while (beg != equal_element.second) {
       if (beg->second == asset_ID) {
-        std::pair < std::string, uint32_t> new_pair = *beg;
+        std::pair<std::string, uint32_t> new_pair = *beg;
         new_pair.first = new_asset_name;
         asset_name_to_asset_ID_.erase(beg);
         asset_name_to_asset_ID_.emplace(new_pair);
@@ -91,7 +96,7 @@ bool MM::AssetSystem::AssetManager::ChangeAssetName(
       }
       ++beg;
     }
-    assert(false); // Logic error, it is expected to find the desired element.
+    assert(false);  // Logic error, it is expected to find the desired element.
   }
   return false;
 }
@@ -108,8 +113,7 @@ bool MM::AssetSystem::AssetManager::Destroy() {
   return true;
 }
 
-MM::AssetSystem::AssetManager* MM::AssetSystem::AssetManager::
-GetInstance() {
+MM::AssetSystem::AssetManager* MM::AssetSystem::AssetManager::GetInstance() {
   if (asset_manager_) {
   } else {
     std::lock_guard<std::mutex> guard{sync_flag_};
@@ -120,8 +124,8 @@ GetInstance() {
   return asset_manager_;
 }
 
-MM::AssetSystem::AssetManager& MM::AssetSystem::AssetSystem::
-GetAssetManager() const {
+MM::AssetSystem::AssetManager& MM::AssetSystem::AssetSystem::GetAssetManager()
+    const {
   return *assert_manager_;
 }
 
@@ -141,8 +145,7 @@ bool MM::AssetSystem::AssetSystem::Destroy() {
   return true;
 }
 
-MM::AssetSystem::AssetSystem* MM::AssetSystem::AssetSystem::
-GetInstance() {
+MM::AssetSystem::AssetSystem* MM::AssetSystem::AssetSystem::GetInstance() {
   if (asset_system_) {
   } else {
     std::lock_guard<std::mutex> guard{sync_flag_};
@@ -153,4 +156,5 @@ GetInstance() {
   return asset_system_;
 }
 
-MM::AssetSystem::AssetSystem::AssetSystem() : assert_manager_(AssetManager::GetInstance()) {}
+MM::AssetSystem::AssetSystem::AssetSystem()
+    : assert_manager_(AssetManager::GetInstance()) {}
