@@ -18,18 +18,27 @@ def get_mac_address_console():
 
 
 def config_mac_address(file_data: str):
-    start1 = file_data.find("@hardware_info_mac@")
-    start2 = file_data.find("@hardware_info_mac_16")
-    file_data[start1, start1 + 19] = get_mac_address()
-    file_data[start2, start2 + 19] = get_mac_address_16()
+    file_data = file_data.replace("@hardware_info_mac_address@", get_mac_address())
+    file_data = file_data.replace("@hardware_info_mac_address_16@", get_mac_address_16())
+    return file_data
 
 
 def cmake_config_system_info(cmake_config_system_info_file: str):
-    file = open(cmake_config_system_info_file, "w+")
-    if file.writable():
-        config_mac_address()
+    file = open(cmake_config_system_info_file, "r", encoding="utf8")
+    if file.readable():
+        file_data = file.read()
+        file_data = config_mac_address(file_data)
     else:
-        raise FileNotFoundError("\"cmake_config_system_info_file\" not find")
+        raise FileNotFoundError("\"cmake_config_system_info_file\" can't read.")
+    file.close()
+    file = open(cmake_config_system_info_file, "w", encoding="utf8")
+
+    if file.writable():
+        file.write(file_data)
+    else:
+        raise FileExistsError("\"cmake_config_system_info_file\" can't write.")
+    file.close()
+
     return
 
 
@@ -38,6 +47,7 @@ if __name__ == '__main__':
     parser.add_argument("--function", type=str, default="")
     parser.add_argument("--cmake_config_system_info_file", type=str, default="")
     args = parser.parse_args()
-    eval(args.function)
+    if args.function != "":
+        eval(args.function)
     if args.cmake_config_system_info_file != "":
         cmake_config_system_info(args.cmake_config_system_info_file)

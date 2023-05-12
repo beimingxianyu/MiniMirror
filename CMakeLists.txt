@@ -33,9 +33,11 @@ set(asset_dir_std "${asset_dir}/standard")
 set(asset_dir_user "${asset_dir}/user")
 set(config_dir "${engine_dir}/config")
 
+execute_process(COMMAND python3 ${script_dir}/python/config_cmake.py --cmake_config_system_info_file ${script_dir}/cmake/hardware_info.cmake)
+
 add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/engine")
 
 if (enable_test)
-    set(engine_dir_test "${CMAKE_CURRENT_SOURCE_DIR}/build_test/${CMAKE_BUILD_TYPE}")
+    set(engine_dir_test " ${CMAKE_CURRENT_SOURCE_DIR}/build_test/${CMAKE_BUILD_TYPE}")
     add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/test")
 endif ()

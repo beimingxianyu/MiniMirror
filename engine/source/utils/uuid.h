@@ -1,5 +1,6 @@
 #pragma once
 
+#include <atomic>
 #include <chrono>
 #include <cmath>
 #include <ostream>
@@ -18,6 +19,9 @@ class UUID {
   UUID& operator=(const UUID& other);
   UUID& operator=(UUID&& other) noexcept;
 
+  // for unit test,
+  UUID(std::uint64_t clock, std::uint64_t mac_address);
+
  public:
   bool operator==(const UUID& other) const;
   bool operator!=(const UUID& other) const;
@@ -28,6 +32,8 @@ class UUID {
   friend std::ostream& operator<<(std::ostream& os, const UUID& uuid);
 
  public:
+  static std::uint32_t GetClockSequence();
+
   std::string ToString() const;
 
  private:
@@ -35,7 +41,7 @@ class UUID {
   std::uint64_t second_part_;
 
  private:
-  static std::uint32_t clock_sequence_;
+  static std::atomic_uint32_t clock_sequence_;
 };
 }  // namespace Utils
 }  // namespace MM

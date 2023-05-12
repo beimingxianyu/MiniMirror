@@ -602,6 +602,9 @@ class CommandExecutor {
 
     std::unordered_set<std::unique_ptr<CommandTask>*>
         task_that_have_already_been_accessed_;
+    // TODO Use reference counting instead of this container to improve
+    // performance when reference counting equal parent task number, this task
+    // can be submit.
     std::unordered_set<std::unique_ptr<CommandTask>*> submitted_task_;
     std::list<CommandTaskToBeSubmit> can_be_submitted_tasks_;
     std::list<CommandTaskToBeSubmit> pre_task_not_submit_task_;
