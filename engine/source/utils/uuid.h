@@ -23,18 +23,24 @@ class UUID {
   UUID(std::uint64_t clock, std::uint64_t mac_address);
 
  public:
-  bool operator==(const UUID& other) const;
-  bool operator!=(const UUID& other) const;
-  bool operator<(const UUID& other) const;
-  bool operator>(const UUID& other) const;
-  bool operator<=(const UUID& other) const;
-  bool operator>=(const UUID& other) const;
+  friend bool operator==(const UUID& lhs, const UUID& rhs);
+  friend bool operator!=(const UUID& lhs, const UUID& rhs);
+  friend bool operator<(const UUID& lhs, const UUID& rhs);
+  friend bool operator>(const UUID& lhs, const UUID& rhs);
+  friend bool operator<=(const UUID& lhs, const UUID& rhs);
+  friend bool operator>=(const UUID& lhs, const UUID& rhs);
   friend std::ostream& operator<<(std::ostream& os, const UUID& uuid);
+  friend void Swap(UUID& lhs, UUID& rhs) noexcept;
+  friend void swap(UUID& lhs, UUID& rhs) noexcept;
 
  public:
+  bool IsValid() const;
+
   static std::uint32_t GetClockSequence();
 
   std::string ToString() const;
+
+  void Reset();
 
  private:
   std::uint64_t first_part_;
@@ -43,6 +49,8 @@ class UUID {
  private:
   static std::atomic_uint32_t clock_sequence_;
 };
+
+using GUID = UUID;
 }  // namespace Utils
 }  // namespace MM
 
@@ -50,8 +58,7 @@ namespace std {
 template <>
 struct hash<MM::Utils::UUID> {
   size_t operator()(const MM::Utils::UUID& uuid) const {
-    return std::hash<std::uint64_t>{}(uuid.first_part_ ^ uuid.second_part_);
-    ;
+    return (uuid.first_part_ & 0xFFFFFFFFFFFF0000) | (uuid.second_part_ >> 48);
   }
 };
 }  // namespace std

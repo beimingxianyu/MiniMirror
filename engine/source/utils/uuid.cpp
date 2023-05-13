@@ -31,32 +31,6 @@ MM::Utils::UUID& MM::Utils::UUID::operator=(MM::Utils::UUID&& other) noexcept {
   return *this;
 }
 
-bool MM::Utils::UUID::operator==(const MM::Utils::UUID& other) const {
-  return first_part_ == other.first_part_ && second_part_ == other.second_part_;
-}
-
-bool MM::Utils::UUID::operator!=(const MM::Utils::UUID& other) const {
-  return !(other == *this);
-}
-
-bool MM::Utils::UUID::operator<(const MM::Utils::UUID& other) const {
-  if (first_part_ < other.first_part_) return true;
-  if (other.first_part_ < first_part_) return false;
-  return second_part_ < other.second_part_;
-}
-
-bool MM::Utils::UUID::operator>(const MM::Utils::UUID& other) const {
-  return other < *this;
-}
-
-bool MM::Utils::UUID::operator<=(const MM::Utils::UUID& other) const {
-  return !(other < *this);
-}
-
-bool MM::Utils::UUID::operator>=(const MM::Utils::UUID& other) const {
-  return !(*this < other);
-}
-
 std::ostream& MM::Utils::operator<<(std::ostream& os,
                                     const MM::Utils::UUID& uuid) {
   os << uuid.ToString();
@@ -98,7 +72,7 @@ std::string MM::Utils::UUID::ToString() const {
 MM::Utils::UUID::UUID() : first_part_(0), second_part_(0) {
   std::uint64_t nanoseconds_since_1582 =
       std::chrono::system_clock::now().time_since_epoch().count() +
-      122192928000000000;
+      static_cast<std::uint64_t>(12938496000000000000ULL);
 
   first_part_ |= nanoseconds_since_1582 << 32;
   first_part_ |= (nanoseconds_since_1582 >> 16) & (0x00000000FFFF0000);
@@ -129,3 +103,63 @@ MM::Utils::UUID::UUID(std::uint64_t clock, std::uint64_t mac_address)
 }
 
 std::uint32_t MM::Utils::UUID::GetClockSequence() { return clock_sequence_; }
+
+void MM::Utils::Swap(MM::Utils::UUID& lhs, MM::Utils::UUID& rhs) noexcept {
+  using std::swap;
+  if (&lhs == &rhs) {
+    return;
+  }
+
+  std::swap(lhs.first_part_, rhs.first_part_);
+  std::swap(lhs.second_part_, rhs.second_part_);
+}
+
+void MM::Utils::swap(MM::Utils::UUID& lhs, MM::Utils::UUID& rhs) noexcept {
+  using std::swap;
+  if (&lhs == &rhs) {
+    return;
+  }
+
+  std::swap(lhs.first_part_, rhs.first_part_);
+  std::swap(lhs.second_part_, rhs.second_part_);
+}
+
+bool MM::Utils::UUID::IsValid() const { return first_part_ != 0; }
+
+void MM::Utils::UUID::Reset() {
+  first_part_ = 0;
+  second_part_ = 0;
+}
+
+bool MM::Utils::operator==(const MM::Utils::UUID& lhs,
+                           const MM::Utils::UUID& rhs) {
+  return lhs.first_part_ == rhs.first_part_ &&
+         lhs.second_part_ == rhs.second_part_;
+}
+
+bool MM::Utils::operator!=(const MM::Utils::UUID& lhs,
+                           const MM::Utils::UUID& rhs) {
+  return !(rhs == lhs);
+}
+
+bool MM::Utils::operator<(const MM::Utils::UUID& lhs,
+                          const MM::Utils::UUID& rhs) {
+  if (lhs.first_part_ < rhs.first_part_) return true;
+  if (rhs.first_part_ < lhs.first_part_) return false;
+  return lhs.second_part_ < rhs.second_part_;
+}
+
+bool MM::Utils::operator>(const MM::Utils::UUID& lhs,
+                          const MM::Utils::UUID& rhs) {
+  return rhs < lhs;
+}
+
+bool MM::Utils::operator<=(const MM::Utils::UUID& lhs,
+                           const MM::Utils::UUID& rhs) {
+  return !(rhs < lhs);
+}
+
+bool MM::Utils::operator>=(const MM::Utils::UUID& lhs,
+                           const MM::Utils::UUID& rhs) {
+  return !(lhs < rhs);
+}

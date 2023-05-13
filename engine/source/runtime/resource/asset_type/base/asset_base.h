@@ -5,19 +5,16 @@
 #include <memory>
 #include <string>
 
+#include "runtime/platform/base/MMObject.h"
+#include "runtime/resource/asset_type/base/asset_data.h"
 #include "runtime/resource/asset_type/base/import_other_system.h"
 #include "utils/utils.h"
 
 namespace MM {
 namespace AssetType {
-
-enum class AssetType { UNDEFINED = 0U, IMAGE, MESH };
-
-enum class ImageFormat { UNDEFINED = 0U, GREY, GREY_ALPHA, RGB, RGB_ALPHA };
-
-class AssetBase {
+class AssetBase : virtual public MMObject {
  public:
-  AssetBase() = default;
+  AssetBase() = delete;
   virtual ~AssetBase() = default;
   AssetBase(const std::string& asset_name, const uint64_t& asset_ID);
   AssetBase(const AssetBase& other) = default;
@@ -25,23 +22,22 @@ class AssetBase {
   AssetBase& operator=(const AssetBase& other);
   AssetBase& operator=(AssetBase&& other) noexcept;
 
-  friend bool operator==(const AssetBase& lhs, const AssetBase& rhs) {
-    return lhs.asset_ID_ == rhs.asset_ID_;
-  }
+  friend bool operator==(const AssetBase& lhs, const AssetBase& rhs);
 
-  friend bool operator!=(const AssetBase& lhs, const AssetBase& rhs) {
-    return !(lhs == rhs);
-  }
+  friend bool operator!=(const AssetBase& lhs, const AssetBase& rhs);
 
  public:
   const std::string& GetAssetName() const;
+
   AssetBase& SetAssetName(const std::string& new_asset_name);
 
-  const uint32_t& GetAssetID() const;
+  AssetID GetAssetID() const;
 
-  virtual bool IsValid() const = 0;
+  bool IsValid() const override;
 
-  virtual AssetType GetAssetType() const = 0;
+  virtual AssetType GetAssetType() const;
+
+  virtual std::string GetAssetTypeString() const;
 
   virtual const void* GetData() const = 0;
 
@@ -53,7 +49,7 @@ class AssetBase {
 
  private:
   std::string asset_name_{};
-  uint64_t asset_ID_{0};
+  std::uint64_t asset_path_and_last_editing_time_hash{};
 };
 }  // namespace AssetType
 }  // namespace MM

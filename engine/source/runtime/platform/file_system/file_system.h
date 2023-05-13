@@ -1,24 +1,27 @@
 #pragma once
 
 #include <filesystem>
-#include <memory>
-#include <mutex>
 #include <fstream>
 #include <iostream>
-#include <utility>
 #include <list>
+#include <memory>
+#include <mutex>
+#include <utility>
 
-#include "runtime/platform/base/error.h"
 #include "runtime/platform/base//cross_platform_header.h"
+#include "runtime/platform/base/error.h"
 
 namespace MM {
 namespace FileSystem {
+using FileLastWriteTime = std::filesystem::file_time_type;
+
 class FileSystem;
 
 class Path {
   friend FileSystem;
+  friend std::hash<Path>;
 
-public:
+ public:
   Path() = delete;
   ~Path() = default;
   Path(const Path& other);
@@ -32,7 +35,7 @@ public:
   explicit operator std::string() const;
   explicit operator std::filesystem::path() const;
 
-public:
+ public:
   /**
    * \brief Get source path data.
    * \return The source path data.
@@ -57,13 +60,13 @@ public:
    * \brief If the path is not a directory, get the file name.
    * \return The file name.
    */
-  std::string FileName() const;
+  std::string GetFileName() const;
 
   /**
    * \brief If the path is not a directory, get the file extension.
    * \return The file extension.
    */
-  std::string Extension() const;
+  std::string GetExtension() const;
 
   /**
    * \brief Exchange data of two objects.
@@ -77,7 +80,7 @@ public:
    * \return Relative path relative to root_path(Obtaining a relative path
    * across drives on a Windows system will return the std::string().).
    */
-  std::string RelativePath(const Path& root_path) const;
+  std::string GetRelativePath(const Path& root_path) const;
 
   /**
    * \brief Get the relative path relative to root_path.
@@ -85,13 +88,13 @@ public:
    * \return Relative path relative to root_path(Obtaining a relative path
    * across drives on a Windows system will return the std::string().).
    */
-  std::string RelativePath(const std::string& root_path) const;
+  std::string GetRelativePath(const std::string& root_path) const;
 
   /**
    * \brief Get absolute path.
    * \return The absolute path.
    */
-  const Path& AbsolutePath() const;
+  const Path& GetAbsolutePath() const;
 
   /**
    * \brief Replace the original path.
@@ -105,17 +108,16 @@ public:
    */
   void ReplacePath(const std::string& other_path);
 
-  friend void Swap(Path& lhs, Path& rhs) noexcept {
-    using std::swap;
-    swap(lhs.path_, rhs.path_);
-  }
+  /**
+   * \brief Get hash value of path..
+   */
+  std::uint64_t GetHash() const;
 
-  friend void swap(Path& lhs, Path& rhs) noexcept {
-    using std::swap;
-    swap(lhs.path_, rhs.path_);
-  }
+  friend void Swap(Path& lhs, Path& rhs) noexcept;
 
-private:
+  friend void swap(Path& lhs, Path& rhs) noexcept;
+
+ private:
   /**
    * \brief Remove "." and ".." from the path.
    * \param original_path The original path you want to simplify.
@@ -123,18 +125,18 @@ private:
    */
   static std::string RemoveDotAndDotDot(const std::string& original_path);
 
-private:
+ private:
   std::unique_ptr<std::filesystem::path> path_;
 };
 
 class FileSystem {
-public:
+ public:
   FileSystem(const FileSystem&) = delete;
   FileSystem(const FileSystem&&) = delete;
   FileSystem& operator=(const FileSystem&) = delete;
   FileSystem& operator=(const FileSystem&&) = delete;
 
-public:
+ public:
   /**
    * \brief Create Instance.
    * \return A FileSystem pointer.
@@ -325,7 +327,7 @@ public:
    */
   std::vector<Path> GetAll(const Path& path) const;
 
-private:
+ private:
   /**
    * \brief Destroy the instance. If it is successfully destroyed, it returns
    * true, otherwise it returns false.
@@ -334,13 +336,22 @@ private:
    */
   static bool Destroy();
 
-protected:
+ protected:
   FileSystem() = default;
   ~FileSystem();
   static FileSystem* file_system_;
 
-private:
+ private:
   static std::mutex sync_flag_;
 };
-}
+}  // namespace FileSystem
 }  // namespace MM
+
+namespace std {
+template <>
+struct hash<MM::FileSystem::Path> {
+  size_t operator()(const MM::FileSystem::Path& path) const {
+    return path.GetHash();
+  }
+};
+}  // namespace std

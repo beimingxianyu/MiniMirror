@@ -395,12 +395,12 @@ bool MM::RenderSystem::AllocatedCommandBuffer::AllocatedCommandBufferWrapper::
 MM::RenderSystem::CommandTaskFlow::CommandTaskFlow(
     CommandTaskFlow&& other) noexcept {
   std::lock(task_sync_, other.task_sync_);
+  std::lock_guard<std::shared_mutex> guard1(task_sync_, std::adopt_lock);
+  std::lock_guard<std::shared_mutex> guard2(other.task_sync_, std::adopt_lock);
+
   root_tasks_ = std::move(other.root_tasks_);
   tasks_ = std::move(other.tasks_);
   task_numbers_ = other.task_numbers_;
-
-  task_sync_.unlock();
-  other.task_sync_.unlock();
 }
 
 MM::RenderSystem::CommandTaskFlow& MM::RenderSystem::CommandTaskFlow::operator=(
@@ -409,13 +409,13 @@ MM::RenderSystem::CommandTaskFlow& MM::RenderSystem::CommandTaskFlow::operator=(
     return *this;
   }
   std::lock(task_sync_, other.task_sync_);
+  std::lock_guard<std::shared_mutex> guard1(task_sync_, std::adopt_lock);
+  std::lock_guard<std::shared_mutex> guard2(other.task_sync_, std::adopt_lock);
 
   root_tasks_ = std::move(other.root_tasks_);
   tasks_ = std::move(other.tasks_);
   task_numbers_ = other.task_numbers_;
 
-  task_sync_.unlock();
-  other.task_sync_.unlock();
   return *this;
 }
 
@@ -1381,10 +1381,13 @@ MM::RenderSystem::CommandExecutor::ExecutingCommandTaskFlow::
 MM::RenderSystem::CommandExecutor::ExecutingCommandTaskFlow&
 MM::RenderSystem::CommandExecutor::ExecutingCommandTaskFlow::operator=(
     ExecutingCommandTaskFlow&& other) noexcept {
-  std::lock(submitted_task_mutex_, other.submitted_task_mutex_);
   if (&other == this) {
     return *this;
   }
+  std::lock(submitted_task_mutex_, other.submitted_task_mutex_);
+  std::lock_guard<std::mutex> guard1(submitted_task_mutex_, std::adopt_lock);
+  std::lock_guard<std::mutex> guard2(other.submitted_task_mutex_,
+                                     std::adopt_lock);
 
   command_task_flow_ = std::move(other.command_task_flow_);
   task_flow_ID_ = other.task_flow_ID_;
@@ -1399,9 +1402,6 @@ MM::RenderSystem::CommandExecutor::ExecutingCommandTaskFlow::operator=(
   pre_task_not_submit_task_ = std::move(other.pre_task_not_submit_task_);
 
   other.task_flow_ID_ = 0;
-
-  submitted_task_mutex_.unlock();
-  other.submitted_task_mutex_.unlock();
 
   return *this;
 }
@@ -1809,17 +1809,22 @@ void MM::RenderSystem::CommandExecutor::RecycledSemaphoreThatSubmittedFailed() {
   while (valid_) {
     std::lock(submit_failed_to_be_recycled_semaphore_mutex_,
               recycled_semaphore_mutex_);
-    for (const auto& semaphore : submit_failed_to_be_recycled_semaphore_.at(
-             submit_failed_to_be_recycled_semaphore_current_index_)) {
-      recycled_semaphore_.emplace_back(semaphore);
+    std::lock_guard<std::mutex> guard1(
+        submit_failed_to_be_recycled_semaphore_mutex_, std::adopt_lock);
+    {
+      std::lock_guard<std::mutex> guard2{recycled_semaphore_mutex_,
+                                         std::adopt_lock};
+      for (const auto& semaphore : submit_failed_to_be_recycled_semaphore_.at(
+               submit_failed_to_be_recycled_semaphore_current_index_)) {
+        recycled_semaphore_.emplace_back(semaphore);
+      }
     }
-    recycled_semaphore_mutex_.unlock();
     submit_failed_to_be_recycled_semaphore_
         .at(submit_failed_to_be_recycled_semaphore_current_index_)
         .clear();
     submit_failed_to_be_recycled_semaphore_current_index_ =
         (submit_failed_to_be_recycled_semaphore_current_index_ + 1) % 2;
-    submit_failed_to_be_recycled_semaphore_mutex_.unlock();
+
     std::this_thread::sleep_for(std::chrono::seconds(1));
   }
 }
@@ -2055,13 +2060,15 @@ void MM::RenderSystem::CommandExecutor::ProcessWaitTask() {
   // This function cannot obtain the \ref task_flow_queue_mutex_ lock
   // as it will cause a deadlock.
   std::lock(wait_tasks_mutex_, task_flow_queue_mutex_);
+  std::lock_guard<std::mutex> guard1(wait_tasks_mutex_, std::adopt_lock);
+  std::lock_guard<std::mutex> guard2(task_flow_queue_mutex_, std::adopt_lock);
   if (!wait_tasks_.empty()) {
     std::list<CommandTaskFlowToBeRun> wait_task_list;
     for (const auto& wait_task : wait_tasks_) {
       for (auto iter = task_flow_queue_.begin();
            iter != task_flow_queue_.end();) {
         if (wait_task == iter->task_flow_ID_) {
-          executing_command_task_flows_.emplace_back(
+          executing_command_task_flows_.emplace_front(
               std::make_shared<ExecutingCommandTaskFlow>(std::move(*iter)));
           iter = task_flow_queue_.erase(iter);
           continue;
@@ -2070,8 +2077,6 @@ void MM::RenderSystem::CommandExecutor::ProcessWaitTask() {
       }
     }
   }
-  wait_tasks_mutex_.unlock();
-  task_flow_queue_mutex_.unlock();
 }
 
 void MM::RenderSystem::CommandExecutor::ProcessRootTaskAndSubTask(

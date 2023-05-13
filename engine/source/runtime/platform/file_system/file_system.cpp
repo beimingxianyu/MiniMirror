@@ -3,7 +3,6 @@
 std::mutex MM::FileSystem::FileSystem::sync_flag_{};
 MM::FileSystem::FileSystem* MM::FileSystem::FileSystem::file_system_{nullptr};
 
-
 MM::FileSystem::Path::Path(const Path& other)
     : path_(std::make_unique<std::filesystem::path>(*other.path_)) {}
 
@@ -91,14 +90,14 @@ bool MM::FileSystem::Path::IsDirectory() const {
   return std::filesystem::is_directory(*path_);
 }
 
-std::string MM::FileSystem::Path::FileName() const {
+std::string MM::FileSystem::Path::GetFileName() const {
   if (IsDirectory()) {
     return path_->filename().string();
   }
   return std::string{};
 }
 
-std::string MM::FileSystem::Path::Extension() const {
+std::string MM::FileSystem::Path::GetExtension() const {
   if (IsDirectory()) {
     return path_->extension().string();
   }
@@ -109,7 +108,7 @@ void MM::FileSystem::Path::Swap(const Path& other) const {
   std::swap(*path_, *other.path_);
 }
 
-std::string MM::FileSystem::Path::RelativePath(const Path& root_path) const {
+std::string MM::FileSystem::Path::GetRelativePath(const Path& root_path) const {
   if (!root_path.IsExists()) {
     return std::string();
   }
@@ -218,12 +217,12 @@ std::string MM::FileSystem::Path::RelativePath(const Path& root_path) const {
   }
 }
 
-std::string MM::FileSystem::Path::RelativePath(
+std::string MM::FileSystem::Path::GetRelativePath(
     const std::string& root_path) const {
-  return RelativePath(Path(root_path));
+  return GetRelativePath(Path(root_path));
 }
 
-const MM::FileSystem::Path& MM::FileSystem::Path::AbsolutePath() const {
+const MM::FileSystem::Path& MM::FileSystem::Path::GetAbsolutePath() const {
   return *this;
 }
 
@@ -235,8 +234,7 @@ void MM::FileSystem::Path::ReplacePath(const std::string& other_path) {
   path_ = std::make_unique<std::filesystem::path>(other_path);
 };
 
-MM::FileSystem::FileSystem*
-MM::FileSystem::FileSystem::GetInstance() {
+MM::FileSystem::FileSystem* MM::FileSystem::FileSystem::GetInstance() {
   if (file_system_) {
   } else {
     std::lock_guard<std::mutex> guard(sync_flag_);
@@ -277,7 +275,7 @@ bool MM::FileSystem::FileSystem::DeleteDirectory(const Path& dir_path) const {
 }
 
 bool MM::FileSystem::FileSystem::CopyDirectory(const Path& dir_path,
-                                   const Path& dest_dir) const {
+                                               const Path& dest_dir) const {
   if (!dir_path.IsExists()) {
     return false;
   }
@@ -286,8 +284,7 @@ bool MM::FileSystem::FileSystem::CopyDirectory(const Path& dir_path,
 }
 
 bool MM::FileSystem::FileSystem::RenameDirectory(
-    const Path& dir_path,
-                                     const std::string& new_name) const {
+    const Path& dir_path, const std::string& new_name) const {
   if (!dir_path.IsExists()) {
     return false;
   }
@@ -340,7 +337,7 @@ bool MM::FileSystem::FileSystem::DeleteFile(const Path& file_path) const {
 }
 
 bool MM::FileSystem::FileSystem::CopyFile(const Path& file_path,
-                              const Path& dest_dir) const {
+                                          const Path& dest_dir) const {
   if (!file_path.IsExists()) {
     return false;
   }
@@ -348,7 +345,7 @@ bool MM::FileSystem::FileSystem::CopyFile(const Path& file_path,
 }
 
 bool MM::FileSystem::FileSystem::RenameFile(const Path& file_path,
-                                const std::string& new_name) const {
+                                            const std::string& new_name) const {
   if (!file_path.IsExists()) {
     return false;
   }
@@ -395,7 +392,7 @@ bool MM::FileSystem::FileSystem::Copy(const Path& path,
 }
 
 bool MM::FileSystem::FileSystem::Rename(const Path& path,
-                            const std::string& new_name) const {
+                                        const std::string& new_name) const {
   if (path.IsDirectory()) {
     return RenameDirectory(path, new_name);
   }
@@ -478,6 +475,23 @@ std::string MM::FileSystem::Path::RemoveDotAndDotDot(
     ++index;
   }
   return result;
+}
+
+void MM::FileSystem::Swap(MM::FileSystem::Path& lhs,
+                          MM::FileSystem::Path& rhs) noexcept {
+  using std::swap;
+  swap(lhs.path_, rhs.path_);
+}
+
+void MM::FileSystem::swap(MM::FileSystem::Path& lhs,
+                          MM::FileSystem::Path& rhs) noexcept {
+  using std::swap;
+  swap(lhs.path_, rhs.path_);
+}
+
+std::uint64_t MM::FileSystem::Path::GetHash() const {
+  std::hash<std::string> hash;
+  return hash(String());
 }
 
 MM::FileSystem::FileSystem::~FileSystem() { file_system_ = nullptr; }

@@ -1,4 +1,5 @@
 #include "file_system.h"
+
 #include <gtest/gtest.h>
 
 TEST(file_system, relative_path) {
@@ -7,25 +8,27 @@ TEST(file_system, relative_path) {
   EXPECT_EQ(ori_path.IsDirectory(), true);
   EXPECT_EQ(ori_path.RelativePath(std::string(ORIGINE_DIR) + "/../"),
             ".\\origine");
-  EXPECT_EQ(ori_path.RelativePath(std::string(ORIGINE_DIR) + "/test_dir1/test_dir2/"),
-            "..\\..\\");
   EXPECT_EQ(
-      ori_path.RelativePath(std::string(ORIGINE_DIR) + "/../test_dir3/test_dir4"),
-      "..\\..\\origine");
-  EXPECT_EQ(ori_path.RelativePath(std::string(ORIGINE_DIR) + "/../test.txt"), ".\\origine");
+      ori_path.RelativePath(std::string(ORIGINE_DIR) + "/test_dir1/test_dir2/"),
+      "..\\..\\");
+  EXPECT_EQ(ori_path.RelativePath(std::string(ORIGINE_DIR) +
+                                  "/../test_dir3/test_dir4"),
+            "..\\..\\origine");
+  EXPECT_EQ(ori_path.RelativePath(std::string(ORIGINE_DIR) + "/../test.txt"),
+            ".\\origine");
   EXPECT_EQ(ori_path.RelativePath("C:/user"), std::string());
 #else
   EXPECT_EQ(ori_path.IsDirectory(), true);
-  EXPECT_EQ(ori_path.RelativePath(std::string(ORIGINE_DIR) + "/../"),
+  EXPECT_EQ(ori_path.GetRelativePath(std::string(ORIGINE_DIR) + "/../"),
             "./origine");
-  EXPECT_EQ(
-      ori_path.RelativePath(std::string(ORIGINE_DIR) + "/test_dir1/test_dir2/"),
-      "../../");
-  EXPECT_EQ(ori_path.RelativePath(std::string(ORIGINE_DIR) +
-                                  "/../test_dir3/test_dir4"),
+  EXPECT_EQ(ori_path.GetRelativePath(std::string(ORIGINE_DIR) +
+                                     "/test_dir1/test_dir2/"),
+            "../../");
+  EXPECT_EQ(ori_path.GetRelativePath(std::string(ORIGINE_DIR) +
+                                     "/../test_dir3/test_dir4"),
             "../../origine");
-  EXPECT_EQ(ori_path.RelativePath(std::string(ORIGINE_DIR) + "/../test.txt"),
+  EXPECT_EQ(ori_path.GetRelativePath(std::string(ORIGINE_DIR) + "/../test.txt"),
             "./origine");
-  EXPECT_EQ(ori_path.RelativePath("C:/user"), std::string());
+  EXPECT_EQ(ori_path.GetRelativePath("C:/user"), std::string());
 #endif
 }

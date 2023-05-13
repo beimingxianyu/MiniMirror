@@ -3,7 +3,7 @@
 MM::AssetType::Image::Image(const std::string& asset_name,
                             const FileSystem::Path& image_path,
                             const int& desired_channels)
-    : AssetBase(asset_name, MM::Utils::StringHash(image_path.RelativePath(
+    : AssetBase(asset_name, MM::Utils::StringHash(image_path.GetRelativePath(
                                 config_system->GetConfig("bin_dir")))) {
   if (!image_path.IsExists()) {
     LOG_ERROR(std::string("Failed to load the image with path ") +
