@@ -24,7 +24,9 @@ enum class ExecuteResult : std::uint32_t {
   INPUT_PARAMETERS_ARE_INCORRECT = 1u << 12,
   TIMEOUT = 1u << 13,
   OPERATION_NOT_SUPPORTED = 1U << 14,
-  INPUT_PARAMETERS_ARE_NOT_SUITABLE = 1U << 15
+  INPUT_PARAMETERS_ARE_NOT_SUITABLE = 1U << 15,
+  // rename/delete/create/remove/etc.
+  FILE_OPERATION_ERROR = 1U << 16
 };
 
 ExecuteResult operator|(ExecuteResult l_result, ExecuteResult r_result);
@@ -34,6 +36,4 @@ ExecuteResult operator|=(ExecuteResult l_result, ExecuteResult r_result);
 ExecuteResult operator&(ExecuteResult l_result, ExecuteResult r_result);
 
 ExecuteResult operator&=(ExecuteResult l_result, ExecuteResult r_result);
-}
-
-
+}  // namespace MM

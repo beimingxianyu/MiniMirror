@@ -30,8 +30,8 @@ MM::LogSystem::LogSystem* MM::LogSystem::LogSystem::GetInstance() {
       log_system_->logger_ = std::make_shared<spdlog::async_logger>(
           "muggle_logger", sink_list.begin(), sink_list.end(),
           spdlog::thread_pool(), spdlog::async_overflow_policy::block);
-      //log_system_->logger_ = std::make_shared<spdlog::logger>(
-      //    "muggle_logger", sink_list.begin(), sink_list.end());
+      // log_system_->logger_ = std::make_shared<spdlog::logger>(
+      //     "muggle_logger", sink_list.begin(), sink_list.end());
       log_system_->SetLevel(LogLevel::Trace);
       spdlog::register_logger(log_system_->logger_);
     }
@@ -85,7 +85,7 @@ MM::ExecuteResult MM::LogSystem::LogSystem::CheckResult(
     case ExecuteResult::TYPE_CONVERSION_FAILED:
       LogError(log_prefix + "Type conversion failed");
       break;
-    //case ExecuteResult::INITIALIZATION_FAILED:
+    // case ExecuteResult::INITIALIZATION_FAILED:
     case ExecuteResult::CREATE_OBJECT_FAILED:
       LogError(log_prefix + "Create object/initialization failed.");
       break;
@@ -117,6 +117,9 @@ MM::ExecuteResult MM::LogSystem::LogSystem::CheckResult(
     case ExecuteResult::INPUT_PARAMETERS_ARE_NOT_SUITABLE:
       LogError(log_prefix + "The input parameters are not suitable.");
       break;
+    case ExecuteResult::FILE_OPERATION_ERROR:
+      LogError(log_prefix + "File operation error.");
+      break;
   }
 
   return result;
@@ -127,7 +130,8 @@ MM::ExecuteResult MM::LogSystem::LogSystem::CheckMultipleResult(
   if ((result & ExecuteResult::SUCCESS) == ExecuteResult::SUCCESS) {
     return result;
   }
-  if ((result & ExecuteResult::UNDEFINED_ERROR) == ExecuteResult::UNDEFINED_ERROR) {
+  if ((result & ExecuteResult::UNDEFINED_ERROR) ==
+      ExecuteResult::UNDEFINED_ERROR) {
     LogError(log_prefix + "Undefined error.");
   }
   if ((result & ExecuteResult::OUT_OF_HOST_MEMORY) ==
@@ -183,16 +187,21 @@ MM::ExecuteResult MM::LogSystem::LogSystem::CheckMultipleResult(
   if ((result & ExecuteResult::TIMEOUT) == ExecuteResult::TIMEOUT) {
     LogError(log_prefix + "The operation timed out.");
   }
-  if ((result & ExecuteResult::OPERATION_NOT_SUPPORTED) == ExecuteResult::OPERATION_NOT_SUPPORTED) {
+  if ((result & ExecuteResult::OPERATION_NOT_SUPPORTED) ==
+      ExecuteResult::OPERATION_NOT_SUPPORTED) {
     LogError(log_prefix + "An unsupported operation was performed.");
   }
-  if ((result & ExecuteResult::INPUT_PARAMETERS_ARE_NOT_SUITABLE) == ExecuteResult::INPUT_PARAMETERS_ARE_NOT_SUITABLE) {
+  if ((result & ExecuteResult::INPUT_PARAMETERS_ARE_NOT_SUITABLE) ==
+      ExecuteResult::INPUT_PARAMETERS_ARE_NOT_SUITABLE) {
+    LogError(log_prefix + "The input parameters are not suitable.");
+  }
+  if ((result & ExecuteResult::FILE_OPERATION_ERROR) ==
+      ExecuteResult::FILE_OPERATION_ERROR) {
     LogError(log_prefix + "The input parameters are not suitable.");
   }
 
   return result;
 }
-
 
 bool MM::LogSystem::LogSystem::Destroy() {
   std::lock_guard<std::mutex> guard(sync_flag_);

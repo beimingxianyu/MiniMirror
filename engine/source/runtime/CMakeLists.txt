@@ -7,6 +7,7 @@ include_directories("${CMAKE_CURRENT_SOURCE_DIR}/../")
 #####################################################
 ########## base ##########
 AddModule("base" "${CMAKE_CURRENT_SOURCE_DIR}/platform/base")
+target_link_libraries(base PUBLIC utils)
 
 ##########  file_system  ##########
 AddModule("file_system" "${CMAKE_CURRENT_SOURCE_DIR}/platform/file_system")
