@@ -42,6 +42,9 @@ target_link_libraries(math PUBLIC glm)
 AddModule("task_system" "${CMAKE_CURRENT_SOURCE_DIR}/core/task_system")
 target_link_libraries(task_system PUBLIC Taskflow_lib)
 
+########## manager ##########
+AddModule("Manager" "${CMAKE_CURRENT_SOURCE_DIR}/core/manager")
+
 #####################################################
 #####################  resource  ####################
 #####################################################

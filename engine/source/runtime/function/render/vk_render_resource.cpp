@@ -13,7 +13,6 @@ MM::RenderSystem::RenderResourceManager ::GetInstance() {
       render_resource_manager_ = new RenderResourceManager{};
     }
   }
-
   return render_resource_manager_;
 }
 

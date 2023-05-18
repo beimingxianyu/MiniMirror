@@ -1,11 +1,13 @@
 #include "runtime/platform/config_system/config_system.h"
 
 std::mutex MM::ConfigSystem::ConfigSystem::sync_flag_{std::mutex()};
-MM::ConfigSystem::ConfigSystem* MM::ConfigSystem::ConfigSystem::config_system_{nullptr};
-std::unordered_map<std::string, std::string> MM::ConfigSystem::ConfigSystem::config_data_base_{};
+MM::ConfigSystem::ConfigSystem* MM::ConfigSystem::ConfigSystem::config_system_{
+    nullptr};
+std::unordered_map<std::string, std::string>
+    MM::ConfigSystem::ConfigSystem::config_data_base_{};
 
-std::string MM::ConfigSystem::LoadOneConfigFromIni(const MM::FileSystem::Path& file_path,
-                                                   const std::string& key) {
+std::string MM::ConfigSystem::LoadOneConfigFromIni(
+    const MM::FileSystem::Path& file_path, const std::string& key) {
   std::fstream config_file{file_path.String()};
   if (config_file.is_open()) {
     std::string line;
@@ -34,8 +36,8 @@ std::string MM::ConfigSystem::LoadOneConfigFromIni(const MM::FileSystem::Path& f
   return std::string{};
 }
 
-std::unordered_map<std::string, std::string> MM::ConfigSystem::LoadConfigFromIni(
-    const MM::FileSystem::Path& file_path) {
+std::unordered_map<std::string, std::string>
+MM::ConfigSystem::LoadConfigFromIni(const MM::FileSystem::Path& file_path) {
   std::fstream config_file{file_path.String()};
   std::unordered_map<std::string, std::string> result;
   if (config_file.is_open()) {
@@ -67,8 +69,7 @@ std::unordered_map<std::string, std::string> MM::ConfigSystem::LoadConfigFromIni
 
 MM::ConfigSystem::ConfigSystem::~ConfigSystem() { config_system_ = nullptr; }
 
-MM::ConfigSystem::ConfigSystem
-* MM::ConfigSystem::ConfigSystem::GetInstance() {
+MM::ConfigSystem::ConfigSystem* MM::ConfigSystem::ConfigSystem::GetInstance() {
   if (config_system_) {
   } else {
     std::lock_guard<std::mutex> guard(sync_flag_);
@@ -76,8 +77,9 @@ MM::ConfigSystem::ConfigSystem
       config_system_ = new ConfigSystem{};
       config_data_base_["config_dir"] = CONFIG_DIR;
       std::cout << CONFIG_DIR << std::endl;
-      ExecuteResult load_result = config_system_->LoadConfigFromIni(FileSystem::Path(config_data_base_["config_dir"] +
-                                        "/init_config.ini"));
+      ExecuteResult load_result =
+          config_system_->LoadConfigFromIni(FileSystem::Path(
+              config_data_base_["config_dir"] + "/init_config.ini"));
     }
     CheckInit();
   }
@@ -91,12 +93,12 @@ std::string MM::ConfigSystem::ConfigSystem::GetConfig(const std::string& key) {
   return std::string{};
 }
 
-bool MM::ConfigSystem::ConfigSystem::Have(const std::string& key) const{
+bool MM::ConfigSystem::ConfigSystem::Have(const std::string& key) const {
   return config_data_base_.find(key) != config_data_base_.end();
 }
 
-bool MM::ConfigSystem::ConfigSystem::LoadOneConfigFromIni(const MM::FileSystem::Path& file_path,
-  const std::string& key) {
+bool MM::ConfigSystem::ConfigSystem::LoadOneConfigFromIni(
+    const MM::FileSystem::Path& file_path, const std::string& key) {
   std::fstream config_file{file_path.String()};
   if (config_file.is_open()) {
     std::string line;
@@ -147,8 +149,9 @@ MM::ExecuteResult MM::ConfigSystem::ConfigSystem::LoadConfigFromIni(
             line.substr(0, line.find('=')),
             line.substr(line.find('=') + 1, line.size() - line.find('=') - 1));
       } else {
-        config_data_base_.emplace(line.substr(0, line.find('=')),
-                       line.substr(line.find('=') + 1, semicolon_position));
+        config_data_base_.emplace(
+            line.substr(0, line.find('=')),
+            line.substr(line.find('=') + 1, semicolon_position));
       }
     }
     config_file.close();
@@ -182,17 +185,18 @@ MM::ExecuteResult MM::ConfigSystem::ConfigSystem::Destroy() {
 
 void MM::ConfigSystem::ConfigSystem::CheckInit() {
   if (!CheckAllNeedConfigLoaded()) {
-    throw std::runtime_error("The required settings are not loaded. Please reset init config file.");
+    throw std::runtime_error(
+        "The required settings are not loaded. Please reset init config file.");
   }
   if (!CheckInitVertexAndIndexBuffer()) {
     throw std::runtime_error(
         "The setting for vertex_buffer_size and index_buffer_size are "
-        "incorrect. Please reset init config file.");  
+        "incorrect. Please reset init config file.");
   }
 }
 
 bool MM::ConfigSystem::ConfigSystem::CheckAllNeedConfigLoaded() {
-  if (config_data_base_.size() != 18) {
+  if (config_data_base_.size() < 18) {
     return false;
   }
   if (config_data_base_.find("version_major") == config_data_base_.end()) {
@@ -208,6 +212,9 @@ bool MM::ConfigSystem::ConfigSystem::CheckAllNeedConfigLoaded() {
     return false;
   }
   if (config_data_base_.find("graph_thread_share") == config_data_base_.end()) {
+    return false;
+  }
+  if (config_data_base_.find("manager_size") == config_data_base_.end()) {
     return false;
   }
   if (config_data_base_.find("engine_dir") == config_data_base_.end()) {
@@ -263,7 +270,8 @@ bool MM::ConfigSystem::ConfigSystem::CheckInitVertexAndIndexBuffer() {
       config_data_base_.find("init_vertex_buffer_size")->second;
   const std::string max_vertex_buffer_size =
       config_data_base_.find("max_vertex_buffer_size")->second;
-  if (std::stoul(init_vertex_buffer_size) > std::stoul(max_vertex_buffer_size)) {
+  if (std::stoul(init_vertex_buffer_size) >
+      std::stoul(max_vertex_buffer_size)) {
     return false;
   }
 
@@ -283,50 +291,53 @@ void MM::ConfigSystem::ConfigSystem::SetConfig(const std::string& key,
   config_data_base_[key] = data;
 }
 
-void MM::ConfigSystem::ConfigSystem::SetConfig(const std::string& key, const int& data) {
- ConfigSystem::config_data_base_[key] = std::to_string(data);
+void MM::ConfigSystem::ConfigSystem::SetConfig(const std::string& key,
+                                               const int& data) {
+  ConfigSystem::config_data_base_[key] = std::to_string(data);
 }
 
-void MM::ConfigSystem::ConfigSystem::SetConfig(const std::string& key, const long& data) {
+void MM::ConfigSystem::ConfigSystem::SetConfig(const std::string& key,
+                                               const long& data) {
   config_data_base_[key] = std::to_string(data);
 }
 
 void MM::ConfigSystem::ConfigSystem::SetConfig(const std::string& key,
-                                   const long long& data) {
-  config_data_base_[key] = std::to_string(data);
-}
-
-void MM::ConfigSystem::ConfigSystem::SetConfig(const std::string& key, const float& data) {
-  config_data_base_[key] = std::to_string(data);
-}
-
-void MM::ConfigSystem::ConfigSystem::SetConfig(const std::string& key, const double& data) {
+                                               const long long& data) {
   config_data_base_[key] = std::to_string(data);
 }
 
 void MM::ConfigSystem::ConfigSystem::SetConfig(const std::string& key,
-                                   const long double& data) {
+                                               const float& data) {
   config_data_base_[key] = std::to_string(data);
 }
 
 void MM::ConfigSystem::ConfigSystem::SetConfig(const std::string& key,
-                                  const unsigned int& data) {
+                                               const double& data) {
   config_data_base_[key] = std::to_string(data);
 }
 
 void MM::ConfigSystem::ConfigSystem::SetConfig(const std::string& key,
-                                  const unsigned long& data) {
+                                               const long double& data) {
   config_data_base_[key] = std::to_string(data);
 }
 
 void MM::ConfigSystem::ConfigSystem::SetConfig(const std::string& key,
-                                  const unsigned long long& data) {
+                                               const unsigned int& data) {
+  config_data_base_[key] = std::to_string(data);
+}
+
+void MM::ConfigSystem::ConfigSystem::SetConfig(const std::string& key,
+                                               const unsigned long& data) {
+  config_data_base_[key] = std::to_string(data);
+}
+
+void MM::ConfigSystem::ConfigSystem::SetConfig(const std::string& key,
+                                               const unsigned long long& data) {
   config_data_base_[key] = std::to_string(data);
 }
 
 MM::ExecuteResult MM::ConfigSystem::ConfigSystem::GetConfig(
-    const std::string& key,
-    std::string& get_data) const {
+    const std::string& key, std::string& get_data) const {
   if (Have(key)) {
     get_data = config_data_base_[key];
     return ExecuteResult::SUCCESS;
@@ -335,8 +346,7 @@ MM::ExecuteResult MM::ConfigSystem::ConfigSystem::GetConfig(
 }
 
 MM::ExecuteResult MM::ConfigSystem::ConfigSystem::GetConfig(
-    const std::string& key,
-    int& get_data) const {
+    const std::string& key, int& get_data) const {
   if (Have(key)) {
     get_data = std::stoi(config_data_base_[key]);
     return ExecuteResult::SUCCESS;
@@ -345,8 +355,7 @@ MM::ExecuteResult MM::ConfigSystem::ConfigSystem::GetConfig(
 }
 
 MM::ExecuteResult MM::ConfigSystem::ConfigSystem::GetConfig(
-    const std::string& key,
-    unsigned int& get_data) const {
+    const std::string& key, unsigned int& get_data) const {
   if (Have(key)) {
     get_data = static_cast<unsigned int>(std::stoi(config_data_base_[key]));
     return ExecuteResult::SUCCESS;
@@ -355,8 +364,7 @@ MM::ExecuteResult MM::ConfigSystem::ConfigSystem::GetConfig(
 }
 
 MM::ExecuteResult MM::ConfigSystem::ConfigSystem::GetConfig(
-    const std::string& key,
-    float& get_data) const {
+    const std::string& key, float& get_data) const {
   if (Have((key))) {
     get_data = std::stof(config_data_base_[key]);
     return ExecuteResult::SUCCESS;
@@ -365,8 +373,7 @@ MM::ExecuteResult MM::ConfigSystem::ConfigSystem::GetConfig(
 }
 
 MM::ExecuteResult MM::ConfigSystem::ConfigSystem::GetConfig(
-    const std::string& key,
-    long& get_data) const {
+    const std::string& key, long& get_data) const {
   if (Have((key))) {
     get_data = std::stol(config_data_base_[key]);
     return ExecuteResult::SUCCESS;
@@ -375,8 +382,7 @@ MM::ExecuteResult MM::ConfigSystem::ConfigSystem::GetConfig(
 }
 
 MM::ExecuteResult MM::ConfigSystem::ConfigSystem::GetConfig(
-    const std::string& key,
-    long double& get_data) const {
+    const std::string& key, long double& get_data) const {
   if (Have((key))) {
     get_data = std::stold(config_data_base_[key]);
     return ExecuteResult::SUCCESS;
@@ -385,8 +391,7 @@ MM::ExecuteResult MM::ConfigSystem::ConfigSystem::GetConfig(
 }
 
 MM::ExecuteResult MM::ConfigSystem::ConfigSystem::GetConfig(
-    const std::string& key,
-    long long& get_data) const {
+    const std::string& key, long long& get_data) const {
   if (Have((key))) {
     get_data = std::stoll(config_data_base_[key]);
     return ExecuteResult::SUCCESS;
@@ -395,8 +400,7 @@ MM::ExecuteResult MM::ConfigSystem::ConfigSystem::GetConfig(
 }
 
 MM::ExecuteResult MM::ConfigSystem::ConfigSystem::GetConfig(
-    const std::string& key,
-    unsigned long& get_data) const {
+    const std::string& key, unsigned long& get_data) const {
   if (Have((key))) {
     get_data = std::stoul(config_data_base_[key]);
     return ExecuteResult::SUCCESS;
@@ -405,8 +409,7 @@ MM::ExecuteResult MM::ConfigSystem::ConfigSystem::GetConfig(
 }
 
 MM::ExecuteResult MM::ConfigSystem::ConfigSystem::GetConfig(
-    const std::string& key,
-    unsigned long long& get_data) const{
+    const std::string& key, unsigned long long& get_data) const {
   if (Have((key))) {
     get_data = std::stoull(config_data_base_[key]);
     return ExecuteResult::SUCCESS;
