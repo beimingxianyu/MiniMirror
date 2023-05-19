@@ -19,9 +19,6 @@ template <
     typename IsDeriveFromManagedObjectBase = typename std::enable_if<
         std::is_base_of<ManagedObjectBase, ManagedType>::value, void>::type>
 class ManagedObjectWrapper {
-  template <typename KeyType, typename ValueType>
-  friend class ManagedObjectTableBase;
-
  public:
   ManagedObjectWrapper() = delete;
   ~ManagedObjectWrapper();
@@ -34,22 +31,63 @@ class ManagedObjectWrapper {
  public:
   std::uint32_t GetUseCount() const;
 
-  ManagedType& GetObject() const;
+  ManagedType& GetObject();
+
+  const ManagedType& GetObject() const;
+
+  ManagedType* GetObjectPtr();
+
+  const ManagedType* GetObjectPtr() const;
+
+  std::atomic_uint32_t* GetUseCountPtr();
+
+  std::atomic_uint32_t* GetUseCountPtr() const;
 
  private:
-  ManagedType managed_object_;
+  ManagedType* managed_object_;
   std::atomic_uint32_t* use_count_{nullptr};
 };
 
 template <typename ManagedType, typename IsDeriveFromManagedObjectBase>
-ManagedType& ManagedObjectWrapper<
-    ManagedType, IsDeriveFromManagedObjectBase>::GetObject() const {
+std::atomic_uint32_t* ManagedObjectWrapper<
+    ManagedType, IsDeriveFromManagedObjectBase>::GetUseCountPtr() const {
+  return use_count_;
+}
+
+template <typename ManagedType, typename IsDeriveFromManagedObjectBase>
+std::atomic_uint32_t* ManagedObjectWrapper<
+    ManagedType, IsDeriveFromManagedObjectBase>::GetUseCountPtr() {
+  return use_count_;
+}
+
+template <typename ManagedType, typename IsDeriveFromManagedObjectBase>
+const ManagedType* ManagedObjectWrapper<
+    ManagedType, IsDeriveFromManagedObjectBase>::GetObjectPtr() const {
   return managed_object_;
+}
+
+template <typename ManagedType, typename IsDeriveFromManagedObjectBase>
+ManagedType* ManagedObjectWrapper<
+    ManagedType, IsDeriveFromManagedObjectBase>::GetObjectPtr() {
+  return managed_object_;
+}
+
+template <typename ManagedType, typename IsDeriveFromManagedObjectBase>
+ManagedType&
+ManagedObjectWrapper<ManagedType, IsDeriveFromManagedObjectBase>::GetObject() {
+  return *managed_object_;
+}
+
+template <typename ManagedType, typename IsDeriveFromManagedObjectBase>
+const ManagedType& ManagedObjectWrapper<
+    ManagedType, IsDeriveFromManagedObjectBase>::GetObject() const {
+  return *managed_object_;
 }
 
 template <typename ManagedType, typename IsDeriveFromManagedObjectBase>
 ManagedObjectWrapper<ManagedType,
                      IsDeriveFromManagedObjectBase>::~ManagedObjectWrapper() {
+  delete managed_object_;
   delete use_count_;
 }
 
@@ -62,7 +100,7 @@ std::uint32_t ManagedObjectWrapper<
 template <typename ManagedType, typename IsDeriveFromManagedObjectBase>
 ManagedObjectWrapper<ManagedType, IsDeriveFromManagedObjectBase>::
     ManagedObjectWrapper(ManagedType&& managed_object)
-    : managed_object_(std::move(managed_object)),
+    : managed_object_(new ManagedType(std::move(managed_object))),
       use_count_(new std::atomic_uint32_t(0)) {}
 
 template <typename ManagedType, typename IsDeriveFromManagedObjectBase>
@@ -73,7 +111,7 @@ ManagedObjectWrapper<ManagedType, IsDeriveFromManagedObjectBase>::operator=(
     return *this;
   }
 
-  managed_object_ = std::move(other.managed_object_);
+  managed_object_ = new ManagedType(std::move(other.managed_object_));
   use_count_ = other.use_count_;
 
   other.use_count_ = nullptr;
@@ -95,7 +133,16 @@ class ManagedObjectTableBase : virtual public MM::MMObject {
  public:
   virtual std::size_t GetSize() const;
 
-  virtual ExecuteResult AddObject(
+  virtual bool Have(const KeyType& key) const;
+
+  virtual std::uint32_t Count(const KeyType& key) const;
+
+  virtual bool IsMultiContainer() const;
+
+  virtual bool IsRelationshipContainer() const;
+
+ protected:
+  virtual ExecuteResult AddObjectImp(
       const KeyType& key, ValueType&& managed_object,
       ManagedObjectHandle<KeyType, ValueType>& handle);
 
@@ -109,32 +156,48 @@ class ManagedObjectTableBase : virtual public MM::MMObject {
                                      ValueType& object);
 
   virtual ExecuteResult RemoveObject(const KeyType& removed_object_key,
-                                     std::uint32_t index);
+                                     std::atomic_uint32_t* use_count_ptr);
 
-  virtual bool Have(const KeyType& key) const;
+  virtual ExecuteResult RemoveObject(std::atomic_uint32_t* use_count_ptr);
+
+  virtual ExecuteResult RemoveObject(const KeyType& removed_object_key,
+                                     std::uint32_t index);
 
   virtual MM::ExecuteResult GetObject(
       const KeyType& ket,
       ManagedObjectHandle<KeyType, ValueType>& handle) const;
 
   virtual MM::ExecuteResult GetObject(
-      const KeyType& removed_object_key, std::uint32_t index,
+      const KeyType& key, std::uint32_t index,
       ManagedObjectHandle<KeyType, ValueType>& handle) const;
 
   virtual MM::ExecuteResult GetObject(
-      const KeyType& removed_object_key,
+      const KeyType& key,
       std::vector<ManagedObjectHandle<KeyType, ValueType>>& handles) const;
-
-  virtual bool IsMutliContainer() const;
-
-  virtual bool IsRelationshipContainer() const;
 };
+
+template <typename KeyType, typename ValueType>
+ExecuteResult ManagedObjectTableBase<KeyType, ValueType>::RemoveObject(
+    const KeyType& removed_object_key, std::atomic_uint32_t* use_count_ptr) {
+  return ExecuteResult::UNDEFINED_ERROR;
+}
+template <typename KeyType, typename ValueType>
+ExecuteResult ManagedObjectTableBase<KeyType, ValueType>::RemoveObject(
+    std::atomic_uint32_t* use_count_ptr) {
+  return ExecuteResult::UNDEFINED_ERROR;
+}
+
+template <typename KeyType, typename ValueType>
+std::uint32_t ManagedObjectTableBase<KeyType, ValueType>::Count(
+    const KeyType& key) const {
+  return 0;
+}
 
 template <typename KeyType, typename ValueType>
 ExecuteResult ManagedObjectTableBase<KeyType, ValueType>::AddObject(
     ValueType&& managed_object,
     ManagedObjectHandle<KeyType, ValueType>& handle) {
-  return ExecuteResult::SUCCESS;
+  return ExecuteResult::UNDEFINED_ERROR;
 }
 
 template <typename KeyType, typename ValueType>
@@ -156,14 +219,14 @@ ManagedObjectTableBase<KeyType, ValueType>::operator=(
 
 template <typename KeyType, typename ValueType>
 MM::ExecuteResult ManagedObjectTableBase<KeyType, ValueType>::GetObject(
-    const KeyType& removed_object_key,
+    const KeyType& key,
     std::vector<ManagedObjectHandle<KeyType, ValueType>>& handles) const {
   return ExecuteResult::UNDEFINED_ERROR;
 }
 
 template <typename KeyType, typename ValueType>
 MM::ExecuteResult ManagedObjectTableBase<KeyType, ValueType>::GetObject(
-    const KeyType& removed_object_key, std::uint32_t index,
+    const KeyType& key, std::uint32_t index,
     ManagedObjectHandle<KeyType, ValueType>& handle) const {
   return ExecuteResult::UNDEFINED_ERROR;
 }
@@ -181,7 +244,7 @@ ExecuteResult ManagedObjectTableBase<KeyType, ValueType>::RemoveObject(
 }
 
 template <typename KeyType, typename ValueType>
-bool ManagedObjectTableBase<KeyType, ValueType>::IsMutliContainer() const {
+bool ManagedObjectTableBase<KeyType, ValueType>::IsMultiContainer() const {
   return false;
 }
 
@@ -204,7 +267,7 @@ ExecuteResult ManagedObjectTableBase<KeyType, ValueType>::RemoveObject(
 }
 
 template <typename KeyType, typename ValueType>
-ExecuteResult ManagedObjectTableBase<KeyType, ValueType>::AddObject(
+ExecuteResult ManagedObjectTableBase<KeyType, ValueType>::AddObjectImp(
     const KeyType& key, ValueType&& managed_object,
     ManagedObjectHandle<KeyType, ValueType>& handle) {
   return ExecuteResult::UNDEFINED_ERROR;
@@ -215,6 +278,11 @@ std::size_t ManagedObjectTableBase<KeyType, ValueType>::GetSize() const {
   return 0;
 }
 
+/**
+ * \remark Using this type in reference mode with multiple threads can cause
+ * errors. It is recommended to use this type through replication in a
+ * multi-threaded environment.
+ */
 template <typename KeyType, typename ManagedType>
 class ManagedObjectHandle {
   friend class ManagedObjectTableBase<KeyType, ManagedType>;
@@ -222,6 +290,10 @@ class ManagedObjectHandle {
  public:
   ManagedObjectHandle() = default;
   ~ManagedObjectHandle();
+  ManagedObjectHandle(
+      ManagedObjectTableBase<KeyType, ManagedType>* object_table,
+      const KeyType* key, ManagedType* managed_object,
+      std::atomic_uint32_t* use_count);
   ManagedObjectHandle(const ManagedObjectHandle& other);
   ManagedObjectHandle(ManagedObjectHandle&& other) noexcept;
   ManagedObjectHandle& operator=(const ManagedObjectHandle& other);
@@ -236,11 +308,10 @@ class ManagedObjectHandle {
 
   const KeyType& GetKey() const;
 
+  bool IsValid() const;
+
  private:
-  ManagedObjectHandle(
-      ManagedObjectTableBase<KeyType, ManagedType>* object_table,
-      const KeyType* key, ManagedType* managed_object,
-      std::atomic_uint32_t* use_count);
+  void TestAndDestruction();
 
  private:
   ManagedObjectTableBase<KeyType, ManagedType>* object_table_{nullptr};
@@ -250,15 +321,32 @@ class ManagedObjectHandle {
 };
 
 template <typename KeyType, typename ManagedType>
+bool ManagedObjectHandle<KeyType, ManagedType>::IsValid() const {
+  return use_count_ != nullptr; /* && object_table != nullptr
+                                 * && key != nullptr
+                                 * && managed_object != nullptr*/
+}
+
+template <typename KeyType, typename ManagedType>
+void ManagedObjectHandle<KeyType, ManagedType>::TestAndDestruction() {
+  if (*use_count_ == 0) {
+    if (object_table_->IsRelationshipContainer()) {
+      if (object_table_->IsMultiContainer()) {
+        object_table_->RemoveObject(*key_, use_count_);
+      } else {
+        object_table_->RemoveObject(*key_);
+      }
+      return;
+    }
+
+    object_table_->RemoveObject(use_count_);
+  }
+}
+
+template <typename KeyType, typename ManagedType>
 ManagedObjectHandle<KeyType, ManagedType>::~ManagedObjectHandle() {
   --(*use_count_);
-  if (object_table_->IsMutliContainer()) {
-    object_table_->RemoveObject(*key_, *managed_object_);
-  } else if (object_table_->IsRelationshipContainer()) {
-    object_table_->RemoveObject(*managed_object_);
-  } else {
-    object_table_->RemoveObject(*key_);
-  }
+  TestAndDestruction();
 }
 
 template <typename KeyType, typename ManagedType>
@@ -302,8 +390,14 @@ ManagedObjectHandle<KeyType, ManagedType>::operator=(
     return *this;
   }
 
+  if (IsValid()) {
+    --(*use_count_);
+    TestAndDestruction();
+  }
+
   use_count_ = other.use_count_;
-  other.use_count_ = 0;
+  other.use_count_ = nullptr;
+
   object_table_ = other.object_table_;
   key_ = other.key_;
   managed_object_ = other.managed_object_;
@@ -323,7 +417,12 @@ ManagedObjectHandle<KeyType, ManagedType>::operator=(
     return *this;
   }
 
-  ++(*other.use_count_);
+  if (IsValid()) {
+    --(*use_count_);
+    TestAndDestruction();
+  }
+
+  ++(*(other.use_count_));
 
   object_table_ = other.object_table_;
   key_ = other.key_;
@@ -351,7 +450,7 @@ ManagedObjectHandle<KeyType, ManagedType>::ManagedObjectHandle(
 template <typename KeyType, typename ManagedType>
 ManagedObjectHandle<KeyType, ManagedType>::ManagedObjectHandle(
     const ManagedObjectHandle& other) {
-  ++(use_count_);
+  ++(*(other.use_count_));
   object_table_ = other.object_table_;
   key_ = other.key_;
   managed_object_ = other.managed_object_;
