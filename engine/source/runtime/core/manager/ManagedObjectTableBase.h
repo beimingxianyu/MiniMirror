@@ -121,6 +121,8 @@ ManagedObjectWrapper<ManagedType, IsDeriveFromManagedObjectBase>::operator=(
 
 template <typename KeyType, typename ValueType>
 class ManagedObjectTableBase : virtual public MM::MMObject {
+  friend class ManagedObjectHandle<KeyType, ValueType>;
+
  public:
   ManagedObjectTableBase() = default;
   virtual ~ManagedObjectTableBase() = default;
@@ -146,44 +148,37 @@ class ManagedObjectTableBase : virtual public MM::MMObject {
       const KeyType& key, ValueType&& managed_object,
       ManagedObjectHandle<KeyType, ValueType>& handle);
 
-  virtual ExecuteResult AddObject(
+  virtual ExecuteResult AddObjectImp(
       ValueType&& managed_object,
       ManagedObjectHandle<KeyType, ValueType>& handle);
 
-  virtual ExecuteResult RemoveObject(const KeyType& removed_object_key);
+  virtual ExecuteResult RemoveObjectImp(const KeyType& removed_object_key);
 
-  virtual ExecuteResult RemoveObject(const KeyType& removed_object_key,
-                                     ValueType& object);
+  virtual ExecuteResult RemoveObjectImp(const KeyType& removed_object_key,
+                                        ValueType& object);
 
-  virtual ExecuteResult RemoveObject(const KeyType& removed_object_key,
-                                     std::atomic_uint32_t* use_count_ptr);
+  virtual ExecuteResult RemoveObjectImp(const KeyType& removed_object_key,
+                                        std::atomic_uint32_t* use_count_ptr);
 
-  virtual ExecuteResult RemoveObject(std::atomic_uint32_t* use_count_ptr);
+  virtual ExecuteResult RemoveObjectImp(const KeyType& removed_object_key,
+                                        std::uint32_t index);
 
-  virtual ExecuteResult RemoveObject(const KeyType& removed_object_key,
-                                     std::uint32_t index);
-
-  virtual MM::ExecuteResult GetObject(
+  virtual MM::ExecuteResult GetObjectImp(
       const KeyType& ket,
       ManagedObjectHandle<KeyType, ValueType>& handle) const;
 
-  virtual MM::ExecuteResult GetObject(
+  virtual MM::ExecuteResult GetObjectImp(
       const KeyType& key, std::uint32_t index,
       ManagedObjectHandle<KeyType, ValueType>& handle) const;
 
-  virtual MM::ExecuteResult GetObject(
+  virtual MM::ExecuteResult GetObjectImp(
       const KeyType& key,
       std::vector<ManagedObjectHandle<KeyType, ValueType>>& handles) const;
 };
 
 template <typename KeyType, typename ValueType>
-ExecuteResult ManagedObjectTableBase<KeyType, ValueType>::RemoveObject(
+ExecuteResult ManagedObjectTableBase<KeyType, ValueType>::RemoveObjectImp(
     const KeyType& removed_object_key, std::atomic_uint32_t* use_count_ptr) {
-  return ExecuteResult::UNDEFINED_ERROR;
-}
-template <typename KeyType, typename ValueType>
-ExecuteResult ManagedObjectTableBase<KeyType, ValueType>::RemoveObject(
-    std::atomic_uint32_t* use_count_ptr) {
   return ExecuteResult::UNDEFINED_ERROR;
 }
 
@@ -194,7 +189,7 @@ std::uint32_t ManagedObjectTableBase<KeyType, ValueType>::Count(
 }
 
 template <typename KeyType, typename ValueType>
-ExecuteResult ManagedObjectTableBase<KeyType, ValueType>::AddObject(
+ExecuteResult ManagedObjectTableBase<KeyType, ValueType>::AddObjectImp(
     ValueType&& managed_object,
     ManagedObjectHandle<KeyType, ValueType>& handle) {
   return ExecuteResult::UNDEFINED_ERROR;
@@ -218,27 +213,27 @@ ManagedObjectTableBase<KeyType, ValueType>::operator=(
 }
 
 template <typename KeyType, typename ValueType>
-MM::ExecuteResult ManagedObjectTableBase<KeyType, ValueType>::GetObject(
+MM::ExecuteResult ManagedObjectTableBase<KeyType, ValueType>::GetObjectImp(
     const KeyType& key,
     std::vector<ManagedObjectHandle<KeyType, ValueType>>& handles) const {
   return ExecuteResult::UNDEFINED_ERROR;
 }
 
 template <typename KeyType, typename ValueType>
-MM::ExecuteResult ManagedObjectTableBase<KeyType, ValueType>::GetObject(
+MM::ExecuteResult ManagedObjectTableBase<KeyType, ValueType>::GetObjectImp(
     const KeyType& key, std::uint32_t index,
     ManagedObjectHandle<KeyType, ValueType>& handle) const {
   return ExecuteResult::UNDEFINED_ERROR;
 }
 
 template <typename KeyType, typename ValueType>
-ExecuteResult ManagedObjectTableBase<KeyType, ValueType>::RemoveObject(
+ExecuteResult ManagedObjectTableBase<KeyType, ValueType>::RemoveObjectImp(
     const KeyType& removed_object_key, std::uint32_t index) {
   return ExecuteResult::UNDEFINED_ERROR;
 }
 
 template <typename KeyType, typename ValueType>
-ExecuteResult ManagedObjectTableBase<KeyType, ValueType>::RemoveObject(
+ExecuteResult ManagedObjectTableBase<KeyType, ValueType>::RemoveObjectImp(
     const KeyType& removed_object_key, ValueType& object) {
   return ExecuteResult::UNDEFINED_ERROR;
 }
@@ -249,7 +244,7 @@ bool ManagedObjectTableBase<KeyType, ValueType>::IsMultiContainer() const {
 }
 
 template <typename KeyType, typename ValueType>
-MM::ExecuteResult ManagedObjectTableBase<KeyType, ValueType>::GetObject(
+MM::ExecuteResult ManagedObjectTableBase<KeyType, ValueType>::GetObjectImp(
     const KeyType& ket, ManagedObjectHandle<KeyType, ValueType>& handle) const {
   return ExecuteResult::UNDEFINED_ERROR;
 }
@@ -261,7 +256,7 @@ bool ManagedObjectTableBase<KeyType, ValueType>::Have(
 }
 
 template <typename KeyType, typename ValueType>
-ExecuteResult ManagedObjectTableBase<KeyType, ValueType>::RemoveObject(
+ExecuteResult ManagedObjectTableBase<KeyType, ValueType>::RemoveObjectImp(
     const KeyType& removed_object_key) {
   return ExecuteResult::UNDEFINED_ERROR;
 }
@@ -332,14 +327,18 @@ void ManagedObjectHandle<KeyType, ManagedType>::TestAndDestruction() {
   if (*use_count_ == 0) {
     if (object_table_->IsRelationshipContainer()) {
       if (object_table_->IsMultiContainer()) {
-        object_table_->RemoveObject(*key_, use_count_);
+        object_table_->RemoveObjectImp(*key_, use_count_);
       } else {
-        object_table_->RemoveObject(*key_);
+        object_table_->RemoveObjectImp(*key_);
       }
       return;
     }
 
-    object_table_->RemoveObject(use_count_);
+    if (object_table_->IsMultiContainer()) {
+      object_table_->RemoveObjectImp(*managed_object_, use_count_);
+    } else {
+      object_table_->RemoveObjectImp(*managed_object_);
+    }
   }
 }
 

@@ -8,6 +8,14 @@
 
 namespace MM {
 namespace Manager {
+template <typename ObjectType, typename Less>
+struct WrapperLess {
+  bool operator()(const ManagedObjectWrapper<ObjectType>& lhs,
+                  const ManagedObjectWrapper<ObjectType>& rhs) const {
+    return Less{}(lhs.GetObject(), rhs.GetObject());
+  }
+};
+
 template <typename ObjectType, typename Compare = std::less<ObjectType>,
           typename Allocator = std::allocator<ObjectType>>
 class ManagedObjectSet : public ManagedObjectTableBase<ObjectType, ObjectType> {
@@ -20,31 +28,62 @@ class ManagedObjectSet : public ManagedObjectTableBase<ObjectType, ObjectType> {
   ManagedObjectSet& operator=(ManagedObjectSet&& other) noexcept;
 
  public:
-  size_t GetSize() const override;
-
-  ExecuteResult AddObjectImp(const ObjectType& key, ObjectType&& managed_object,
-                             ManagedObjectHandle& handle) override;
-
-  ExecuteResult AddObject(
-      ObjectType&& managed_object,
-      ManagedObjectHandle<ObjectType, ObjectType>& handle) override {
-    std::unique_lock<std::shared_mutex> guard{data_mutex_};
-    data_.emplace(std::move(managed_object));
+  friend bool operator<(const ManagedObjectWrapper<ObjectType>& lhs,
+                        const ObjectType& rhs) {
+    return Compare{}(lhs.GetObject(), rhs);
   }
 
+  friend bool operator<(const ObjectType& lhs,
+                        const ManagedObjectWrapper<ObjectType>& rhs) {
+    return Compare{}(lhs, rhs.GetObject());
+  }
+
+ public:
+  size_t GetSize() const override;
+
+  bool Have(const ObjectType& key) const override;
+
+  uint32_t Count(const ObjectType& key) const override;
+
+  bool IsMultiContainer() const override;
+
+  bool IsRelationshipContainer() const override;
+
+ protected:
  private:
-  std::set<ObjectType> data_;
-  std::shared_mutex data_mutex_;
+  std::set<ManagedObjectWrapper<ObjectType>, WrapperLess<ObjectType, Compare>,
+           Allocator>
+      data_;
+  mutable std::shared_mutex data_mutex_;
 };
 
 template <typename ObjectType, typename Compare, typename Allocator>
-ExecuteResult ManagedObjectSet<ObjectType, Compare, Allocator>::AddObjectImp(
-    const ObjectType& key, ObjectType&& managed_object,
-    ManagedObjectHandle& handle) {
-  LOG_ERROR("This function should not be used.");
-  assert(false);
+bool ManagedObjectSet<ObjectType, Compare, Allocator>::Have(
+    const ObjectType& key) const {
+  std::shared_lock<std::shared_mutex> guard{data_mutex_};
+  return data_.find(key);
+}
 
-  return ExecuteResult::UNDEFINED_ERROR;
+template <typename ObjectType, typename Compare, typename Allocator>
+bool ManagedObjectSet<ObjectType, Compare, Allocator>::IsRelationshipContainer()
+    const {
+  return false;
+}
+
+template <typename ObjectType, typename Compare, typename Allocator>
+bool ManagedObjectSet<ObjectType, Compare, Allocator>::IsMultiContainer()
+    const {
+  return false;
+}
+
+template <typename ObjectType, typename Compare, typename Allocator>
+uint32_t ManagedObjectSet<ObjectType, Compare, Allocator>::Count(
+    const ObjectType& key) const {
+  if (Have(key)) {
+    return 1;
+  }
+
+  return 0;
 }
 
 template <typename ObjectType, typename Compare, typename Allocator>
