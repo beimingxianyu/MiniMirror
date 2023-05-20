@@ -1,4 +1,5 @@
-#pragam once
+#pragma once
+
 namespace MM {
 namespace Manager {
 

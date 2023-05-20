@@ -1,8 +1,9 @@
-#pragam once
+#pragma once
+
 namespace MM {
 namespace Manager {
 
-class ManagedObjectUnordered_map {};
+class ManagedObjectUnorderedMap {};
 
 }  // namespace Manager
 }  // namespace MM
