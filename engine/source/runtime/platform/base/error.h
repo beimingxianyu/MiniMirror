@@ -26,7 +26,8 @@ enum class ExecuteResult : std::uint32_t {
   OPERATION_NOT_SUPPORTED = 1U << 14,
   INPUT_PARAMETERS_ARE_NOT_SUITABLE = 1U << 15,
   // rename/delete/create/remove/etc.
-  FILE_OPERATION_ERROR = 1U << 16
+  FILE_OPERATION_ERROR = 1U << 16,
+  CUSTOM_ERROR = 1U << 31
 };
 
 ExecuteResult operator|(ExecuteResult l_result, ExecuteResult r_result);

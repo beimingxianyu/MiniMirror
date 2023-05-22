@@ -38,7 +38,6 @@ def cmake_config_system_info(cmake_config_system_info_file: str):
     else:
         raise FileExistsError("\"cmake_config_system_info_file\" can't write.")
     file.close()
-
     return
 
 

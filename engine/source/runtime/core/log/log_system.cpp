@@ -120,6 +120,9 @@ MM::ExecuteResult MM::LogSystem::LogSystem::CheckResult(
     case ExecuteResult::FILE_OPERATION_ERROR:
       LogError(log_prefix + "File operation error.");
       break;
+    case ExecuteResult::CUSTOM_ERROR:
+      LogError(log_prefix + "Custom error.");
+      break;
   }
 
   return result;
@@ -198,6 +201,11 @@ MM::ExecuteResult MM::LogSystem::LogSystem::CheckMultipleResult(
   if ((result & ExecuteResult::FILE_OPERATION_ERROR) ==
       ExecuteResult::FILE_OPERATION_ERROR) {
     LogError(log_prefix + "The input parameters are not suitable.");
+  }
+
+  /*-----------------------------------------------------------------------*/
+  if ((result & ExecuteResult::CUSTOM_ERROR) == ExecuteResult::CUSTOM_ERROR) {
+    LogError(log_prefix + "Custom error.");
   }
 
   return result;

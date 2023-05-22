@@ -22,9 +22,10 @@ TEST(config_system, main) {
   std::string temp;
   config_system->GetConfig("config_dir", temp);
   EXPECT_EQ(temp, CONFIG_DIR_TEST);
-  EXPECT_EQ(config_system->LoadConfigFromIni(MM::FileSystem::Path(
-                config_system->GetConfig("config_dir") + "/init_config.ini")),
-            MM::ExecuteResult::SUCCESS);
+  EXPECT_EQ(
+      config_system->LoadConfigFromIni(MM::FileSystem::Path(
+          config_system->GetConfig("config_dir") + "/init_config_test.ini")),
+      MM::ExecuteResult::SUCCESS);
   EXPECT_EQ(config_system->Size(), 4);
   EXPECT_EQ(config_system->GetConfig("field1"), "data1");
   EXPECT_EQ(config_system->GetConfig("field2"), "data2");

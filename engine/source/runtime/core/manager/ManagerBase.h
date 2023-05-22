@@ -8,7 +8,7 @@ template <
     typename ManagedType,
     typename IsDeriveFromManagedObjectBase = typename std::enable_if<
         std::is_base_of<ManagedObjectBase, ManagedType>::value, void>::type>
-class ManagedObjectHandle;
+class ManagedObjectHandler;
 
 template <
     typename ManagedType,
@@ -31,7 +31,7 @@ class ManagerBase {
 
   virtual ExecuteResult GetObject(
       ManagedObjectID object_id,
-      ManagedObjectHandle<ManagedType>& handle) const;
+      ManagedObjectHandler<ManagedType>& handle) const;
 
  protected:
   ManagerBase() = default;
