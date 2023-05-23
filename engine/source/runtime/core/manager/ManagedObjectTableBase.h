@@ -151,38 +151,41 @@ class ManagedObjectTableBase : virtual public MM::MMObject {
 
   virtual bool IsRelationshipContainer() const;
 
+  bool TestMovedWhenAddObject() const;
+
+  bool TestMovedWhenGetObject() const;
+
+  bool TestMoveWhenGetUseCount() const;
+
  protected:
   virtual ExecuteResult AddObjectImp(
       const KeyType& key, ValueType&& managed_object,
-      ManagedObjectHandler<KeyType, ValueType>& handle);
+      ManagedObjectHandler<KeyType, ValueType>& handler);
 
   virtual ExecuteResult AddObjectImp(
       ValueType&& managed_object,
-      ManagedObjectHandler<KeyType, ValueType>& handle);
+      ManagedObjectHandler<KeyType, ValueType>& handler);
 
   virtual ExecuteResult RemoveObjectImp(const KeyType& removed_object_key);
-
-  virtual ExecuteResult RemoveObjectImp(const KeyType& removed_object_key,
-                                        ValueType& object);
 
   virtual ExecuteResult RemoveObjectImp(const KeyType& removed_object_key,
                                         std::atomic_uint32_t* use_count_ptr);
 
   virtual MM::ExecuteResult GetObjectImp(
       const KeyType& key,
-      ManagedObjectHandler<KeyType, ValueType>& handle) const;
+      ManagedObjectHandler<KeyType, ValueType>& handler) const;
 
   virtual MM::ExecuteResult GetObjectImp(
       const KeyType& key, const std::atomic_uint32_t* use_count_ptr,
-      ManagedObjectHandler<KeyType, ValueType>& handle) const;
+      ManagedObjectHandler<KeyType, ValueType>& handler) const;
 
   virtual MM::ExecuteResult GetObjectImp(
       const KeyType& key, const ValueType& object,
-      ManagedObjectHandler<KeyType, ValueType>& handle) const;
+      ManagedObjectHandler<KeyType, ValueType>& handler) const;
 
   virtual MM::ExecuteResult GetObjectImp(
       const KeyType& key,
-      std::vector<ManagedObjectHandler<KeyType, ValueType>>& handles) const;
+      std::vector<ManagedObjectHandler<KeyType, ValueType>>& handlers) const;
 
   virtual std::uint32_t GetUseCountImp(const KeyType& key) const;
 
@@ -202,38 +205,83 @@ class ManagedObjectTableBase : virtual public MM::MMObject {
 };
 
 template <typename KeyType, typename ValueType>
+bool ManagedObjectTableBase<KeyType, ValueType>::TestMoveWhenGetUseCount()
+    const {
+  if (this_ptr_ptr_ == nullptr) {
+    LOG_WARN("You cannot get use count from the moved container.");
+    return false;
+  }
+
+  return true;
+}
+
+template <typename KeyType, typename ValueType>
+bool ManagedObjectTableBase<KeyType, ValueType>::TestMovedWhenGetObject()
+    const {
+  if (this_ptr_ptr_ == nullptr) {
+    LOG_WARN("You cannot get values from the moved container.");
+    return false;
+  }
+
+  return true;
+}
+
+template <typename KeyType, typename ValueType>
+bool ManagedObjectTableBase<KeyType, ValueType>::TestMovedWhenAddObject()
+    const {
+  if (this_ptr_ptr_ == nullptr) {
+    LOG_WARN("You cannot add values to the moved container.");
+    return false;
+  }
+
+  return true;
+}
+
+template <typename KeyType, typename ValueType>
 void ManagedObjectTableBase<KeyType, ValueType>::GetUseCountImp(
-    const KeyType& key, std::vector<std::uint32_t>& use_counts) const {}
+    const KeyType& key, std::vector<std::uint32_t>& use_counts) const {
+  LOG_FATAL("This function should not be called.");
+}
 
 template <typename KeyType, typename ValueType>
 std::uint32_t ManagedObjectTableBase<KeyType, ValueType>::GetUseCountImp(
     const KeyType& key, const ValueType& object) const {
+  LOG_FATAL("This function should not be called.");
+
   return 0;
 }
 
 template <typename KeyType, typename ValueType>
 std::uint32_t ManagedObjectTableBase<KeyType, ValueType>::GetUseCountImp(
     const KeyType& key, const std::atomic_uint32_t* use_count_ptr) const {
+  LOG_FATAL("This function should not be called.");
+
   return 0;
 }
 
 template <typename KeyType, typename ValueType>
 std::uint32_t ManagedObjectTableBase<KeyType, ValueType>::GetUseCountImp(
     const KeyType& key) const {
+  LOG_FATAL("This function should not be called.");
+
   return 0;
 }
 
 template <typename KeyType, typename ValueType>
 MM::ExecuteResult ManagedObjectTableBase<KeyType, ValueType>::GetObjectImp(
     const KeyType& key, const ValueType& object,
-    ManagedObjectHandler<KeyType, ValueType>& handle) const {
+    ManagedObjectHandler<KeyType, ValueType>& handler) const {
+  LOG_FATAL("This function should not be called.");
+
   return ExecuteResult::UNDEFINED_ERROR;
 }
 
 template <typename KeyType, typename ValueType>
 MM::ExecuteResult ManagedObjectTableBase<KeyType, ValueType>::GetObjectImp(
     const KeyType& key, const std::atomic_uint32_t* use_count_ptr,
-    ManagedObjectHandler<KeyType, ValueType>& handle) const {
+    ManagedObjectHandler<KeyType, ValueType>& handler) const {
+  LOG_FATAL("This function should not be called.");
+
   return ExecuteResult::UNDEFINED_ERROR;
 }
 
@@ -260,25 +308,33 @@ ManagedObjectTableBase<KeyType, ValueType>::ManagedObjectTableBase(
 template <typename KeyType, typename ValueType>
 ExecuteResult ManagedObjectTableBase<KeyType, ValueType>::RemoveObjectImp(
     const KeyType& removed_object_key, std::atomic_uint32_t* use_count_ptr) {
+  LOG_FATAL("This function should not be called.");
+
   return ExecuteResult::UNDEFINED_ERROR;
 }
 
 template <typename KeyType, typename ValueType>
 std::uint32_t ManagedObjectTableBase<KeyType, ValueType>::Count(
     const KeyType& key) const {
+  LOG_FATAL("This function should not be called.");
+
   return 0;
 }
 
 template <typename KeyType, typename ValueType>
 ExecuteResult ManagedObjectTableBase<KeyType, ValueType>::AddObjectImp(
     ValueType&& managed_object,
-    ManagedObjectHandler<KeyType, ValueType>& handle) {
+    ManagedObjectHandler<KeyType, ValueType>& handler) {
+  LOG_FATAL("This function should not be called.");
+
   return ExecuteResult::UNDEFINED_ERROR;
 }
 
 template <typename KeyType, typename ValueType>
 bool ManagedObjectTableBase<KeyType, ValueType>::IsRelationshipContainer()
     const {
+  LOG_FATAL("This function should not be called.");
+
   return false;
 }
 
@@ -299,49 +355,57 @@ ManagedObjectTableBase<KeyType, ValueType>::operator=(
 template <typename KeyType, typename ValueType>
 MM::ExecuteResult ManagedObjectTableBase<KeyType, ValueType>::GetObjectImp(
     const KeyType& key,
-    std::vector<ManagedObjectHandler<KeyType, ValueType>>& handles) const {
-  return ExecuteResult::UNDEFINED_ERROR;
-}
+    std::vector<ManagedObjectHandler<KeyType, ValueType>>& handlers) const {
+  LOG_FATAL("This function should not be called.");
 
-template <typename KeyType, typename ValueType>
-ExecuteResult ManagedObjectTableBase<KeyType, ValueType>::RemoveObjectImp(
-    const KeyType& removed_object_key, ValueType& object) {
   return ExecuteResult::UNDEFINED_ERROR;
 }
 
 template <typename KeyType, typename ValueType>
 bool ManagedObjectTableBase<KeyType, ValueType>::IsMultiContainer() const {
+  LOG_FATAL("This function should not be called.");
+
   return false;
 }
 
 template <typename KeyType, typename ValueType>
 MM::ExecuteResult ManagedObjectTableBase<KeyType, ValueType>::GetObjectImp(
     const KeyType& key,
-    ManagedObjectHandler<KeyType, ValueType>& handle) const {
+    ManagedObjectHandler<KeyType, ValueType>& handler) const {
+  LOG_FATAL("This function should not be called.");
+
   return ExecuteResult::UNDEFINED_ERROR;
 }
 
 template <typename KeyType, typename ValueType>
 bool ManagedObjectTableBase<KeyType, ValueType>::Have(
     const KeyType& key) const {
+  LOG_FATAL("This function should not be called.");
+
   return false;
 }
 
 template <typename KeyType, typename ValueType>
 ExecuteResult ManagedObjectTableBase<KeyType, ValueType>::RemoveObjectImp(
     const KeyType& removed_object_key) {
+  LOG_FATAL("This function should not be called.");
+
   return ExecuteResult::UNDEFINED_ERROR;
 }
 
 template <typename KeyType, typename ValueType>
 ExecuteResult ManagedObjectTableBase<KeyType, ValueType>::AddObjectImp(
     const KeyType& key, ValueType&& managed_object,
-    ManagedObjectHandler<KeyType, ValueType>& handle) {
+    ManagedObjectHandler<KeyType, ValueType>& handler) {
+  LOG_FATAL("This function should not be called.");
+
   return ExecuteResult::UNDEFINED_ERROR;
 }
 
 template <typename KeyType, typename ValueType>
 std::size_t ManagedObjectTableBase<KeyType, ValueType>::GetSize() const {
+  LOG_FATAL("This function should not be called.");
+
   return 0;
 }
 
@@ -359,7 +423,7 @@ class ManagedObjectHandler {
   ~ManagedObjectHandler();
   ManagedObjectHandler(
       std::atomic<ManagedObjectTableBase<KeyType, ManagedType>*>* object_table,
-      KeyType* key, ManagedType* managed_object,
+      const KeyType* key, ManagedType* managed_object,
       std::atomic_uint32_t* use_count);
   ManagedObjectHandler(const ManagedObjectHandler& other);
   ManagedObjectHandler(ManagedObjectHandler&& other) noexcept;
@@ -393,7 +457,7 @@ class ManagedObjectHandler {
  private:
   std::atomic<ManagedObjectTableBase<KeyType, ManagedType>*>* object_table_{
       nullptr};
-  KeyType* key_{nullptr};
+  const KeyType* key_{nullptr};
   ManagedType* managed_object_{nullptr};
   std::atomic_uint32_t* use_count_{nullptr};
 };
@@ -455,26 +519,27 @@ void ManagedObjectHandler<KeyType, ManagedType>::TestAndDestruction() {
         do {
           result = (*(*object_table_)).RemoveObjectImp(*key_, use_count_);
           if (result == ExecuteResult::SUCCESS) {
-            break;
+            return;
           }
           if (result == ExecuteResult::CUSTOM_ERROR) {
             continue;
           }
           LOG_SYSTEM->CheckResult(result, CODE_LOCATION);
+          return;
         } while (true);
       } else {
         do {
           result = (*(*object_table_)).RemoveObjectImp(*key_);
           if (result == ExecuteResult::SUCCESS) {
-            break;
+            return;
           }
           if (result == ExecuteResult::CUSTOM_ERROR) {
             continue;
           }
           LOG_SYSTEM->CheckResult(result, CODE_LOCATION);
+          return;
         } while (true);
       }
-      return;
     }
 
     if ((*(*object_table_)).IsMultiContainer()) {
@@ -482,23 +547,25 @@ void ManagedObjectHandler<KeyType, ManagedType>::TestAndDestruction() {
         result =
             (*(*object_table_)).RemoveObjectImp(*managed_object_, use_count_);
         if (result == ExecuteResult::SUCCESS) {
-          break;
+          return;
         }
         if (result == ExecuteResult::CUSTOM_ERROR) {
           continue;
         }
         LOG_SYSTEM->CheckResult(result, CODE_LOCATION);
+        return;
       } while (true);
     } else {
       do {
         result = (*(*object_table_)).RemoveObjectImp(*managed_object_);
         if (result == ExecuteResult::SUCCESS) {
-          break;
+          return;
         }
         if (result == ExecuteResult::CUSTOM_ERROR) {
           continue;
         }
         LOG_SYSTEM->CheckResult(result, CODE_LOCATION);
+        return;
       } while (true);
     }
   }
@@ -533,7 +600,8 @@ ManagedType& ManagedObjectHandler<KeyType, ManagedType>::GetObject() {
 template <typename KeyType, typename ManagedType>
 ManagedObjectHandler<KeyType, ManagedType>::ManagedObjectHandler(
     std::atomic<ManagedObjectTableBase<KeyType, ManagedType>*>* object_table,
-    KeyType* key, ManagedType* managed_object, std::atomic_uint32_t* use_count)
+    const KeyType* key, ManagedType* managed_object,
+    std::atomic_uint32_t* use_count)
     : object_table_(object_table),
       key_(key),
       managed_object_(managed_object),

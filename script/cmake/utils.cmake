@@ -11,7 +11,7 @@ endfunction()
 function(AddExecutable executable_name executable_path)
     file(GLOB_RECURSE __executable_header_files__ "${executable_path}/*.h")
     file(GLOB_RECURSE __executable_source_files__ "${executable_path}/*.cpp")
-    add_library(${executable_name} SHARED ${__executable_header_files__} ${__executable_source_files__})
+    add_executable(${executable_name} ${__executable_header_files__} ${__executable_source_files__})
 endfunction()
 
 function(CopyDirSpecialFileRecurse from_dir dest_dir)

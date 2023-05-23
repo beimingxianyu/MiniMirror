@@ -21,7 +21,8 @@ class ManagedObjectList
 
  public:
   ManagedObjectList();
-  ~ManagedObjectList() override = default;
+  ~ManagedObjectList() override;
+  ;
   ManagedObjectList(const ManagedObjectList& other) = delete;
   ManagedObjectList(ManagedObjectList&& other) noexcept;
   ManagedObjectList& operator=(const ManagedObjectList& other) = delete;
@@ -61,19 +62,12 @@ class ManagedObjectList
   void GetUseCount(const ObjectType& key,
                    std::vector<uint32_t>& use_counts) const;
 
- protected:
-  ExecuteResult AddObjectImp(
-      const ObjectType& key, ObjectType&& managed_object,
-      ManagedObjectHandler<ObjectType, ObjectType>& handle) override;
+  ContainerType& GetContainer() { return data_; }
 
+ protected:
   ExecuteResult AddObjectImp(
       ObjectType&& managed_object,
       ManagedObjectHandler<ObjectType, ObjectType>& handle) override;
-
-  ExecuteResult RemoveObjectImp(const ObjectType& removed_object_key) override;
-
-  ExecuteResult RemoveObjectImp(const ObjectType& removed_object_key,
-                                ObjectType& object) override;
 
   ExecuteResult RemoveObjectImp(const ObjectType& removed_object_key,
                                 std::atomic_uint32_t* use_count_ptr) override;
@@ -86,9 +80,6 @@ class ManagedObjectList
                              const std::atomic_uint32_t* use_count_ptr,
                              ThisType::HandlerType& handler) const override;
 
-  ExecuteResult GetObjectImp(const ObjectType& key, const ObjectType& object,
-                             ThisType::HandlerType& handle) const override;
-
   ExecuteResult GetObjectImp(
       const ObjectType& key,
       std::vector<ManagedObjectHandler<ObjectType, ObjectType>>& handlers)
@@ -100,9 +91,6 @@ class ManagedObjectList
       const ObjectType& key,
       const std::atomic_uint32_t* use_count_ptr) const override;
 
-  std::uint32_t GetUseCountImp(const ObjectType& key,
-                               const ObjectType& object) const override;
-
   void GetUseCountImp(const ObjectType& key,
                       std::vector<uint32_t>& use_counts) const override;
 
@@ -110,6 +98,15 @@ class ManagedObjectList
   std::list<ManagedObjectWrapper<ObjectType>> data_{};
   mutable std::shared_mutex data_mutex_{};
 };
+
+template <typename ObjectType, typename Allocator>
+ManagedObjectList<ObjectType, Allocator>::~ManagedObjectList() {
+  if (GetSize() != 0) {
+    LOG_ERROR(
+        "The container is not empty, and destroying it will result in an "
+        "access error.");
+  }
+}
 
 template <typename ObjectType, typename Allocator>
 void ManagedObjectList<ObjectType, Allocator>::GetUseCount(
@@ -132,6 +129,10 @@ uint32_t ManagedObjectList<ObjectType, Allocator>::GetUseCount(
 template <typename ObjectType, typename Allocator>
 void ManagedObjectList<ObjectType, Allocator>::GetUseCountImp(
     const ObjectType& key, std::vector<uint32_t>& use_counts) const {
+  if (!ThisType::TestMoveWhenGetUseCount()) {
+    return;
+  }
+
   std::shared_lock<std::shared_mutex> guard{data_mutex_};
 
   for (const auto& object : data_) {
@@ -143,16 +144,11 @@ void ManagedObjectList<ObjectType, Allocator>::GetUseCountImp(
 
 template <typename ObjectType, typename Allocator>
 std::uint32_t ManagedObjectList<ObjectType, Allocator>::GetUseCountImp(
-    const ObjectType& key, const ObjectType& object) const {
-  LOG_ERROR("This function should not be called.");
-  assert(false);
-
-  return 0;
-}
-
-template <typename ObjectType, typename Allocator>
-std::uint32_t ManagedObjectList<ObjectType, Allocator>::GetUseCountImp(
     const ObjectType& key, const std::atomic_uint32_t* use_count_ptr) const {
+  if (!ThisType::TestMoveWhenGetUseCount()) {
+    return 0;
+  }
+
   std::shared_lock<std::shared_mutex> guard{data_mutex_};
 
   for (const auto& object : data_) {
@@ -167,6 +163,10 @@ std::uint32_t ManagedObjectList<ObjectType, Allocator>::GetUseCountImp(
 template <typename ObjectType, typename Allocator>
 std::uint32_t ManagedObjectList<ObjectType, Allocator>::GetUseCountImp(
     const ObjectType& key) const {
+  if (!ThisType::TestMoveWhenGetUseCount()) {
+    return 0;
+  }
+
   std::shared_lock<std::shared_mutex> guard{data_mutex_};
 
   for (const auto& object : data_) {
@@ -187,18 +187,12 @@ ExecuteResult ManagedObjectList<ObjectType, Allocator>::GetObject(
 
 template <typename ObjectType, typename Allocator>
 ExecuteResult ManagedObjectList<ObjectType, Allocator>::GetObjectImp(
-    const ObjectType& key, const ObjectType& object,
-    ThisType::HandlerType& handle) const {
-  LOG_ERROR("This function should not be used.");
-  assert(false);
-
-  return ExecuteResult::UNDEFINED_ERROR;
-}
-
-template <typename ObjectType, typename Allocator>
-ExecuteResult ManagedObjectList<ObjectType, Allocator>::GetObjectImp(
     const ObjectType& key, const std::atomic_uint32_t* use_count_ptr,
     ThisType::HandlerType& handler) const {
+  if (!ThisType::TestMovedWhenAddObject()) {
+    return ExecuteResult::OPERATION_NOT_SUPPORTED;
+  }
+
   std::shared_lock<std::shared_mutex> guard{data_mutex_};
   bool find = false;
   HandlerType new_handler;
@@ -279,7 +273,7 @@ ManagedObjectList<ObjectType, Allocator>::operator=(
 
   std::lock(data_mutex_, other.data_mutex_);
   if (!data_.empty()) {
-    LOG_FATAL(
+    LOG_ERROR(
         "If there is data in the original container but it is reassigned, an "
         "access error will occur.");
   }
@@ -331,7 +325,11 @@ template <typename ObjectType, typename Allocator>
 ExecuteResult ManagedObjectList<ObjectType, Allocator>::GetObjectImp(
     const ObjectType& key,
     std::vector<ManagedObjectHandler<ObjectType, ObjectType>>& handlers) const {
-  for (const auto& handler : handlers) {
+  if (!ThisType::TestMovedWhenGetObject()) {
+    return ExecuteResult::OPERATION_NOT_SUPPORTED;
+  }
+
+  for (auto& handler : handlers) {
     if (handler.IsValid()) {
       handler.Release();
     }
@@ -353,7 +351,31 @@ template <typename ObjectType, typename Allocator>
 ExecuteResult ManagedObjectList<ObjectType, Allocator>::GetObjectImp(
     const ObjectType& key,
     ManagedObjectHandler<ObjectType, ObjectType>& handle) const {
-  return GetObjectImp(key, 0, handle);
+  if (!ThisType::TestMovedWhenGetObject()) {
+    return ExecuteResult::OPERATION_NOT_SUPPORTED;
+  }
+
+  std::shared_lock<std::shared_mutex> guard{data_mutex_};
+  HandlerType new_handler;
+  bool find = false;
+
+  for (auto iter = data_.begin(); iter == data_.end(); ++iter) {
+    if (iter->GetObject() == key) {
+      new_handler = HandlerType{BaseType::GetThisPtrPtr(), nullptr,
+                                const_cast<ObjectType*>(iter->GetObjectPtr()),
+                                iter->GetUseCountPtr()};
+      find = true;
+      break;
+    }
+  }
+
+  if (find) {
+    guard.unlock();
+    handle = std::move(new_handler);
+    return ExecuteResult::SUCCESS;
+  }
+
+  return ExecuteResult::PARENT_OBJECT_NOT_CONTAIN_SPECIFIC_CHILD_OBJECT;
 }
 
 template <typename ObjectType, typename Allocator>
@@ -370,62 +392,21 @@ bool ManagedObjectList<ObjectType, Allocator>::Have(
 }
 
 template <typename ObjectType, typename Allocator>
-ExecuteResult ManagedObjectList<ObjectType, Allocator>::RemoveObjectImp(
-    const ObjectType& removed_object_key, ObjectType& object) {
-  LOG_ERROR("This function should not be used.");
-  assert(false);
-
-  return ExecuteResult::UNDEFINED_ERROR;
-}
-
-template <typename ObjectType, typename Allocator>
-ExecuteResult ManagedObjectList<ObjectType, Allocator>::RemoveObjectImp(
-    const ObjectType& removed_object_key) {
-  LOG_ERROR("This function should not called.");
-  assert(false);
-
-  return ExecuteResult::UNDEFINED_ERROR;
-}
-
-template <typename ObjectType, typename Allocator>
 ExecuteResult ManagedObjectList<ObjectType, Allocator>::AddObjectImp(
     ObjectType&& managed_object,
     ManagedObjectHandler<ObjectType, ObjectType>& handle) {
+  if (!ThisType::TestMovedWhenAddObject()) {
+    return ExecuteResult::OPERATION_NOT_SUPPORTED;
+  }
+
   std::unique_lock<std::shared_mutex> guard{data_mutex_};
-  bool find = false;
-  HandlerType new_handler;
-  for (const auto& object : data_) {
-    if (managed_object != object.GetObject()) {
-      new_handler = ManagedObjectHandler<ObjectType, ObjectType>{
-          ManagedObjectTableBase<ObjectType, ObjectType>::GetThisPtrPtr(),
-          nullptr, const_cast<ObjectType*>(object.GetObjectPtr()),
-          object.GetUseCountPtr()};
-      find = true;
-      break;
-    }
-  }
-
-  if (find) {
-    guard.unlock();
-    handle = new_handler;
-    return ExecuteResult::SUCCESS;
-  }
-
   data_.emplace_front(std::move(managed_object));
-  handle = ManagedObjectHandler<ObjectType, ObjectType>{
+  HandlerType new_handler = ManagedObjectHandler<ObjectType, ObjectType>{
       ManagedObjectTableBase<ObjectType, ObjectType>::GetThisPtrPtr(), nullptr,
       data_.front().GetObjectPtr(), data_.front().GetUseCountPtr()};
+  guard.unlock();
+  handle = std::move(new_handler);
   return ExecuteResult::SUCCESS;
-}
-
-template <typename ObjectType, typename Allocator>
-ExecuteResult ManagedObjectList<ObjectType, Allocator>::AddObjectImp(
-    const ObjectType& key, ObjectType&& managed_object,
-    ManagedObjectHandler<ObjectType, ObjectType>& handle) {
-  LOG_ERROR("This function should not be used.");
-  assert(false);
-
-  return ExecuteResult::UNDEFINED_ERROR;
 }
 
 template <typename ObjectType, typename Allocator>

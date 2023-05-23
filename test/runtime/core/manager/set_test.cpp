@@ -60,9 +60,16 @@ TEST(manager, set) {
       set_manager.GetObject(49, handler);
 
       handler3 = handler1;
+      MM::Manager::ManagedObjectSet<int>::HandlerType handler5;
 
       EXPECT_EQ(handler3.GetUseCount(), 4);
       EXPECT_EQ(handler1.GetUseCount(), 4);
+      EXPECT_EQ(set_manager.AddObject(100, handler3),
+                MM::ExecuteResult::SUCCESS);
+      EXPECT_EQ(set_manager.GetObject(handler1.GetObject(), handler5),
+                MM::ExecuteResult::SUCCESS);
+      EXPECT_EQ(set_manager.GetObject(handler3.GetObject(), handler5),
+                MM::ExecuteResult::SUCCESS);
     }
 
     EXPECT_EQ(set_manager.GetSize(), 1);
@@ -206,16 +213,16 @@ TEST(manager, set_thread) {
 
 TEST(manager, multi_set) {
   MM::Manager::ManagedObjectMultiSet<int> multi_set_manager;
-  MM::Manager::ManagedObjectMultiSet<int>::HandlerTyper* handler1 =
-      new MM::Manager::ManagedObjectMultiSet<int>::HandlerTyper();
-  MM::Manager::ManagedObjectMultiSet<int>::HandlerTyper* handler2 =
-      new MM::Manager::ManagedObjectMultiSet<int>::HandlerTyper();
-  MM::Manager::ManagedObjectMultiSet<int>::HandlerTyper* handler3 =
-      new MM::Manager::ManagedObjectMultiSet<int>::HandlerTyper();
-  MM::Manager::ManagedObjectMultiSet<int>::HandlerTyper* handler4 =
-      new MM::Manager::ManagedObjectMultiSet<int>::HandlerTyper();
-  MM::Manager::ManagedObjectMultiSet<int>::HandlerTyper* handler5 =
-      new MM::Manager::ManagedObjectMultiSet<int>::HandlerTyper();
+  MM::Manager::ManagedObjectMultiSet<int>::HandlerType* handler1 =
+      new MM::Manager::ManagedObjectMultiSet<int>::HandlerType();
+  MM::Manager::ManagedObjectMultiSet<int>::HandlerType* handler2 =
+      new MM::Manager::ManagedObjectMultiSet<int>::HandlerType();
+  MM::Manager::ManagedObjectMultiSet<int>::HandlerType* handler3 =
+      new MM::Manager::ManagedObjectMultiSet<int>::HandlerType();
+  MM::Manager::ManagedObjectMultiSet<int>::HandlerType* handler4 =
+      new MM::Manager::ManagedObjectMultiSet<int>::HandlerType();
+  MM::Manager::ManagedObjectMultiSet<int>::HandlerType* handler5 =
+      new MM::Manager::ManagedObjectMultiSet<int>::HandlerType();
 
   EXPECT_EQ(multi_set_manager.GetSize(), 0);
   EXPECT_EQ(multi_set_manager.IsMultiContainer(), true);
@@ -245,10 +252,10 @@ TEST(manager, multi_set) {
 
 void InsertObject2(
     MM::Manager::ManagedObjectMultiSet<int>& multi_set_manager,
-    std::vector<MM::Manager::ManagedObjectMultiSet<int>::HandlerTyper>&
+    std::vector<MM::Manager::ManagedObjectMultiSet<int>::HandlerType>&
         handlers) {
   for (int i = 0; i < COUNT_SIZE; ++i) {
-    MM::Manager::ManagedObjectMultiSet<int>::HandlerTyper handler;
+    MM::Manager::ManagedObjectMultiSet<int>::HandlerType handler;
     int temp = i;
     EXPECT_EQ(multi_set_manager.AddObject(std::move(temp), handler),
               MM::ExecuteResult::SUCCESS);
@@ -259,8 +266,7 @@ void InsertObject2(
 TEST(manager, multi_set_thread) {
   MM::Manager::ManagedObjectMultiSet<int> multi_set_manager, multi_set_manager2;
   int size = 20;
-  std::vector<
-      std::vector<MM::Manager::ManagedObjectMultiSet<int>::HandlerTyper>>
+  std::vector<std::vector<MM::Manager::ManagedObjectMultiSet<int>::HandlerType>>
       handlers_vector{static_cast<std::uint32_t>(size)};
   std::vector<std::thread> threads;
 
