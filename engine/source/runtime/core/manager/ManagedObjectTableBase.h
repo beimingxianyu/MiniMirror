@@ -198,6 +198,11 @@ class ManagedObjectTableBase : virtual public MM::MMObject {
   virtual void GetUseCountImp(const KeyType& key,
                               std::vector<std::uint32_t>& use_counts) const;
 
+ private:
+  struct KeyTrait {};
+
+  struct ValueTrait {};
+
  protected:
   // If it is virtual inheritance, the update of the value will be handed over
   // to the subclass itself.
@@ -207,7 +212,7 @@ class ManagedObjectTableBase : virtual public MM::MMObject {
 template <typename KeyType, typename ValueType>
 bool ManagedObjectTableBase<KeyType, ValueType>::TestMoveWhenGetUseCount()
     const {
-  if (this_ptr_ptr_ == nullptr) {
+  if (!IsValid()) {
     LOG_WARN("You cannot get use count from the moved container.");
     return false;
   }
@@ -218,7 +223,7 @@ bool ManagedObjectTableBase<KeyType, ValueType>::TestMoveWhenGetUseCount()
 template <typename KeyType, typename ValueType>
 bool ManagedObjectTableBase<KeyType, ValueType>::TestMovedWhenGetObject()
     const {
-  if (this_ptr_ptr_ == nullptr) {
+  if (!IsValid()) {
     LOG_WARN("You cannot get values from the moved container.");
     return false;
   }
@@ -229,7 +234,7 @@ bool ManagedObjectTableBase<KeyType, ValueType>::TestMovedWhenGetObject()
 template <typename KeyType, typename ValueType>
 bool ManagedObjectTableBase<KeyType, ValueType>::TestMovedWhenAddObject()
     const {
-  if (this_ptr_ptr_ == nullptr) {
+  if (!IsValid()) {
     LOG_WARN("You cannot add values to the moved container.");
     return false;
   }
@@ -288,12 +293,17 @@ MM::ExecuteResult ManagedObjectTableBase<KeyType, ValueType>::GetObjectImp(
 template <typename KeyType, typename ValueType>
 std::atomic<ManagedObjectTableBase<KeyType, ValueType>*>*
 ManagedObjectTableBase<KeyType, ValueType>::GetThisPtrPtr() const {
-  return this_ptr_ptr_.get();
+  if (this_ptr_ptr_) {
+    return this_ptr_ptr_.get();
+  }
+
+  return nullptr;
 }
 
 template <typename KeyType, typename ValueType>
 ManagedObjectTableBase<KeyType, ValueType>::ManagedObjectTableBase(
-    ManagedObjectTableBase&& other) noexcept {
+    ManagedObjectTableBase&& other) noexcept
+    : MM::MMObject(std::move(other)) {
   this_ptr_ptr_ = std::move(other.this_ptr_ptr_);
   *this_ptr_ptr_ = this;
 }
@@ -301,7 +311,8 @@ ManagedObjectTableBase<KeyType, ValueType>::ManagedObjectTableBase(
 template <typename KeyType, typename ValueType>
 ManagedObjectTableBase<KeyType, ValueType>::ManagedObjectTableBase(
     ManagedObjectTableBase* this_ptr)
-    : this_ptr_ptr_(std::make_unique<
+    : MM::MMObject(),
+      this_ptr_ptr_(std::make_unique<
                     std::atomic<ManagedObjectTableBase<KeyType, ValueType>*>>(
           this_ptr)) {}
 
@@ -346,6 +357,7 @@ ManagedObjectTableBase<KeyType, ValueType>::operator=(
     return *this;
   }
 
+  MMObject::operator=(std::move(other));
   this_ptr_ptr_ = std::move(other.this_ptr_ptr_);
   *this_ptr_ptr_ = this;
 

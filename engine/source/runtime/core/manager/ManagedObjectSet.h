@@ -78,7 +78,6 @@ class ManagedObjectMultiSet
  public:
   ManagedObjectMultiSet();
   ~ManagedObjectMultiSet() override;
-  ;
   ManagedObjectMultiSet(const ManagedObjectMultiSet& other) = delete;
   ManagedObjectMultiSet(ManagedObjectMultiSet&& other) noexcept;
   ManagedObjectMultiSet& operator=(const ManagedObjectMultiSet& other) = delete;
@@ -469,12 +468,6 @@ ExecuteResult ManagedObjectMultiSet<ObjectType, Allocator>::GetObjectImp(
     const ObjectType& key, std::vector<HandlerType>& handlers) const {
   if (!ThisType::TestMovedWhenGetObject()) {
     return ExecuteResult::OPERATION_NOT_SUPPORTED;
-  }
-
-  for (auto& handler : handlers) {
-    if (handler.IsValid()) {
-      handler.Release();
-    }
   }
 
   std::shared_lock<std::shared_mutex> guard{data_mutex_};

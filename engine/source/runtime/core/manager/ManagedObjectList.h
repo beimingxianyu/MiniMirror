@@ -329,12 +329,6 @@ ExecuteResult ManagedObjectList<ObjectType, Allocator>::GetObjectImp(
     return ExecuteResult::OPERATION_NOT_SUPPORTED;
   }
 
-  for (auto& handler : handlers) {
-    if (handler.IsValid()) {
-      handler.Release();
-    }
-  }
-
   std::shared_lock<std::shared_mutex> guard{data_mutex_};
   for (const auto& object : data_) {
     if (object.GetObject() == key) {
