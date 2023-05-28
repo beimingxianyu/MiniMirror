@@ -8,15 +8,21 @@
 
 namespace MM {
 namespace Manager {
-template <typename ObjectType, typename Allocator = std::allocator<ObjectType>>
+template <typename ObjectType, typename Allocator = std::allocator<ObjectType>,
+          typename RelationshipContainerTrait = ValueTrait>
 class ManagedObjectList
-    : public ManagedObjectTableBase<ObjectType, ObjectType> {
-  friend class ManagedObjectHandler<ObjectType, ObjectType>;
+    : public ManagedObjectTableBase<ObjectType, ObjectType,
+                                    RelationshipContainerTrait> {
+  friend class ManagedObjectHandler<ObjectType, ObjectType,
+                                    RelationshipContainerTrait>;
 
  public:
-  using ThisType = ManagedObjectList<ObjectType, Allocator>;
-  using BaseType = ManagedObjectTableBase<ObjectType, ObjectType>;
-  using HandlerType = ManagedObjectHandler<ObjectType, ObjectType>;
+  using ThisType =
+      ManagedObjectList<ObjectType, Allocator, RelationshipContainerTrait>;
+  using BaseType = ManagedObjectTableBase<ObjectType, ObjectType,
+                                          RelationshipContainerTrait>;
+  using HandlerType =
+      ManagedObjectHandler<ObjectType, ObjectType, RelationshipContainerTrait>;
   using ContainerType = std::list<ManagedObjectWrapper<ObjectType>>;
 
  public:
@@ -39,20 +45,16 @@ class ManagedObjectList
 
   bool IsRelationshipContainer() const override;
 
-  ExecuteResult AddObject(ObjectType&& managed_object,
-                          ManagedObjectHandler<ObjectType, ObjectType>& handle);
+  ExecuteResult AddObject(ObjectType&& managed_object, HandlerType& handle);
 
-  ExecuteResult GetObject(
-      const ObjectType& key,
-      ManagedObjectHandler<ObjectType, ObjectType>& handle) const;
+  ExecuteResult GetObject(const ObjectType& key, HandlerType& handle) const;
 
-  ExecuteResult GetObject(
-      const ObjectType& key, std::atomic_uint32_t* use_count_ptr,
-      ManagedObjectHandler<ObjectType, ObjectType>& handle) const;
+  ExecuteResult GetObject(const ObjectType& key,
+                          std::atomic_uint32_t* use_count_ptr,
+                          HandlerType& handle) const;
 
-  ExecuteResult GetObject(
-      const ObjectType& key,
-      std::vector<ManagedObjectHandler<ObjectType, ObjectType>>& handles) const;
+  ExecuteResult GetObject(const ObjectType& key,
+                          std::vector<HandlerType>& handles) const;
 
   uint32_t GetUseCount(const ObjectType& key) const;
 
@@ -65,25 +67,22 @@ class ManagedObjectList
   ContainerType& GetContainer() { return data_; }
 
  protected:
-  ExecuteResult AddObjectImp(
-      ObjectType&& managed_object,
-      ManagedObjectHandler<ObjectType, ObjectType>& handle) override;
+  ExecuteResult AddObjectImp(ObjectType&& managed_object,
+                             HandlerType& handle) override;
 
   ExecuteResult RemoveObjectImp(const ObjectType& removed_object_key,
-                                std::atomic_uint32_t* use_count_ptr) override;
+                                std::atomic_uint32_t* use_count_ptr,
+                                RelationshipContainerTrait trait) override;
 
-  ExecuteResult GetObjectImp(
-      const ObjectType& key,
-      ManagedObjectHandler<ObjectType, ObjectType>& handle) const override;
+  ExecuteResult GetObjectImp(const ObjectType& key,
+                             HandlerType& handle) const override;
 
   ExecuteResult GetObjectImp(const ObjectType& key,
                              const std::atomic_uint32_t* use_count_ptr,
                              ThisType::HandlerType& handler) const override;
 
-  ExecuteResult GetObjectImp(
-      const ObjectType& key,
-      std::vector<ManagedObjectHandler<ObjectType, ObjectType>>& handlers)
-      const override;
+  ExecuteResult GetObjectImp(const ObjectType& key,
+                             std::vector<HandlerType>& handlers) const override;
 
   std::uint32_t GetUseCountImp(const ObjectType& key) const override;
 
@@ -99,8 +98,10 @@ class ManagedObjectList
   mutable std::shared_mutex data_mutex_{};
 };
 
-template <typename ObjectType, typename Allocator>
-ManagedObjectList<ObjectType, Allocator>::~ManagedObjectList() {
+template <typename ObjectType, typename Allocator,
+          typename RelationshipContainerTrait>
+ManagedObjectList<ObjectType, Allocator,
+                  RelationshipContainerTrait>::~ManagedObjectList() {
   if (GetSize() != 0) {
     LOG_ERROR(
         "The container is not empty, and destroying it will result in an "
@@ -108,27 +109,34 @@ ManagedObjectList<ObjectType, Allocator>::~ManagedObjectList() {
   }
 }
 
-template <typename ObjectType, typename Allocator>
-void ManagedObjectList<ObjectType, Allocator>::GetUseCount(
-    const ObjectType& key, std::vector<uint32_t>& use_counts) const {
+template <typename ObjectType, typename Allocator,
+          typename RelationshipContainerTrait>
+void ManagedObjectList<ObjectType, Allocator, RelationshipContainerTrait>::
+    GetUseCount(const ObjectType& key,
+                std::vector<uint32_t>& use_counts) const {
   GetUseCountImp(key, use_counts);
 }
 
-template <typename ObjectType, typename Allocator>
-uint32_t ManagedObjectList<ObjectType, Allocator>::GetUseCount(
-    const ObjectType& key, std::atomic_uint32_t* use_count_ptr) const {
+template <typename ObjectType, typename Allocator,
+          typename RelationshipContainerTrait>
+uint32_t ManagedObjectList<ObjectType, Allocator, RelationshipContainerTrait>::
+    GetUseCount(const ObjectType& key,
+                std::atomic_uint32_t* use_count_ptr) const {
   return GetUseCountImp(key, use_count_ptr);
 }
 
-template <typename ObjectType, typename Allocator>
-uint32_t ManagedObjectList<ObjectType, Allocator>::GetUseCount(
-    const ObjectType& key) const {
+template <typename ObjectType, typename Allocator,
+          typename RelationshipContainerTrait>
+uint32_t ManagedObjectList<ObjectType, Allocator, RelationshipContainerTrait>::
+    GetUseCount(const ObjectType& key) const {
   return GetUseCountImp(key);
 }
 
-template <typename ObjectType, typename Allocator>
-void ManagedObjectList<ObjectType, Allocator>::GetUseCountImp(
-    const ObjectType& key, std::vector<uint32_t>& use_counts) const {
+template <typename ObjectType, typename Allocator,
+          typename RelationshipContainerTrait>
+void ManagedObjectList<ObjectType, Allocator, RelationshipContainerTrait>::
+    GetUseCountImp(const ObjectType& key,
+                   std::vector<uint32_t>& use_counts) const {
   if (!ThisType::TestMoveWhenGetUseCount()) {
     return;
   }
@@ -142,9 +150,12 @@ void ManagedObjectList<ObjectType, Allocator>::GetUseCountImp(
   }
 }
 
-template <typename ObjectType, typename Allocator>
-std::uint32_t ManagedObjectList<ObjectType, Allocator>::GetUseCountImp(
-    const ObjectType& key, const std::atomic_uint32_t* use_count_ptr) const {
+template <typename ObjectType, typename Allocator,
+          typename RelationshipContainerTrait>
+std::uint32_t
+ManagedObjectList<ObjectType, Allocator, RelationshipContainerTrait>::
+    GetUseCountImp(const ObjectType& key,
+                   const std::atomic_uint32_t* use_count_ptr) const {
   if (!ThisType::TestMoveWhenGetUseCount()) {
     return 0;
   }
@@ -160,9 +171,11 @@ std::uint32_t ManagedObjectList<ObjectType, Allocator>::GetUseCountImp(
   return 0;
 }
 
-template <typename ObjectType, typename Allocator>
-std::uint32_t ManagedObjectList<ObjectType, Allocator>::GetUseCountImp(
-    const ObjectType& key) const {
+template <typename ObjectType, typename Allocator,
+          typename RelationshipContainerTrait>
+std::uint32_t ManagedObjectList<
+    ObjectType, Allocator,
+    RelationshipContainerTrait>::GetUseCountImp(const ObjectType& key) const {
   if (!ThisType::TestMoveWhenGetUseCount()) {
     return 0;
   }
@@ -178,17 +191,22 @@ std::uint32_t ManagedObjectList<ObjectType, Allocator>::GetUseCountImp(
   return 0;
 }
 
-template <typename ObjectType, typename Allocator>
-ExecuteResult ManagedObjectList<ObjectType, Allocator>::GetObject(
+template <typename ObjectType, typename Allocator,
+          typename RelationshipContainerTrait>
+ExecuteResult
+ManagedObjectList<ObjectType, Allocator, RelationshipContainerTrait>::GetObject(
     const ObjectType& key, std::atomic_uint32_t* use_count_ptr,
-    ManagedObjectHandler<ObjectType, ObjectType>& handle) const {
+    HandlerType& handle) const {
   return GetObjectImp(key, use_count_ptr, handle);
 }
 
-template <typename ObjectType, typename Allocator>
-ExecuteResult ManagedObjectList<ObjectType, Allocator>::GetObjectImp(
-    const ObjectType& key, const std::atomic_uint32_t* use_count_ptr,
-    ThisType::HandlerType& handler) const {
+template <typename ObjectType, typename Allocator,
+          typename RelationshipContainerTrait>
+ExecuteResult
+ManagedObjectList<ObjectType, Allocator, RelationshipContainerTrait>::
+    GetObjectImp(const ObjectType& key,
+                 const std::atomic_uint32_t* use_count_ptr,
+                 ThisType::HandlerType& handler) const {
   if (!ThisType::TestMovedWhenAddObject()) {
     return ExecuteResult::OPERATION_NOT_SUPPORTED;
   }
@@ -215,36 +233,43 @@ ExecuteResult ManagedObjectList<ObjectType, Allocator>::GetObjectImp(
   return ExecuteResult::PARENT_OBJECT_NOT_CONTAIN_SPECIFIC_CHILD_OBJECT;
 }
 
-template <typename ObjectType, typename Allocator>
-ManagedObjectList<ObjectType, Allocator>::ManagedObjectList()
-    : ManagedObjectTableBase<ObjectType, ObjectType>(this),
-      data_(),
-      data_mutex_() {}
+template <typename ObjectType, typename Allocator,
+          typename RelationshipContainerTrait>
+ManagedObjectList<ObjectType, Allocator,
+                  RelationshipContainerTrait>::ManagedObjectList()
+    : BaseType(this), data_(), data_mutex_() {}
 
-template <typename ObjectType, typename Allocator>
-ExecuteResult ManagedObjectList<ObjectType, Allocator>::GetObject(
-    const ObjectType& key,
-    std::vector<ManagedObjectHandler<ObjectType, ObjectType>>& handles) const {
+template <typename ObjectType, typename Allocator,
+          typename RelationshipContainerTrait>
+ExecuteResult
+ManagedObjectList<ObjectType, Allocator, RelationshipContainerTrait>::GetObject(
+    const ObjectType& key, std::vector<HandlerType>& handles) const {
   return GetObjectImp(key, handles);
 }
 
-template <typename ObjectType, typename Allocator>
-ExecuteResult ManagedObjectList<ObjectType, Allocator>::GetObject(
-    const ObjectType& key,
-    ManagedObjectHandler<ObjectType, ObjectType>& handle) const {
+template <typename ObjectType, typename Allocator,
+          typename RelationshipContainerTrait>
+ExecuteResult
+ManagedObjectList<ObjectType, Allocator, RelationshipContainerTrait>::GetObject(
+    const ObjectType& key, HandlerType& handle) const {
   return GetObjectImp(key, handle);
 }
 
-template <typename ObjectType, typename Allocator>
-ExecuteResult ManagedObjectList<ObjectType, Allocator>::AddObject(
-    ObjectType&& managed_object,
-    ManagedObjectHandler<ObjectType, ObjectType>& handle) {
+template <typename ObjectType, typename Allocator,
+          typename RelationshipContainerTrait>
+ExecuteResult
+ManagedObjectList<ObjectType, Allocator, RelationshipContainerTrait>::AddObject(
+    ObjectType&& managed_object, HandlerType& handle) {
   return AddObjectImp(std::move(managed_object), handle);
 }
 
-template <typename ObjectType, typename Allocator>
-ExecuteResult ManagedObjectList<ObjectType, Allocator>::RemoveObjectImp(
-    const ObjectType& removed_object_key, std::atomic_uint32_t* use_count_ptr) {
+template <typename ObjectType, typename Allocator,
+          typename RelationshipContainerTrait>
+ExecuteResult
+ManagedObjectList<ObjectType, Allocator, RelationshipContainerTrait>::
+    RemoveObjectImp(const ObjectType& removed_object_key,
+                    std::atomic_uint32_t* use_count_ptr,
+                    RelationshipContainerTrait trait) {
   std::unique_lock<std::shared_mutex> guard{data_mutex_};
   if (ThisType::this_ptr_ptr_ == nullptr) {
     return ExecuteResult::CUSTOM_ERROR;
@@ -263,9 +288,10 @@ ExecuteResult ManagedObjectList<ObjectType, Allocator>::RemoveObjectImp(
   return ExecuteResult::PARENT_OBJECT_NOT_CONTAIN_SPECIFIC_CHILD_OBJECT;
 }
 
-template <typename ObjectType, typename Allocator>
-ManagedObjectList<ObjectType, Allocator>&
-ManagedObjectList<ObjectType, Allocator>::operator=(
+template <typename ObjectType, typename Allocator,
+          typename RelationshipContainerTrait>
+ManagedObjectList<ObjectType, Allocator, RelationshipContainerTrait>&
+ManagedObjectList<ObjectType, Allocator, RelationshipContainerTrait>::operator=(
     ManagedObjectList&& other) noexcept {
   if (&other == this) {
     return *this;
@@ -281,24 +307,27 @@ ManagedObjectList<ObjectType, Allocator>::operator=(
   std::unique_lock<std::shared_mutex> main_guard{data_mutex_, std::adopt_lock},
       other_guard{other.data_mutex_, std::adopt_lock};
 
-  ManagedObjectTableBase<ObjectType, ObjectType>::operator=(std::move(other));
+  BaseType::operator=(std::move(other));
   data_ = std::move(other.data_);
 
   return *this;
 }
 
-template <typename ObjectType, typename Allocator>
-ManagedObjectList<ObjectType, Allocator>::ManagedObjectList(
-    ManagedObjectList&& other) noexcept
-    : ManagedObjectTableBase<ObjectType, ObjectType>() {
+template <typename ObjectType, typename Allocator,
+          typename RelationshipContainerTrait>
+ManagedObjectList<ObjectType, Allocator, RelationshipContainerTrait>::
+    ManagedObjectList(ManagedObjectList&& other) noexcept
+    : BaseType() {
   std::unique_lock<std::shared_mutex> guard{other.data_mutex_};
 
-  ManagedObjectTableBase<ObjectType, ObjectType>::operator=(std::move(other));
+  BaseType::operator=(std::move(other));
   data_ = std::move(other.data_);
 }
 
-template <typename ObjectType, typename Allocator>
-uint32_t ManagedObjectList<ObjectType, Allocator>::Count(
+template <typename ObjectType, typename Allocator,
+          typename RelationshipContainerTrait>
+uint32_t
+ManagedObjectList<ObjectType, Allocator, RelationshipContainerTrait>::Count(
     const ObjectType& key) const {
   std::shared_lock<std::shared_mutex> guard{data_mutex_};
   std::uint32_t result = 0;
@@ -311,20 +340,27 @@ uint32_t ManagedObjectList<ObjectType, Allocator>::Count(
   return result;
 }
 
-template <typename ObjectType, typename Allocator>
-bool ManagedObjectList<ObjectType, Allocator>::IsRelationshipContainer() const {
+template <typename ObjectType, typename Allocator,
+          typename RelationshipContainerTrait>
+bool ManagedObjectList<ObjectType, Allocator,
+                       RelationshipContainerTrait>::IsRelationshipContainer()
+    const {
   return false;
 }
 
-template <typename ObjectType, typename Allocator>
-bool ManagedObjectList<ObjectType, Allocator>::IsMultiContainer() const {
+template <typename ObjectType, typename Allocator,
+          typename RelationshipContainerTrait>
+bool ManagedObjectList<ObjectType, Allocator,
+                       RelationshipContainerTrait>::IsMultiContainer() const {
   return true;
 }
 
-template <typename ObjectType, typename Allocator>
-ExecuteResult ManagedObjectList<ObjectType, Allocator>::GetObjectImp(
-    const ObjectType& key,
-    std::vector<ManagedObjectHandler<ObjectType, ObjectType>>& handlers) const {
+template <typename ObjectType, typename Allocator,
+          typename RelationshipContainerTrait>
+ExecuteResult
+ManagedObjectList<ObjectType, Allocator, RelationshipContainerTrait>::
+    GetObjectImp(const ObjectType& key,
+                 std::vector<HandlerType>& handlers) const {
   if (!ThisType::TestMovedWhenGetObject()) {
     return ExecuteResult::OPERATION_NOT_SUPPORTED;
   }
@@ -341,10 +377,12 @@ ExecuteResult ManagedObjectList<ObjectType, Allocator>::GetObjectImp(
   return ExecuteResult::SUCCESS;
 }
 
-template <typename ObjectType, typename Allocator>
-ExecuteResult ManagedObjectList<ObjectType, Allocator>::GetObjectImp(
-    const ObjectType& key,
-    ManagedObjectHandler<ObjectType, ObjectType>& handle) const {
+template <typename ObjectType, typename Allocator,
+          typename RelationshipContainerTrait>
+ExecuteResult ManagedObjectList<
+    ObjectType, Allocator,
+    RelationshipContainerTrait>::GetObjectImp(const ObjectType& key,
+                                              HandlerType& handle) const {
   if (!ThisType::TestMovedWhenGetObject()) {
     return ExecuteResult::OPERATION_NOT_SUPPORTED;
   }
@@ -372,8 +410,9 @@ ExecuteResult ManagedObjectList<ObjectType, Allocator>::GetObjectImp(
   return ExecuteResult::PARENT_OBJECT_NOT_CONTAIN_SPECIFIC_CHILD_OBJECT;
 }
 
-template <typename ObjectType, typename Allocator>
-bool ManagedObjectList<ObjectType, Allocator>::Have(
+template <typename ObjectType, typename Allocator,
+          typename RelationshipContainerTrait>
+bool ManagedObjectList<ObjectType, Allocator, RelationshipContainerTrait>::Have(
     const ObjectType& key) const {
   std::shared_lock<std::shared_mutex> guard{data_mutex_};
   for (auto iter = data_.begin(); iter != data_.end(); ++iter) {
@@ -385,26 +424,30 @@ bool ManagedObjectList<ObjectType, Allocator>::Have(
   return false;
 }
 
-template <typename ObjectType, typename Allocator>
-ExecuteResult ManagedObjectList<ObjectType, Allocator>::AddObjectImp(
-    ObjectType&& managed_object,
-    ManagedObjectHandler<ObjectType, ObjectType>& handle) {
+template <typename ObjectType, typename Allocator,
+          typename RelationshipContainerTrait>
+ExecuteResult ManagedObjectList<
+    ObjectType, Allocator,
+    RelationshipContainerTrait>::AddObjectImp(ObjectType&& managed_object,
+                                              HandlerType& handle) {
   if (!ThisType::TestMovedWhenAddObject()) {
     return ExecuteResult::OPERATION_NOT_SUPPORTED;
   }
 
   std::unique_lock<std::shared_mutex> guard{data_mutex_};
   data_.emplace_front(std::move(managed_object));
-  HandlerType new_handler = ManagedObjectHandler<ObjectType, ObjectType>{
-      ManagedObjectTableBase<ObjectType, ObjectType>::GetThisPtrPtr(), nullptr,
-      data_.front().GetObjectPtr(), data_.front().GetUseCountPtr()};
+  HandlerType new_handler =
+      HandlerType{BaseType::GetThisPtrPtr(), nullptr,
+                  data_.front().GetObjectPtr(), data_.front().GetUseCountPtr()};
   guard.unlock();
   handle = std::move(new_handler);
   return ExecuteResult::SUCCESS;
 }
 
-template <typename ObjectType, typename Allocator>
-size_t ManagedObjectList<ObjectType, Allocator>::GetSize() const {
+template <typename ObjectType, typename Allocator,
+          typename RelationshipContainerTrait>
+size_t ManagedObjectList<ObjectType, Allocator,
+                         RelationshipContainerTrait>::GetSize() const {
   return data_.size();
 }
 }  // namespace Manager
