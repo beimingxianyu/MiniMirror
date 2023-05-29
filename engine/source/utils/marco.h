@@ -98,5 +98,33 @@ namespace Utils {
     }                                                                          \
   }
 
+#define ADD_COUNTER_SUFFIX_IMP_IMP(name, counter) name##counter
+
+#define ADD_COUNTER_SUFFIX_IMP(name, counter) \
+  ADD_COUNTER_SUFFIX_IMP_IMP(name, counter)
+
+#define ADD_COUNTER_SUFFIX(name) ADD_COUNTER_SUFFIX_IMP(name, __COUNTER__)
+
+#define Print(object) std::cout << (object) << std::endl
+
+#define HELLO_WORLD Print("hello world")
+
+#define PRINT_HELLO_WORLD_FUNCTION \
+  void PrintHelloWorldFunction() { HELLO_WORLD; }
+
+#define RUN_TIME_IMP(expression, describe, start, end)                     \
+  std::chrono::system_clock::time_point start =                            \
+      std::chrono::system_clock::now();                                    \
+  expression std::chrono::system_clock::time_point end =                   \
+      std::chrono::system_clock::now();                                    \
+  std::cout << describe                                                    \
+            << std::chrono::duration_cast<std::chrono::nanoseconds>(end -  \
+                                                                    start) \
+                   .count()                                                \
+            << std::endl;
+
+#define RUN_TIME(expression, describe)                          \
+  RUN_TIME_IMP(expression, describe, ADD_COUNTER_SUFFIX(start), \
+               ADD_COUNTER_SUFFIX(end))
 }  // namespace Utils
 }  // namespace MM

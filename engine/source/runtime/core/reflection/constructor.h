@@ -1,13 +1,14 @@
 #pragma once
 
-#include "runtime/core/reflection/variable.h"
 #include "runtime/core/reflection/utils.h"
+#include "runtime/core/reflection/variable.h"
+#include "utils/type_trait.h"
 #include "utils/utils.h"
 
 namespace MM {
 namespace Reflection {
 class ConstructorWrapperBase {
-public:
+ public:
   ConstructorWrapperBase() = default;
   virtual ~ConstructorWrapperBase() = default;
   ConstructorWrapperBase(const ConstructorWrapperBase& other) = default;
@@ -21,7 +22,9 @@ public:
   /**
    * \brief Get the hashcode of this class.
    * \return The hashcode of this class.
-   * \remark The value of hashcode depends on the type of the constructed object of the constructor, the type of all parameters of the constructor and the parameter location.
+   * \remark The value of hashcode depends on the type of the constructed object
+   * of the constructor, the type of all parameters of the constructor and the
+   * parameter location.
    */
   virtual std::size_t HashCode() const = 0;
 
@@ -107,8 +110,8 @@ public:
    * function held by this object will not be called and return an empty \ref
    * MM::Reflection::Variable.
    */
-  virtual Variable Invoke(Variable& arg1, Variable& arg2,
-                          Variable& arg3, Variable& arg4) const = 0;
+  virtual Variable Invoke(Variable& arg1, Variable& arg2, Variable& arg3,
+                          Variable& arg4) const = 0;
 
   /**
    * \brief Invoke the function with 5 arguments.
@@ -124,9 +127,8 @@ public:
    * function held by this object will not be called and return an empty \ref
    * MM::Reflection::Variable.
    */
-  virtual Variable Invoke(Variable& arg1, Variable& arg2,
-                          Variable& arg3, Variable& arg4,
-                          Variable& arg5) const = 0;
+  virtual Variable Invoke(Variable& arg1, Variable& arg2, Variable& arg3,
+                          Variable& arg4, Variable& arg5) const = 0;
 
   /**
    * \brief Invoke the function with 6 arguments.
@@ -143,9 +145,9 @@ public:
    * function held by this object will not be called and return an empty \ref
    * MM::Reflection::Variable.
    */
-  virtual Variable Invoke(Variable& arg1, Variable& arg2,
-                          Variable& arg3, Variable& arg4,
-                          Variable& arg5, Variable& arg6) const = 0;
+  virtual Variable Invoke(Variable& arg1, Variable& arg2, Variable& arg3,
+                          Variable& arg4, Variable& arg5,
+                          Variable& arg6) const = 0;
 
   /**
    * \brief Call the function with any number of parameters.
@@ -161,8 +163,8 @@ public:
 };
 
 template <typename TargetType_, typename... Args_>
-class ConstructorWrapper : public ConstructorWrapperBase{
-public:
+class ConstructorWrapper : public ConstructorWrapperBase {
+ public:
   using Type = TargetType_;
   template <std::size_t index>
   struct GetArgumentType {
@@ -170,7 +172,7 @@ public:
     using Type = typename std::tuple_element<index, Types>::type;
   };
 
-public:
+ public:
   ConstructorWrapper() = default;
   ConstructorWrapper(const ConstructorWrapper& other) = default;
   ConstructorWrapper(ConstructorWrapper&& other) noexcept = default;
@@ -269,8 +271,8 @@ public:
    * function held by this object will not be called and return an empty \ref
    * MM::Reflection::Variable.
    */
-  Variable Invoke(Variable& arg1, Variable& arg2,
-                  Variable& arg3, Variable& arg4) const override;
+  Variable Invoke(Variable& arg1, Variable& arg2, Variable& arg3,
+                  Variable& arg4) const override;
 
   /**
    * \brief Invoke the function with 5 arguments.
@@ -286,9 +288,8 @@ public:
    * function held by this object will not be called and return an empty \ref
    * MM::Reflection::Variable.
    */
-  Variable Invoke(Variable& arg1, Variable& arg2,
-                  Variable& arg3, Variable& arg4,
-                  Variable& arg5) const override;
+  Variable Invoke(Variable& arg1, Variable& arg2, Variable& arg3,
+                  Variable& arg4, Variable& arg5) const override;
 
   /**
    * \brief Invoke the function with 6 arguments.
@@ -305,9 +306,9 @@ public:
    * function held by this object will not be called and return an empty \ref
    * MM::Reflection::Variable.
    */
-  Variable Invoke(Variable& arg1, Variable& arg2,
-                  Variable& arg3, Variable& arg4,
-                  Variable& arg5, Variable& arg6) const override;
+  Variable Invoke(Variable& arg1, Variable& arg2, Variable& arg3,
+                  Variable& arg4, Variable& arg5,
+                  Variable& arg6) const override;
 
   /**
    * \brief Call the function with any number of parameters.
@@ -321,7 +322,7 @@ public:
    */
   Variable Invoke(std::vector<Variable>& args) const override;
 
-private:
+ private:
   bool AllTypeSame(const Variable& var1) {
     return MM::Utils::CheckAllTrue(
         var1.GetType().GetTypeHashCode() ==
@@ -428,45 +429,40 @@ private:
     return AllTypeSameFromVector(MakeIndexSequence<sizeof...(Args_)>(), vars);
   }
 
-  template<bool TestCount, std::size_t ArgsCount>
+  template <bool TestCount, std::size_t ArgsCount>
   struct InvokeImpHelp;
 
-  template<>
+  template <>
   struct InvokeImpHelp<true, 0> {
     Variable operator()() {
       return Variable(std::make_unique<VariableWrapperBase>(TargetType_{}));
     }
   };
 
-  template<>
+  template <>
   struct InvokeImpHelp<false, 0> {
-    Variable operator()() {
-      return Variable{};
-    }
+    Variable operator()() { return Variable{}; }
   };
 
   template <>
   struct InvokeImpHelp<true, 1> {
     Variable operator()(void* arg1) {
       return Variable(std::make_unique<VariableWrapperBase>(TargetType_{
-        *static_cast<std::add_pointer<GetArgumentType<0>>::type>(arg1)
-      }));
+          *static_cast<std::add_pointer<GetArgumentType<0>>::type>(arg1)}));
     }
   };
 
   template <>
   struct InvokeImpHelp<false, 1> {
-    Variable operator()(void* arg1) {
-      return Variable{};
-    }
+    Variable operator()(void* arg1) { return Variable{}; }
   };
 
-  template<> struct InvokeImpHelp<true, 2> {
+  template <>
+  struct InvokeImpHelp<true, 2> {
     Variable operator()(void* arg1, void* arg2) {
       return Variable(std::make_unique<VariableWrapperBase>(TargetType_{
           *static_cast<std::add_pointer<GetArgumentType<0>>::type>(arg1),
-          *static_cast<std::add_pointer<GetArgumentType<1>>::type>(arg2)
-      }));
+          *static_cast<std::add_pointer<GetArgumentType<1>>::type>(arg2)}));
     }
   };
 
@@ -475,19 +471,21 @@ private:
     Variable operator()(void* arg1, void* arg2) { return Variable{}; }
   };
 
-  template<> struct InvokeImpHelp<true, 3> {
+  template <>
+  struct InvokeImpHelp<true, 3> {
     Variable operator()(void* arg1, void* arg2, void* arg3) {
       return Variable(std::make_unique<VariableWrapperBase>(TargetType_{
           *static_cast<std::add_pointer<GetArgumentType<0>>::type>(arg1),
           *static_cast<std::add_pointer<GetArgumentType<1>>::type>(arg2),
-          *static_cast<std::add_pointer<GetArgumentType<2>>::type>(arg3)
-      }));
+          *static_cast<std::add_pointer<GetArgumentType<2>>::type>(arg3)}));
     }
   };
 
   template <>
   struct InvokeImpHelp<false, 3> {
-    Variable operator()(void* arg1, void* arg2, void* arg3) { return Variable{}; }
+    Variable operator()(void* arg1, void* arg2, void* arg3) {
+      return Variable{};
+    }
   };
 
   template <>
@@ -497,8 +495,7 @@ private:
           *static_cast<std::add_pointer<GetArgumentType<0>>::type>(arg1),
           *static_cast<std::add_pointer<GetArgumentType<1>>::type>(arg2),
           *static_cast<std::add_pointer<GetArgumentType<2>>::type>(arg3),
-          *static_cast<std::add_pointer<GetArgumentType<3>>::type>(arg4)
-      }));
+          *static_cast<std::add_pointer<GetArgumentType<3>>::type>(arg4)}));
     }
   };
 
@@ -511,20 +508,21 @@ private:
 
   template <>
   struct InvokeImpHelp<true, 5> {
-    Variable operator()(void* arg1, void* arg2, void* arg3, void* arg4, void* arg5) {
+    Variable operator()(void* arg1, void* arg2, void* arg3, void* arg4,
+                        void* arg5) {
       return Variable(std::make_unique<VariableWrapperBase>(TargetType_{
           *static_cast<std::add_pointer<GetArgumentType<0>>::type>(arg1),
           *static_cast<std::add_pointer<GetArgumentType<1>>::type>(arg2),
           *static_cast<std::add_pointer<GetArgumentType<2>>::type>(arg3),
           *static_cast<std::add_pointer<GetArgumentType<3>>::type>(arg4),
-          *static_cast<std::add_pointer<GetArgumentType<4>>::type>(arg5)
-      }));
+          *static_cast<std::add_pointer<GetArgumentType<4>>::type>(arg5)}));
     }
   };
 
   template <>
   struct InvokeImpHelp<false, 5> {
-    Variable operator()(void* arg1, void* arg2, void* arg3, void* arg4, void* arg5) {
+    Variable operator()(void* arg1, void* arg2, void* arg3, void* arg4,
+                        void* arg5) {
       return Variable{};
     }
   };
@@ -564,9 +562,9 @@ private:
   Variable InvokeVariadicImp(const std::vector<Variable>& vars) const;
 };
 
-template <typename TargetType_, typename ... Args_>
-Variable ConstructorWrapper<TargetType_, Args_...>::Invoke(Variable& arg1,
-  Variable& arg2, Variable& arg3, Variable& arg4) const {
+template <typename TargetType_, typename... Args_>
+Variable ConstructorWrapper<TargetType_, Args_...>::Invoke(
+    Variable& arg1, Variable& arg2, Variable& arg3, Variable& arg4) const {
   if (AllTypeSame(arg1, arg2, arg3, arg4)) {
     return InvokeImp(arg1.GetValue(), arg2.GetValue(), arg3.GetValue(),
                      arg4.GetValue());
@@ -574,10 +572,10 @@ Variable ConstructorWrapper<TargetType_, Args_...>::Invoke(Variable& arg1,
   return Variable{};
 }
 
-template <typename TargetType_, typename ... Args_>
-Variable ConstructorWrapper<TargetType_, Args_...>::Invoke(Variable& arg1,
-  Variable& arg2, Variable& arg3, Variable& arg4,
-  Variable& arg5) const {
+template <typename TargetType_, typename... Args_>
+Variable ConstructorWrapper<TargetType_, Args_...>::Invoke(
+    Variable& arg1, Variable& arg2, Variable& arg3, Variable& arg4,
+    Variable& arg5) const {
   if (AllTypeSame(arg1, arg2, arg3, arg4, arg5)) {
     return InvokeImp(arg1.GetValue(), arg2.GetValue(), arg3.GetValue(),
                      arg4.GetValue(), arg5.GetValue());
@@ -585,10 +583,10 @@ Variable ConstructorWrapper<TargetType_, Args_...>::Invoke(Variable& arg1,
   return Variable{};
 }
 
-template <typename TargetType_, typename ... Args_>
-Variable ConstructorWrapper<TargetType_, Args_...>::Invoke(Variable& arg1,
-  Variable& arg2, Variable& arg3, Variable& arg4,
-  Variable& arg5, Variable& arg6) const {
+template <typename TargetType_, typename... Args_>
+Variable ConstructorWrapper<TargetType_, Args_...>::Invoke(
+    Variable& arg1, Variable& arg2, Variable& arg3, Variable& arg4,
+    Variable& arg5, Variable& arg6) const {
   if (AllTypeSame(arg1, arg2, arg3, arg4, arg5, arg6)) {
     return InvokeImp(arg1.GetValue(), arg2.GetValue(), arg3.GetValue(),
                      arg4.GetValue(), arg5.GetValue(), arg6.GetValue());
@@ -596,7 +594,7 @@ Variable ConstructorWrapper<TargetType_, Args_...>::Invoke(Variable& arg1,
   return Variable{};
 }
 
-template <typename TargetType_, typename ... Args_>
+template <typename TargetType_, typename... Args_>
 Variable ConstructorWrapper<TargetType_, Args_...>::Invoke(
     std::vector<Variable>& args) const {
   if (AllTypeSameFromVector(MakeIndexSequence<sizeof...(Args_)>(), args)) {
@@ -605,31 +603,31 @@ Variable ConstructorWrapper<TargetType_, Args_...>::Invoke(
   return Variable{};
 }
 
-template <typename TargetType_, typename ... Args_>
+template <typename TargetType_, typename... Args_>
 std::size_t ConstructorWrapper<TargetType_, Args_...>::HashCode() const {
   return AllTypeHashCode<TargetType_, Args_...>();
 }
 
-template <typename TargetType_, typename ... Args_>
-typename ConstructorWrapper<TargetType_, Args_...>::Type ConstructorWrapper<
-TargetType_, Args_...>::GetType() const {
+template <typename TargetType_, typename... Args_>
+typename ConstructorWrapper<TargetType_, Args_...>::Type
+ConstructorWrapper<TargetType_, Args_...>::GetType() const {
   return MM::Reflection::CreateType<TargetType_>();
 }
 
-template <typename TargetType_, typename ... Args_>
-std::weak_ptr<MM::Reflection::Meta> ConstructorWrapper<TargetType_, Args_...>::
-GetMeta() const {
+template <typename TargetType_, typename... Args_>
+std::weak_ptr<MM::Reflection::Meta>
+ConstructorWrapper<TargetType_, Args_...>::GetMeta() const {
   return GetType().GetMeta();
 }
 
-template <typename TargetType_, typename ... Args_>
-std::size_t ConstructorWrapper<TargetType_, Args_...>::
-GetArgumentNumber() const {
+template <typename TargetType_, typename... Args_>
+std::size_t ConstructorWrapper<TargetType_, Args_...>::GetArgumentNumber()
+    const {
   return sizeof...(Args_);
 }
 
-template <typename TargetType_, typename ... Args_>
-template <typename ... Vars_>
+template <typename TargetType_, typename... Args_>
+template <typename... Vars_>
 Variable ConstructorWrapper<TargetType_, Args_...>::InvokeImp(
     Vars_... vars) const {
   InvokeImpHelp<sizeof...(Args_) == sizeof...(Vars_), sizeof...(Args_)>
@@ -648,13 +646,12 @@ ConstructorWrapper<TargetType_, Args_...>::InvokeVariadicImpHelp::operator()(
           vars[ArgsIdx].GetValue()))...};
 }
 
-template <typename TargetType_, typename ... Args_>
+template <typename TargetType_, typename... Args_>
 Variable ConstructorWrapper<TargetType_, Args_...>::InvokeVariadicImp(
     const std::vector<Variable>& vars) const {
   if (vars.size() == sizeof...(Args_)) {
     InvokeVariadicImpHelp help_struct;
-    return help_struct(vars,
-                       MakeIndexSequence<sizeof...(Args_)>());
+    return help_struct(vars, MakeIndexSequence<sizeof...(Args_)>());
   }
   return Variable{};
 }
@@ -664,7 +661,7 @@ Variable ConstructorWrapper<TargetType_, Args_...>::Invoke() const {
   return InvokeImp();
 }
 
-template <typename TargetType_, typename ... Args_>
+template <typename TargetType_, typename... Args_>
 Variable ConstructorWrapper<TargetType_, Args_...>::Invoke(
     Variable& arg1) const {
   if (AllTypeSame(arg1)) {
@@ -673,18 +670,18 @@ Variable ConstructorWrapper<TargetType_, Args_...>::Invoke(
   return Variable{};
 }
 
-template <typename TargetType_, typename ... Args_>
-Variable ConstructorWrapper<TargetType_, Args_...>::Invoke(Variable& arg1,
-  Variable& arg2) const {
+template <typename TargetType_, typename... Args_>
+Variable ConstructorWrapper<TargetType_, Args_...>::Invoke(
+    Variable& arg1, Variable& arg2) const {
   if (AllTypeSame(arg1, arg2)) {
     return InvokeImp(arg1.GetValue(), arg2.GetValue());
   }
   return Variable{};
 }
 
-template <typename TargetType_, typename ... Args_>
-Variable ConstructorWrapper<TargetType_, Args_...>::Invoke(Variable& arg1,
-  Variable& arg2, Variable& arg3) const {
+template <typename TargetType_, typename... Args_>
+Variable ConstructorWrapper<TargetType_, Args_...>::Invoke(
+    Variable& arg1, Variable& arg2, Variable& arg3) const {
   if (AllTypeSame(arg1, arg2, arg3)) {
     return InvokeImp(arg1.GetValue(), arg2.GetValue(), arg3.GetValue());
   }
@@ -694,15 +691,15 @@ Variable ConstructorWrapper<TargetType_, Args_...>::Invoke(Variable& arg1,
 class Constructor {
   friend class Meta;
 
-public:
+ public:
   Constructor() = default;
- ~Constructor() = default;
- Constructor(const Constructor& other) = default;
+  ~Constructor() = default;
+  Constructor(const Constructor& other) = default;
   Constructor(Constructor&& other) noexcept = default;
- Constructor& operator=(const Constructor& other) = default;
+  Constructor& operator=(const Constructor& other) = default;
   Constructor& operator=(Constructor&& other) = default;
 
-public:
+ public:
   /**
    * \brief Get the hashcode of this class.
    * \return The hashcode of this class.
@@ -785,8 +782,7 @@ public:
    * function held by this object will not be called and return an empty \ref
    * MM::Reflection::Variable.
    */
-  Variable Invoke(Variable& arg1, Variable& arg2,
-                  Variable& arg3) const;
+  Variable Invoke(Variable& arg1, Variable& arg2, Variable& arg3) const;
 
   /**
    * \brief Invoke the function with 4 arguments.
@@ -801,8 +797,8 @@ public:
    * function held by this object will not be called and return an empty \ref
    * MM::Reflection::Variable.
    */
-  Variable Invoke(Variable& arg1, Variable& arg2,
-                  Variable& arg3, Variable& arg4) const;
+  Variable Invoke(Variable& arg1, Variable& arg2, Variable& arg3,
+                  Variable& arg4) const;
 
   /**
    * \brief Invoke the function with 5 arguments.
@@ -818,9 +814,8 @@ public:
    * function held by this object will not be called and return an empty \ref
    * MM::Reflection::Variable.
    */
-  Variable Invoke(Variable& arg1, Variable& arg2,
-                  Variable& arg3, Variable& arg4,
-                  Variable& arg5) const;
+  Variable Invoke(Variable& arg1, Variable& arg2, Variable& arg3,
+                  Variable& arg4, Variable& arg5) const;
 
   /**
    * \brief Invoke the function with 6 arguments.
@@ -837,9 +832,8 @@ public:
    * function held by this object will not be called and return an empty \ref
    * MM::Reflection::Variable.
    */
-  Variable Invoke(Variable& arg1, Variable& arg2,
-                  Variable& arg3, Variable& arg4,
-                  Variable& arg5, Variable& arg6) const;
+  Variable Invoke(Variable& arg1, Variable& arg2, Variable& arg3,
+                  Variable& arg4, Variable& arg5, Variable& arg6) const;
 
   /**
    * \brief Call the function with any number of parameters.
@@ -853,12 +847,13 @@ public:
    */
   Variable Invoke(std::vector<Variable>& args) const;
 
-private:
+ private:
   Constructor(const std::shared_ptr<ConstructorWrapperBase>& other);
 
-  static Constructor CreateConstructor(const std::shared_ptr<ConstructorWrapperBase>& other);
+  static Constructor CreateConstructor(
+      const std::shared_ptr<ConstructorWrapperBase>& other);
 
-private:
+ private:
   std::weak_ptr<ConstructorWrapperBase> constructor_wrapper_{};
 };
 }  // namespace Reflection

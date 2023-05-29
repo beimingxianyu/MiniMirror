@@ -2,6 +2,7 @@
 
 #include "runtime/core/reflection/type.h"
 #include "runtime/core/reflection/variable.h"
+#include "utils/type_trait.h"
 #include "utils/utils.h"
 
 namespace MM {
@@ -15,11 +16,13 @@ class MethodWrapperBase {
   MethodWrapperBase& operator=(const MethodWrapperBase& other) = default;
   MethodWrapperBase& operator=(MethodWrapperBase&& other) noexcept = default;
 
-public:
+ public:
   /**
    * \brief Get the hashcode of this class.
    * \return The hashcode of this class.
-   * \remark The hash value depends on the return value type of the function, the type of all parameters, the location of the parameters, the type of the class to which it belongs, and whether it is a static function.
+   * \remark The hash value depends on the return value type of the function,
+   * the type of all parameters, the location of the parameters, the type of the
+   * class to which it belongs, and whether it is a static function.
    */
   virtual std::size_t HashCode() const = 0;
 
@@ -206,7 +209,7 @@ class MethodWrapper<InstanceType_, ResultType_, false, Args_...>
     using Type = typename std::tuple_element<index, Types>::type;
   };
 
-public:
+ public:
   MethodWrapper();
   ~MethodWrapper() override;
   MethodWrapper(const MethodWrapper& other);
@@ -222,7 +225,7 @@ public:
    * the type of all parameters, the location of the parameters, the type of the
    * class to which it belongs, and whether it is a static function.
    */
-   std::size_t HashCode() const override;
+  std::size_t HashCode() const override;
 
   /**
    * \brief Determine whether the function is static.
@@ -350,7 +353,8 @@ public:
    * MM::Reflection::Variable.
    */
   Variable Invoke(Variable& instance, Variable& arg1, Variable& arg2,
-                  Variable& arg3, Variable& arg4, Variable& arg5) const override;
+                  Variable& arg3, Variable& arg4,
+                  Variable& arg5) const override;
 
   /**
    * \brief Invoke the function with 6 arguments.
@@ -826,9 +830,10 @@ public:
       return Variable{};
     }
   };
-  Variable InvokeVariadicImp(void* object, const std::vector<Variable>& vars) const;
+  Variable InvokeVariadicImp(void* object,
+                             const std::vector<Variable>& vars) const;
 
-private:
+ private:
   ResultType_ (InstanceType_::*function_ptr_)(Args_...) = nullptr;
 };
 
@@ -850,7 +855,7 @@ class MethodWrapper<InstanceType_, ResultType_, true, Args_...>
     };
   };
 
-public:
+ public:
   MethodWrapper();
   ~MethodWrapper() override;
   MethodWrapper(const MethodWrapper& other);
@@ -866,7 +871,7 @@ public:
    * the type of all parameters, the location of the parameters, the type of the
    * class to which it belongs, and whether it is a static function.
    */
-   std::size_t HashCode() const override;
+  std::size_t HashCode() const override;
 
   /**
    * \brief Determine whether the function is static.
@@ -994,7 +999,8 @@ public:
    * MM::Reflection::Variable.
    */
   Variable Invoke(Variable& instance, Variable& arg1, Variable& arg2,
-                  Variable& arg3, Variable& arg4, Variable& arg5) const override;
+                  Variable& arg3, Variable& arg4,
+                  Variable& arg5) const override;
 
   /**
    * \brief Invoke the function with 1 arguments.
@@ -1143,64 +1149,62 @@ public:
   template <>
   struct InvokeImpHelp<true, true, 0> {
     Variable operator()(const MethodWrapper<InstanceType_, ResultType_, true,
-                                      Args_...>& method_wrapper,
+                                            Args_...>& method_wrapper,
                         void* object) {
-  return Variable{(method_wrapper.function_ptr_)()};
+      return Variable{(method_wrapper.function_ptr_)()};
     }
   };
 
   template <>
   struct InvokeImpHelp<true, false, 0> {
     Variable operator()(const MethodWrapper<InstanceType_, ResultType_, true,
-                                      Args_...>& method_wrapper,
+                                            Args_...>& method_wrapper,
                         void* object) {
-  (method_wrapper.function_ptr_)();
+      (method_wrapper.function_ptr_)();
 
-  return Variable{};
+      return Variable{};
     }
   };
 
   template <bool HaveReturn>
   struct InvokeImpHelp<false, HaveReturn, 0> {
     Variable operator()(const MethodWrapper<InstanceType_, ResultType_, true,
-                                      Args_...>& method_wrapper,
+                                            Args_...>& method_wrapper,
                         void* object) {
-  return Variable{};
+      return Variable{};
     }
   };
 
   template <>
   struct InvokeImpHelp<true, true, 1> {
     Variable operator()(const MethodWrapper<InstanceType_, ResultType_, true,
-                                      Args_...>& method_wrapper,
+                                            Args_...>& method_wrapper,
                         void* object, void* arg1) {
-  return Variable{(method_wrapper.function_ptr_)(
-      *static_cast<
-          typename std::add_pointer<typename GetArgumentType<0>::Type>::type>(
-          arg1))};
+      return Variable{(method_wrapper.function_ptr_)(
+          *static_cast<typename std::add_pointer<
+              typename GetArgumentType<0>::Type>::type>(arg1))};
     }
   };
 
   template <>
   struct InvokeImpHelp<true, false, 1> {
     Variable operator()(const MethodWrapper<InstanceType_, ResultType_, true,
-                                      Args_...>& method_wrapper,
+                                            Args_...>& method_wrapper,
                         void* object, void* arg1) {
-  (method_wrapper.function_ptr_)(
-      *static_cast<
-          typename std::add_pointer<typename GetArgumentType<0>::Type>::type>(
-          arg1));
+      (method_wrapper.function_ptr_)(
+          *static_cast<typename std::add_pointer<
+              typename GetArgumentType<0>::Type>::type>(arg1));
 
-  return Variable{};
+      return Variable{};
     }
   };
 
   template <bool HaveReturn>
   struct InvokeImpHelp<false, HaveReturn, 1> {
     Variable operator()(const MethodWrapper<InstanceType_, ResultType_, true,
-                                      Args_...>& method_wrapper,
+                                            Args_...>& method_wrapper,
                         void* object, void* arg1) {
-  return Variable{};
+      return Variable{};
     }
   };
 
@@ -1209,39 +1213,35 @@ public:
     Variable operator()(MethodWrapper<InstanceType_, ResultType_, false,
                                       Args_...>& method_wrapper,
                         void* object, void* arg1, void* arg2) {
-  return Variable{(method_wrapper.function_ptr_)(
-      *static_cast<
-          typename std::add_pointer<typename GetArgumentType<0>::Type>::type>(
-          arg1),
-      *static_cast<
-          typename std::add_pointer<typename GetArgumentType<1>::Type>::type>(
-          arg2))};
+      return Variable{(method_wrapper.function_ptr_)(
+          *static_cast<typename std::add_pointer<
+              typename GetArgumentType<0>::Type>::type>(arg1),
+          *static_cast<typename std::add_pointer<
+              typename GetArgumentType<1>::Type>::type>(arg2))};
     }
   };
 
   template <>
   struct InvokeImpHelp<true, false, 2> {
     Variable operator()(const MethodWrapper<InstanceType_, ResultType_, true,
-                                      Args_...>& method_wrapper,
+                                            Args_...>& method_wrapper,
                         void* object, void* arg1, void* arg2) {
-  (method_wrapper.function_ptr_)(
-      *static_cast<
-          typename std::add_pointer<typename GetArgumentType<0>::Type>::type>(
-          arg1),
-      *static_cast<
-          typename std::add_pointer<typename GetArgumentType<1>::Type>::type>(
-          arg2));
+      (method_wrapper.function_ptr_)(
+          *static_cast<typename std::add_pointer<
+              typename GetArgumentType<0>::Type>::type>(arg1),
+          *static_cast<typename std::add_pointer<
+              typename GetArgumentType<1>::Type>::type>(arg2));
 
-  return Variable{};
+      return Variable{};
     }
   };
 
   template <bool HaveReturn>
   struct InvokeImpHelp<false, HaveReturn, 2> {
     Variable operator()(const MethodWrapper<InstanceType_, ResultType_, true,
-                                      Args_...>& method_wrapper,
+                                            Args_...>& method_wrapper,
                         void* object, void* arg1, void* arg2) {
-  return Variable{};
+      return Variable{};
     }
   };
 
@@ -1250,23 +1250,20 @@ public:
     Variable operator()(const MethodWrapper<InstanceType_, ResultType_, true,
                                             Args_...>& method_wrapper,
                         void* object, void* arg1, void* arg2, void* arg3) {
-  return Variable{(method_wrapper.function_ptr_)(
-      *static_cast<
-          typename std::add_pointer<typename GetArgumentType<0>::Type>::type>(
-          arg1),
-      *static_cast<
-          typename std::add_pointer<typename GetArgumentType<1>::Type>::type>(
-          arg2),
-      *static_cast<
-          typename std::add_pointer<typename GetArgumentType<2>::Type>::type>(
-          arg3))};
+      return Variable{(method_wrapper.function_ptr_)(
+          *static_cast<typename std::add_pointer<
+              typename GetArgumentType<0>::Type>::type>(arg1),
+          *static_cast<typename std::add_pointer<
+              typename GetArgumentType<1>::Type>::type>(arg2),
+          *static_cast<typename std::add_pointer<
+              typename GetArgumentType<2>::Type>::type>(arg3))};
     }
   };
 
   template <>
   struct InvokeImpHelp<true, false, 3> {
     Variable operator()(const MethodWrapper<InstanceType_, ResultType_, true,
-                                      Args_...>& method_wrapper,
+                                            Args_...>& method_wrapper,
                         void* object, void* arg1, void* arg2, void* arg3) {
       (method_wrapper.function_ptr_)(
           *static_cast<typename std::add_pointer<
@@ -1283,7 +1280,7 @@ public:
   template <bool HaveReturn>
   struct InvokeImpHelp<false, HaveReturn, 3> {
     Variable operator()(const MethodWrapper<InstanceType_, ResultType_, true,
-                                      Args_...>& method_wrapper,
+                                            Args_...>& method_wrapper,
                         void* object, void* arg1, void* arg2, void* arg3) {
       return Variable{};
     }
@@ -1292,7 +1289,7 @@ public:
   template <>
   struct InvokeImpHelp<true, true, 4> {
     Variable operator()(const MethodWrapper<InstanceType_, ResultType_, true,
-                                      Args_...>& method_wrapper,
+                                            Args_...>& method_wrapper,
                         void* object, void* arg1, void* arg2, void* arg3,
                         void* arg4) {
       return Variable{(method_wrapper.function_ptr_)(
@@ -1310,7 +1307,7 @@ public:
   template <>
   struct InvokeImpHelp<true, false, 4> {
     Variable operator()(const MethodWrapper<InstanceType_, ResultType_, true,
-                                      Args_...>& method_wrapper,
+                                            Args_...>& method_wrapper,
                         void* object, void* arg1, void* arg2, void* arg3,
                         void* arg4) {
       (method_wrapper.function_ptr_)(
@@ -1330,7 +1327,7 @@ public:
   template <bool HaveReturn>
   struct InvokeImpHelp<false, HaveReturn, 4> {
     Variable operator()(const MethodWrapper<InstanceType_, ResultType_, true,
-                                      Args_...>& method_wrapper,
+                                            Args_...>& method_wrapper,
                         void* object, void* arg1, void* arg2, void* arg3,
                         void* arg4) {
       return Variable{};
@@ -1340,7 +1337,7 @@ public:
   template <>
   struct InvokeImpHelp<true, true, 5> {
     Variable operator()(const MethodWrapper<InstanceType_, ResultType_, true,
-                                      Args_...>& method_wrapper,
+                                            Args_...>& method_wrapper,
                         void* object, void* arg1, void* arg2, void* arg3,
                         void* arg4, void* arg5) {
       return Variable{(method_wrapper.function_ptr_)(
@@ -1360,7 +1357,7 @@ public:
   template <>
   struct InvokeImpHelp<true, false, 5> {
     Variable operator()(const MethodWrapper<InstanceType_, ResultType_, true,
-                                      Args_...>& method_wrapper,
+                                            Args_...>& method_wrapper,
                         void* object, void* arg1, void* arg2, void* arg3,
                         void* arg4, void* arg5) {
       (method_wrapper.function_ptr_)(
@@ -1382,7 +1379,7 @@ public:
   template <bool HaveReturn>
   struct InvokeImpHelp<false, HaveReturn, 5> {
     Variable operator()(const MethodWrapper<InstanceType_, ResultType_, true,
-                                      Args_...>& method_wrapper,
+                                            Args_...>& method_wrapper,
                         void* object, void* arg1, void* arg2, void* arg3,
                         void* arg4, void* arg5) {
       return Variable{};
@@ -1392,7 +1389,7 @@ public:
   template <>
   struct InvokeImpHelp<true, true, 6> {
     Variable operator()(const MethodWrapper<InstanceType_, ResultType_, true,
-                                      Args_...>& method_wrapper,
+                                            Args_...>& method_wrapper,
                         void* object, void* arg1, void* arg2, void* arg3,
                         void* arg4, void* arg5, void* arg6) {
       return Variable{(method_wrapper.function_ptr_)(
@@ -1414,7 +1411,7 @@ public:
   template <>
   struct InvokeImpHelp<true, false, 6> {
     Variable operator()(const MethodWrapper<InstanceType_, ResultType_, true,
-                                      Args_...>& method_wrapper,
+                                            Args_...>& method_wrapper,
                         void* object, void* arg1, void* arg2, void* arg3,
                         void* arg4, void* arg5, void* arg6) {
       (method_wrapper.function_ptr_)(
@@ -1438,7 +1435,7 @@ public:
   template <bool HaveReturn>
   struct InvokeImpHelp<false, HaveReturn, 6> {
     Variable operator()(const MethodWrapper<InstanceType_, ResultType_, true,
-                                      Args_...>& method_wrapper,
+                                            Args_...>& method_wrapper,
                         void* object, void* arg1, void* arg2, void* arg3,
                         void* arg4, void* arg5, void* arg6) {
       return Variable{};
@@ -1455,7 +1452,7 @@ public:
   struct InvokeVariadicImpHelp<true> {
     template <std::size_t... ArgsIdx>
     Variable operator()(const MethodWrapper<InstanceType_, ResultType_, true,
-                                      Args_...>& method_wrapper,
+                                            Args_...>& method_wrapper,
                         void* object, const std::vector<Variable>& vars,
                         IndexSequence<ArgsIdx...>) {
       return Variable{(method_wrapper.function_ptr_)(
@@ -1469,7 +1466,7 @@ public:
   struct InvokeVariadicImpHelp<false> {
     template <std::size_t... ArgsIdx>
     Variable operator()(const MethodWrapper<InstanceType_, ResultType_, true,
-                                      Args_...>& method_wrapper,
+                                            Args_...>& method_wrapper,
                         void* object, const std::vector<Variable>& vars,
                         IndexSequence<ArgsIdx...>) {
       (method_wrapper.function_ptr_)(
@@ -1480,30 +1477,33 @@ public:
     }
   };
 
-  Variable InvokeVariadicImp(void* object, const std::vector<Variable>& vars) const;
+  Variable InvokeVariadicImp(void* object,
+                             const std::vector<Variable>& vars) const;
 
-private:
+ private:
   ResultType_ (*function_ptr_)(Args_...) = nullptr;
 };
 
-template <typename InstanceType_, typename ResultType_, typename ... Args_>
-std::size_t MethodWrapper<InstanceType_, ResultType_, true, Args_...>::
-HashCode() const {
+template <typename InstanceType_, typename ResultType_, typename... Args_>
+std::size_t
+MethodWrapper<InstanceType_, ResultType_, true, Args_...>::HashCode() const {
   return AllTypeHashCode<InstanceType_, ResultType_, Args_...>() + 1;
 }
 
-template <typename InstanceType_, typename ResultType_, typename ... Args_>
-MethodWrapper<InstanceType_, ResultType_, false, Args_...>::MethodWrapper() : function_ptr_(nullptr){}
+template <typename InstanceType_, typename ResultType_, typename... Args_>
+MethodWrapper<InstanceType_, ResultType_, false, Args_...>::MethodWrapper()
+    : function_ptr_(nullptr) {}
 
-template <typename InstanceType_, typename ResultType_, typename ... Args_>
+template <typename InstanceType_, typename ResultType_, typename... Args_>
 MethodWrapper<InstanceType_, ResultType_, false, Args_...>::~MethodWrapper() =
     default;
 
-template <typename InstanceType_, typename ResultType_, typename ... Args_>
+template <typename InstanceType_, typename ResultType_, typename... Args_>
 MethodWrapper<InstanceType_, ResultType_, false, Args_...>::MethodWrapper(
-    const MethodWrapper& other) : function_ptr_(other.function_ptr_){}
+    const MethodWrapper& other)
+    : function_ptr_(other.function_ptr_) {}
 
-template <typename InstanceType_, typename ResultType_, typename ... Args_>
+template <typename InstanceType_, typename ResultType_, typename... Args_>
 MethodWrapper<InstanceType_, ResultType_, false, Args_...>::MethodWrapper(
     MethodWrapper&& other) noexcept {
   std::swap(function_ptr_, other.function_ptr_);
@@ -1511,9 +1511,9 @@ MethodWrapper<InstanceType_, ResultType_, false, Args_...>::MethodWrapper(
   return *this;
 }
 
-template <typename InstanceType_, typename ResultType_, typename ... Args_>
-MethodWrapper<InstanceType_, ResultType_, false, Args_...>& MethodWrapper<
-InstanceType_, ResultType_, false, Args_...>::operator=(
+template <typename InstanceType_, typename ResultType_, typename... Args_>
+MethodWrapper<InstanceType_, ResultType_, false, Args_...>&
+MethodWrapper<InstanceType_, ResultType_, false, Args_...>::operator=(
     const MethodWrapper& other) {
   if (this == &other) {
     return *this;
@@ -1522,9 +1522,9 @@ InstanceType_, ResultType_, false, Args_...>::operator=(
   return *this;
 }
 
-template <typename InstanceType_, typename ResultType_, typename ... Args_>
-MethodWrapper<InstanceType_, ResultType_, false, Args_...>& MethodWrapper<
-InstanceType_, ResultType_, false, Args_...>::operator=(
+template <typename InstanceType_, typename ResultType_, typename... Args_>
+MethodWrapper<InstanceType_, ResultType_, false, Args_...>&
+MethodWrapper<InstanceType_, ResultType_, false, Args_...>::operator=(
     MethodWrapper&& other) noexcept {
   if (this == &other) {
     return false;
@@ -1534,9 +1534,9 @@ InstanceType_, ResultType_, false, Args_...>::operator=(
   return *this;
 }
 
-template <typename InstanceType_, typename ResultType_, typename ... Args_>
-std::size_t MethodWrapper<InstanceType_, ResultType_, false, Args_...>::
-HashCode() const {
+template <typename InstanceType_, typename ResultType_, typename... Args_>
+std::size_t
+MethodWrapper<InstanceType_, ResultType_, false, Args_...>::HashCode() const {
   return AllTypeHashCode<InstanceType_, ResultType_, Args_...>() + 0;
 }
 
@@ -1576,13 +1576,13 @@ std::shared_ptr<Meta> MethodWrapper<InstanceType_, ResultType_, false,
   return GetClassType().GetMate();
 }
 
-template <typename InstanceType_, typename ResultType_, typename ... Args_>
+template <typename InstanceType_, typename ResultType_, typename... Args_>
 Variable MethodWrapper<InstanceType_, ResultType_, false, Args_...>::Invoke(
     Variable& instance) const {
   return InvokeImp(instance.GetValue());
 }
 
-template <typename InstanceType_, typename ResultType_, typename ... Args_>
+template <typename InstanceType_, typename ResultType_, typename... Args_>
 Variable MethodWrapper<InstanceType_, ResultType_, false, Args_...>::Invoke(
     Variable& instance, Variable& arg1) const {
   if (AllTypeSame(arg1)) {
@@ -1591,7 +1591,7 @@ Variable MethodWrapper<InstanceType_, ResultType_, false, Args_...>::Invoke(
   return Variable{};
 }
 
-template <typename InstanceType_, typename ResultType_, typename ... Args_>
+template <typename InstanceType_, typename ResultType_, typename... Args_>
 Variable MethodWrapper<InstanceType_, ResultType_, false, Args_...>::Invoke(
     Variable& instance, Variable& arg1, Variable& arg2) const {
   if (AllTypeSame(arg1, arg2)) {
@@ -1600,7 +1600,7 @@ Variable MethodWrapper<InstanceType_, ResultType_, false, Args_...>::Invoke(
   return Variable{};
 }
 
-template <typename InstanceType_, typename ResultType_, typename ... Args_>
+template <typename InstanceType_, typename ResultType_, typename... Args_>
 Variable MethodWrapper<InstanceType_, ResultType_, false, Args_...>::Invoke(
     Variable& instance, Variable& arg1, Variable& arg2, Variable& arg3) const {
   if (AllTypeSame(arg1, arg2, arg3)) {
@@ -1609,7 +1609,7 @@ Variable MethodWrapper<InstanceType_, ResultType_, false, Args_...>::Invoke(
   return Variable{};
 }
 
-template <typename InstanceType_, typename ResultType_, typename ... Args_>
+template <typename InstanceType_, typename ResultType_, typename... Args_>
 Variable MethodWrapper<InstanceType_, ResultType_, false, Args_...>::Invoke(
     Variable& instance, Variable& arg1, Variable& arg2, Variable& arg3,
     Variable& arg4) const {
@@ -1620,17 +1620,18 @@ Variable MethodWrapper<InstanceType_, ResultType_, false, Args_...>::Invoke(
   return Variable{};
 }
 
-template <typename InstanceType_, typename ResultType_, typename ... Args_>
+template <typename InstanceType_, typename ResultType_, typename... Args_>
 Variable MethodWrapper<InstanceType_, ResultType_, false, Args_...>::Invoke(
     Variable& instance, Variable& arg1, Variable& arg2, Variable& arg3,
     Variable& arg4, Variable& arg5) const {
   if (AllTypeSame(arg1, arg2, arg3, arg4, arg5)) {
-    return InvokeImp(instance.GetValue(), arg1.GetValue(), arg2.GetValue(), arg3.GetValue(), arg4.GetValue(), arg5.GetValue());
+    return InvokeImp(instance.GetValue(), arg1.GetValue(), arg2.GetValue(),
+                     arg3.GetValue(), arg4.GetValue(), arg5.GetValue());
   }
   return Variable{};
 }
 
-template <typename InstanceType_, typename ResultType_, typename ... Args_>
+template <typename InstanceType_, typename ResultType_, typename... Args_>
 Variable MethodWrapper<InstanceType_, ResultType_, false, Args_...>::Invoke(
     Variable& instance, Variable& arg1, Variable& arg2, Variable& arg3,
     Variable& arg4, Variable& arg5, Variable& arg6) const {
@@ -1642,7 +1643,7 @@ Variable MethodWrapper<InstanceType_, ResultType_, false, Args_...>::Invoke(
   return Variable{};
 }
 
-template <typename InstanceType_, typename ResultType_, typename ... Args_>
+template <typename InstanceType_, typename ResultType_, typename... Args_>
 Variable MethodWrapper<InstanceType_, ResultType_, false, Args_...>::Invoke(
     Variable& instance, std::vector<Variable>& args) const {
   if (AllTypeSameFromVector(MakeIndexSequence<sizeof...(Args_)>(), args)) {
@@ -1651,9 +1652,10 @@ Variable MethodWrapper<InstanceType_, ResultType_, false, Args_...>::Invoke(
   return Variable{};
 }
 
-template <typename InstanceType_, typename ResultType_, typename ... Args_>
-Variable MethodWrapper<InstanceType_, ResultType_, true, Args_...>::
-InvokeVariadicImp(void* object, const std::vector<Variable>& vars) const {
+template <typename InstanceType_, typename ResultType_, typename... Args_>
+Variable
+MethodWrapper<InstanceType_, ResultType_, true, Args_...>::InvokeVariadicImp(
+    void* object, const std::vector<Variable>& vars) const {
   if (vars.size() == sizeof...(Args_)) {
     InvokeVariadicImpHelp<std::is_same<void, ResultType_>::value> help_struct;
     return help_struct(*this, object, vars,
@@ -1665,7 +1667,7 @@ InvokeVariadicImp(void* object, const std::vector<Variable>& vars) const {
 class Method {
   friend class Meta;
 
-public:
+ public:
   Method();
   Method(const Method& other);
   Method(Method&& other) noexcept;
@@ -1688,7 +1690,7 @@ public:
    * false.
    */
   bool IsValid() const;
- 
+
   /**
    * \brief Determine whether the function is static.
    * \return If the function is static, it returns true, otherwise it returns
@@ -1737,8 +1739,8 @@ public:
    * \param instance instance Instance that calls this function.
    * \return \ref MM::Reflection::Variable containing the return value of this
    * function.
-   * \remark If this object is invalid ,empty \ref MM::Reflection::Variable will be return.
-   * \remark If the number or type of incoming argument is different
+   * \remark If this object is invalid ,empty \ref MM::Reflection::Variable will
+   * be return. \remark If the number or type of incoming argument is different
    * from the argument required by the function held by this object, the
    * function held by this object will not be called and return an empty \ref
    * MM::Reflection::Variable.
@@ -1751,8 +1753,8 @@ public:
    * \param arg1 1st argument.
    * \return \ref MM::Reflection::Variable containing the return value of this
    * function.
-   * \remark If this object is invalid ,empty \ref MM::Reflection::Variable will be return.
-   * \remark If the number or type of incoming argument is different
+   * \remark If this object is invalid ,empty \ref MM::Reflection::Variable will
+   * be return. \remark If the number or type of incoming argument is different
    * from the argument required by the function held by this object, the
    * function held by this object will not be called and return an empty \ref
    * MM::Reflection::Variable.
@@ -1766,8 +1768,8 @@ public:
    * \param arg2 2ed argument.
    * \return \ref MM::Reflection::Variable containing the return value of this
    * function.
-   * \remark If this object is invalid ,empty \ref MM::Reflection::Variable will be return.
-   * \remark If the number or type of incoming argument is different
+   * \remark If this object is invalid ,empty \ref MM::Reflection::Variable will
+   * be return. \remark If the number or type of incoming argument is different
    * from the argument required by the function held by this object, the
    * function held by this object will not be called and return an empty \ref
    * MM::Reflection::Variable.
@@ -1782,8 +1784,8 @@ public:
    * \param arg3 3rd argument.
    * \return \ref MM::Reflection::Variable containing the return value of this
    * function.
-   * \remark If this object is invalid ,empty \ref MM::Reflection::Variable will be return.
-   * \remark If the number or type of incoming argument is different
+   * \remark If this object is invalid ,empty \ref MM::Reflection::Variable will
+   * be return. \remark If the number or type of incoming argument is different
    * from the argument required by the function held by this object, the
    * function held by this object will not be called and return an empty \ref
    * MM::Reflection::Variable.
@@ -1800,8 +1802,8 @@ public:
    * \param arg4 4th argument.
    * \return \ref MM::Reflection::Variable containing the return value of this
    * function.
-   * \remark If this object is invalid ,empty \ref MM::Reflection::Variable will be return.
-   * \remark If the number or type of incoming argument is different
+   * \remark If this object is invalid ,empty \ref MM::Reflection::Variable will
+   * be return. \remark If the number or type of incoming argument is different
    * from the argument required by the function held by this object, the
    * function held by this object will not be called and return an empty \ref
    * MM::Reflection::Variable.
@@ -1819,8 +1821,8 @@ public:
    * \param arg5 5th argument.
    * \return \ref MM::Reflection::Variable containing the return value of this
    * function.
-   * \remark If this object is invalid ,empty \ref MM::Reflection::Variable will be return.
-   * \remark If the number or type of incoming argument is different
+   * \remark If this object is invalid ,empty \ref MM::Reflection::Variable will
+   * be return. \remark If the number or type of incoming argument is different
    * from the argument required by the function held by this object, the
    * function held by this object will not be called and return an empty \ref
    * MM::Reflection::Variable.
@@ -1839,8 +1841,8 @@ public:
    * \param arg6 6th argument.
    * \return \ref MM::Reflection::Variable containing the return value of this
    * function.
-   * \remark If this object is invalid ,empty \ref MM::Reflection::Variable will be return.
-   * \remark If the number or type of incoming argument is different
+   * \remark If this object is invalid ,empty \ref MM::Reflection::Variable will
+   * be return. \remark If the number or type of incoming argument is different
    * from the argument required by the function held by this object, the
    * function held by this object will not be called and return an empty \ref
    * MM::Reflection::Variable.
@@ -1855,21 +1857,23 @@ public:
    * \param args The list of arguments,
    * \return \ref MM::Reflection::Variable containing the return value of this
    * function.
-   * \remark If this object is invalid ,empty \ref MM::Reflection::Variable will be return.
-   * \remark If the number or type of incoming argument is different
+   * \remark If this object is invalid ,empty \ref MM::Reflection::Variable will
+   * be return. \remark If the number or type of incoming argument is different
    * from the argument required by the function held by this object, the
    * function held by this object will not be called and return an empty \ref
    * MM::Reflection::Variable.
    */
   Variable Invoke(Variable& instance, std::vector<Variable>& args) const;
 
-private:
-  Method(const std::string& method_name, const std::shared_ptr<MethodWrapperBase>& method_wrapper);
+ private:
+  Method(const std::string& method_name,
+         const std::shared_ptr<MethodWrapperBase>& method_wrapper);
 
-  static Method CreateMethod(const std::string& method_name, const std::shared_ptr<MethodWrapperBase> 
-                             & method_wrapper);
+  static Method CreateMethod(
+      const std::string& method_name,
+      const std::shared_ptr<MethodWrapperBase>& method_wrapper);
 
-private:
+ private:
   std::string method_name_;
   std::weak_ptr<MethodWrapperBase> method_wrapper_{};
 };

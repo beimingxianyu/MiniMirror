@@ -6,26 +6,6 @@
 
 namespace MM {
 namespace Utils {
-template <typename... BoolArgs>
-static bool CheckAllTrue(bool arg1, BoolArgs... args) {
-  return arg1 & CheckAllTrue(args...);
-}
-
-template <typename... Args>
-class LastArg;
-
-template <typename LastArgType>
-class LastArg<LastArgType> {
- public:
-  using Type = LastArgType;
-};
-
-template <typename FirstArg, typename... Args>
-class LastArg<FirstArg, Args...> {
- public:
-  using Type = typename LastArg<Args...>::Type;
-};
-
 template <typename ElementType, typename Destructor, typename... Args>
 std::shared_ptr<ElementType> MakeSharedWithDestructor(Destructor destructor,
                                                       Args&&... args) {
@@ -45,5 +25,6 @@ typename std::decay<IntegerType>::type IntegerMult(IntegerType integer_value,
   return static_cast<typename std::decay<IntegerType>::type>(
       std::floor(static_cast<float>(integer_value) * float_value + 0.5));
 }
+
 }  // namespace Utils
 }  // namespace MM

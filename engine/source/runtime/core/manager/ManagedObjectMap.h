@@ -386,6 +386,7 @@ ManagedObjectMultiMap<KeyType, ValueType, Allocator>::operator=(
   }
 
   std::lock(data_mutex_, other.data_mutex_);
+
   if (!data_.empty()) {
     LOG_ERROR(
         "If there is data in the original container but it is reassigned, an "
@@ -394,8 +395,8 @@ ManagedObjectMultiMap<KeyType, ValueType, Allocator>::operator=(
   std::unique_lock<std::shared_mutex> main_guard(data_mutex_, std::adopt_lock),
       other_guard(other.data_mutex_, std::adopt_lock);
 
-  ThisType::operator=(std::move(other));
-  data_ = std::move(data_);
+  BashType ::operator=(std::move(other));
+  data_ = std::move(other.data_);
 
   return *this;
 }
