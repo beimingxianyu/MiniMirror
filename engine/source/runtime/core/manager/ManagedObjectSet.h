@@ -8,6 +8,7 @@
 
 namespace MM {
 namespace Manager {
+// TODO Add custom comparator functionality(set, multiset, map, multimap)
 template <typename ObjectType,
           typename Allocator = std::allocator<ManagedObjectWrapper<ObjectType>>>
 class ManagedObjectSet
@@ -17,8 +18,8 @@ class ManagedObjectSet
   using ThisType = ManagedObjectSet<ObjectType, Allocator>;
   using BaseType = ManagedObjectTableBase<ObjectType, ObjectType,
                                           RelationshipContainerTrait>;
-  using HandlerType =
-      ManagedObjectHandler<ObjectType, ObjectType, RelationshipContainerTrait>;
+  using HandlerType = typename BaseType::HandlerType;
+  using WrapperType = typename BaseType::WrapperType;
   using ContainerType =
       std::set<ManagedObjectWrapper<ObjectType>, std::less<>, Allocator>;
 
@@ -73,8 +74,8 @@ class ManagedObjectMultiSet
   using ThisType = ManagedObjectMultiSet<ObjectType, Allocator>;
   using BaseType = ManagedObjectTableBase<ObjectType, ObjectType,
                                           RelationshipContainerTrait>;
-  using HandlerType =
-      ManagedObjectHandler<ObjectType, ObjectType, RelationshipContainerTrait>;
+  using HandlerType = typename BaseType::HandlerType;
+  using WrapperType = typename BaseType::WrapperType;
   using ContainerType =
       std::multiset<ManagedObjectWrapper<ObjectType>, std::less<>, Allocator>;
 

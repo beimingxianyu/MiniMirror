@@ -18,8 +18,8 @@ class ManagedObjectList
   using ThisType = ManagedObjectList<ObjectType, Allocator>;
   using BaseType = ManagedObjectTableBase<ObjectType, ObjectType,
                                           RelationshipContainerTrait>;
-  using HandlerType =
-      ManagedObjectHandler<ObjectType, ObjectType, RelationshipContainerTrait>;
+  using HandlerType = typename BaseType::HandlerType;
+  using WrapperType = typename BaseType::WrapperType;
   using ContainerType = std::list<ManagedObjectWrapper<ObjectType>>;
 
  public:

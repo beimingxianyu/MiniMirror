@@ -27,6 +27,8 @@ TEST(manager, map) {
   EXPECT_EQ(map_data.AddObject(2, std::string("3"), *handler4),
             MM::ExecuteResult::SUCCESS);
   EXPECT_EQ(map_data.GetObject(1, *handler3), MM::ExecuteResult::SUCCESS);
+  std::uint32_t temp = 2;
+  EXPECT_EQ(map_data.Have(temp), true);
   EXPECT_EQ(map_data.Have(2), true);
   EXPECT_EQ(map_data.Have(1), true);
   EXPECT_EQ(map_data.Have(5), false);

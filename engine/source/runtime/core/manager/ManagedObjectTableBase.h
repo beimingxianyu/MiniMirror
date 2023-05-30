@@ -44,6 +44,40 @@ class ManagedObjectWrapper {
     return lhs < *(rhs.managed_object_);
   }
 
+  friend bool operator==(const ManagedObjectWrapper<ManagedType>& lhs,
+                         const ManagedObjectWrapper<ManagedType>& rhs) {
+    return lhs.managed_object_ == rhs.managed_object_;
+  }
+
+  friend bool operator==(const ManagedObjectWrapper<ManagedType>& lhs,
+                         const ManagedType& rhs) {
+    return *(lhs.managed_object_) == rhs;
+  }
+
+  friend bool operator==(const ManagedType& lhs,
+                         const ManagedObjectWrapper<ManagedType>& rhs) {
+    return lhs == *(rhs.managed_object_);
+  }
+
+ public:
+  template <typename Less = std::less<ManagedType>>
+  struct LessWrapper {
+    bool operator()(const ManagedObjectWrapper<ManagedType>& lhs,
+                    const ManagedObjectWrapper<ManagedType>& rhs) const;
+  };
+
+  template <typename Equal = std::equal_to<ManagedType>>
+  struct EqualWrapper {
+    bool operator()(const ManagedObjectWrapper<ManagedType>& lhs,
+                    const ManagedObjectWrapper<ManagedType>& rhs) const;
+  };
+
+  template <typename Hash = std::hash<ManagedType>>
+  struct HashWrapper {
+    std::uint64_t operator()(
+        const ManagedObjectWrapper<ManagedType>& object_wrapper) const;
+  };
+
  public:
   std::uint32_t GetUseCount() const;
 
@@ -63,6 +97,29 @@ class ManagedObjectWrapper {
   std::unique_ptr<ManagedType> managed_object_;
   std::unique_ptr<std::atomic_uint32_t> use_count_{nullptr};
 };
+
+template <typename ManagedType>
+template <typename Hash>
+std::uint64_t ManagedObjectWrapper<ManagedType>::HashWrapper<Hash>::operator()(
+    const ManagedObjectWrapper<ManagedType>& object_wrapper) const {
+  return Hash{}(*(object_wrapper.managed_object_));
+}
+
+template <typename ManagedType>
+template <typename Equal>
+bool ManagedObjectWrapper<ManagedType>::EqualWrapper<Equal>::operator()(
+    const ManagedObjectWrapper<ManagedType>& lhs,
+    const ManagedObjectWrapper<ManagedType>& rhs) const {
+  return Equal{}(*(lhs.managed_object_), *(rhs.managed_object_));
+}
+
+template <typename ManagedType>
+template <typename Less>
+bool ManagedObjectWrapper<ManagedType>::LessWrapper<Less>::operator()(
+    const ManagedObjectWrapper<ManagedType>& lhs,
+    const ManagedObjectWrapper<ManagedType>& rhs) const {
+  return Less{}(*(lhs.managed_object_), *(rhs.managed_object_));
+}
 
 template <typename ManagedType>
 ManagedObjectWrapper<ManagedType>::ManagedObjectWrapper(
@@ -137,6 +194,7 @@ class ManagedObjectTableBase : virtual public MM::MMObject {
  public:
   using HandlerType =
       ManagedObjectHandler<KeyType, ValueType, RelationshipContainerTrait>;
+  using WrapperType = ManagedObjectWrapper<ValueType>;
 
  public:
   ManagedObjectTableBase() = default;

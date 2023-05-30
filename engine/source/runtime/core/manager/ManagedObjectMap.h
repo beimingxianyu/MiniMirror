@@ -17,8 +17,8 @@ class ManagedObjectMap
   using ThisType = ManagedObjectMap<KeyType, ValueType, Allocator>;
   using BashType =
       ManagedObjectTableBase<KeyType, ValueType, RelationshipContainerTrait>;
-  using HandlerType =
-      ManagedObjectHandler<KeyType, ValueType, RelationshipContainerTrait>;
+  using HandlerType = typename BashType::HandlerType;
+  using WrapperType = typename BashType::WrapperType;
   using ContainerType = std::map<KeyType, ManagedObjectWrapper<ValueType>,
                                  std::less<KeyType>, Allocator>;
 
