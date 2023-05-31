@@ -2,6 +2,7 @@
 
 #include <map>
 
+#include "runtime/core/manager/ManagedObjectHandler.h"
 #include "runtime/core/manager/ManagedObjectTableBase.h"
 
 namespace MM {
@@ -11,14 +12,14 @@ template <typename KeyType, typename ValueType,
           typename Allocator = std::allocator<
               std::pair<const KeyType, ManagedObjectWrapper<ValueType>>>>
 class ManagedObjectMap
-    : public ManagedObjectTableBase<KeyType, ValueType, KeyTrait> {
+    : public ManagedObjectTableBase<KeyType, ValueType, NodeKeyTrait> {
  public:
-  using RelationshipContainerTrait = KeyTrait;
+  using RelationshipContainerTrait = NodeKeyTrait;
   using ThisType = ManagedObjectMap<KeyType, ValueType, Allocator>;
-  using BashType =
+  using BaseType =
       ManagedObjectTableBase<KeyType, ValueType, RelationshipContainerTrait>;
-  using HandlerType = typename BashType::HandlerType;
-  using WrapperType = typename BashType::WrapperType;
+  using HandlerType = typename BaseType::HandlerType;
+  using WrapperType = typename BaseType::WrapperType;
   using ContainerType = std::map<KeyType, ManagedObjectWrapper<ValueType>,
                                  std::less<KeyType>, Allocator>;
 
@@ -69,14 +70,14 @@ template <typename KeyType, typename ValueType,
           typename Allocator = std::allocator<
               std::pair<const KeyType, ManagedObjectWrapper<ValueType>>>>
 class ManagedObjectMultiMap
-    : public ManagedObjectTableBase<KeyType, ValueType, KeyTrait> {
+    : public ManagedObjectTableBase<KeyType, ValueType, NodeKeyTrait> {
  public:
-  using RelationshipContainerTrait = KeyTrait;
+  using RelationshipContainerTrait = NodeKeyTrait;
   using ThisType = ManagedObjectMultiMap<KeyType, ValueType, Allocator>;
-  using BashType =
+  using BaseType =
       ManagedObjectTableBase<KeyType, ValueType, RelationshipContainerTrait>;
-  using HandlerType =
-      ManagedObjectHandler<KeyType, ValueType, RelationshipContainerTrait>;
+  using HandlerType = typename BaseType::HandlerType;
+  using WrapperType = typename BaseType::WrapperType;
   using ContainerType = std::multimap<KeyType, ManagedObjectWrapper<ValueType>,
                                       std::less<KeyType>, Allocator>;
 
@@ -128,8 +129,8 @@ class ManagedObjectMultiMap
                              HandlerType& handler) override;
 
   ExecuteResult RemoveObjectImp(const KeyType& removed_object_key,
-                                std::atomic_uint32_t* use_count_ptr,
-                                RelationshipContainerTrait trait) override;
+                                const std::atomic_uint32_t* use_count_ptr,
+                                NodeKeyTrait trait) override;
 
   ExecuteResult GetObjectImp(const KeyType& key,
                              HandlerType& handler) const override;
@@ -182,7 +183,7 @@ ManagedObjectMap<KeyType, ValueType, Allocator>::ManagedObjectMap(
     ManagedObjectMap&& other) noexcept {
   std::unique_lock<std::shared_mutex> guard{other.data_mutex_};
 
-  BashType::operator=(std::move(other));
+  BaseType::operator=(std::move(other));
   data_ = std::move(other.data_);
 }
 
@@ -204,7 +205,7 @@ ManagedObjectMap<KeyType, ValueType, Allocator>::operator=(
   std::unique_lock<std::shared_mutex> main_guard{data_mutex_, std::adopt_lock},
       other_guard{other.data_mutex_, std::adopt_lock};
 
-  BashType::operator=(std::move(other));
+  BaseType::operator=(std::move(other));
   data_ = std::move(other.data_);
 
   return *this;
@@ -274,7 +275,7 @@ ExecuteResult ManagedObjectMap<KeyType, ValueType, Allocator>::AddObjectImp(
   std::pair<typename ContainerType::iterator, bool> insert_result =
       data_.emplace(std::make_pair(key, std::move(managed_object)));
   HandlerType new_handler = HandlerType{
-      BashType::GetThisPtrPtr(), &(insert_result.first->first),
+      BaseType::GetThisPtrPtr(), &(insert_result.first->first),
       const_cast<ValueType*>(insert_result.first->second.GetObjectPtr()),
       insert_result.first->second.GetUseCountPtr()};
   guard.unlock();
@@ -325,7 +326,7 @@ ExecuteResult ManagedObjectMap<KeyType, ValueType, Allocator>::GetObjectImp(
     return ExecuteResult::PARENT_OBJECT_NOT_CONTAIN_SPECIFIC_CHILD_OBJECT;
   }
 
-  HandlerType new_handler{BashType::GetThisPtrPtr(), &(iter->first),
+  HandlerType new_handler{BaseType::GetThisPtrPtr(), &(iter->first),
                           const_cast<ValueType*>(iter->second.GetObjectPtr()),
                           iter->second.GetUseCountPtr()};
   guard.unlock();
@@ -373,7 +374,7 @@ ManagedObjectMultiMap<KeyType, ValueType, Allocator>::ManagedObjectMultiMap(
     ManagedObjectMultiMap&& other) noexcept {
   std::unique_lock<std::shared_mutex> guard(other.data_mutex_);
 
-  BashType::operator=(std::move(other));
+  BaseType::operator=(std::move(other));
   data_ = std::move(data_);
 }
 
@@ -395,7 +396,7 @@ ManagedObjectMultiMap<KeyType, ValueType, Allocator>::operator=(
   std::unique_lock<std::shared_mutex> main_guard(data_mutex_, std::adopt_lock),
       other_guard(other.data_mutex_, std::adopt_lock);
 
-  BashType ::operator=(std::move(other));
+  BaseType ::operator=(std::move(other));
   data_ = std::move(other.data_);
 
   return *this;
@@ -503,7 +504,7 @@ ManagedObjectMultiMap<KeyType, ValueType, Allocator>::AddObjectImp(
   typename ContainerType::iterator insert_result =
       data_.emplace(std::make_pair(key, std::move(managed_object)));
   HandlerType new_handler{
-      BashType::GetThisPtrPtr(), &(insert_result->first),
+      BaseType::GetThisPtrPtr(), &(insert_result->first),
       const_cast<ValueType*>(insert_result->second.GetObjectPtr()),
       insert_result->second.GetUseCountPtr()};
 
@@ -516,8 +517,8 @@ ManagedObjectMultiMap<KeyType, ValueType, Allocator>::AddObjectImp(
 template <typename KeyType, typename ValueType, typename Allocator>
 ExecuteResult
 ManagedObjectMultiMap<KeyType, ValueType, Allocator>::RemoveObjectImp(
-    const KeyType& removed_object_key, std::atomic_uint32_t* use_count_ptr,
-    RelationshipContainerTrait trait) {
+    const KeyType& removed_object_key,
+    const std::atomic_uint32_t* use_count_ptr, NodeKeyTrait trait) {
   std::unique_lock<std::shared_mutex> guard{data_mutex_};
   if (ThisType::this_ptr_ptr_ == nullptr) {
     return ExecuteResult::CUSTOM_ERROR;
@@ -560,7 +561,7 @@ ManagedObjectMultiMap<KeyType, ValueType, Allocator>::GetObjectImp(
   }
 
   HandlerType new_handler{
-      BashType::GetThisPtrPtr(), &(equal_range.first->first),
+      BaseType::GetThisPtrPtr(), &(equal_range.first->first),
       const_cast<ValueType*>(equal_range.first->second.GetObjectPtr()),
       equal_range.first->second.GetUseCountPtr()};
   guard.unlock();
@@ -591,7 +592,7 @@ ManagedObjectMultiMap<KeyType, ValueType, Allocator>::GetObjectImp(
        iter != equal_range.second; ++iter) {
     if (iter->second.GetUseCountPtr() == use_count_ptr) {
       HandlerType new_handler{
-          BashType::GetThisPtrPtr(), &(iter->first),
+          BaseType::GetThisPtrPtr(), &(iter->first),
           const_cast<ValueType*>(iter->second.GetObjectPtr()),
           iter->second.GetUseCountPtr()};
 
@@ -625,7 +626,7 @@ ManagedObjectMultiMap<KeyType, ValueType, Allocator>::GetObjectImp(
        iter != equal_range.second; ++iter) {
     if (iter->second.GetObject() == object) {
       HandlerType new_handler{
-          BashType::GetThisPtrPtr(), &(iter->first),
+          BaseType::GetThisPtrPtr(), &(iter->first),
           const_cast<ValueType*>(iter->second.GetObjectPtr()),
           iter->second.GetUseCountPtr()};
 
@@ -657,7 +658,7 @@ ManagedObjectMultiMap<KeyType, ValueType, Allocator>::GetObjectImp(
 
   for (typename ContainerType::const_iterator iter = equal_range.first;
        iter != equal_range.second; ++iter) {
-    handles.emplace_back(BashType::GetThisPtrPtr(), &(iter->first),
+    handles.emplace_back(BaseType::GetThisPtrPtr(), &(iter->first),
                          const_cast<ValueType*>(iter->second.GetObjectPtr()),
                          iter->second.GetUseCountPtr());
   }

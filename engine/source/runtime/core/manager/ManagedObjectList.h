@@ -3,6 +3,7 @@
 #include <cassert>
 #include <list>
 
+#include "runtime/core/manager/ManagedObjectHandler.h"
 #include "runtime/core/manager/ManagedObjectTableBase.h"
 #include "runtime/core/manager/import_other_system.h"
 
@@ -10,11 +11,9 @@ namespace MM {
 namespace Manager {
 template <typename ObjectType, typename Allocator = std::allocator<ObjectType>>
 class ManagedObjectList
-    : public ManagedObjectTableBase<ObjectType, ObjectType, ValueTrait> {
-  friend class ManagedObjectHandler<ObjectType, ObjectType, ValueTrait>;
-
+    : public ManagedObjectTableBase<ObjectType, ObjectType, NoKeyTrait> {
  public:
-  using RelationshipContainerTrait = ValueTrait;
+  using RelationshipContainerTrait = NoKeyTrait;
   using ThisType = ManagedObjectList<ObjectType, Allocator>;
   using BaseType = ManagedObjectTableBase<ObjectType, ObjectType,
                                           RelationshipContainerTrait>;
@@ -46,7 +45,7 @@ class ManagedObjectList
   ExecuteResult GetObject(const ObjectType& key, HandlerType& handle) const;
 
   ExecuteResult GetObject(const ObjectType& key,
-                          std::atomic_uint32_t* use_count_ptr,
+                          const std::atomic_uint32_t* use_count_ptr,
                           HandlerType& handle) const;
 
   ExecuteResult GetObject(const ObjectType& key,
@@ -55,7 +54,7 @@ class ManagedObjectList
   uint32_t GetUseCount(const ObjectType& key) const;
 
   uint32_t GetUseCount(const ObjectType& key,
-                       std::atomic_uint32_t* use_count_ptr) const;
+                       const std::atomic_uint32_t* use_count_ptr) const;
 
   void GetUseCount(const ObjectType& key,
                    std::vector<uint32_t>& use_counts) const;
@@ -67,8 +66,8 @@ class ManagedObjectList
                              HandlerType& handle) override;
 
   ExecuteResult RemoveObjectImp(const ObjectType& removed_object_key,
-                                std::atomic_uint32_t* use_count_ptr,
-                                RelationshipContainerTrait trait) override;
+                                const std::atomic_uint32_t* use_count_ptr,
+                                NoKeyTrait trait) override;
 
   ExecuteResult GetObjectImp(const ObjectType& key,
                              HandlerType& handle) const override;
@@ -111,7 +110,7 @@ void ManagedObjectList<ObjectType, Allocator>::GetUseCount(
 
 template <typename ObjectType, typename Allocator>
 uint32_t ManagedObjectList<ObjectType, Allocator>::GetUseCount(
-    const ObjectType& key, std::atomic_uint32_t* use_count_ptr) const {
+    const ObjectType& key, const std::atomic_uint32_t* use_count_ptr) const {
   return GetUseCountImp(key, use_count_ptr);
 }
 
@@ -175,7 +174,7 @@ std::uint32_t ManagedObjectList<ObjectType, Allocator>::GetUseCountImp(
 
 template <typename ObjectType, typename Allocator>
 ExecuteResult ManagedObjectList<ObjectType, Allocator>::GetObject(
-    const ObjectType& key, std::atomic_uint32_t* use_count_ptr,
+    const ObjectType& key, const std::atomic_uint32_t* use_count_ptr,
     HandlerType& handle) const {
   return GetObjectImp(key, use_count_ptr, handle);
 }
@@ -193,7 +192,7 @@ ExecuteResult ManagedObjectList<ObjectType, Allocator>::GetObjectImp(
   HandlerType new_handler;
   for (const auto& object : data_) {
     if (object.GetObject() == key && object.GetUseCountPtr() == use_count_ptr) {
-      new_handler = HandlerType(BaseType::GetThisPtrPtr(), nullptr,
+      new_handler = HandlerType(BaseType::GetThisPtrPtr(),
                                 const_cast<ObjectType*>(object.GetObjectPtr()),
                                 object.GetUseCountPtr());
       find = true;
@@ -234,8 +233,8 @@ ExecuteResult ManagedObjectList<ObjectType, Allocator>::AddObject(
 
 template <typename ObjectType, typename Allocator>
 ExecuteResult ManagedObjectList<ObjectType, Allocator>::RemoveObjectImp(
-    const ObjectType& removed_object_key, std::atomic_uint32_t* use_count_ptr,
-    RelationshipContainerTrait trait) {
+    const ObjectType& removed_object_key,
+    const std::atomic_uint32_t* use_count_ptr, NoKeyTrait trait) {
   std::unique_lock<std::shared_mutex> guard{data_mutex_};
   if (ThisType::this_ptr_ptr_ == nullptr) {
     return ExecuteResult::CUSTOM_ERROR;
@@ -322,7 +321,7 @@ ExecuteResult ManagedObjectList<ObjectType, Allocator>::GetObjectImp(
   std::shared_lock<std::shared_mutex> guard{data_mutex_};
   for (const auto& object : data_) {
     if (object.GetObject() == key) {
-      handlers.emplace_back(BaseType::GetThisPtrPtr(), nullptr,
+      handlers.emplace_back(BaseType::GetThisPtrPtr(),
                             const_cast<ObjectType*>(object.GetObjectPtr()),
                             object.GetUseCountPtr());
     }
@@ -344,7 +343,7 @@ ExecuteResult ManagedObjectList<ObjectType, Allocator>::GetObjectImp(
 
   for (auto iter = data_.begin(); iter == data_.end(); ++iter) {
     if (iter->GetObject() == key) {
-      new_handler = HandlerType{BaseType::GetThisPtrPtr(), nullptr,
+      new_handler = HandlerType{BaseType::GetThisPtrPtr(),
                                 const_cast<ObjectType*>(iter->GetObjectPtr()),
                                 iter->GetUseCountPtr()};
       find = true;
@@ -384,8 +383,8 @@ ExecuteResult ManagedObjectList<ObjectType, Allocator>::AddObjectImp(
   std::unique_lock<std::shared_mutex> guard{data_mutex_};
   data_.emplace_front(std::move(managed_object));
   HandlerType new_handler =
-      HandlerType{BaseType::GetThisPtrPtr(), nullptr,
-                  data_.front().GetObjectPtr(), data_.front().GetUseCountPtr()};
+      HandlerType{BaseType::GetThisPtrPtr(), data_.front().GetObjectPtr(),
+                  data_.front().GetUseCountPtr()};
   guard.unlock();
   handle = std::move(new_handler);
   return ExecuteResult::SUCCESS;

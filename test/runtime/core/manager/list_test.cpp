@@ -20,6 +20,7 @@ TEST(manager, list) {
   EXPECT_EQ(list_data.GetSize(), 0);
   EXPECT_EQ(list_data.AddObject(1, *handler1), MM::ExecuteResult::SUCCESS);
   EXPECT_EQ(list_data.AddObject(1, *handler1), MM::ExecuteResult::SUCCESS);
+  ASSERT_EQ(list_data.GetSize(), 1);
   EXPECT_EQ(list_data.GetUseCount(1, handler1->GetUseCountPtr()), 1);
   EXPECT_EQ(handler1->GetUseCount(), 1);
   EXPECT_EQ(list_data.AddObject(1, *handler2), MM::ExecuteResult::SUCCESS);
