@@ -85,8 +85,9 @@ class ManagedObjectList
       const ObjectType& key,
       const std::atomic_uint32_t* use_count_ptr) const override;
 
-  void GetUseCountImp(const ObjectType& key,
-                      std::vector<uint32_t>& use_counts) const override;
+  ExecuteResult GetUseCountImp(
+      const ObjectType& key,
+      std::vector<std::uint32_t>& use_counts) const override;
 
  private:
   std::list<ManagedObjectWrapper<ObjectType>> data_{};
@@ -121,19 +122,27 @@ uint32_t ManagedObjectList<ObjectType, Allocator>::GetUseCount(
 }
 
 template <typename ObjectType, typename Allocator>
-void ManagedObjectList<ObjectType, Allocator>::GetUseCountImp(
-    const ObjectType& key, std::vector<uint32_t>& use_counts) const {
+ExecuteResult ManagedObjectList<ObjectType, Allocator>::GetUseCountImp(
+    const ObjectType& key, std::vector<std::uint32_t>& use_counts) const {
   if (!ThisType::TestMoveWhenGetUseCount()) {
-    return;
+    return ExecuteResult::OPERATION_NOT_SUPPORTED;
   }
 
   std::shared_lock<std::shared_mutex> guard{data_mutex_};
 
+  bool have = false;
   for (const auto& object : data_) {
     if (key == object.GetObject()) {
+      have = true;
       use_counts.push_back(object.GetUseCount());
     }
   }
+
+  if (!have) {
+    return ExecuteResult::PARENT_OBJECT_NOT_CONTAIN_SPECIFIC_CHILD_OBJECT;
+  }
+
+  return ExecuteResult::SUCCESS;
 }
 
 template <typename ObjectType, typename Allocator>

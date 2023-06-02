@@ -22,7 +22,7 @@ class ManagedObjectUnorderedSet
   using WrapperType = typename BaseType::WrapperType;
   using HandlerType = typename BaseType::HandlerType;
   using ContainerType = std::unordered_set<
-      ObjectType, typename WrapperType::template HashWrapper<Hash>,
+      WrapperType, typename WrapperType::template HashWrapper<Hash>,
       typename WrapperType::template EqualWrapper<Equal>, Allocator>;
 
   friend struct LockAll<ThisType>;
@@ -31,7 +31,9 @@ class ManagedObjectUnorderedSet
       const ManagedObjectTable& managed_object_table, std::uint64_t hash_value);
 
  public:
-  ManagedObjectUnorderedSet() : data_(8) {}
+  ManagedObjectUnorderedSet()
+      : ManagedObjectTableBase<ObjectType, ObjectType, NoKeyTrait>(this),
+        data_(8) {}
   ~ManagedObjectUnorderedSet() {
     if (!data_.empty()) {
       LOG_ERROR(
@@ -39,12 +41,14 @@ class ManagedObjectUnorderedSet
           "access error.");
     }
   }
-  explicit ManagedObjectUnorderedSet(std::uint32_t size) : data_(size) {}
+  explicit ManagedObjectUnorderedSet(std::uint32_t size)
+      : ManagedObjectTableBase<ObjectType, ObjectType, NoKeyTrait>(this),
+        data_(size) {}
   ManagedObjectUnorderedSet(const ManagedObjectUnorderedSet& other) = delete;
   ManagedObjectUnorderedSet(ManagedObjectUnorderedSet&& other) noexcept {
     LockAll guard{other};
 
-    BaseType::operator=(other);
+    BaseType::operator=(std::move(other));
     data_ = std::move(other);
   }
   ManagedObjectUnorderedSet& operator=(const ManagedObjectUnorderedSet& other) =
@@ -70,9 +74,10 @@ class ManagedObjectUnorderedSet
           "If there is data in the original container but it is reassigned, an "
           "access error will occur.");
     }
-    LockAll main_guard(*this), other_guard(other);
+    LockAll main_guard(*this, std::adopt_lock),
+        other_guard(other, std::adopt_lock);
 
-    BaseType::operator=(other);
+    BaseType::operator=(std::move(other));
     data_ = std::move(other.data_);
 
     return *this;
@@ -118,6 +123,10 @@ class ManagedObjectUnorderedSet
     ResizeWhenNeeded();
 
     std::unique_lock<std::shared_mutex> guard{ChooseMutexIn(managed_object)};
+    // The repeated insertion operation is not supported.
+    if (data_.count(managed_object)) {
+      return ExecuteResult::OPERATION_NOT_SUPPORTED;
+    }
 
     typename std::pair<typename ContainerType::iterator, bool> insert_result =
         data_.emplace(std::move(managed_object));
@@ -195,10 +204,13 @@ class ManagedObjectUnorderedSet
 
  private:
   void ResizeWhenNeeded() {
-    LockAll guard(*this);
-    if (data_.size() >= data_.bucket_count() - 1) {
-      assert(data_.bucket_count() < UINT_LEAST64_MAX / 2);
-      data_.reserve(data_.bucket_count() * 2);
+    if (data_.bucket_count() - data_.size() < 128) {
+      std::uint32_t new_size = data_.bucket_count() * 2;
+      if (new_size < 2048) {
+        new_size = 2048;
+      }
+      LockAll guard(*this);
+      data_.reserve(new_size);
     }
   }
 
@@ -241,7 +253,7 @@ class ManagedObjectUnorderedMultiSet
   using WrapperType = typename BaseType::WrapperType;
   using HandlerType = typename BaseType::HandlerType;
   using ContainerType = std::unordered_multiset<
-      ObjectType, typename WrapperType::template HashWrapper<Hash>,
+      WrapperType, typename WrapperType::template HashWrapper<Hash>,
       typename WrapperType::template EqualWrapper<Equal>, Allocator>;
 
   friend struct LockAll<ThisType>;
@@ -250,7 +262,9 @@ class ManagedObjectUnorderedMultiSet
       const ManagedObjectTable& managed_object_table, std::uint64_t hash_value);
 
  public:
-  ManagedObjectUnorderedMultiSet() : data_(8) {}
+  ManagedObjectUnorderedMultiSet()
+      : ManagedObjectTableBase<ObjectType, ObjectType, NoKeyTrait>(this),
+        data_(8) {}
   ~ManagedObjectUnorderedMultiSet() {
     if (!data_.empty()) {
       LOG_ERROR(
@@ -258,14 +272,16 @@ class ManagedObjectUnorderedMultiSet
           "access error.");
     }
   }
-  ManagedObjectUnorderedMultiSet(std::uint32_t size) : data_(size) {}
+  explicit ManagedObjectUnorderedMultiSet(std::uint32_t size)
+      : ManagedObjectTableBase<ObjectType, ObjectType, NoKeyTrait>(this),
+        data_(size) {}
   ManagedObjectUnorderedMultiSet(const ManagedObjectUnorderedMultiSet& other) =
       delete;
   ManagedObjectUnorderedMultiSet(
       ManagedObjectUnorderedMultiSet&& other) noexcept {
     LockAll guard(other);
 
-    BaseType::operator=(other);
+    BaseType::operator=(std::move(other));
     data_ = std::move(data_);
   }
   ManagedObjectUnorderedMultiSet& operator=(
@@ -291,9 +307,10 @@ class ManagedObjectUnorderedMultiSet
           "If there is data in the original container but it is reassigned, an "
           "access error will occur.");
     }
-    LockAll main_guard(*this), other_guard(other);
+    LockAll main_guard(*this, std::adopt_lock),
+        other_guard(other, std::adopt_lock);
 
-    BaseType::operator=(other);
+    BaseType::operator=(std::move(other));
     data_ = std::move(other.data_);
 
     return *this;
@@ -317,6 +334,50 @@ class ManagedObjectUnorderedMultiSet
   bool IsMultiContainer() const override { return true; }
 
   bool IsRelationshipContainer() const override { return false; }
+
+  ExecuteResult AddObject(ObjectType&& managed_object, HandlerType& handler) {
+    return AddObjectImp(std::move(managed_object), handler);
+  }
+
+  ExecuteResult RemoveObject(const ObjectType& removed_object_key,
+                             const std::atomic_uint32_t* use_count_ptr,
+                             RelationshipContainerTrait trait) {
+    return RemoveObjectImp(removed_object_key, use_count_ptr, trait);
+  }
+
+  ExecuteResult GetObject(const ObjectType& key, HandlerType& handler) const {
+    return GetObjectImp(key, handler);
+  }
+
+  ExecuteResult GetObject(const ObjectType& key,
+                          const std::atomic_uint32_t* use_count_ptr,
+                          HandlerType& handler) const {
+    return GetObjectImp(key, use_count_ptr, handler);
+  }
+
+  ExecuteResult GetObject(const ObjectType& key, const ObjectType& object,
+                          HandlerType& handler) const {
+    return GetObjectImp(key, object, handler);
+  }
+
+  ExecuteResult GetObject(const ObjectType& key,
+                          std::vector<HandlerType>& handlers) const {
+    return GetObject(key, handlers);
+  }
+
+  std::uint32_t GetUseCount(const ObjectType& key) const {
+    return GetUseCountImp(key);
+  }
+
+  std::uint32_t GetUseCount(const ObjectType& key,
+                            const std::atomic_uint32_t* use_count) const {
+    return GetUseCountImp(key, use_count);
+  }
+
+  ExecuteResult GetUseCount(const ObjectType& key,
+                            std::vector<std::uint32_t>& use_counts) const {
+    return GetUseCountImp(key, use_counts);
+  }
 
  protected:
   ExecuteResult AddObjectImp(ObjectType&& managed_object,
@@ -399,7 +460,7 @@ class ManagedObjectUnorderedMultiSet
 
   ExecuteResult GetObjectImp(const ObjectType& key,
                              const std::atomic_uint32_t* use_count_ptr,
-                             ThisType::HandlerType& handle) const override {
+                             HandlerType& handle) const override {
     if (!ThisType::TestMovedWhenGetObject()) {
       return ExecuteResult::OPERATION_NOT_SUPPORTED;
     }
@@ -504,10 +565,11 @@ class ManagedObjectUnorderedMultiSet
     return 0;
   }
 
-  void GetUseCountImp(const ObjectType& key,
-                      std::vector<std::uint32_t>& use_counts) const override {
+  ExecuteResult GetUseCountImp(
+      const ObjectType& key,
+      std::vector<std::uint32_t>& use_counts) const override {
     if (!ThisType::TestMoveWhenGetUseCount()) {
-      return;
+      return ExecuteResult::OPERATION_NOT_SUPPORTED;
     }
 
     std::shared_lock<std::shared_mutex> guard{ChooseMutexIn(key)};
@@ -516,21 +578,26 @@ class ManagedObjectUnorderedMultiSet
               typename ContainerType::iterator>
         equal_range = data_.equal_range(key);
     if (equal_range.first != equal_range.second) {
-      return;
+      return ExecuteResult::PARENT_OBJECT_NOT_CONTAIN_SPECIFIC_CHILD_OBJECT;
     }
 
     for (typename ContainerType::iterator iter = equal_range.first;
          iter == equal_range.second; ++iter) {
       use_counts.emplace_back(iter->GetUseCount());
     }
+
+    return ExecuteResult::SUCCESS;
   }
 
  private:
   void ResizeWhenNeeded() {
-    LockAll guard(*this);
-    if (data_.size() >= data_.bucket_count() - 1) {
-      assert(data_.bucket_count() < UINT_LEAST64_MAX / 2);
-      data_.reserve(data_.bucket_count() * 2);
+    if (data_.bucket_count() - data_.size() < 128) {
+      std::uint32_t new_size = data_.bucket_count() * 2;
+      if (new_size < 2048) {
+        new_size = 2048;
+      }
+      LockAll guard(*this);
+      data_.reserve(new_size);
     }
   }
 

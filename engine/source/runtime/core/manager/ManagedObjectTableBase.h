@@ -283,8 +283,8 @@ class ManagedObjectTableBase : virtual public MM::MMObject {
   virtual std::uint32_t GetUseCountImp(const KeyType& key,
                                        const ValueType& object) const;
 
-  virtual void GetUseCountImp(const KeyType& key,
-                              std::vector<std::uint32_t>& use_counts) const;
+  virtual ExecuteResult GetUseCountImp(
+      const KeyType& key, std::vector<std::uint32_t>& use_counts) const;
 
  protected:
   // If it is virtual inheritance, the update of the value will be handed over
@@ -374,10 +374,13 @@ bool ManagedObjectTableBase<KeyType, ValueType, RelationshipContainerTrait>::
 
 template <typename KeyType, typename ValueType,
           typename RelationshipContainerTrait>
-void ManagedObjectTableBase<KeyType, ValueType, RelationshipContainerTrait>::
+ExecuteResult
+ManagedObjectTableBase<KeyType, ValueType, RelationshipContainerTrait>::
     GetUseCountImp(const KeyType& key,
                    std::vector<std::uint32_t>& use_counts) const {
   LOG_FATAL("This function should not be called.");
+
+  return ExecuteResult::UNDEFINED_ERROR;
 }
 
 template <typename KeyType, typename ValueType,

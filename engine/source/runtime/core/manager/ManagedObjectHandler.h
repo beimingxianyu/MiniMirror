@@ -334,7 +334,7 @@ class ManagedObjectHandler<KeyType, ManagedType, NodeKeyTrait> {
 template <typename KeyType, typename ManagedType>
 class ManagedObjectHandler<KeyType, ManagedType, HashKeyTrait> {
  public:
-  using RelationshipContainerTrait = NodeKeyTrait;
+  using RelationshipContainerTrait = HashKeyTrait;
   using ThisType =
       ManagedObjectHandler<KeyType, ManagedType, RelationshipContainerTrait>;
   using DataTableType =

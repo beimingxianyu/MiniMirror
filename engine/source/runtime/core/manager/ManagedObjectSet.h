@@ -146,8 +146,9 @@ class ManagedObjectMultiSet
       const ObjectType& key,
       const std::atomic_uint32_t* use_count_ptr) const override;
 
-  void GetUseCountImp(const ObjectType& key,
-                      std::vector<std::uint32_t>& use_counts) const override;
+  ExecuteResult GetUseCountImp(
+      const ObjectType& key,
+      std::vector<std::uint32_t>& use_counts) const override;
 
  private:
   ContainerType data_{};
@@ -173,10 +174,10 @@ ManagedObjectSet<ObjectType, Allocator>::~ManagedObjectSet() {
 }
 
 template <typename ObjectType, typename Allocator>
-void ManagedObjectMultiSet<ObjectType, Allocator>::GetUseCountImp(
+ExecuteResult ManagedObjectMultiSet<ObjectType, Allocator>::GetUseCountImp(
     const ObjectType& key, std::vector<std::uint32_t>& use_counts) const {
   if (!ThisType::TestMoveWhenGetUseCount()) {
-    return;
+    return ExecuteResult::OPERATION_NOT_SUPPORTED;
   }
 
   std::shared_lock<std::shared_mutex> guard{data_mutex_};
@@ -184,13 +185,15 @@ void ManagedObjectMultiSet<ObjectType, Allocator>::GetUseCountImp(
   std::pair<typename ContainerType::iterator, typename ContainerType::iterator>
       equal_range = data_.equal_range(key);
   if (equal_range.first != equal_range.second) {
-    return;
+    return ExecuteResult::PARENT_OBJECT_NOT_CONTAIN_SPECIFIC_CHILD_OBJECT;
   }
 
   for (typename ContainerType::iterator iter = equal_range.first;
        iter == equal_range.second; ++iter) {
     use_counts.emplace_back(iter->GetUseCount());
   }
+
+  return ExecuteResult::SUCCESS;
 }
 
 template <typename ObjectType, typename Allocator>

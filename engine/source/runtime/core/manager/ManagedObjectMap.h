@@ -154,8 +154,9 @@ class ManagedObjectMultiMap
   uint32_t GetUseCountImp(const KeyType& key,
                           const ValueType& object) const override;
 
-  void GetUseCountImp(const KeyType& key,
-                      std::vector<uint32_t>& use_counts) const override;
+  ExecuteResult GetUseCountImp(
+      const KeyType& key,
+      std::vector<std::uint32_t>& use_counts) const override;
 
  private:
   ContainerType data_{};
@@ -735,10 +736,11 @@ uint32_t ManagedObjectMultiMap<KeyType, ValueType, Allocator>::GetUseCountImp(
 }
 
 template <typename KeyType, typename ValueType, typename Allocator>
-void ManagedObjectMultiMap<KeyType, ValueType, Allocator>::GetUseCountImp(
-    const KeyType& key, std::vector<uint32_t>& use_counts) const {
+ExecuteResult
+ManagedObjectMultiMap<KeyType, ValueType, Allocator>::GetUseCountImp(
+    const KeyType& key, std::vector<std::uint32_t>& use_counts) const {
   if (!ThisType::TestMoveWhenGetUseCount()) {
-    return;
+    return ExecuteResult::OPERATION_NOT_SUPPORTED;
   }
 
   std::shared_lock<std::shared_mutex> guard{data_mutex_};
@@ -746,13 +748,15 @@ void ManagedObjectMultiMap<KeyType, ValueType, Allocator>::GetUseCountImp(
             typename ContainerType::const_iterator>
       equal_range = data_.equal_range(key);
   if (equal_range.first == equal_range.second) {
-    return;
+    return ExecuteResult::PARENT_OBJECT_NOT_CONTAIN_SPECIFIC_CHILD_OBJECT;
   }
 
   for (typename ContainerType::const_iterator iter = equal_range.first;
        iter != equal_range.second; ++iter) {
     use_counts.emplace_back(iter->second.GetUseCount());
   }
+
+  return ExecuteResult::SUCCESS;
 }
 }  // namespace Manager
 }  // namespace MM

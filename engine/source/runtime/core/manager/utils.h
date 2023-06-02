@@ -3,6 +3,8 @@
 #include <mutex>
 #include <shared_mutex>
 
+#include "runtime/core/manager/import_other_system.h"
+
 namespace MM {
 namespace Manager {
 
@@ -25,12 +27,9 @@ struct LockAll {
         guard13_(object.data_mutex13_, std::defer_lock),
         guard14_(object.data_mutex14_, std::defer_lock),
         guard15_(object.data_mutex15_, std::defer_lock) {
-    std::lock(object.data_mutex0_, object.data_mutex1_, object.data_mutex2_,
-              object.data_mutex3_, object.data_mutex4_, object.data_mutex5_,
-              object.data_mutex6_, object.data_mutex7_, object.data_mutex8_,
-              object.data_mutex9_, object.data_mutex10_, object.data_mutex11_,
-              object.data_mutex12_, object.data_mutex13_, object.data_mutex14_,
-              object.data_mutex15_);
+    std::lock(guard0_, guard1_, guard2_, guard3_, guard4_, guard5_, guard6_,
+              guard7_, guard8_, guard9_, guard10_, guard11_, guard12_, guard13_,
+              guard14_, guard15_);
   }
 
   LockAll(const ManagedObjectTable& object, std::adopt_lock_t adopt)
@@ -115,53 +114,43 @@ struct LockAll {
 template <typename ManagedObjectTable>
 std::shared_mutex& ChooseMutex(const ManagedObjectTable& managed_object_table,
                                std::uint64_t hash_value) {
-  std::uint64_t index = hash_value & 0x1111;  // hash_value % 16
+  std::uint64_t index = hash_value & 0xF;  // hash_value % 16
   switch (index) {
     case 0:
       return managed_object_table.data_mutex0_;
-      break;
     case 1:
       return managed_object_table.data_mutex1_;
-      break;
     case 2:
       return managed_object_table.data_mutex2_;
-      break;
     case 3:
       return managed_object_table.data_mutex3_;
-      break;
+    case 4:
+      return managed_object_table.data_mutex4_;
     case 5:
       return managed_object_table.data_mutex5_;
-      break;
     case 6:
       return managed_object_table.data_mutex6_;
-      break;
     case 7:
       return managed_object_table.data_mutex7_;
-      break;
     case 8:
       return managed_object_table.data_mutex8_;
-      break;
     case 9:
       return managed_object_table.data_mutex9_;
-      break;
     case 10:
       return managed_object_table.data_mutex10_;
-      break;
     case 11:
       return managed_object_table.data_mutex11_;
-      break;
     case 12:
       return managed_object_table.data_mutex12_;
-      break;
     case 13:
       return managed_object_table.data_mutex13_;
-      break;
     case 14:
       return managed_object_table.data_mutex14_;
-      break;
     case 15:
       return managed_object_table.data_mutex15_;
-      break;
+    default:
+      LOG_FATAL("Error branch.");
+      return managed_object_table.data_mutex0_;
   }
 }
 }  // namespace Manager
