@@ -4,7 +4,8 @@
 #include <sstream>
 #include <unordered_set>
 
-#include "uuid.h"
+#include "utils/ConcurrentHashTable.h"
+#include "utils/uuid.h"
 
 TEST(Utils, UUID) {
   std::uint64_t clock1 = 0x0123456789abcdef;
@@ -37,4 +38,9 @@ TEST(Utils, UUID) {
     EXPECT_EQ(all_uuid.count(new_uuid), 0);
     all_uuid.insert(new_uuid);
   }
+}
+
+TEST(Utils, ConcurrentHashTable_set) {
+  MM::Utils::ConcurrentSet<std::string> concurrent_set;
+  ASSERT_EQ(concurrent_set.Emplace("Asset1").first, std::string("Asset1"));
 }
