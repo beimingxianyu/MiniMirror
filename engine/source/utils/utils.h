@@ -26,5 +26,20 @@ typename std::decay<IntegerType>::type IntegerMult(IntegerType integer_value,
       std::floor(static_cast<float>(integer_value) * float_value + 0.5));
 }
 
+bool IsPrime(std::uint32_t x);
+
+bool IsPrime(std::uint64_t x);
+
+std::uint32_t MinPrime(std::uint32_t n);
+
+std::uint64_t MinPrime(std::uint64_t n);
+
+bool IsPrime32(std::uint32_t x);
+
+bool IsPrime64(std::uint64_t x);
+
+std::uint32_t MinPrime32(std::uint32_t n);
+
+std::uint64_t MinPrime64(std::uint64_t n);
 }  // namespace Utils
 }  // namespace MM
