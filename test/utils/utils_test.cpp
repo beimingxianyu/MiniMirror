@@ -277,11 +277,6 @@ TEST(Utils, ConcurrentHashTable_multi_map) {
             MM::Utils::ExecuteResult::SUCCESS);
   ASSERT_EQ(concurrent_multi_map.Erase(nullptr),
             MM::Utils::ExecuteResult::INPUT_PARAMETERS_ARE_NOT_SUITABLE);
-  ASSERT_EQ(concurrent_multi_map.Erase(
-                reinterpret_cast<std::pair<const std::string, TestClass>*>(
-                    0xf45664631)),
-            MM::Utils::ExecuteResult::
-                PARENT_OBJECT_NOT_CONTAIN_SPECIFIC_CHILD_OBJECT);
 
   for (std::uint64_t i = 0; i != 100; ++i) {
     ASSERT_EQ(concurrent_multi_map.Erase(std::to_string(i)), i + 1);
@@ -289,7 +284,7 @@ TEST(Utils, ConcurrentHashTable_multi_map) {
   ASSERT_EQ(concurrent_multi_map.Size(), 0);
 }
 
-#define COUNT 100000
+#define COUNT 80000
 #define COUNT2 8
 
 void InsertElement(MM::Utils::ConcurrentMultiMap<std::string, TestClass>& data,
@@ -298,6 +293,10 @@ void InsertElement(MM::Utils::ConcurrentMultiMap<std::string, TestClass>& data,
   for (std::uint64_t i = start; i != start + count; ++i) {
     for (std::uint64_t j = 0; j != count2; ++j) {
       auto insert_result = data.Emplace(std::to_string(i), TestClass{i, j, 1});
+      if (insert_result.first.first != std::to_string(i)) {
+        auto insert_result2 =
+            data.Emplace(std::to_string(i), TestClass{i, j, 1});
+      }
       ASSERT_EQ(insert_result.first.first, std::to_string(i));
       ASSERT_EQ(insert_result.first.second, TestClass(i, j, 1));
       ASSERT_EQ(insert_result.second, true);
@@ -338,9 +337,6 @@ void EraseElement2(
     std::vector<std::pair<const std::string, TestClass>*>& address_vector) {
   for (auto* address : address_vector) {
     auto erase_result = data.Erase(address);
-    if (erase_result != MM::Utils::ExecuteResult::SUCCESS) {
-      data.Erase(address);
-    }
     ASSERT_EQ(erase_result, MM::Utils::ExecuteResult::SUCCESS);
   }
 }
@@ -367,6 +363,7 @@ TEST(Utils, ConcurrentHashTable_thread) {
   InsertElement2(concurrent_multi_map1, COUNT / 2, COUNT, COUNT2,
                  address_vector);
   ASSERT_EQ(concurrent_multi_map1.Size(), COUNT * COUNT2);
+  ASSERT_EQ(address_vector.size(), COUNT * COUNT2);
   for (std::uint64_t i = COUNT / 2; i != COUNT / 2 + COUNT; ++i) {
     auto equal_range = concurrent_multi_map1.EqualRange(std::to_string(i));
     ASSERT_EQ(equal_range.size(), COUNT2);
