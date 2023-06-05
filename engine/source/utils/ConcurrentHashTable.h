@@ -35,12 +35,9 @@ class HashTable {
 
  public:
   HashTable() = default;
-  virtual ~HashTable() {
-    Clear();
-    delete[] data_;
-  }
+  virtual ~HashTable() { Clear(); }
   explicit HashTable(std::uint64_t size)
-      : data_(new Node[MinPrime(size_)]{}),
+      : data_(new std::unique_ptr<Node>[MinPrime(size_)] { nullptr }),
         load_factor_(0.75),
         size_(0),
         bucket_count_(size) {}
@@ -65,22 +62,23 @@ class HashTable {
         guard14{other.data_mutex14_, std::adopt_lock},
         guard15{other.data_mutex15_, std::adopt_lock};
 
-    data_ = new Node[other.bucket_count_]{};
+    data_.reset(new std::unique_ptr<Node>[other.bucket_count_] { nullptr });
     load_factor_ = other.load_factor_;
     size_ = other.size_;
     bucket_count_ = other.bucket_count_;
 
     for (std::uint64_t i = 0; i != bucket_count_; ++i) {
-      if (other.data_[i].object_) {
-        Node* other_first_node = &other.data_[i];
-        Node* first_node = &data_[i];
-        data_[i].object_ =
-            std::make_unique<ObjectType>(*(other_first_node->object_));
-        while (other_first_node->next_node_) {
-          Node* next_node =
-              new Node{std::make_unique<ObjectType>(
-                           *(other_first_node->next_node_->object_)),
-                       nullptr};
+      if (other.data_[i]) {
+        std::unique_ptr<Node>* other_first_node = &other.data_[i];
+        std::unique_ptr<Node>* first_node = &data_[i];
+        data_[i] = std::move(std::make_unique<Node>(
+            std::make_unique<ObjectType>(*(other_first_node->get()->object_)),
+            nullptr));
+        while (other_first_node->get()->next_node_) {
+          std::unique_ptr<Node>* next_node = new std::unique_ptr<Node>{
+              std::make_unique<ObjectType>(
+                  *(other_first_node->get()->next_node_->get()->object_)),
+              nullptr};
           first_node->next_node_ = next_node;
           first_node = first_node->next_node_;
 
@@ -99,11 +97,12 @@ class HashTable {
     size_ = other.size_;
     bucket_count_ = other.bucket_count_;
 
-    other.data_ = new Node[131]{};
+    other.data_ = new std::unique_ptr<Node>[131] {};
     other.load_factor_ = 0.75;
     other.size_ = 0;
     other.bucket_count_ = 131;
   }
+
   HashTable& operator=(const HashTable& other) {
     if (&other == this) {
       return *this;
@@ -142,24 +141,25 @@ class HashTable {
       Clear();
     }
 
-    delete[] data_;
+    data_.reset();
 
-    data_ = new Node[other.bucket_count_]{};
+    data_ = new std::unique_ptr<Node>[other.bucket_count_] {};
     load_factor_ = other.load_factor_;
     size_ = other.size_;
     bucket_count_ = other.bucket_count_;
 
     for (std::uint64_t i = 0; i != bucket_count_; ++i) {
-      if (other.data_[i].object_) {
-        Node* other_first_node = &other.data_[i];
-        Node* first_node = &data_[i];
-        data_[i].object_ =
-            std::make_unique<ObjectType>(*(other_first_node->object_));
-        while (other_first_node->next_node_) {
-          Node* next_node =
-              new Node{std::make_unique<ObjectType>(
-                           *(other_first_node->next_node_->object_)),
-                       nullptr};
+      if (other.data_[i]) {
+        std::unique_ptr<Node>* other_first_node = &other.data_[i];
+        std::unique_ptr<Node>* first_node = &data_[i];
+        data_[i] = std::move(std::make_unique<Node>(
+            std::make_unique<ObjectType>(*(other_first_node->get()->object_)),
+            nullptr));
+        while (other_first_node->get()->next_node_) {
+          std::unique_ptr<Node>* next_node = new std::unique_ptr<Node>{
+              std::make_unique<ObjectType>(
+                  *(other_first_node->get()->next_node_->get()->object_)),
+              nullptr};
           first_node->next_node_ = next_node;
           first_node = first_node->next_node_;
 
@@ -170,6 +170,7 @@ class HashTable {
 
     return *this;
   }
+
   HashTable& operator=(HashTable&& other) noexcept {
     if (&other == this) {
       return *this;
@@ -192,14 +193,12 @@ class HashTable {
       Clear();
     }
 
-    delete[] data_;
-
-    data_ = other.data_;
+    data_ = std::move(other.data_);
     load_factor_ = other.load_factor_;
     size_ = other.size_;
     bucket_count_ = other.bucket_count_;
 
-    other.data_ = new Node[131]{};
+    other.data_ = new std::unique_ptr<Node>[131] {};
     other.load_factor_ = 0.75;
     other.size_ = 0;
     other.bucket_count_ = 131;
@@ -217,7 +216,7 @@ class HashTable {
   void Clear() {
     LockAllGuard guard{*this};
     for (std::uint64_t i = 0; i != bucket_count_; ++i) {
-      if (data_[i].object_ != nullptr) {
+      if (data_[i]) {
         DeleteOneList(&data_[i]);
       }
     }
@@ -247,31 +246,30 @@ class HashTable {
     LockGuard guard{*this, hash_code, UniqueLockType{}};
 
     std::uint64_t data_offset = hash_code % bucket_count_;
-    if (data_[data_offset].object_ == nullptr) {
+    if (!data_[data_offset]) {
       return ExecuteResult::PARENT_OBJECT_NOT_CONTAIN_SPECIFIC_CHILD_OBJECT;
     }
 
-    Node* first_node = &data_[data_offset];
-    if (first_node->object_.get() == object_ptr) {
-      if (first_node->next_node_) {
-        data_[data_offset] = std::move(*(first_node->next_node_));
+    std::unique_ptr<Node>* first_node = &data_[data_offset];
+    if (first_node->get()->object_.get() == object_ptr) {
+      if (first_node->get()->next_node_) {
+        data_[data_offset] = std::move(*(first_node->get()->next_node_));
       } else {
-        data_[data_offset].object_.reset();
-        data_[data_offset].next_node_ = nullptr;
+        data_[data_offset].reset();
       }
       --size_;
 
       return ExecuteResult::SUCCESS;
     }
 
-    while (first_node->next_node_ != nullptr &&
-           first_node->next_node_->object_.get() != object_ptr) {
-      first_node = first_node->next_node_;
+    while (first_node->get()->next_node_ != nullptr &&
+           first_node->get()->next_node_->object_.get() != object_ptr) {
+      first_node = first_node->get()->next_node_;
     }
 
-    if (first_node->next_node_ != nullptr &&
-        first_node->next_node_->object_.get() == object_ptr) {
-      Node* old_next_node = first_node->next_node_;
+    if (first_node->get()->next_node_ != nullptr &&
+        first_node->get()->next_node_->object_.get() == object_ptr) {
+      std::unique_ptr<Node>* old_next_node = first_node->next_node_;
       first_node->next_node_ = first_node->next_node_->next_node_;
       delete old_next_node;
       --size_;
@@ -287,27 +285,27 @@ class HashTable {
     LockGuard guard{*this, hash_code, UniqueLockType{}};
 
     std::uint64_t data_offset = hash_code % bucket_count_;
-    if (data_[data_offset].object_ == nullptr) {
+    if (!data_[data_offset]) {
       return 0;
     }
 
     std::uint32_t count = 0;
-    while (KeyEqual2(*(data_[data_offset].object_), key)) {
-      if (data_[data_offset].next_node_) {
-        data_[data_offset] = std::move(*(data_[data_offset].next_node_));
+    while (KeyEqual2(*(data_[data_offset]->object_), key)) {
+      if (data_[data_offset]->next_node_) {
+        data_[data_offset] = std::move(*(data_[data_offset]->next_node_));
         ++count;
       } else {
-        data_[data_offset].object_.reset();
+        data_[data_offset].reset();
         ++count;
         size_ -= count;
         return count;
       }
     }
 
-    Node* node_ptr = &data_[data_offset];
-    while (node_ptr->next_node_) {
-      if (KeyEqual2(*(node_ptr->next_node_->object_), key)) {
-        Node* old_nex_node = node_ptr->next_node_;
+    std::unique_ptr<Node>* node_ptr = &data_[data_offset];
+    while (node_ptr->get()->next_node_) {
+      if (KeyEqual2(*(node_ptr->get()->next_node_->object_), key)) {
+        std::unique_ptr<Node>* old_nex_node = node_ptr->get()->next_node_;
         node_ptr->next_node_ = node_ptr->next_node_->next_node_;
         delete old_nex_node;
         ++count;
@@ -630,22 +628,21 @@ class HashTable {
     node->next_node_ = nullptr;
   }
 
-  void DeleteOneListNext(Node* node) {
-    if (node->next_node_) {
-      DeleteOneListNext(node->next_node_);
+  void DeleteOneListNext(std::unique_ptr<Node>* node) {
+    if (node->get()->next_node_) {
+      DeleteOneListNext(node->get()->next_node_);
     }
 
     delete node;
   }
 
-  void DeleteOneList(Node* node) {
+  void DeleteOneList(std::unique_ptr<Node>* node) {
     assert(node != nullptr);
-    if (node->next_node_) {
-      DeleteOneListNext(node->next_node_);
+    if ((*node)->next_node_) {
+      DeleteOneList((*node)->next_node_);
     }
 
-    node->object_.reset();
-    node->next_node_ = nullptr;
+    node->reset();
   }
 
   std::uint64_t GetObjectHash(const ObjectType& object, IsMap) {
@@ -883,7 +880,7 @@ class HashTable {
 
   struct Node {
     Node() = default;
-    Node(std::unique_ptr<ObjectType>&& object, Node* next_node)
+    Node(std::unique_ptr<ObjectType>&& object, std::unique_ptr<Node>* next_node)
         : object_(std::move(object)), next_node_(next_node) {}
     Node(const Node& other) = delete;
     Node(Node&& other) noexcept
@@ -906,11 +903,13 @@ class HashTable {
     ~Node() = default;
 
     std::unique_ptr<ObjectType> object_{nullptr};
-    Node* next_node_{nullptr};
+    std::unique_ptr<Node>* next_node_{nullptr};
   };
 
  private:
-  Node* data_{new Node[131]{}};
+  std::unique_ptr<std::unique_ptr<Node>[]> data_ {
+    new std::unique_ptr<Node>[131] { nullptr }
+  };
 
   double load_factor_{0.75f};
   std::uint64_t size_{0};
