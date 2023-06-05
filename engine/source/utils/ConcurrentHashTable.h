@@ -40,7 +40,7 @@ class HashTable {
     delete[] data_;
   }
   explicit HashTable(std::uint64_t size)
-      : data_(new Node[size]{}),
+      : data_(new Node[MinPrime(size_)]{}),
         load_factor_(0.75),
         size_(0),
         bucket_count_(size) {}
@@ -252,19 +252,25 @@ class HashTable {
     }
 
     Node* first_node = &data_[data_offset];
-    if (first_node->object_ == object_ptr) {
-      data_[data_offset] = std::move(*(first_node->next_node_));
+    if (first_node->object_.get() == object_ptr) {
+      if (first_node->next_node_) {
+        data_[data_offset] = std::move(*(first_node->next_node_));
+      } else {
+        data_[data_offset].object_.reset();
+        data_[data_offset].next_node_ = nullptr;
+      }
       --size_;
 
       return ExecuteResult::SUCCESS;
     }
 
     while (first_node->next_node_ != nullptr &&
-           first_node->next_node_->object_ != object_ptr) {
+           first_node->next_node_->object_.get() != object_ptr) {
       first_node = first_node->next_node_;
     }
 
-    if (first_node->next_node_->object_ == object_ptr) {
+    if (first_node->next_node_ != nullptr &&
+        first_node->next_node_->object_.get() == object_ptr) {
       Node* old_next_node = first_node->next_node_;
       first_node->next_node_ = first_node->next_node_->next_node_;
       delete old_next_node;
@@ -286,24 +292,25 @@ class HashTable {
     }
 
     std::uint32_t count = 0;
-    while (KeyEqual2(data_[data_offset], key)) {
+    while (KeyEqual2(*(data_[data_offset].object_), key)) {
       if (data_[data_offset].next_node_) {
         data_[data_offset] = std::move(*(data_[data_offset].next_node_));
         ++count;
       } else {
         data_[data_offset].object_.reset();
         ++count;
+        size_ -= count;
         return count;
       }
     }
 
     Node* node_ptr = &data_[data_offset];
     while (node_ptr->next_node_) {
-      if (KeyEqual2(*(node_ptr->next_node_), key)) {
+      if (KeyEqual2(*(node_ptr->next_node_->object_), key)) {
         Node* old_nex_node = node_ptr->next_node_;
         node_ptr->next_node_ = node_ptr->next_node_->next_node_;
         delete old_nex_node;
-
+        ++count;
         node_ptr = node_ptr->next_node_;
         continue;
       }
@@ -642,7 +649,7 @@ class HashTable {
   }
 
   std::uint64_t GetObjectHash(const ObjectType& object, IsMap) {
-    return Hash{}(object.first());
+    return Hash{}(object.first);
   }
 
   std::uint64_t GetObjectHash(const ObjectType& object, IsSet) {
@@ -959,200 +966,5 @@ using ConcurrentMultiMap =
     HashTable<TrueType, TrueType, KeyObject,
               std::pair<const KeyObject, ValueObject>,
               std::pair<const KeyObject, ValueObject>, Hash, Equal, Allocator>;
-// template <typename ObjectType, typename Hash = std::hash<ObjectType>,
-//           typename Equal = std::equal_to<ObjectType>,
-//           typename Allocator = std::allocator<ObjectType>>
-// class ConcurrentSet final
-//     : public HashTable<FalseType, FalseType, ObjectType, ObjectType, Hash,
-//                        Equal, Allocator> {
-//  public:
-//   using BaseType = HashTable<FalseType, FalseType, ObjectType, ObjectType,
-//   Hash,
-//                              Equal, Allocator>;
-//
-//  public:
-//   ConcurrentSet() : BaseType() {}
-//   ~ConcurrentSet() = default;
-//   explicit ConcurrentSet(std::uint64_t size) : BaseType(size){};
-//   ConcurrentSet(const ConcurrentSet& other) = default;
-//   ConcurrentSet(ConcurrentSet&& other) noexcept = default;
-//   ConcurrentSet& operator=(const ConcurrentSet& other) {
-//     if (&other == this) {
-//       return *this;
-//     }
-//
-//     BaseType::operator=(other);
-//
-//     return *this;
-//   }
-//   ConcurrentSet& operator=(ConcurrentSet&& other) noexcept {
-//     if (&other == this) {
-//       return *this;
-//     }
-//
-//     BaseType::operator=(std::move(other));
-//
-//     return *this;
-//   }
-//
-//  public:
-//   std::pair<const ObjectType&, bool> Insert(const ObjectType& object) {
-//     return BaseType::Insert(object);
-//   }
-//
-//   std::pair<const ObjectType&, bool> Insert(ObjectType&& object) {
-//     return BaseType::Insert(std::move(object));
-//   }
-//
-//   template <typename... Args>
-//   std::pair<const ObjectType&, bool> Emplace(Args... args) {
-//     return BaseType::Emplace(std::forward<Args>(args)...);
-//   }
-//
-//   const ObjectType* Find(const ObjectType& key) { return BaseType::Find(key);
-//   }
-//
-//   std::vector<const ObjectType*> EqualRange(const ObjectType& key) {
-//     return BaseType::EqualRange(key);
-//   }
-// };
-//
-// template <typename ObjectType, typename Hash = std::hash<ObjectType>,
-//           typename Equal = std::equal_to<ObjectType>,
-//           typename Allocator = std::allocator<ObjectType>>
-// class ConcurrentMultiSet final
-//     : public HashTable<FalseType, TrueType, ObjectType, ObjectType, Hash,
-//     Equal,
-//                        Allocator> {
-//  public:
-//   using BaseType = HashTable<FalseType, TrueType, ObjectType, ObjectType,
-//   Hash,
-//                              Equal, Allocator>;
-//
-//  public:
-//   ConcurrentMultiSet() : BaseType() {}
-//   ~ConcurrentMultiSet() = default;
-//   explicit ConcurrentMultiSet(std::uint64_t size) : BaseType(size){};
-//   ConcurrentMultiSet(const ConcurrentMultiSet& other) = default;
-//   ConcurrentMultiSet(ConcurrentMultiSet&& other) noexcept = default;
-//   ConcurrentMultiSet& operator=(const ConcurrentMultiSet& other) {
-//     if (&other == this) {
-//       return *this;
-//     }
-//
-//     BaseType::operator=(other);
-//
-//     return *this;
-//   }
-//   ConcurrentMultiSet& operator=(ConcurrentMultiSet&& other) noexcept {
-//     if (&other == this) {
-//       return *this;
-//     }
-//
-//     BaseType::operator=(std::move(other));
-//
-//     return *this;
-//   }
-//
-//  public:
-//   std::pair<const ObjectType&, bool> Insert(const ObjectType& object) {
-//     return BaseType::Insert(object);
-//   }
-//
-//   std::pair<const ObjectType&, bool> Insert(ObjectType&& object) {
-//     return BaseType::Insert(std::move(object));
-//   }
-//
-//   template <typename... Args>
-//   std::pair<const ObjectType&, bool> Emplace(Args... args) {
-//     return BaseType::Emplace(std::forward<Args>(args)...);
-//   }
-//
-//   const ObjectType* Find(const ObjectType& key) { return BaseType::Find(key);
-//   }
-//
-//   std::vector<const ObjectType*> EqualRange(const ObjectType& key) {
-//     return BaseType::EqualRange(key);
-//   }
-// };
-//
-// template <typename KeyType, typename ValueType,
-//           typename Hash = std::hash<KeyType>,
-//           typename Equal = std::equal_to<KeyType>,
-//           typename Allocator = std::allocator<std::pair<KeyType, ValueType>>>
-// class ConcurrentMap final
-//     : public HashTable<TrueType, FalseType, KeyType,
-//                        std::pair<const KeyType, ValueType>, Hash, Equal,
-//                        Allocator> {
-//  public:
-//   using BaseType = HashTable<TrueType, FalseType, KeyType, ValueType, Hash,
-//                              Equal, Allocator>;
-//   using ObjectType = std::pair<const KeyType, ValueType>;
-//
-//  public:
-//   ConcurrentMap() : BaseType() {}
-//   ~ConcurrentMap() = default;
-//   explicit ConcurrentMap(std::uint64_t size) : BaseType(size){};
-//   ConcurrentMap(const ConcurrentMap& other) = default;
-//   ConcurrentMap(ConcurrentMap&& other) noexcept = default;
-//   ConcurrentMap& operator=(const ConcurrentMap& other) {
-//     if (&other == this) {
-//       return *this;
-//     }
-//
-//     BaseType::operator=(other);
-//
-//     return *this;
-//   }
-//   ConcurrentMap& operator=(ConcurrentMap&& other) noexcept {
-//     if (&other == this) {
-//       return *this;
-//     }
-//
-//     BaseType::operator=(std::move(other));
-//
-//     return *this;
-//   }
-// };
-//
-// template <typename KeyType, typename ValueType,
-//           typename Hash = std::hash<KeyType>,
-//           typename Equal = std::equal_to<KeyType>,
-//           typename Allocator = std::allocator<std::pair<KeyType, ValueType>>>
-// class ConcurrentMultiMap final
-//     : public HashTable<TrueType, TrueType, KeyType,
-//                        std::pair<const KeyType, ValueType>, Hash, Equal,
-//                        Allocator> {
-//  public:
-//   using BaseType =
-//       HashTable<TrueType, TrueType, KeyType, ValueType, Hash, Equal,
-//       Allocator>;
-//
-//  public:
-//   ConcurrentMultiMap() : BaseType() {}
-//   ~ConcurrentMultiMap() = default;
-//   explicit ConcurrentMultiMap(std::uint64_t size) : BaseType(size){};
-//   ConcurrentMultiMap(const ConcurrentMultiMap& other) = default;
-//   ConcurrentMultiMap(ConcurrentMultiMap&& other) noexcept = default;
-//   ConcurrentMultiMap& operator=(const ConcurrentMultiMap& other) {
-//     if (&other == this) {
-//       return *this;
-//     }
-//
-//     BaseType::operator=(other);
-//
-//     return *this;
-//   }
-//   ConcurrentMultiMap& operator=(ConcurrentMultiMap&& other) noexcept {
-//     if (&other == this) {
-//       return *this;
-//     }
-//
-//     BaseType::operator=(std::move(other));
-//
-//     return *this;
-//   }
-// };
-
 }  // namespace Utils
 }  // namespace MM
