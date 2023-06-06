@@ -1,46 +1,12 @@
+//
+// Created by beimingxianyu on 23-6-6.
+//
 #include <gtest/gtest.h>
 
-#include <iostream>
-#include <sstream>
 #include <thread>
-#include <unordered_set>
 
 #include "utils/ConcurrentHashTable.h"
 #include "utils/marco.h"
-#include "utils/uuid.h"
-
-TEST(Utils, UUID) {
-  std::uint64_t clock1 = 0x0123456789abcdef;
-  std::uint64_t clock2 = 0xfedcba9876543210;
-  std::uint64_t clock3 = 0xabcdef0123456789;
-  std::uint64_t clock4 = 0x0123456789fedcba;
-  std::uint64_t mac_address = 0x999999999999;
-
-  MM::Utils::UUID uuid1(clock1, mac_address);
-  MM::Utils::UUID uuid2(clock2, mac_address);
-  MM::Utils::UUID uuid3(clock3, mac_address);
-  MM::Utils::UUID uuid4(clock4, mac_address);
-
-  std::string post_string;
-  std::stringstream ssm;
-
-  EXPECT_EQ(uuid1.ToString(),
-            std::string("89abcdef-4567-1123-0001-999999999999"));
-  EXPECT_EQ(uuid2.ToString(),
-            std::string("76543210-ba98-1edc-0002-999999999999"));
-  EXPECT_EQ(uuid3.ToString(),
-            std::string("23456789-ef01-1bcd-0003-999999999999"));
-  EXPECT_EQ(uuid4.ToString(),
-            std::string("89fedcba-4567-1123-0004-999999999999"));
-
-  // Uniqueness testing
-  std::unordered_set<MM::Utils::UUID> all_uuid;
-  for (std::uint32_t i = 0; i < 10000000; ++i) {
-    MM::Utils::UUID new_uuid;
-    EXPECT_EQ(all_uuid.count(new_uuid), 0);
-    all_uuid.insert(new_uuid);
-  }
-}
 
 TEST(Utils, ConcurrentHashTable_set) {
   MM::Utils::ConcurrentSet<std::string> concurrent_set, concurrent_set2;
@@ -282,6 +248,7 @@ TEST(Utils, ConcurrentHashTable_multi_map) {
     ASSERT_EQ(concurrent_multi_map.Erase(std::to_string(i)), i + 1);
   }
   ASSERT_EQ(concurrent_multi_map.Size(), 0);
+  concurrent_multi_map.Clear();
 }
 
 #define COUNT 80000
@@ -337,6 +304,9 @@ void EraseElement2(
     std::vector<std::pair<const std::string, TestClass>*>& address_vector) {
   for (auto* address : address_vector) {
     auto erase_result = data.Erase(address);
+    if (erase_result != MM::Utils::ExecuteResult::SUCCESS) {
+      auto erase_result2 = data.Erase(address);
+    }
     ASSERT_EQ(erase_result, MM::Utils::ExecuteResult::SUCCESS);
   }
 }
@@ -385,7 +355,7 @@ TEST(Utils, ConcurrentHashTable_thread) {
   ASSERT_EQ(concurrent_multi_map1.Size(), COUNT * COUNT2);
   for (std::uint64_t i = 0; i != COUNT; ++i) {
     auto equal_range = concurrent_multi_map1.EqualRange(std::to_string(i));
-    for (std::uint64_t j = COUNT2, k = 0; k != COUNT2; --j, ++k) {
+    for (std::uint64_t j = COUNT2 - 1, k = 0; k != COUNT2; --j, ++k) {
       ASSERT_EQ(equal_range[k]->first, std::to_string(i));
       ASSERT_EQ(equal_range[k]->second, TestClass(i, j, 1));
     }

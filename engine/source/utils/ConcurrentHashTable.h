@@ -1,5 +1,6 @@
 #pragma once
 
+#include <atomic>
 #include <cassert>
 #include <functional>
 #include <iostream>
@@ -67,7 +68,8 @@ class HashTable {
 
     data_ = new Node[other.bucket_count_]{};
     load_factor_ = other.load_factor_;
-    size_ = other.size_;
+    size_.store(other.size_.load(std::memory_order_consume),
+                std::memory_order_release);
     bucket_count_ = other.bucket_count_;
 
     for (std::uint64_t i = 0; i != bucket_count_; ++i) {
@@ -96,12 +98,13 @@ class HashTable {
 
     data_ = other.data_;
     load_factor_ = other.load_factor_;
-    size_ = other.size_;
+    size_.store(other.size_.load(std::memory_order_consume),
+                std::memory_order_release);
     bucket_count_ = other.bucket_count_;
 
     other.data_ = new Node[131]{};
     other.load_factor_ = 0.75;
-    other.size_ = 0;
+    other.size_.store(0, std::memory_order_release);
     other.bucket_count_ = 131;
   }
   HashTable& operator=(const HashTable& other) {
@@ -146,7 +149,8 @@ class HashTable {
 
     data_ = new Node[other.bucket_count_]{};
     load_factor_ = other.load_factor_;
-    size_ = other.size_;
+    size_.store(other.size_.load(std::memory_order_consume),
+                std::memory_order_release);
     bucket_count_ = other.bucket_count_;
 
     for (std::uint64_t i = 0; i != bucket_count_; ++i) {
@@ -196,21 +200,22 @@ class HashTable {
 
     data_ = other.data_;
     load_factor_ = other.load_factor_;
-    size_ = other.size_;
+    size_.store(other.size_.load(std::memory_order_consume),
+                std::memory_order_release);
     bucket_count_ = other.bucket_count_;
 
     other.data_ = new Node[131]{};
     other.load_factor_ = 0.75;
-    other.size_ = 0;
+    other.size_.store(0, std::memory_order_release);
     other.bucket_count_ = 131;
 
     return *this;
   }
 
  public:
-  bool Empty() const { return size_ == 0; }
+  bool Empty() const { return size_.load(std::memory_order_consume) == 0; }
 
-  std::uint64_t Size() const { return size_; }
+  std::uint64_t Size() const { return size_.load(std::memory_order_consume); }
 
   std::uint64_t BucketCount() const { return bucket_count_; }
 
@@ -222,7 +227,7 @@ class HashTable {
       }
     }
 
-    size_ = 0;
+    size_.store(0, std::memory_order_release);
   }
 
   std::pair<ReturnType&, bool> Insert(const ObjectType& object) {
@@ -244,7 +249,13 @@ class HashTable {
     }
 
     std::uint64_t hash_code = GetObjectHash(*object_ptr);
-    LockGuard guard{*this, hash_code, UniqueLockType{}};
+    LockGuard<UniqueLockType> guard{*this, hash_code};
+    MutexType* new_mutex = &guard.ChooseMutex(hash_code);
+    while (new_mutex != guard.guard_.mutex()) {
+      guard.Unlock();
+      guard.guard_ = std::move(std::unique_lock(*new_mutex));
+      new_mutex = &guard.ChooseMutex(hash_code);
+    }
 
     std::uint64_t data_offset = hash_code % bucket_count_;
     if (data_[data_offset].object_ == nullptr) {
@@ -252,23 +263,30 @@ class HashTable {
     }
 
     Node* first_node = &data_[data_offset];
-    if (first_node->object_ == object_ptr) {
-      data_[data_offset] = std::move(*(first_node->next_node_));
-      --size_;
+    if (first_node->object_.get() == object_ptr) {
+      if (data_[data_offset].next_node_) {
+        Node* old_node = first_node->next_node_;
+        data_[data_offset] = std::move(*(first_node->next_node_));
+        delete old_node;
+      } else {
+        data_[data_offset].object_.reset();
+      }
+      size_.fetch_sub(1, std::memory_order_acq_rel);
 
       return ExecuteResult::SUCCESS;
     }
 
     while (first_node->next_node_ != nullptr &&
-           first_node->next_node_->object_ != object_ptr) {
+           first_node->next_node_->object_.get() != object_ptr) {
       first_node = first_node->next_node_;
     }
 
-    if (first_node->next_node_->object_ == object_ptr) {
+    if (first_node->next_node_ != nullptr &&
+        first_node->next_node_->object_.get() == object_ptr) {
       Node* old_next_node = first_node->next_node_;
       first_node->next_node_ = first_node->next_node_->next_node_;
       delete old_next_node;
-      --size_;
+      size_.fetch_sub(1, std::memory_order_acq_rel);
 
       return ExecuteResult::SUCCESS;
     }
@@ -278,7 +296,13 @@ class HashTable {
 
   std::uint32_t Erase(const KeyType& key) {
     std::uint64_t hash_code = Hash{}(key);
-    LockGuard guard{*this, hash_code, UniqueLockType{}};
+    LockGuard<UniqueLockType> guard{*this, hash_code};
+    MutexType* new_mutex = &guard.ChooseMutex(hash_code);
+    while (new_mutex != guard.guard_.mutex()) {
+      guard.Unlock();
+      guard.guard_ = std::move(std::unique_lock(*new_mutex));
+      new_mutex = &guard.ChooseMutex(hash_code);
+    }
 
     std::uint64_t data_offset = hash_code % bucket_count_;
     if (data_[data_offset].object_ == nullptr) {
@@ -286,38 +310,47 @@ class HashTable {
     }
 
     std::uint32_t count = 0;
-    while (KeyEqual2(data_[data_offset], key)) {
+    while (KeyEqual2(*(data_[data_offset].object_), key)) {
       if (data_[data_offset].next_node_) {
+        Node* old_node = data_[data_offset].next_node_;
         data_[data_offset] = std::move(*(data_[data_offset].next_node_));
+        delete old_node;
         ++count;
       } else {
         data_[data_offset].object_.reset();
         ++count;
+
+        size_.fetch_sub(count, std::memory_order_acq_rel);
         return count;
       }
     }
 
     Node* node_ptr = &data_[data_offset];
     while (node_ptr->next_node_) {
-      if (KeyEqual2(*(node_ptr->next_node_), key)) {
+      if (KeyEqual2(*(node_ptr->next_node_->object_), key)) {
         Node* old_nex_node = node_ptr->next_node_;
         node_ptr->next_node_ = node_ptr->next_node_->next_node_;
         delete old_nex_node;
-
-        node_ptr = node_ptr->next_node_;
+        ++count;
         continue;
       }
       node_ptr = node_ptr->next_node_;
     }
 
-    size_ -= count;
+    size_.fetch_sub(count, std::memory_order_acq_rel);
 
     return count;
   }
 
   std::uint32_t Count(const KeyType& key) const {
     std::uint64_t hash_code = Hash{}(key);
-    LockGuard guard(*this, hash_code, SharedLockType{});
+    LockGuard<SharedLockType> guard(*this, hash_code);
+    MutexType* new_mutex = &guard.ChooseMutex(hash_code);
+    while (new_mutex != guard.guard_.mutex()) {
+      guard.Unlock();
+      guard.guard_ = std::move(std::shared_lock(*new_mutex));
+      new_mutex = &guard.ChooseMutex(hash_code);
+    }
 
     const Node* first_node = &data_[hash_code % bucket_count_];
     if (first_node->object_ == nullptr) {
@@ -337,7 +370,13 @@ class HashTable {
 
   ReturnType* Find(const KeyType& key) {
     std::uint64_t hash_code = Hash{}(key);
-    LockGuard guard(*this, hash_code, SharedLockType{});
+    LockGuard<SharedLockType> guard(*this, hash_code);
+    MutexType* new_mutex = &guard.ChooseMutex(hash_code);
+    while (new_mutex != guard.guard_.mutex()) {
+      guard.Unlock();
+      guard.guard_ = std::move(std::shared_lock(*new_mutex));
+      new_mutex = &guard.ChooseMutex(hash_code);
+    }
 
     Node* first_node = &data_[hash_code % bucket_count_];
 
@@ -357,7 +396,13 @@ class HashTable {
 
   const ReturnType* Find(const KeyType& key) const {
     std::uint64_t hash_code = Hash{}(key);
-    LockGuard guard(*this, hash_code, SharedLockType{});
+    LockGuard<SharedLockType> guard(*this, hash_code);
+    MutexType* new_mutex = &guard.ChooseMutex(hash_code);
+    while (new_mutex != guard.guard_.mutex()) {
+      guard.Unlock();
+      guard.guard_ = std::move(std::shared_lock(*new_mutex));
+      new_mutex = &guard.ChooseMutex(hash_code);
+    }
 
     const Node* first_node = &data_[hash_code % bucket_count_];
 
@@ -379,7 +424,13 @@ class HashTable {
 
   std::vector<ReturnType*> EqualRange(const KeyType& key) {
     std::uint64_t hash_code = Hash{}(key);
-    LockGuard guard{*this, hash_code, SharedLockType{}};
+    LockGuard<SharedLockType> guard{*this, hash_code};
+    MutexType* new_mutex = &guard.ChooseMutex(hash_code);
+    while (new_mutex != guard.guard_.mutex()) {
+      guard.Unlock();
+      guard.guard_ = std::move(std::shared_lock(*new_mutex));
+      new_mutex = &guard.ChooseMutex(hash_code);
+    }
 
     Node* first_node = &data_[hash_code % bucket_count_];
 
@@ -401,7 +452,13 @@ class HashTable {
 
   std::vector<const ReturnType*> EqualRange(const KeyType& key) const {
     std::uint64_t hash_code = Hash{}(key);
-    LockGuard guard{*this, hash_code, SharedLockType{}};
+    LockGuard<SharedLockType> guard{*this, hash_code};
+    MutexType* new_mutex = &guard.ChooseMutex(hash_code);
+    while (new_mutex != guard.guard_.mutex()) {
+      guard.Unlock();
+      guard.guard_ = std::move(std::shared_lock(*new_mutex));
+      new_mutex = &guard.ChooseMutex(hash_code);
+    }
 
     const Node* first_node = data_[hash_code % bucket_count_];
 
@@ -436,8 +493,7 @@ class HashTable {
 
           bool insert_first = false;
           if (new_data[insert_pos].object_ == nullptr) {
-            new_data[insert_pos].object_ =
-                std::make_unique<ObjectType>(std::move(*(data_[i].object_)));
+            new_data[insert_pos].object_ = std::move(data_[i].object_);
             insert_first = true;
           }
 
@@ -446,9 +502,8 @@ class HashTable {
             while (new_data_first_node->next_node_) {
               new_data_first_node = new_data_first_node->next_node_;
             }
-            new_data_first_node->next_node_ = new Node{
-                std::make_unique<ObjectType>(std::move(*(data_[i].object_))),
-                nullptr};
+            new_data_first_node->next_node_ =
+                new Node{std::move(data_[i].object_), nullptr};
           }
 
           Node* old_data_first_node = data_[i].next_node_;
@@ -457,9 +512,11 @@ class HashTable {
                          new_bucket_size;
 
             if (new_data[insert_pos].object_ == nullptr) {
-              new_data[insert_pos].object_ = std::make_unique<ObjectType>(
-                  std::move(*(old_data_first_node->object_)));
+              new_data[insert_pos].object_ =
+                  std::move(old_data_first_node->object_);
+              Node* delete_old_node = old_data_first_node;
               old_data_first_node = old_data_first_node->next_node_;
+              delete delete_old_node;
               continue;
             }
 
@@ -468,10 +525,10 @@ class HashTable {
               new_data_first_node = new_data_first_node->next_node_;
             }
             new_data_first_node->next_node_ =
-                new Node{std::make_unique<ObjectType>(
-                             std::move(*(old_data_first_node->object_))),
-                         nullptr};
+                new Node{std::move(old_data_first_node->object_), nullptr};
+            Node* delete_old_node = old_data_first_node;
             old_data_first_node = old_data_first_node->next_node_;
+            delete delete_old_node;
           }
         }
       }
@@ -498,12 +555,18 @@ class HashTable {
     RehashWhenNeed();
 
     std::uint64_t hash_code = GetObjectHash(other);
-    LockGuard guard(*this, hash_code, UniqueLockType{});
+    LockGuard<UniqueLockType> guard(*this, hash_code);
+    MutexType* new_mutex = &guard.ChooseMutex(hash_code);
+    while (new_mutex != guard.guard_.mutex()) {
+      guard.Unlock();
+      guard.guard_ = std::move(std::unique_lock(*new_mutex));
+      new_mutex = &guard.ChooseMutex(hash_code);
+    }
 
     std::uint64_t data_offset = hash_code % bucket_count_;
     if (data_[data_offset].object_ == nullptr) {
       data_[data_offset].object_ = std::make_unique<ObjectType>(other);
-      ++size_;
+      size_.fetch_add(1, std::memory_order_acq_rel);
       return {*(data_[data_offset].object_), true};
     }
 
@@ -519,7 +582,7 @@ class HashTable {
     Node* old_first_node = new Node{std::move(data_[data_offset])};
     data_[data_offset] =
         Node{std::make_unique<ObjectType>(other), old_first_node};
-    ++size_;
+    size_.fetch_add(1, std::memory_order_acq_rel);
     return {*(data_[data_offset].object_), true};
   }
 
@@ -527,19 +590,25 @@ class HashTable {
     RehashWhenNeed();
 
     std::uint64_t hash_code = GetObjectHash(other);
-    LockGuard guard(*this, hash_code, UniqueLockType{});
+    LockGuard<UniqueLockType> guard(*this, hash_code);
+    MutexType* new_mutex = &guard.ChooseMutex(hash_code);
+    while (new_mutex != guard.guard_.mutex()) {
+      guard.Unlock();
+      guard.guard_ = std::move(std::unique_lock(*new_mutex));
+      new_mutex = &guard.ChooseMutex(hash_code);
+    }
 
     std::uint64_t data_offset = hash_code % bucket_count_;
     if (data_[data_offset].object_ == nullptr) {
       data_[data_offset].object_ = std::make_unique<ObjectType>(other);
-      ++size_;
+      size_.fetch_add(1, std::memory_order_acq_rel);
       return {*(data_[data_offset].object_), true};
     }
 
     Node* old_first_node = new Node{std::move(data_[data_offset])};
     data_[data_offset] =
         Node{std::make_unique<ObjectType>(other), old_first_node};
-    ++size_;
+    size_.fetch_add(1, std::memory_order_acq_rel);
     return {*(data_[data_offset].object_), true};
   }
 
@@ -547,13 +616,19 @@ class HashTable {
     RehashWhenNeed();
 
     std::uint64_t hash_code = GetObjectHash(other);
-    LockGuard guard(*this, hash_code, UniqueLockType{});
+    LockGuard<UniqueLockType> guard(*this, hash_code);
+    MutexType* new_mutex = &guard.ChooseMutex(hash_code);
+    while (new_mutex != guard.guard_.mutex()) {
+      guard.Unlock();
+      guard.guard_ = std::move(std::unique_lock(*new_mutex));
+      new_mutex = &guard.ChooseMutex(hash_code);
+    }
 
     std::uint64_t data_offset = hash_code % bucket_count_;
     if (data_[data_offset].object_ == nullptr) {
       data_[data_offset].object_ =
           std::make_unique<ObjectType>(std::move(other));
-      ++size_;
+      size_.fetch_add(1, std::memory_order_acq_rel);
       return {*(data_[data_offset].object_), true};
     }
 
@@ -569,7 +644,7 @@ class HashTable {
     Node* old_first_node = new Node{std::move(data_[data_offset])};
     data_[data_offset] =
         Node{std::make_unique<ObjectType>(std::move(other)), old_first_node};
-    ++size_;
+    size_.fetch_add(1, std::memory_order_acq_rel);
     return {*(data_[data_offset].object_), true};
   }
 
@@ -577,20 +652,26 @@ class HashTable {
     RehashWhenNeed();
 
     std::uint64_t hash_code = GetObjectHash(other);
-    LockGuard guard(*this, hash_code, UniqueLockType{});
+    LockGuard<UniqueLockType> guard(*this, hash_code);
+    MutexType* new_mutex = &guard.ChooseMutex(hash_code);
+    while (new_mutex != guard.guard_.mutex()) {
+      guard.Unlock();
+      guard.guard_ = std::move(std::unique_lock(*new_mutex));
+      new_mutex = &guard.ChooseMutex(hash_code);
+    }
 
     std::uint64_t data_offset = hash_code % bucket_count_;
     if (data_[data_offset].object_ == nullptr) {
       data_[data_offset].object_ =
           std::make_unique<ObjectType>(std::move(other));
-      ++size_;
+      size_.fetch_add(1, std::memory_order_acq_rel);
       return {*(data_[data_offset].object_), true};
     }
 
     Node* old_first_node = new Node{std::move(data_[data_offset])};
     data_[data_offset] =
         Node{std::make_unique<ObjectType>(std::move(other)), old_first_node};
-    ++size_;
+    size_.fetch_add(1, std::memory_order_acq_rel);
 
     return {*(data_[data_offset].object_), true};
   }
@@ -642,7 +723,7 @@ class HashTable {
   }
 
   std::uint64_t GetObjectHash(const ObjectType& object, IsMap) {
-    return Hash{}(object.first());
+    return Hash{}(object.first);
   }
 
   std::uint64_t GetObjectHash(const ObjectType& object, IsSet) {
@@ -678,7 +759,8 @@ class HashTable {
   }
 
   void RehashWhenNeed() {
-    if (size_ > std::floor(bucket_count_ * load_factor_)) {
+    if (size_.load(std::memory_order_consume) >
+        std::floor(bucket_count_ * load_factor_)) {
       ReHash(2 * bucket_count_);
     }
   }
@@ -710,51 +792,25 @@ class HashTable {
   }
 
  private:
+  template <typename LockType>
   struct LockGuard {
-    LockGuard(const ThisType& hash_table, const KeyType& key, TrueType)
+    using GuardType =
+        IfThenElseT<std::is_same_v<LockType, SharedLockType>,
+                    std::shared_lock<MutexType>, std::unique_lock<MutexType>>;
+
+    LockGuard(const ThisType& hash_table, const KeyType& key)
+        : is_lock_(true), parent_(hash_table), guard_(ChooseMutex(key)) {}
+    LockGuard(const ThisType& hash_table, const KeyType& key, std::adopt_lock_t)
         : is_lock_(true),
-          is_shared_(true),
           parent_(hash_table),
-          shared_guard_(ChooseMutex(key)) {}
-    LockGuard(const ThisType& hash_table, const KeyType& key, FalseType)
-        : is_lock_(true),
-          is_shared_(false),
-          parent_(hash_table),
-          unique_guard_(ChooseMutex(key)) {}
-    LockGuard(const ThisType& hash_table, const KeyType& key, TrueType,
+          guard_(ChooseMutex(key), std::adopt_lock) {}
+    LockGuard(const ThisType& hash_table, std::uint64_t hash_code)
+        : is_lock_(true), parent_(hash_table), guard_(ChooseMutex(hash_code)) {}
+    LockGuard(const ThisType& hash_table, std::uint64_t hash_code,
               std::adopt_lock_t)
         : is_lock_(true),
-          is_shared_(true),
           parent_(hash_table),
-          shared_guard_(ChooseMutex(key), std::adopt_lock) {}
-    LockGuard(const ThisType& hash_table, std::uint64_t hash_code, FalseType,
-              std::adopt_lock_t)
-        : is_lock_(true),
-          is_shared_(false),
-          parent_(hash_table),
-          unique_guard_(ChooseMutex(hash_code), std::adopt_lock) {}
-    LockGuard(const ThisType& hash_table, std::uint64_t hash_code, TrueType)
-        : is_lock_(true),
-          is_shared_(true),
-          parent_(hash_table),
-          shared_guard_(ChooseMutex(hash_code)) {}
-    LockGuard(const ThisType& hash_table, std::uint64_t hash_code, FalseType)
-        : is_lock_(true),
-          is_shared_(false),
-          parent_(hash_table),
-          unique_guard_(ChooseMutex(hash_code)) {}
-    LockGuard(const ThisType& hash_table, std::uint64_t hash_code, TrueType,
-              std::adopt_lock_t)
-        : is_lock_(true),
-          is_shared_(true),
-          parent_(hash_table),
-          shared_guard_(ChooseMutex(hash_code), std::adopt_lock) {}
-    LockGuard(const ThisType& hash_table, const KeyType& key, FalseType,
-              std::adopt_lock_t)
-        : is_lock_(true),
-          is_shared_(false),
-          parent_(hash_table),
-          unique_guard_(ChooseMutex(key), std::adopt_lock) {}
+          guard_(ChooseMutex(hash_code), std::adopt_lock) {}
 
     ~LockGuard() = default;
     LockGuard(const LockGuard& other) = delete;
@@ -765,16 +821,12 @@ class HashTable {
     void Lock() {
       if (!is_lock_) {
         is_lock_ = true;
-        if (is_shared_) {
-          shared_guard_.lock();
-        } else {
-          unique_guard_.lock();
-        }
+        guard_.lock();
       }
     }
 
     MutexType& ChooseMutex(std::uint64_t hash_code) {
-      switch (hash_code & 0xF) {
+      switch (hash_code % parent_.bucket_count_ & 0xF) {
         case 0:
           return parent_.data_mutex0_;
         case 1:
@@ -820,19 +872,13 @@ class HashTable {
     void Unlock() {
       if (is_lock_) {
         is_lock_ = false;
-        if (is_shared_) {
-          shared_guard_.unlock();
-        } else {
-          unique_guard_.unlock();
-        }
+        guard_.unlock();
       }
     }
 
     bool is_lock_{false};
-    bool is_shared_{false};
     const ThisType& parent_;
-    std::unique_lock<MutexType> unique_guard_;
-    std::shared_lock<MutexType> shared_guard_;
+    GuardType guard_;
   };
 
   // unique_lock
@@ -851,10 +897,10 @@ class HashTable {
       }
     }
 
-    LockAllGuard(const LockGuard& other) = delete;
-    LockAllGuard(LockGuard&& other) = delete;
-    LockAllGuard& operator=(const LockGuard& other) = delete;
-    LockAllGuard& operator=(LockGuard&& other) = delete;
+    LockAllGuard(const LockAllGuard& other) = delete;
+    LockAllGuard(LockAllGuard&& other) = delete;
+    LockAllGuard& operator=(const LockAllGuard& other) = delete;
+    LockAllGuard& operator=(LockAllGuard&& other) = delete;
 
     void LockAll() {
       if (!is_lock_) {
@@ -906,7 +952,7 @@ class HashTable {
   Node* data_{new Node[131]{}};
 
   double load_factor_{0.75f};
-  std::uint64_t size_{0};
+  std::atomic_uint64_t size_{0};
   std::uint64_t bucket_count_{131};
 
   mutable MutexType data_mutex0_{};
@@ -959,200 +1005,5 @@ using ConcurrentMultiMap =
     HashTable<TrueType, TrueType, KeyObject,
               std::pair<const KeyObject, ValueObject>,
               std::pair<const KeyObject, ValueObject>, Hash, Equal, Allocator>;
-// template <typename ObjectType, typename Hash = std::hash<ObjectType>,
-//           typename Equal = std::equal_to<ObjectType>,
-//           typename Allocator = std::allocator<ObjectType>>
-// class ConcurrentSet final
-//     : public HashTable<FalseType, FalseType, ObjectType, ObjectType, Hash,
-//                        Equal, Allocator> {
-//  public:
-//   using BaseType = HashTable<FalseType, FalseType, ObjectType, ObjectType,
-//   Hash,
-//                              Equal, Allocator>;
-//
-//  public:
-//   ConcurrentSet() : BaseType() {}
-//   ~ConcurrentSet() = default;
-//   explicit ConcurrentSet(std::uint64_t size) : BaseType(size){};
-//   ConcurrentSet(const ConcurrentSet& other) = default;
-//   ConcurrentSet(ConcurrentSet&& other) noexcept = default;
-//   ConcurrentSet& operator=(const ConcurrentSet& other) {
-//     if (&other == this) {
-//       return *this;
-//     }
-//
-//     BaseType::operator=(other);
-//
-//     return *this;
-//   }
-//   ConcurrentSet& operator=(ConcurrentSet&& other) noexcept {
-//     if (&other == this) {
-//       return *this;
-//     }
-//
-//     BaseType::operator=(std::move(other));
-//
-//     return *this;
-//   }
-//
-//  public:
-//   std::pair<const ObjectType&, bool> Insert(const ObjectType& object) {
-//     return BaseType::Insert(object);
-//   }
-//
-//   std::pair<const ObjectType&, bool> Insert(ObjectType&& object) {
-//     return BaseType::Insert(std::move(object));
-//   }
-//
-//   template <typename... Args>
-//   std::pair<const ObjectType&, bool> Emplace(Args... args) {
-//     return BaseType::Emplace(std::forward<Args>(args)...);
-//   }
-//
-//   const ObjectType* Find(const ObjectType& key) { return BaseType::Find(key);
-//   }
-//
-//   std::vector<const ObjectType*> EqualRange(const ObjectType& key) {
-//     return BaseType::EqualRange(key);
-//   }
-// };
-//
-// template <typename ObjectType, typename Hash = std::hash<ObjectType>,
-//           typename Equal = std::equal_to<ObjectType>,
-//           typename Allocator = std::allocator<ObjectType>>
-// class ConcurrentMultiSet final
-//     : public HashTable<FalseType, TrueType, ObjectType, ObjectType, Hash,
-//     Equal,
-//                        Allocator> {
-//  public:
-//   using BaseType = HashTable<FalseType, TrueType, ObjectType, ObjectType,
-//   Hash,
-//                              Equal, Allocator>;
-//
-//  public:
-//   ConcurrentMultiSet() : BaseType() {}
-//   ~ConcurrentMultiSet() = default;
-//   explicit ConcurrentMultiSet(std::uint64_t size) : BaseType(size){};
-//   ConcurrentMultiSet(const ConcurrentMultiSet& other) = default;
-//   ConcurrentMultiSet(ConcurrentMultiSet&& other) noexcept = default;
-//   ConcurrentMultiSet& operator=(const ConcurrentMultiSet& other) {
-//     if (&other == this) {
-//       return *this;
-//     }
-//
-//     BaseType::operator=(other);
-//
-//     return *this;
-//   }
-//   ConcurrentMultiSet& operator=(ConcurrentMultiSet&& other) noexcept {
-//     if (&other == this) {
-//       return *this;
-//     }
-//
-//     BaseType::operator=(std::move(other));
-//
-//     return *this;
-//   }
-//
-//  public:
-//   std::pair<const ObjectType&, bool> Insert(const ObjectType& object) {
-//     return BaseType::Insert(object);
-//   }
-//
-//   std::pair<const ObjectType&, bool> Insert(ObjectType&& object) {
-//     return BaseType::Insert(std::move(object));
-//   }
-//
-//   template <typename... Args>
-//   std::pair<const ObjectType&, bool> Emplace(Args... args) {
-//     return BaseType::Emplace(std::forward<Args>(args)...);
-//   }
-//
-//   const ObjectType* Find(const ObjectType& key) { return BaseType::Find(key);
-//   }
-//
-//   std::vector<const ObjectType*> EqualRange(const ObjectType& key) {
-//     return BaseType::EqualRange(key);
-//   }
-// };
-//
-// template <typename KeyType, typename ValueType,
-//           typename Hash = std::hash<KeyType>,
-//           typename Equal = std::equal_to<KeyType>,
-//           typename Allocator = std::allocator<std::pair<KeyType, ValueType>>>
-// class ConcurrentMap final
-//     : public HashTable<TrueType, FalseType, KeyType,
-//                        std::pair<const KeyType, ValueType>, Hash, Equal,
-//                        Allocator> {
-//  public:
-//   using BaseType = HashTable<TrueType, FalseType, KeyType, ValueType, Hash,
-//                              Equal, Allocator>;
-//   using ObjectType = std::pair<const KeyType, ValueType>;
-//
-//  public:
-//   ConcurrentMap() : BaseType() {}
-//   ~ConcurrentMap() = default;
-//   explicit ConcurrentMap(std::uint64_t size) : BaseType(size){};
-//   ConcurrentMap(const ConcurrentMap& other) = default;
-//   ConcurrentMap(ConcurrentMap&& other) noexcept = default;
-//   ConcurrentMap& operator=(const ConcurrentMap& other) {
-//     if (&other == this) {
-//       return *this;
-//     }
-//
-//     BaseType::operator=(other);
-//
-//     return *this;
-//   }
-//   ConcurrentMap& operator=(ConcurrentMap&& other) noexcept {
-//     if (&other == this) {
-//       return *this;
-//     }
-//
-//     BaseType::operator=(std::move(other));
-//
-//     return *this;
-//   }
-// };
-//
-// template <typename KeyType, typename ValueType,
-//           typename Hash = std::hash<KeyType>,
-//           typename Equal = std::equal_to<KeyType>,
-//           typename Allocator = std::allocator<std::pair<KeyType, ValueType>>>
-// class ConcurrentMultiMap final
-//     : public HashTable<TrueType, TrueType, KeyType,
-//                        std::pair<const KeyType, ValueType>, Hash, Equal,
-//                        Allocator> {
-//  public:
-//   using BaseType =
-//       HashTable<TrueType, TrueType, KeyType, ValueType, Hash, Equal,
-//       Allocator>;
-//
-//  public:
-//   ConcurrentMultiMap() : BaseType() {}
-//   ~ConcurrentMultiMap() = default;
-//   explicit ConcurrentMultiMap(std::uint64_t size) : BaseType(size){};
-//   ConcurrentMultiMap(const ConcurrentMultiMap& other) = default;
-//   ConcurrentMultiMap(ConcurrentMultiMap&& other) noexcept = default;
-//   ConcurrentMultiMap& operator=(const ConcurrentMultiMap& other) {
-//     if (&other == this) {
-//       return *this;
-//     }
-//
-//     BaseType::operator=(other);
-//
-//     return *this;
-//   }
-//   ConcurrentMultiMap& operator=(ConcurrentMultiMap&& other) noexcept {
-//     if (&other == this) {
-//       return *this;
-//     }
-//
-//     BaseType::operator=(std::move(other));
-//
-//     return *this;
-//   }
-// };
-
 }  // namespace Utils
 }  // namespace MM

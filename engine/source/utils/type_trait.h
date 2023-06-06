@@ -101,5 +101,21 @@ class LastArg<FirstArg, Args...> {
  public:
   using Type = typename LastArg<Args...>::Type;
 };
+
+template <bool Condition, typename True, typename False>
+struct IfThenElse;
+
+template <typename True, typename False>
+struct IfThenElse<true, True, False> {
+  using Type = True;
+};
+
+template <typename True, typename False>
+struct IfThenElse<false, True, False> {
+  using Type = False;
+};
+
+template <bool Condition, typename True, typename False>
+using IfThenElseT = typename IfThenElse<Condition, True, False>::Type;
 }  // namespace Utils
 }  // namespace MM
