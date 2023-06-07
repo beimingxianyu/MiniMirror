@@ -1,5 +1,6 @@
 #pragma once
 
+#include <atomic>
 #include <cmath>
 #include <memory>
 #include <string>
@@ -41,5 +42,66 @@ bool IsPrime64(std::uint64_t x);
 std::uint32_t MinPrime32(std::uint32_t n);
 
 std::uint64_t MinPrime64(std::uint64_t n);
+
+class SpinSharedMutex {
+ public:
+  SpinSharedMutex() = default;
+  ~SpinSharedMutex() = default;
+  SpinSharedMutex(const SpinSharedMutex& other) = delete;
+  SpinSharedMutex(SpinSharedMutex&& other) = delete;
+  SpinSharedMutex& operator=(const SpinSharedMutex& other) = delete;
+  SpinSharedMutex& operator=(SpinSharedMutex&& other) = delete;
+
+ public:
+  void Lock();
+
+  void Unlock();
+
+  void SharedLock();
+
+  void SharedUnlock();
+
+ private:
+  std::atomic_bool is_write_{false};
+  std::atomic_uint32_t read_count_{0};
+};
+
+class SpinSharedLock {
+ public:
+  SpinSharedLock() = delete;
+  ~SpinSharedLock();
+  explicit SpinSharedLock(SpinSharedMutex& spin_shared_mutex);
+  SpinSharedLock(const SpinSharedLock& other) = delete;
+  SpinSharedLock(SpinSharedLock&& other) = delete;
+  SpinSharedLock& operator=(const SpinSharedLock& other) = delete;
+  SpinSharedLock& operator=(SpinSharedLock&& other) = delete;
+
+ public:
+  void Lock();
+
+  void Unlock();
+
+ private:
+  SpinSharedMutex& spin_shared_mutex_;
+};
+
+class SpinUniqueLock {
+ public:
+  SpinUniqueLock() = delete;
+  ~SpinUniqueLock();
+  explicit SpinUniqueLock(SpinSharedMutex& spin_shared_mutex);
+  SpinUniqueLock(const SpinUniqueLock& other) = delete;
+  SpinUniqueLock(SpinUniqueLock&& other) = delete;
+  SpinUniqueLock& operator=(const SpinUniqueLock& other) = delete;
+  SpinUniqueLock& operator=(SpinUniqueLock& other) = delete;
+
+ public:
+  void Lock();
+
+  void Unlock();
+
+ private:
+  SpinSharedMutex& spin_shared_mutex_;
+};
 }  // namespace Utils
 }  // namespace MM

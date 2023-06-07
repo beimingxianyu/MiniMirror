@@ -2,6 +2,7 @@
 
 #include "runtime/core/manager/ManagedObjectHandler.h"
 #include "runtime/core/manager/utils.h"
+#include "utils/ConcurrentHashTable.h"
 
 namespace MM {
 namespace Manager {
@@ -9,11 +10,13 @@ template <
     typename KeyType, typename ValueType, typename Hash = std::hash<KeyType>,
     typename Equal = std::equal_to<KeyType>,
     typename Allocator =
-        std::allocator<std::pair<KeyType, ManagedObjectWrapper<ValueType>>>>
+        std::allocator<std::pair<KeyType, ManagedObjectWrapper<ValueType>>>,
+    typename IsCanMoved = Utils::TrueType>
 class ManagedObjectUnorderedMap
     : public ManagedObjectTableBase<KeyType, ValueType, HashKeyTrait> {
  public:
   using RelationshipContainerTrait = HashKeyTrait;
+  using MovedTrait = IsCanMoved;
   using ThisType =
       ManagedObjectUnorderedMap<KeyType, ValueType, Hash, Equal, Allocator>;
   using BaseType =
@@ -21,7 +24,7 @@ class ManagedObjectUnorderedMap
   using WrapperType = typename BaseType::WrapperType;
   using HandlerType = typename BaseType::HandlerType;
   using ContainerType =
-      std::unordered_map<KeyType, WrapperType, Hash, Equal, Allocator>;
+      Utils::ConcurrentMultiMap<KeyType, WrapperType, Hash, Equal, Allocator>;
 
   friend struct LockAll<ThisType>;
   template <typename ManagedObjectTable>
@@ -31,9 +34,9 @@ class ManagedObjectUnorderedMap
  public:
   ManagedObjectUnorderedMap()
       : ManagedObjectTableBase<KeyType, ValueType, HashKeyTrait>(this),
-        data_(1024) {}
+        data_() {}
   ~ManagedObjectUnorderedMap() {
-    if (!data_.empty()) {
+    if (!data_.Eempty()) {
       LOG_ERROR(
           "The container is not empty, and destroying it will result in an "
           "access error.");
@@ -41,43 +44,13 @@ class ManagedObjectUnorderedMap
   }
   explicit ManagedObjectUnorderedMap(std::uint32_t size)
       : ManagedObjectTableBase<KeyType, ValueType, HashKeyTrait>(this),
-        data_(size) {
-    LOG_DEBUG(
-        std::to_string((std::uint64_t) static_cast<void*>(&data_mutex0_)));
-    LOG_DEBUG(
-        std::to_string((std::uint64_t) static_cast<void*>(&data_mutex1_)));
-    LOG_DEBUG(
-        std::to_string((std::uint64_t) static_cast<void*>(&data_mutex2_)));
-    LOG_DEBUG(
-        std::to_string((std::uint64_t) static_cast<void*>(&data_mutex3_)));
-    LOG_DEBUG(
-        std::to_string((std::uint64_t) static_cast<void*>(&data_mutex4_)));
-    LOG_DEBUG(
-        std::to_string((std::uint64_t) static_cast<void*>(&data_mutex5_)));
-    LOG_DEBUG(
-        std::to_string((std::uint64_t) static_cast<void*>(&data_mutex6_)));
-    LOG_DEBUG(
-        std::to_string((std::uint64_t) static_cast<void*>(&data_mutex7_)));
-    LOG_DEBUG(
-        std::to_string((std::uint64_t) static_cast<void*>(&data_mutex8_)));
-    LOG_DEBUG(
-        std::to_string((std::uint64_t) static_cast<void*>(&data_mutex9_)));
-    LOG_DEBUG(
-        std::to_string((std::uint64_t) static_cast<void*>(&data_mutex10_)));
-    LOG_DEBUG(
-        std::to_string((std::uint64_t) static_cast<void*>(&data_mutex11_)));
-    LOG_DEBUG(
-        std::to_string((std::uint64_t) static_cast<void*>(&data_mutex12_)));
-    LOG_DEBUG(
-        std::to_string((std::uint64_t) static_cast<void*>(&data_mutex13_)));
-    LOG_DEBUG(
-        std::to_string((std::uint64_t) static_cast<void*>(&data_mutex14_)));
-    LOG_DEBUG(
-        std::to_string((std::uint64_t) static_cast<void*>(&data_mutex15_)));
-  }
+        data_(size) {}
   ManagedObjectUnorderedMap(const ManagedObjectUnorderedMap& other) = delete;
   ManagedObjectUnorderedMap(ManagedObjectUnorderedMap&& other) noexcept {
-    LockAll guard(other);
+    static_assert(
+        std::is_same_v<MovedTrait, Utils::TrueType>,
+        "Only by marking 'IsCanMoved' as' TrueType 'can the object be moved.");
+    Utils::SpinUniqueLock guard{move_mutex_};
 
     BaseType::operator=(std::move(other));
     data_ = std::move(data_);
@@ -86,27 +59,20 @@ class ManagedObjectUnorderedMap
       delete;
   ManagedObjectUnorderedMap& operator=(
       ManagedObjectUnorderedMap&& other) noexcept {
+    static_assert(
+        std::is_same_v<MovedTrait, Utils::TrueType>,
+        "Only by marking 'IsCanMoved' as' TrueType 'can the object be moved.");
+
     if (&other == this) {
       return *this;
     }
+    Utils::SpinUniqueLock guard{move_mutex_};
 
-    std::lock(data_mutex0_, data_mutex1_, data_mutex2_, data_mutex3_,
-              data_mutex4_, data_mutex5_, data_mutex6_, data_mutex7_,
-              data_mutex8_, data_mutex9_, data_mutex10_, data_mutex11_,
-              data_mutex12_, data_mutex13_, data_mutex14_, data_mutex15_,
-              other.data_mutex0_, other.data_mutex1_, other.data_mutex2_,
-              other.data_mutex3_, other.data_mutex4_, other.data_mutex5_,
-              other.data_mutex6_, other.data_mutex7_, other.data_mutex8_,
-              other.data_mutex9_, other.data_mutex10_, other.data_mutex11_,
-              other.data_mutex12_, other.data_mutex13_, other.data_mutex14_,
-              other.data_mutex15_);
-    if (!data_.empty()) {
+    if (!data_.Empty()) {
       LOG_ERROR(
           "If there is data in the original container but it is reassigned, an "
           "access error will occur.");
     }
-    LockAll main_guard(*this, std::adopt_lock),
-        other_guard(other, std::adopt_lock);
 
     BaseType::operator=(std::move(other));
     data_ = std::move(other.data_);
@@ -115,16 +81,24 @@ class ManagedObjectUnorderedMap
   }
 
  public:
-  size_t GetSize() const override { return data_.size(); }
+  size_t GetSize() const override { return data_.Size(); }
 
   bool Have(const KeyType& key) const override {
-    std::unique_lock<std::shared_mutex> guard{ChooseMutexIn(key)};
+    if constexpr (IsCanMovedValue()) {
+      Utils::SpinSharedLock guard{move_mutex_};
 
-    return data_.count(key) != 0;
+      return data_.Contains(key);
+    }
+
+    return data_.Contains(key);
   }
 
   uint32_t Count(const KeyType& key) const override {
-    std::shared_lock<std::shared_mutex> guard{ChooseMutexIn(key)};
+    if constexpr (IsCanMovedValue()) {
+      Utils::SpinSharedLock guard{move_mutex_};
+
+      return data_.Contains(key);
+    }
 
     return data_.count(key);
   }
@@ -235,52 +209,27 @@ class ManagedObjectUnorderedMap
   }
 
  private:
-  void ResizeWhenNeeded() {
-    if (data_.bucket_count() - data_.size() < 128) {
-      LockAll guard(*this);
-      std::uint32_t new_size = data_.bucket_count() * 2;
-      if (new_size < 2048) {
-        new_size = 2048;
-      }
-      data_.reserve(new_size);
-    }
-  }
-
-  std::shared_mutex& ChooseMutexIn(const KeyType& key) const {
-    // return data_mutex0_;
-    return ChooseMutex(*this, Hash{}(key));
+  constexpr bool IsCanMovedValue() const {
+    return std::is_same_v<MovedTrait, Utils::TrueType>;
   }
 
  private:
   ContainerType data_{};
 
-  mutable std::shared_mutex data_mutex0_{};
-  mutable std::shared_mutex data_mutex1_{};
-  mutable std::shared_mutex data_mutex2_{};
-  mutable std::shared_mutex data_mutex3_{};
-  mutable std::shared_mutex data_mutex4_{};
-  mutable std::shared_mutex data_mutex5_{};
-  mutable std::shared_mutex data_mutex6_{};
-  mutable std::shared_mutex data_mutex7_{};
-  mutable std::shared_mutex data_mutex8_{};
-  mutable std::shared_mutex data_mutex9_{};
-  mutable std::shared_mutex data_mutex10_{};
-  mutable std::shared_mutex data_mutex11_{};
-  mutable std::shared_mutex data_mutex12_{};
-  mutable std::shared_mutex data_mutex13_{};
-  mutable std::shared_mutex data_mutex14_{};
-  mutable std::shared_mutex data_mutex15_{};
+  mutable Utils::SpinSharedMutex move_mutex_;
 };
 
 template <
     typename KeyType, typename ValueType, typename Hash = std::hash<KeyType>,
     typename Equal = std::equal_to<KeyType>,
     typename Allocator =
-        std::allocator<std::pair<KeyType, ManagedObjectWrapper<ValueType>>>>
+        std::allocator<std::pair<KeyType, ManagedObjectWrapper<ValueType>>>,
+    typename IsCanMoved = Utils::TrueType>
 class ManagedObjectUnorderedMultiMap
     : public ManagedObjectTableBase<KeyType, ValueType, HashKeyTrait> {
  public:
   using RelationshipContainerTrait = HashKeyTrait;
+  using MovedTrait = IsCanMoved;
   using ThisType = ManagedObjectUnorderedMultiMap<KeyType, ValueType, Hash,
                                                   Equal, Allocator>;
   using BaseType =
@@ -288,7 +237,7 @@ class ManagedObjectUnorderedMultiMap
   using WrapperType = typename BaseType::WrapperType;
   using HandlerType = typename BaseType::HandlerType;
   using ContainerType =
-      std::unordered_multimap<KeyType, WrapperType, Hash, Equal, Allocator>;
+      Utils::ConcurrentMultiMap<KeyType, WrapperType, Hash, Equal, Allocator>;
 
   friend struct LockAll<ThisType>;
   template <typename ManagedObjectTable>
@@ -313,7 +262,10 @@ class ManagedObjectUnorderedMultiMap
       delete;
   ManagedObjectUnorderedMultiMap(
       ManagedObjectUnorderedMultiMap&& other) noexcept {
-    LockAll guard{other};
+    static_assert(
+        std::is_same_v<MovedTrait, Utils::TrueType>,
+        "Only by marking 'IsCanMoved' as' TrueType 'can the object be moved.");
+    Utils::SpinUniqueLock guard{move_mutex_};
 
     BaseType::operator=(std::move(other));
     data_ = std::move(other.data_);
@@ -322,27 +274,20 @@ class ManagedObjectUnorderedMultiMap
       const ManagedObjectUnorderedMultiMap& other) = delete;
   ManagedObjectUnorderedMultiMap& operator=(
       ManagedObjectUnorderedMultiMap&& other) noexcept {
+    static_assert(
+        std::is_same_v<MovedTrait, Utils::TrueType>,
+        "Only by marking 'IsCanMoved' as' TrueType 'can the object be moved.");
     if (&other == this) {
       return *this;
     }
 
-    std::lock(data_mutex0_, data_mutex1_, data_mutex2_, data_mutex3_,
-              data_mutex4_, data_mutex5_, data_mutex6_, data_mutex7_,
-              data_mutex8_, data_mutex9_, data_mutex10_, data_mutex11_,
-              data_mutex12_, data_mutex13_, data_mutex14_, data_mutex15_,
-              other.data_mutex0_, other.data_mutex1_, other.data_mutex2_,
-              other.data_mutex3_, other.data_mutex4_, other.data_mutex5_,
-              other.data_mutex6_, other.data_mutex7_, other.data_mutex8_,
-              other.data_mutex9_, other.data_mutex10_, other.data_mutex11_,
-              other.data_mutex12_, other.data_mutex13_, other.data_mutex14_,
-              other.data_mutex15_);
+    Utils::SpinUniqueLock guard{move_mutex_};
+
     if (!data_.empty()) {
       LOG_ERROR(
           "If there is data in the original container but it is reassigned, an "
           "access error will occur.");
     }
-    LockAll main_guard(*this, std::adopt_lock),
-        other_guard(other, std::adopt_lock);
 
     BaseType::operator=(std::move(other));
     data_ = std::move(other.data_);
@@ -692,22 +637,7 @@ class ManagedObjectUnorderedMultiMap
  private:
   ContainerType data_;
 
-  mutable std::shared_mutex data_mutex0_{};
-  mutable std::shared_mutex data_mutex1_{};
-  mutable std::shared_mutex data_mutex2_{};
-  mutable std::shared_mutex data_mutex3_{};
-  mutable std::shared_mutex data_mutex4_{};
-  mutable std::shared_mutex data_mutex5_{};
-  mutable std::shared_mutex data_mutex6_{};
-  mutable std::shared_mutex data_mutex7_{};
-  mutable std::shared_mutex data_mutex8_{};
-  mutable std::shared_mutex data_mutex9_{};
-  mutable std::shared_mutex data_mutex10_{};
-  mutable std::shared_mutex data_mutex11_{};
-  mutable std::shared_mutex data_mutex12_{};
-  mutable std::shared_mutex data_mutex13_{};
-  mutable std::shared_mutex data_mutex14_{};
-  mutable std::shared_mutex data_mutex15_{};
+  mutable Utils::SpinSharedMutex move_mutex_;
 };
 }  // namespace Manager
 }  // namespace MM

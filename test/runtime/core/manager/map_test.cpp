@@ -63,6 +63,11 @@ TEST(manager, map) {
   handler4->Release();
 
   EXPECT_EQ(map_data2.GetSize(), 0);
+
+  delete handler1;
+  delete handler2;
+  delete handler3;
+  delete handler4;
 }
 
 #define INSERT_COUNT 500000

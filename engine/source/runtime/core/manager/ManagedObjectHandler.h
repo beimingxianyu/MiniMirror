@@ -318,9 +318,7 @@ class ManagedObjectHandler<KeyType, ManagedType, NodeKeyTrait> {
   }
 
  private:
-  std::atomic<ManagedObjectTableBase<
-      KeyType, ManagedType, RelationshipContainerTrait>*>* object_table_{
-      nullptr};
+  std::atomic<DataTableType*>* object_table_{nullptr};
   const KeyType* key_{nullptr};
   ManagedType* managed_object_{nullptr};
   std::atomic_uint32_t* use_count_{nullptr};
