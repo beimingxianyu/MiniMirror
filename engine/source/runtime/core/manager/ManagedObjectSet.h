@@ -45,21 +45,13 @@ class ManagedObjectSet
 
   ExecuteResult AddObject(ObjectType&& managed_object, HandlerType& handle);
 
-  ExecuteResult GetObject(const ObjectType& object, HandlerType& handle) const;
+  ExecuteResult GetObject(const ObjectType& key, HandlerType& handler) const;
 
-  std::uint32_t GetUseCount(const ObjectType& object) const;
+  std::uint32_t GetUseCount(const ObjectType& key) const;
 
  protected:
-  ExecuteResult AddObjectImp(ObjectType&& managed_object,
-                             HandlerType& handle) override;
-
   ExecuteResult RemoveObjectImp(const ObjectType& removed_object_key,
                                 ContainerTrait trait) override;
-
-  ExecuteResult GetObjectImp(const ObjectType& key,
-                             HandlerType& handler) const override;
-
-  std::uint32_t GetUseCountImp(const ObjectType& key) const override;
 
  private:
   ContainerType data_;
@@ -71,10 +63,10 @@ template <typename ObjectType,
 class ManagedObjectMultiSet
     : public ManagedObjectTableBase<ObjectType, ObjectType, ListTrait> {
  public:
-  using RelationshipContainerTrait = ListTrait;
+  using ContainerTrait = ListTrait;
   using ThisType = ManagedObjectMultiSet<ObjectType, Allocator>;
-  using BaseType = ManagedObjectTableBase<ObjectType, ObjectType,
-                                          RelationshipContainerTrait>;
+  using BaseType =
+      ManagedObjectTableBase<ObjectType, ObjectType, ContainerTrait>;
   using HandlerType = typename BaseType::HandlerType;
   using WrapperType = typename BaseType::WrapperType;
   using ContainerType =
@@ -103,52 +95,29 @@ class ManagedObjectMultiSet
 
   bool IsRelationshipContainer() const override { return false; }
 
-  ExecuteResult AddObject(ObjectType&& managed_object, HandlerType& handle);
+  ExecuteResult AddObject(ObjectType&& managed_object, HandlerType& handler);
 
   ExecuteResult GetObject(const ObjectType& key, HandlerType& handle) const;
 
   ExecuteResult GetObject(const ObjectType& key,
                           const std::atomic_uint32_t* use_count_ptr,
-                          HandlerType& handle) const;
+                          ThisType::HandlerType& handle) const;
 
   ExecuteResult GetObject(const ObjectType& key,
-                          std::vector<HandlerType>& handles) const;
+                          std::vector<HandlerType>& handlers) const;
 
   std::uint32_t GetUseCount(const ObjectType& key) const;
 
   std::uint32_t GetUseCount(const ObjectType& key,
                             const std::atomic_uint32_t* use_count_ptr) const;
 
-  void GetUseCount(const ObjectType& key,
-                   std::vector<std::uint32_t>& use_counts) const;
+  ExecuteResult GetUseCount(const ObjectType& key,
+                            std::vector<std::uint32_t>& use_counts) const;
 
  protected:
-  ExecuteResult AddObjectImp(ObjectType&& managed_object,
-                             HandlerType& handler) override;
-
   ExecuteResult RemoveObjectImp(const ObjectType& removed_object_key,
                                 const std::atomic_uint32_t* use_count_ptr,
                                 ListTrait trait) override;
-
-  ExecuteResult GetObjectImp(const ObjectType& key,
-                             HandlerType& handle) const override;
-
-  ExecuteResult GetObjectImp(const ObjectType& key,
-                             const std::atomic_uint32_t* use_count_ptr,
-                             ThisType::HandlerType& handle) const override;
-
-  ExecuteResult GetObjectImp(const ObjectType& key,
-                             std::vector<HandlerType>& handlers) const override;
-
-  std::uint32_t GetUseCountImp(const ObjectType& key) const override;
-
-  std::uint32_t GetUseCountImp(
-      const ObjectType& key,
-      const std::atomic_uint32_t* use_count_ptr) const override;
-
-  ExecuteResult GetUseCountImp(
-      const ObjectType& key,
-      std::vector<std::uint32_t>& use_counts) const override;
 
  private:
   ContainerType data_{};
@@ -174,7 +143,7 @@ ManagedObjectSet<ObjectType, Allocator>::~ManagedObjectSet() {
 }
 
 template <typename ObjectType, typename Allocator>
-ExecuteResult ManagedObjectMultiSet<ObjectType, Allocator>::GetUseCountImp(
+ExecuteResult ManagedObjectMultiSet<ObjectType, Allocator>::GetUseCount(
     const ObjectType& key, std::vector<std::uint32_t>& use_counts) const {
   if (!ThisType::TestMoveWhenGetUseCount()) {
     return ExecuteResult::OPERATION_NOT_SUPPORTED;
@@ -197,7 +166,7 @@ ExecuteResult ManagedObjectMultiSet<ObjectType, Allocator>::GetUseCountImp(
 }
 
 template <typename ObjectType, typename Allocator>
-std::uint32_t ManagedObjectMultiSet<ObjectType, Allocator>::GetUseCountImp(
+std::uint32_t ManagedObjectMultiSet<ObjectType, Allocator>::GetUseCount(
     const ObjectType& key, const std::atomic_uint32_t* use_count_ptr) const {
   if (!ThisType::TestMoveWhenGetUseCount()) {
     return 0;
@@ -222,7 +191,7 @@ std::uint32_t ManagedObjectMultiSet<ObjectType, Allocator>::GetUseCountImp(
 }
 
 template <typename ObjectType, typename Allocator>
-std::uint32_t ManagedObjectMultiSet<ObjectType, Allocator>::GetUseCountImp(
+std::uint32_t ManagedObjectMultiSet<ObjectType, Allocator>::GetUseCount(
     const ObjectType& key) const {
   if (!ThisType::TestMoveWhenGetUseCount()) {
     return 0;
@@ -240,31 +209,7 @@ std::uint32_t ManagedObjectMultiSet<ObjectType, Allocator>::GetUseCountImp(
 }
 
 template <typename ObjectType, typename Allocator>
-void ManagedObjectMultiSet<ObjectType, Allocator>::GetUseCount(
-    const ObjectType& key, std::vector<std::uint32_t>& use_counts) const {
-  GetUseCountImp(key, use_counts);
-}
-
-template <typename ObjectType, typename Allocator>
-std::uint32_t ManagedObjectMultiSet<ObjectType, Allocator>::GetUseCount(
-    const ObjectType& key, const std::atomic_uint32_t* use_count_ptr) const {
-  return GetUseCountImp(key, use_count_ptr);
-}
-
-template <typename ObjectType, typename Allocator>
-std::uint32_t ManagedObjectMultiSet<ObjectType, Allocator>::GetUseCount(
-    const ObjectType& key) const {
-  return GetUseCountImp(key);
-}
-
-template <typename ObjectType, typename Allocator>
 std::uint32_t ManagedObjectSet<ObjectType, Allocator>::GetUseCount(
-    const ObjectType& object) const {
-  return GetUseCountImp(object);
-}
-
-template <typename ObjectType, typename Allocator>
-std::uint32_t ManagedObjectSet<ObjectType, Allocator>::GetUseCountImp(
     const ObjectType& key) const {
   if (!BaseType::TestMoveWhenGetUseCount()) {
     return 0;
@@ -288,8 +233,7 @@ ManagedObjectSet<ObjectType, Allocator>::ManagedObjectSet()
 
 template <typename ObjectType, typename Allocator>
 ManagedObjectMultiSet<ObjectType, Allocator>::ManagedObjectMultiSet()
-    : ManagedObjectTableBase<ObjectType, ObjectType,
-                             RelationshipContainerTrait>(this),
+    : ManagedObjectTableBase<ObjectType, ObjectType, ContainerTrait>(this),
       data_(),
       data_mutex_() {}
 
@@ -328,31 +272,6 @@ ManagedObjectMultiSet<ObjectType, Allocator>::operator=(
 
 template <typename ObjectType, typename Allocator>
 ExecuteResult ManagedObjectMultiSet<ObjectType, Allocator>::AddObject(
-    ObjectType&& managed_object, HandlerType& handle) {
-  return AddObjectImp(std::move(managed_object), handle);
-}
-
-template <typename ObjectType, typename Allocator>
-ExecuteResult ManagedObjectMultiSet<ObjectType, Allocator>::GetObject(
-    const ObjectType& key, HandlerType& handle) const {
-  return GetObjectImp(key, handle);
-}
-
-template <typename ObjectType, typename Allocator>
-ExecuteResult ManagedObjectMultiSet<ObjectType, Allocator>::GetObject(
-    const ObjectType& key, const std::atomic_uint32_t* use_count_ptr,
-    HandlerType& handle) const {
-  return GetObjectImp(key, use_count_ptr, handle);
-}
-
-template <typename ObjectType, typename Allocator>
-ExecuteResult ManagedObjectMultiSet<ObjectType, Allocator>::GetObject(
-    const ObjectType& key, std::vector<HandlerType>& handles) const {
-  return GetObjectImp(key, handles);
-}
-
-template <typename ObjectType, typename Allocator>
-ExecuteResult ManagedObjectMultiSet<ObjectType, Allocator>::AddObjectImp(
     ObjectType&& managed_object, HandlerType& handler) {
   if (!ThisType::TestMovedWhenAddObject()) {
     return ExecuteResult::OPERATION_NOT_SUPPORTED;
@@ -375,7 +294,7 @@ ExecuteResult ManagedObjectMultiSet<ObjectType, Allocator>::AddObjectImp(
 template <typename ObjectType, typename Allocator>
 ExecuteResult ManagedObjectMultiSet<ObjectType, Allocator>::RemoveObjectImp(
     const ObjectType& removed_object_key,
-    const std::atomic_uint32_t* use_count_ptr, ListTrait trait) {
+    const std::atomic_uint32_t* use_count_ptr, ListTrait) {
   std::unique_lock<std::shared_mutex> guard{data_mutex_};
   if (ThisType::this_ptr_ptr_ == nullptr) {
     return ExecuteResult::CUSTOM_ERROR;
@@ -402,7 +321,7 @@ ExecuteResult ManagedObjectMultiSet<ObjectType, Allocator>::RemoveObjectImp(
 }
 
 template <typename ObjectType, typename Allocator>
-ExecuteResult ManagedObjectMultiSet<ObjectType, Allocator>::GetObjectImp(
+ExecuteResult ManagedObjectMultiSet<ObjectType, Allocator>::GetObject(
     const ObjectType& key, HandlerType& handle) const {
   if (!ThisType::TestMovedWhenGetObject()) {
     return ExecuteResult::OPERATION_NOT_SUPPORTED;
@@ -428,7 +347,7 @@ ExecuteResult ManagedObjectMultiSet<ObjectType, Allocator>::GetObjectImp(
 }
 
 template <typename ObjectType, typename Allocator>
-ExecuteResult ManagedObjectMultiSet<ObjectType, Allocator>::GetObjectImp(
+ExecuteResult ManagedObjectMultiSet<ObjectType, Allocator>::GetObject(
     const ObjectType& key, const std::atomic_uint32_t* use_count_ptr,
     ThisType::HandlerType& handle) const {
   if (!ThisType::TestMovedWhenGetObject()) {
@@ -466,7 +385,7 @@ ExecuteResult ManagedObjectMultiSet<ObjectType, Allocator>::GetObjectImp(
 }
 
 template <typename ObjectType, typename Allocator>
-ExecuteResult ManagedObjectMultiSet<ObjectType, Allocator>::GetObjectImp(
+ExecuteResult ManagedObjectMultiSet<ObjectType, Allocator>::GetObject(
     const ObjectType& key, std::vector<HandlerType>& handlers) const {
   if (!ThisType::TestMovedWhenGetObject()) {
     return ExecuteResult::OPERATION_NOT_SUPPORTED;
@@ -526,18 +445,6 @@ ManagedObjectSet<ObjectType, Allocator>::ManagedObjectSet(
 template <typename ObjectType, typename Allocator>
 ExecuteResult ManagedObjectSet<ObjectType, Allocator>::AddObject(
     ObjectType&& managed_object, HandlerType& handle) {
-  return AddObjectImp(std::move(managed_object), handle);
-}
-
-template <typename ObjectType, typename Allocator>
-ExecuteResult ManagedObjectSet<ObjectType, Allocator>::GetObject(
-    const ObjectType& object, HandlerType& handle) const {
-  return GetObjectImp(object, handle);
-}
-
-template <typename ObjectType, typename Allocator>
-ExecuteResult ManagedObjectSet<ObjectType, Allocator>::AddObjectImp(
-    ObjectType&& managed_object, HandlerType& handle) {
   if (!BaseType::TestMovedWhenAddObject()) {
     return ExecuteResult::OPERATION_NOT_SUPPORTED;
   }
@@ -558,7 +465,7 @@ ExecuteResult ManagedObjectSet<ObjectType, Allocator>::AddObjectImp(
 
 template <typename ObjectType, typename Allocator>
 ExecuteResult ManagedObjectSet<ObjectType, Allocator>::RemoveObjectImp(
-    const ObjectType& removed_object_key, ContainerTrait trait) {
+    const ObjectType& removed_object_key, ContainerTrait) {
   std::unique_lock<std::shared_mutex> guard{data_mutex_};
 
   if (ThisType::this_ptr_ptr_ == nullptr) {
@@ -579,7 +486,7 @@ ExecuteResult ManagedObjectSet<ObjectType, Allocator>::RemoveObjectImp(
 }
 
 template <typename ObjectType, typename Allocator>
-ExecuteResult ManagedObjectSet<ObjectType, Allocator>::GetObjectImp(
+ExecuteResult ManagedObjectSet<ObjectType, Allocator>::GetObject(
     const ObjectType& key, HandlerType& handler) const {
   if (!BaseType::TestMovedWhenGetObject()) {
     return ExecuteResult::OPERATION_NOT_SUPPORTED;

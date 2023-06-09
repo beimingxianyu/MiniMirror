@@ -19,6 +19,8 @@ find_package(GTest CONFIG REQUIRED)
 # include_directories("${source_engine_dir}/3rd_party/gtest_x64-windows/include")
 
 enable_testing()
+
+# set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=thread")
 #####################  utils  ####################
 add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/utils")
 

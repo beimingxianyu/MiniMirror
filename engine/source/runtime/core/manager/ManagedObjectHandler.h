@@ -12,13 +12,12 @@ namespace Manager {
 template <typename ManagedType>
 class ManagedObjectHandler<ManagedType, ManagedType, ListTrait> {
  public:
-  using RelationshipContainerTrait = ListTrait;
-  using ThisType = ManagedObjectHandler<ManagedType, ManagedType,
-                                        RelationshipContainerTrait>;
-  using DataTableType = ManagedObjectTableBase<ManagedType, ManagedType,
-                                               RelationshipContainerTrait>;
-  friend class ManagedObjectTableBase<ManagedType, ManagedType,
-                                      RelationshipContainerTrait>;
+  using ContainerTrait = ListTrait;
+  using ThisType =
+      ManagedObjectHandler<ManagedType, ManagedType, ContainerTrait>;
+  using DataTableType =
+      ManagedObjectTableBase<ManagedType, ManagedType, ContainerTrait>;
+  friend class ManagedObjectTableBase<ManagedType, ManagedType, ContainerTrait>;
 
  public:
   ManagedObjectHandler() = default;
@@ -71,14 +70,9 @@ class ManagedObjectHandler<ManagedType, ManagedType, ListTrait> {
       Release();
     }
 
-    use_count_ = other.use_count_;
-    other.use_count_ = nullptr;
-
-    object_table_ = other.object_table_;
-    managed_object_ = other.managed_object_;
-
-    other.object_table_ = nullptr;
-    other.managed_object_ = nullptr;
+    std::swap(use_count_, other.use_count_);
+    std::swap(object_table_, other.object_table_);
+    std::swap(managed_object_, other.managed_object_);
 
     return *this;
   }
@@ -106,52 +100,25 @@ class ManagedObjectHandler<ManagedType, ManagedType, ListTrait> {
     }
 
     if (use_count_->fetch_sub(1, std::memory_order_acq_rel) == 1) {
-      if (object_table_->load(std::memory_order_acquire)->IsMultiContainer()) {
-        ReleaseMulti();
-      } else {
-        ReleaseNoMulti();
-      }
+      do {
+        ExecuteResult result =
+            object_table_->load(std::memory_order_acquire)
+                ->RemoveObjectImp(*managed_object_, use_count_,
+                                  ContainerTrait());
+        if (result == ExecuteResult::SUCCESS) {
+          break;
+        }
+        if (result == ExecuteResult::CUSTOM_ERROR) {
+          continue;
+        }
+        LOG_SYSTEM->CheckResult(result, CODE_LOCATION);
+        break;
+      } while (true);
     }
 
     object_table_ = nullptr;
     managed_object_ = nullptr;
     use_count_ = nullptr;
-  }
-
- private:
-  void ReleaseMulti() {
-    ExecuteResult result = ExecuteResult::UNDEFINED_ERROR;
-
-    do {
-      result = object_table_->load(std::memory_order_acquire)
-                   ->RemoveObjectImp(*managed_object_, use_count_,
-                                     RelationshipContainerTrait());
-      if (result == ExecuteResult::SUCCESS) {
-        return;
-      }
-      if (result == ExecuteResult::CUSTOM_ERROR) {
-        continue;
-      }
-      LOG_SYSTEM->CheckResult(result, CODE_LOCATION);
-      return;
-    } while (true);
-  }
-
-  void ReleaseNoMulti() {
-    ExecuteResult result = ExecuteResult::SUCCESS;
-    do {
-      result =
-          object_table_->load(std::memory_order_acquire)
-              ->RemoveObjectImp(*managed_object_, RelationshipContainerTrait());
-      if (result == ExecuteResult::SUCCESS) {
-        return;
-      }
-      if (result == ExecuteResult::CUSTOM_ERROR) {
-        continue;
-      }
-      LOG_SYSTEM->CheckResult(result, CODE_LOCATION);
-      return;
-    } while (true);
   }
 
  private:
@@ -168,13 +135,12 @@ class ManagedObjectHandler<ManagedType, ManagedType, ListTrait> {
 template <typename ManagedType>
 class ManagedObjectHandler<ManagedType, ManagedType, SetTrait> {
  public:
-  using RelationshipContainerTrait = SetTrait;
-  using ThisType = ManagedObjectHandler<ManagedType, ManagedType,
-                                        RelationshipContainerTrait>;
-  using DataTableType = ManagedObjectTableBase<ManagedType, ManagedType,
-                                               RelationshipContainerTrait>;
-  friend class ManagedObjectTableBase<ManagedType, ManagedType,
-                                      RelationshipContainerTrait>;
+  using ContainerTrait = SetTrait;
+  using ThisType =
+      ManagedObjectHandler<ManagedType, ManagedType, ContainerTrait>;
+  using DataTableType =
+      ManagedObjectTableBase<ManagedType, ManagedType, ContainerTrait>;
+  friend class ManagedObjectTableBase<ManagedType, ManagedType, ContainerTrait>;
 
  public:
   ManagedObjectHandler() = default;
@@ -227,14 +193,9 @@ class ManagedObjectHandler<ManagedType, ManagedType, SetTrait> {
       Release();
     }
 
-    use_count_ = other.use_count_;
-    other.use_count_ = nullptr;
-
-    object_table_ = other.object_table_;
-    managed_object_ = other.managed_object_;
-
-    other.object_table_ = nullptr;
-    other.managed_object_ = nullptr;
+    std::swap(use_count_, other.use_count_);
+    std::swap(object_table_, other.object_table_);
+    std::swap(managed_object_, other.managed_object_);
 
     return *this;
   }
@@ -275,8 +236,7 @@ class ManagedObjectHandler<ManagedType, ManagedType, SetTrait> {
     do {
       ExecuteResult result =
           object_table_->load(std::memory_order_acquire)
-              ->RemoveObjectImp(*managed_object_, use_count_,
-                                RelationshipContainerTrait());
+              ->RemoveObjectImp(*managed_object_, use_count_, ContainerTrait());
       if (result == ExecuteResult::SUCCESS) {
         return;
       }
@@ -292,7 +252,7 @@ class ManagedObjectHandler<ManagedType, ManagedType, SetTrait> {
     do {
       ExecuteResult result =
           object_table_->load(std::memory_order_acquire)
-              ->RemoveObjectImp(*managed_object_, RelationshipContainerTrait());
+              ->RemoveObjectImp(*managed_object_, ContainerTrait());
       if (result == ExecuteResult::SUCCESS) {
         return;
       }
@@ -318,13 +278,12 @@ class ManagedObjectHandler<ManagedType, ManagedType, SetTrait> {
 template <typename ManagedType>
 class ManagedObjectHandler<ManagedType, ManagedType, HashSetTrait> {
  public:
-  using RelationshipContainerTrait = HashSetTrait;
-  using ThisType = ManagedObjectHandler<ManagedType, ManagedType,
-                                        RelationshipContainerTrait>;
-  using DataTableType = ManagedObjectTableBase<ManagedType, ManagedType,
-                                               RelationshipContainerTrait>;
-  friend class ManagedObjectTableBase<ManagedType, ManagedType,
-                                      RelationshipContainerTrait>;
+  using ContainerTrait = HashSetTrait;
+  using ThisType =
+      ManagedObjectHandler<ManagedType, ManagedType, ContainerTrait>;
+  using DataTableType =
+      ManagedObjectTableBase<ManagedType, ManagedType, ContainerTrait>;
+  friend class ManagedObjectTableBase<ManagedType, ManagedType, ContainerTrait>;
 
  public:
   ManagedObjectHandler() = default;
@@ -377,22 +336,19 @@ class ManagedObjectHandler<ManagedType, ManagedType, HashSetTrait> {
       Release();
     }
 
-    use_count_ = other.use_count_;
-    other.use_count_ = nullptr;
-
-    object_table_ = other.object_table_;
-    managed_object_ = other.managed_object_;
-
-    other.object_table_ = nullptr;
-    other.managed_object_ = nullptr;
+    std::swap(use_count_, other.use_count_);
+    std::swap(object_table_, other.object_table_);
+    std::swap(managed_object_, other.managed_object_);
 
     return *this;
   }
 
  public:
-  const ManagedType& GetObject() const { return *managed_object_; }
+  const ManagedType& GetObject() const { return managed_object_->GetObject(); }
 
-  const ManagedType* GetObjectPtr() const { return managed_object_; }
+  const ManagedType* GetObjectPtr() const {
+    return managed_object_->GetObjectPtr();
+  }
 
   const std::atomic_uint32_t* GetUseCountPtr() const { return use_count_; }
 
@@ -411,8 +367,7 @@ class ManagedObjectHandler<ManagedType, ManagedType, HashSetTrait> {
       do {
         ExecuteResult result =
             object_table_->load(std::memory_order_acquire)
-                ->RemoveObjectImp(managed_object_,
-                                  RelationshipContainerTrait());
+                ->RemoveObjectImp(managed_object_, ContainerTrait());
         if (result == ExecuteResult::SUCCESS) {
           break;
         }
@@ -431,7 +386,7 @@ class ManagedObjectHandler<ManagedType, ManagedType, HashSetTrait> {
 
  private:
   std::atomic<DataTableType*>* object_table_{nullptr};
-  const ManagedType* managed_object_{nullptr};
+  const typename DataTableType::WrapperType* managed_object_{nullptr};
   std::atomic_uint32_t* use_count_{nullptr};
 };
 
@@ -443,20 +398,18 @@ class ManagedObjectHandler<ManagedType, ManagedType, HashSetTrait> {
 template <typename KeyType, typename ManagedType>
 class ManagedObjectHandler<KeyType, ManagedType, MapTrait> {
  public:
-  using RelationshipContainerTrait = MapTrait;
-  using ThisType =
-      ManagedObjectHandler<KeyType, ManagedType, RelationshipContainerTrait>;
+  using ContainerTrait = MapTrait;
+  using ThisType = ManagedObjectHandler<KeyType, ManagedType, ContainerTrait>;
   using DataTableType =
-      ManagedObjectTableBase<KeyType, ManagedType, RelationshipContainerTrait>;
-  friend class ManagedObjectTableBase<KeyType, ManagedType,
-                                      RelationshipContainerTrait>;
+      ManagedObjectTableBase<KeyType, ManagedType, ContainerTrait>;
+  friend class ManagedObjectTableBase<KeyType, ManagedType, ContainerTrait>;
 
  public:
   ManagedObjectHandler() = default;
   ~ManagedObjectHandler() { Release(); }
   ManagedObjectHandler(
-      std::atomic<ManagedObjectTableBase<
-          KeyType, ManagedType, RelationshipContainerTrait>*>* object_table,
+      std::atomic<ManagedObjectTableBase<KeyType, ManagedType,
+                                         ContainerTrait>*>* object_table,
       const KeyType* key, ManagedType* managed_object,
       std::atomic_uint32_t* use_count)
       : object_table_(object_table),
@@ -509,16 +462,9 @@ class ManagedObjectHandler<KeyType, ManagedType, MapTrait> {
       Release();
     }
 
-    use_count_ = other.use_count_;
-    other.use_count_ = nullptr;
-
-    object_table_ = other.object_table_;
-    key_ = other.key_;
-    managed_object_ = other.managed_object_;
-
-    other.object_table_ = nullptr;
-    other.key_ = nullptr;
-    other.managed_object_ = nullptr;
+    std::swap(use_count_, other.use_count_);
+    std::swap(object_table_, other.object_table_);
+    std::swap(managed_object_, other.managed_object_);
 
     return *this;
   }
@@ -566,8 +512,7 @@ class ManagedObjectHandler<KeyType, ManagedType, MapTrait> {
     do {
       ExecuteResult result =
           object_table_->load(std::memory_order_acquire)
-              ->RemoveObjectImp(*key_, use_count_,
-                                RelationshipContainerTrait());
+              ->RemoveObjectImp(*key_, use_count_, ContainerTrait());
       if (result == ExecuteResult::SUCCESS) {
         return;
       }
@@ -581,9 +526,8 @@ class ManagedObjectHandler<KeyType, ManagedType, MapTrait> {
 
   void ReleaseNoMulti() {
     do {
-      ExecuteResult result =
-          object_table_->load(std::memory_order_acquire)
-              ->RemoveObjectImp(*key_, RelationshipContainerTrait());
+      ExecuteResult result = object_table_->load(std::memory_order_acquire)
+                                 ->RemoveObjectImp(*key_, ContainerTrait());
       if (result == ExecuteResult::SUCCESS) {
         return;
       }
@@ -610,14 +554,13 @@ class ManagedObjectHandler<KeyType, ManagedType, MapTrait> {
 template <typename KeyType, typename ManagedType>
 class ManagedObjectHandler<KeyType, ManagedType, HashMapTrait> {
  public:
-  using RelationshipContainerTrait = HashMapTrait;
-  using ThisType =
-      ManagedObjectHandler<KeyType, ManagedType, RelationshipContainerTrait>;
+  using ContainerTrait = HashMapTrait;
+  using ThisType = ManagedObjectHandler<KeyType, ManagedType, ContainerTrait>;
   using DataTableType =
-      ManagedObjectTableBase<KeyType, ManagedType, RelationshipContainerTrait>;
-  using ManagedPairType = std::pair<const KeyType, ManagedType>;
-  friend class ManagedObjectTableBase<KeyType, ManagedType,
-                                      RelationshipContainerTrait>;
+      ManagedObjectTableBase<KeyType, ManagedType, ContainerTrait>;
+  using ManagedPairType =
+      std::pair<const KeyType, typename DataTableType::WrapperType>;
+  friend class ManagedObjectTableBase<KeyType, ManagedType, ContainerTrait>;
 
  public:
   ManagedObjectHandler() = default;
@@ -670,26 +613,27 @@ class ManagedObjectHandler<KeyType, ManagedType, HashMapTrait> {
       Release();
     }
 
-    use_count_ = other.use_count_;
-    other.use_count_ = nullptr;
-
-    object_table_ = other.object_table_;
-    managed_object_ = other.managed_object_;
-
-    other.object_table_ = nullptr;
-    other.managed_object_ = nullptr;
+    std::swap(use_count_, other.use_count_);
+    std::swap(object_table_, other.object_table_);
+    std::swap(managed_object_, other.managed_object_);
 
     return *this;
   }
 
  public:
-  ManagedType& GetObject() { return managed_object_->second; }
+  ManagedType& GetObject() { return managed_object_->second.GetObject(); }
 
-  const ManagedType& GetObject() const { return managed_object_->second; }
+  const ManagedType& GetObject() const {
+    return managed_object_->second.GetObject();
+  }
 
-  ManagedType* GetObjectPtr() { return &(managed_object_->second); }
+  ManagedType* GetObjectPtr() {
+    return &(managed_object_->second.GetObjectPtr());
+  }
 
-  const ManagedType* GetObjectPtr() const { return &(managed_object_->second); }
+  const ManagedType* GetObjectPtr() const {
+    return &(managed_object_->second.GetUseCountPtr());
+  }
 
   ManagedPairType& GetPair() { return *managed_object_; }
 
@@ -720,8 +664,7 @@ class ManagedObjectHandler<KeyType, ManagedType, HashMapTrait> {
       do {
         ExecuteResult result =
             object_table_->load(std::memory_order_acquire)
-                ->RemoveObjectImp(managed_object_,
-                                  RelationshipContainerTrait());
+                ->RemoveObjectImp(managed_object_, ContainerTrait());
         if (result == ExecuteResult::SUCCESS) {
           break;
         }

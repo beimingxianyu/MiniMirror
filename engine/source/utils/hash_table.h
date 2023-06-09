@@ -139,7 +139,7 @@ class HashTable {
 
     other.data_ = new Node[131]{};
     other.load_factor_ = 0.75;
-    other.size_.store(0, std::memory_order_release);
+    other.size_ = 0;
     other.bucket_count_ = 131;
 
     return *this;
@@ -268,8 +268,8 @@ class HashTable {
       return 0;
     }
 
-    std::uint32_t count = 1;
-    while (first_node->next_node_) {
+    std::uint32_t count = 0;
+    while (first_node) {
       if (KeyEqual2(*(first_node->object_), key)) {
         ++count;
       }
@@ -343,10 +343,10 @@ class HashTable {
   std::vector<const ReturnType*> EqualRange(const KeyType& key) const {
     std::uint64_t hash_code = Hash{}(key);
 
-    const Node* first_node = data_[hash_code % bucket_count_];
+    const Node* first_node = &data_[hash_code % bucket_count_];
 
     if (first_node == nullptr) {
-      return std::vector<ReturnType>{};
+      return std::vector<const ReturnType*>{};
     }
 
     std::vector<const ReturnType*> result;
@@ -996,8 +996,8 @@ class ConcurrentHashTable {
       return 0;
     }
 
-    std::uint32_t count = 1;
-    while (first_node->next_node_) {
+    std::uint32_t count = 0;
+    while (first_node) {
       if (KeyEqual2(*(first_node->object_), key)) {
         ++count;
       }
@@ -1102,7 +1102,7 @@ class ConcurrentHashTable {
     const Node* first_node = data_[hash_code % bucket_count_];
 
     if (first_node == nullptr) {
-      return std::vector<ReturnType>{};
+      return std::vector<const ReturnType>{};
     }
 
     std::vector<const ReturnType*> result;

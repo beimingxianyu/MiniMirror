@@ -49,16 +49,8 @@ class ManagedObjectMap
   uint32_t GetUseCount(const KeyType& key) const;
 
  protected:
-  ExecuteResult AddObjectImp(const KeyType& key, ValueType&& managed_object,
-                             HandlerType& handler) override;
-
   ExecuteResult RemoveObjectImp(const KeyType& removed_object_key,
                                 ContainerTrait trait) override;
-
-  ExecuteResult GetObjectImp(const KeyType& key,
-                             HandlerType& handle) const override;
-
-  uint32_t GetUseCountImp(const KeyType& key) const override;
 
  private:
   ContainerType data_;
@@ -71,10 +63,9 @@ template <typename KeyType, typename ValueType,
 class ManagedObjectMultiMap
     : public ManagedObjectTableBase<KeyType, ValueType, MapTrait> {
  public:
-  using RelationshipContainerTrait = MapTrait;
+  using ContainerTrait = MapTrait;
   using ThisType = ManagedObjectMultiMap<KeyType, ValueType, Allocator>;
-  using BaseType =
-      ManagedObjectTableBase<KeyType, ValueType, RelationshipContainerTrait>;
+  using BaseType = ManagedObjectTableBase<KeyType, ValueType, ContainerTrait>;
   using HandlerType = typename BaseType::HandlerType;
   using WrapperType = typename BaseType::WrapperType;
   using ContainerType = std::multimap<KeyType, ManagedObjectWrapper<ValueType>,
@@ -111,51 +102,23 @@ class ManagedObjectMultiMap
   ExecuteResult GetObject(const KeyType& key, const ValueType& object,
                           HandlerType& handler) const;
 
-  void GetObject(const KeyType& key, std::vector<HandlerType>& handlers) const;
+  ExecuteResult GetObject(const KeyType& key,
+                          std::vector<HandlerType>& handles) const;
 
-  std::uint32_t GetUseCount(const KeyType& key) const;
+  uint32_t GetUseCount(const KeyType& key) const;
 
-  std::uint32_t GetUseCount(const KeyType& key,
-                            const std::atomic_uint32_t* use_count_ptr) const;
+  uint32_t GetUseCount(const KeyType& key,
+                       const std::atomic_uint32_t* use_count_ptr) const;
 
-  std::uint32_t GetUseCount(const KeyType& key, const ValueType& object) const;
+  uint32_t GetUseCount(const KeyType& key, const ValueType& object) const;
 
-  void GetUseCount(const KeyType& key,
-                   std::vector<std::uint32_t>& use_counts) const;
+  ExecuteResult GetUseCount(const KeyType& key,
+                            std::vector<std::uint32_t>& use_counts) const;
 
  protected:
-  ExecuteResult AddObjectImp(const KeyType& key, ValueType&& managed_object,
-                             HandlerType& handler) override;
-
   ExecuteResult RemoveObjectImp(const KeyType& removed_object_key,
                                 const std::atomic_uint32_t* use_count_ptr,
                                 MapTrait trait) override;
-
-  ExecuteResult GetObjectImp(const KeyType& key,
-                             HandlerType& handler) const override;
-
-  ExecuteResult GetObjectImp(const KeyType& key,
-                             const std::atomic_uint32_t* use_count_ptr,
-                             HandlerType& handler) const override;
-
-  ExecuteResult GetObjectImp(const KeyType& key, const ValueType& object,
-                             HandlerType& handler) const override;
-
-  ExecuteResult GetObjectImp(const KeyType& key,
-                             std::vector<HandlerType>& handles) const override;
-
-  uint32_t GetUseCountImp(const KeyType& key) const override;
-
-  uint32_t GetUseCountImp(
-      const KeyType& key,
-      const std::atomic_uint32_t* use_count_ptr) const override;
-
-  uint32_t GetUseCountImp(const KeyType& key,
-                          const ValueType& object) const override;
-
-  ExecuteResult GetUseCountImp(
-      const KeyType& key,
-      std::vector<std::uint32_t>& use_counts) const override;
 
  private:
   ContainerType data_{};
@@ -246,25 +209,6 @@ bool ManagedObjectMap<KeyType, ValueType, Allocator>::IsRelationshipContainer()
 
 template <typename KeyType, typename ValueType, typename Allocator>
 ExecuteResult ManagedObjectMap<KeyType, ValueType, Allocator>::AddObject(
-    const KeyType& key, ValueType&& managed_object,
-    ManagedObjectMap::HandlerType& handler) {
-  return AddObjectImp(key, std::move(managed_object), handler);
-}
-
-template <typename KeyType, typename ValueType, typename Allocator>
-ExecuteResult ManagedObjectMap<KeyType, ValueType, Allocator>::GetObject(
-    const KeyType& key, ManagedObjectMap::HandlerType& handle) const {
-  return GetObjectImp(key, handle);
-}
-
-template <typename KeyType, typename ValueType, typename Allocator>
-uint32_t ManagedObjectMap<KeyType, ValueType, Allocator>::GetUseCount(
-    const KeyType& key) const {
-  return GetUseCountImp(key);
-}
-
-template <typename KeyType, typename ValueType, typename Allocator>
-ExecuteResult ManagedObjectMap<KeyType, ValueType, Allocator>::AddObjectImp(
     const KeyType& key, ValueType&& managed_object, HandlerType& handler) {
   if (!ThisType::TestMovedWhenAddObject()) {
     return ExecuteResult::OPERATION_NOT_SUPPORTED;
@@ -290,7 +234,7 @@ ExecuteResult ManagedObjectMap<KeyType, ValueType, Allocator>::AddObjectImp(
 
 template <typename KeyType, typename ValueType, typename Allocator>
 ExecuteResult ManagedObjectMap<KeyType, ValueType, Allocator>::RemoveObjectImp(
-    const KeyType& removed_object_key, ContainerTrait trait) {
+    const KeyType& removed_object_key, ContainerTrait) {
   std::unique_lock<std::shared_mutex> guard{data_mutex_};
 
   if (ThisType::this_ptr_ptr_ == nullptr) {
@@ -311,7 +255,7 @@ ExecuteResult ManagedObjectMap<KeyType, ValueType, Allocator>::RemoveObjectImp(
 }
 
 template <typename KeyType, typename ValueType, typename Allocator>
-ExecuteResult ManagedObjectMap<KeyType, ValueType, Allocator>::GetObjectImp(
+ExecuteResult ManagedObjectMap<KeyType, ValueType, Allocator>::GetObject(
     const KeyType& key, HandlerType& handle) const {
   if (!ThisType::TestMovedWhenGetObject()) {
     return ExecuteResult::OPERATION_NOT_SUPPORTED;
@@ -335,7 +279,7 @@ ExecuteResult ManagedObjectMap<KeyType, ValueType, Allocator>::GetObjectImp(
 }
 
 template <typename KeyType, typename ValueType, typename Allocator>
-uint32_t ManagedObjectMap<KeyType, ValueType, Allocator>::GetUseCountImp(
+uint32_t ManagedObjectMap<KeyType, ValueType, Allocator>::GetUseCount(
     const KeyType& key) const {
   if (!ThisType::TestMoveWhenGetUseCount()) {
     return 0;
@@ -354,8 +298,7 @@ uint32_t ManagedObjectMap<KeyType, ValueType, Allocator>::GetUseCountImp(
 
 template <typename KeyType, typename ValueType, typename Allocator>
 ManagedObjectMultiMap<KeyType, ValueType, Allocator>::ManagedObjectMultiMap()
-    : ManagedObjectTableBase<KeyType, ValueType, RelationshipContainerTrait>(
-          this),
+    : ManagedObjectTableBase<KeyType, ValueType, ContainerTrait>(this),
       data_(),
       data_mutex_() {}
 
@@ -436,64 +379,6 @@ bool ManagedObjectMultiMap<KeyType, ValueType,
 
 template <typename KeyType, typename ValueType, typename Allocator>
 ExecuteResult ManagedObjectMultiMap<KeyType, ValueType, Allocator>::AddObject(
-    const KeyType& key, ValueType&& managed_object,
-    ManagedObjectMultiMap::HandlerType& handler) {
-  return AddObjectImp(key, std::move(managed_object), handler);
-}
-
-template <typename KeyType, typename ValueType, typename Allocator>
-ExecuteResult ManagedObjectMultiMap<KeyType, ValueType, Allocator>::GetObject(
-    const KeyType& key, ManagedObjectMultiMap::HandlerType& handler) const {
-  return GetObjectImp(key, handler);
-}
-
-template <typename KeyType, typename ValueType, typename Allocator>
-ExecuteResult ManagedObjectMultiMap<KeyType, ValueType, Allocator>::GetObject(
-    const KeyType& key, const std::atomic_uint32_t* use_count_ptr,
-    ManagedObjectMultiMap::HandlerType& handler) const {
-  return GetObjectImp(key, use_count_ptr, handler);
-}
-
-template <typename KeyType, typename ValueType, typename Allocator>
-ExecuteResult ManagedObjectMultiMap<KeyType, ValueType, Allocator>::GetObject(
-    const KeyType& key, const ValueType& object,
-    ManagedObjectMultiMap::HandlerType& handler) const {
-  return GetObjectImp(key, object, handler);
-}
-
-template <typename KeyType, typename ValueType, typename Allocator>
-void ManagedObjectMultiMap<KeyType, ValueType, Allocator>::GetObject(
-    const KeyType& key, std::vector<HandlerType>& handlers) const {
-  GetObjectImp(key, handlers);
-}
-
-template <typename KeyType, typename ValueType, typename Allocator>
-std::uint32_t ManagedObjectMultiMap<KeyType, ValueType, Allocator>::GetUseCount(
-    const KeyType& key) const {
-  return GetUseCountImp(key);
-}
-
-template <typename KeyType, typename ValueType, typename Allocator>
-std::uint32_t ManagedObjectMultiMap<KeyType, ValueType, Allocator>::GetUseCount(
-    const KeyType& key, const std::atomic_uint32_t* use_count_ptr) const {
-  return GetUseCountImp(key, use_count_ptr);
-}
-
-template <typename KeyType, typename ValueType, typename Allocator>
-std::uint32_t ManagedObjectMultiMap<KeyType, ValueType, Allocator>::GetUseCount(
-    const KeyType& key, const ValueType& object) const {
-  return GetUseCountImp(key, object);
-}
-
-template <typename KeyType, typename ValueType, typename Allocator>
-void ManagedObjectMultiMap<KeyType, ValueType, Allocator>::GetUseCount(
-    const KeyType& key, std::vector<std::uint32_t>& use_counts) const {
-  GetUseCountImp(key, use_counts);
-}
-
-template <typename KeyType, typename ValueType, typename Allocator>
-ExecuteResult
-ManagedObjectMultiMap<KeyType, ValueType, Allocator>::AddObjectImp(
     const KeyType& key, ValueType&& managed_object, HandlerType& handler) {
   if (!ThisType::TestMovedWhenAddObject()) {
     return ExecuteResult::OPERATION_NOT_SUPPORTED;
@@ -517,7 +402,7 @@ template <typename KeyType, typename ValueType, typename Allocator>
 ExecuteResult
 ManagedObjectMultiMap<KeyType, ValueType, Allocator>::RemoveObjectImp(
     const KeyType& removed_object_key,
-    const std::atomic_uint32_t* use_count_ptr, MapTrait trait) {
+    const std::atomic_uint32_t* use_count_ptr, MapTrait) {
   std::unique_lock<std::shared_mutex> guard{data_mutex_};
   if (ThisType::this_ptr_ptr_ == nullptr) {
     return ExecuteResult::CUSTOM_ERROR;
@@ -544,8 +429,7 @@ ManagedObjectMultiMap<KeyType, ValueType, Allocator>::RemoveObjectImp(
 }
 
 template <typename KeyType, typename ValueType, typename Allocator>
-ExecuteResult
-ManagedObjectMultiMap<KeyType, ValueType, Allocator>::GetObjectImp(
+ExecuteResult ManagedObjectMultiMap<KeyType, ValueType, Allocator>::GetObject(
     const KeyType& key, HandlerType& handler) const {
   if (!ThisType::TestMovedWhenGetObject()) {
     return ExecuteResult::OPERATION_NOT_SUPPORTED;
@@ -571,8 +455,7 @@ ManagedObjectMultiMap<KeyType, ValueType, Allocator>::GetObjectImp(
 }
 
 template <typename KeyType, typename ValueType, typename Allocator>
-ExecuteResult
-ManagedObjectMultiMap<KeyType, ValueType, Allocator>::GetObjectImp(
+ExecuteResult ManagedObjectMultiMap<KeyType, ValueType, Allocator>::GetObject(
     const KeyType& key, const std::atomic_uint32_t* use_count_ptr,
     HandlerType& handler) const {
   if (!ThisType::TestMovedWhenGetObject()) {
@@ -606,8 +489,7 @@ ManagedObjectMultiMap<KeyType, ValueType, Allocator>::GetObjectImp(
 }
 
 template <typename KeyType, typename ValueType, typename Allocator>
-ExecuteResult
-ManagedObjectMultiMap<KeyType, ValueType, Allocator>::GetObjectImp(
+ExecuteResult ManagedObjectMultiMap<KeyType, ValueType, Allocator>::GetObject(
     const KeyType& key, const ValueType& object, HandlerType& handler) const {
   if (!ThisType::TestMovedWhenGetObject()) {
     return ExecuteResult::OPERATION_NOT_SUPPORTED;
@@ -640,8 +522,7 @@ ManagedObjectMultiMap<KeyType, ValueType, Allocator>::GetObjectImp(
 }
 
 template <typename KeyType, typename ValueType, typename Allocator>
-ExecuteResult
-ManagedObjectMultiMap<KeyType, ValueType, Allocator>::GetObjectImp(
+ExecuteResult ManagedObjectMultiMap<KeyType, ValueType, Allocator>::GetObject(
     const KeyType& key, std::vector<HandlerType>& handles) const {
   if (!ThisType::TestMovedWhenGetObject()) {
     return ExecuteResult::OPERATION_NOT_SUPPORTED;
@@ -666,7 +547,7 @@ ManagedObjectMultiMap<KeyType, ValueType, Allocator>::GetObjectImp(
 }
 
 template <typename KeyType, typename ValueType, typename Allocator>
-uint32_t ManagedObjectMultiMap<KeyType, ValueType, Allocator>::GetUseCountImp(
+uint32_t ManagedObjectMultiMap<KeyType, ValueType, Allocator>::GetUseCount(
     const KeyType& key) const {
   if (!ThisType::TestMoveWhenGetUseCount()) {
     return 0;
@@ -684,7 +565,7 @@ uint32_t ManagedObjectMultiMap<KeyType, ValueType, Allocator>::GetUseCountImp(
 }
 
 template <typename KeyType, typename ValueType, typename Allocator>
-uint32_t ManagedObjectMultiMap<KeyType, ValueType, Allocator>::GetUseCountImp(
+uint32_t ManagedObjectMultiMap<KeyType, ValueType, Allocator>::GetUseCount(
     const KeyType& key, const std::atomic_uint32_t* use_count_ptr) const {
   if (!ThisType::TestMoveWhenGetUseCount()) {
     return 0;
@@ -709,7 +590,7 @@ uint32_t ManagedObjectMultiMap<KeyType, ValueType, Allocator>::GetUseCountImp(
 }
 
 template <typename KeyType, typename ValueType, typename Allocator>
-uint32_t ManagedObjectMultiMap<KeyType, ValueType, Allocator>::GetUseCountImp(
+uint32_t ManagedObjectMultiMap<KeyType, ValueType, Allocator>::GetUseCount(
     const KeyType& key, const ValueType& object) const {
   if (!ThisType::TestMoveWhenGetUseCount()) {
     return 0;
@@ -734,8 +615,7 @@ uint32_t ManagedObjectMultiMap<KeyType, ValueType, Allocator>::GetUseCountImp(
 }
 
 template <typename KeyType, typename ValueType, typename Allocator>
-ExecuteResult
-ManagedObjectMultiMap<KeyType, ValueType, Allocator>::GetUseCountImp(
+ExecuteResult ManagedObjectMultiMap<KeyType, ValueType, Allocator>::GetUseCount(
     const KeyType& key, std::vector<std::uint32_t>& use_counts) const {
   if (!ThisType::TestMoveWhenGetUseCount()) {
     return ExecuteResult::OPERATION_NOT_SUPPORTED;

@@ -8,6 +8,7 @@ endif ()
 add_compile_definitions(HARDWARE_INFO_MAC_ADDRESS="${hardware_info_mac_address}"
         HARDWARE_INFO_MAC_ADDRESS_16=${hardware_info_mac_address_16})
 
+
 # shader config
 set(shader_config_version "430")
 set(shader_config_global_set "0")
