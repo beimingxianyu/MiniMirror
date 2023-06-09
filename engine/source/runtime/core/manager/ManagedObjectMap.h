@@ -12,12 +12,11 @@ template <typename KeyType, typename ValueType,
           typename Allocator = std::allocator<
               std::pair<const KeyType, ManagedObjectWrapper<ValueType>>>>
 class ManagedObjectMap
-    : public ManagedObjectTableBase<KeyType, ValueType, NodeKeyTrait> {
+    : public ManagedObjectTableBase<KeyType, ValueType, MapTrait> {
  public:
-  using RelationshipContainerTrait = NodeKeyTrait;
+  using ContainerTrait = MapTrait;
   using ThisType = ManagedObjectMap<KeyType, ValueType, Allocator>;
-  using BaseType =
-      ManagedObjectTableBase<KeyType, ValueType, RelationshipContainerTrait>;
+  using BaseType = ManagedObjectTableBase<KeyType, ValueType, ContainerTrait>;
   using HandlerType = typename BaseType::HandlerType;
   using WrapperType = typename BaseType::WrapperType;
   using ContainerType = std::map<KeyType, ManagedObjectWrapper<ValueType>,
@@ -54,7 +53,7 @@ class ManagedObjectMap
                              HandlerType& handler) override;
 
   ExecuteResult RemoveObjectImp(const KeyType& removed_object_key,
-                                RelationshipContainerTrait trait) override;
+                                ContainerTrait trait) override;
 
   ExecuteResult GetObjectImp(const KeyType& key,
                              HandlerType& handle) const override;
@@ -70,9 +69,9 @@ template <typename KeyType, typename ValueType,
           typename Allocator = std::allocator<
               std::pair<const KeyType, ManagedObjectWrapper<ValueType>>>>
 class ManagedObjectMultiMap
-    : public ManagedObjectTableBase<KeyType, ValueType, NodeKeyTrait> {
+    : public ManagedObjectTableBase<KeyType, ValueType, MapTrait> {
  public:
-  using RelationshipContainerTrait = NodeKeyTrait;
+  using RelationshipContainerTrait = MapTrait;
   using ThisType = ManagedObjectMultiMap<KeyType, ValueType, Allocator>;
   using BaseType =
       ManagedObjectTableBase<KeyType, ValueType, RelationshipContainerTrait>;
@@ -130,7 +129,7 @@ class ManagedObjectMultiMap
 
   ExecuteResult RemoveObjectImp(const KeyType& removed_object_key,
                                 const std::atomic_uint32_t* use_count_ptr,
-                                NodeKeyTrait trait) override;
+                                MapTrait trait) override;
 
   ExecuteResult GetObjectImp(const KeyType& key,
                              HandlerType& handler) const override;
@@ -165,8 +164,7 @@ class ManagedObjectMultiMap
 
 template <typename KeyType, typename ValueType, typename Allocator>
 ManagedObjectMap<KeyType, ValueType, Allocator>::ManagedObjectMap()
-    : ManagedObjectTableBase<KeyType, ValueType, RelationshipContainerTrait>(
-          this),
+    : ManagedObjectTableBase<KeyType, ValueType, ContainerTrait>(this),
       data_(),
       data_mutex_() {}
 
@@ -292,7 +290,7 @@ ExecuteResult ManagedObjectMap<KeyType, ValueType, Allocator>::AddObjectImp(
 
 template <typename KeyType, typename ValueType, typename Allocator>
 ExecuteResult ManagedObjectMap<KeyType, ValueType, Allocator>::RemoveObjectImp(
-    const KeyType& removed_object_key, RelationshipContainerTrait trait) {
+    const KeyType& removed_object_key, ContainerTrait trait) {
   std::unique_lock<std::shared_mutex> guard{data_mutex_};
 
   if (ThisType::this_ptr_ptr_ == nullptr) {
@@ -519,7 +517,7 @@ template <typename KeyType, typename ValueType, typename Allocator>
 ExecuteResult
 ManagedObjectMultiMap<KeyType, ValueType, Allocator>::RemoveObjectImp(
     const KeyType& removed_object_key,
-    const std::atomic_uint32_t* use_count_ptr, NodeKeyTrait trait) {
+    const std::atomic_uint32_t* use_count_ptr, MapTrait trait) {
   std::unique_lock<std::shared_mutex> guard{data_mutex_};
   if (ThisType::this_ptr_ptr_ == nullptr) {
     return ExecuteResult::CUSTOM_ERROR;

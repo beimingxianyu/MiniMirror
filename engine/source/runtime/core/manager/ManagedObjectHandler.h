@@ -10,9 +10,9 @@ namespace Manager {
  * multi-threaded environment.
  */
 template <typename ManagedType>
-class ManagedObjectHandler<ManagedType, ManagedType, NoKeyTrait> {
+class ManagedObjectHandler<ManagedType, ManagedType, ListTrait> {
  public:
-  using RelationshipContainerTrait = NoKeyTrait;
+  using RelationshipContainerTrait = ListTrait;
   using ThisType = ManagedObjectHandler<ManagedType, ManagedType,
                                         RelationshipContainerTrait>;
   using DataTableType = ManagedObjectTableBase<ManagedType, ManagedType,
@@ -29,13 +29,13 @@ class ManagedObjectHandler<ManagedType, ManagedType, NoKeyTrait> {
       : object_table_(object_table),
         managed_object_(managed_object),
         use_count_(use_count) {
-    ++(*use_count);
+    use_count_->fetch_add(1, std::memory_order_acq_rel);
   }
   ManagedObjectHandler(const ManagedObjectHandler& other)
       : object_table_(other.object_table_),
         managed_object_(other.managed_object_),
         use_count_(other.use_count_) {
-    ++(*use_count_);
+    use_count_->fetch_add(1, std::memory_order_acq_rel);
   }
   ManagedObjectHandler(ManagedObjectHandler&& other) noexcept
       : object_table_(other.object_table_),
@@ -54,7 +54,7 @@ class ManagedObjectHandler<ManagedType, ManagedType, NoKeyTrait> {
       Release();
     }
 
-    ++(*(other.use_count_));
+    other.use_count_->fetch_add(1, std::memory_order_acq_rel);
 
     object_table_ = other.object_table_;
     managed_object_ = other.managed_object_;
@@ -94,7 +94,9 @@ class ManagedObjectHandler<ManagedType, ManagedType, NoKeyTrait> {
 
   const std::atomic_uint32_t* GetUseCountPtr() const { return use_count_; }
 
-  std::uint32_t GetUseCount() const { return *use_count_; }
+  std::uint32_t GetUseCount() const {
+    return use_count_->load(std::memory_order_relaxed);
+  }
 
   bool IsValid() const { return managed_object_ != nullptr; }
 
@@ -103,8 +105,8 @@ class ManagedObjectHandler<ManagedType, ManagedType, NoKeyTrait> {
       return;
     }
 
-    if (use_count_->fetch_sub(1) == 1) {
-      if ((*(*object_table_)).IsMultiContainer()) {
+    if (use_count_->fetch_sub(1, std::memory_order_acq_rel) == 1) {
+      if (object_table_->load(std::memory_order_acquire)->IsMultiContainer()) {
         ReleaseMulti();
       } else {
         ReleaseNoMulti();
@@ -121,9 +123,9 @@ class ManagedObjectHandler<ManagedType, ManagedType, NoKeyTrait> {
     ExecuteResult result = ExecuteResult::UNDEFINED_ERROR;
 
     do {
-      result = (*(*object_table_))
-                   .RemoveObjectImp(*managed_object_, use_count_,
-                                    RelationshipContainerTrait());
+      result = object_table_->load(std::memory_order_acquire)
+                   ->RemoveObjectImp(*managed_object_, use_count_,
+                                     RelationshipContainerTrait());
       if (result == ExecuteResult::SUCCESS) {
         return;
       }
@@ -139,8 +141,8 @@ class ManagedObjectHandler<ManagedType, ManagedType, NoKeyTrait> {
     ExecuteResult result = ExecuteResult::SUCCESS;
     do {
       result =
-          (*(*object_table_))
-              .RemoveObjectImp(*managed_object_, RelationshipContainerTrait());
+          object_table_->load(std::memory_order_acquire)
+              ->RemoveObjectImp(*managed_object_, RelationshipContainerTrait());
       if (result == ExecuteResult::SUCCESS) {
         return;
       }
@@ -163,10 +165,285 @@ class ManagedObjectHandler<ManagedType, ManagedType, NoKeyTrait> {
  * errors. It is recommended to use this type through replication in a
  * multi-threaded environment.
  */
-template <typename KeyType, typename ManagedType>
-class ManagedObjectHandler<KeyType, ManagedType, NodeKeyTrait> {
+template <typename ManagedType>
+class ManagedObjectHandler<ManagedType, ManagedType, SetTrait> {
  public:
-  using RelationshipContainerTrait = NodeKeyTrait;
+  using RelationshipContainerTrait = SetTrait;
+  using ThisType = ManagedObjectHandler<ManagedType, ManagedType,
+                                        RelationshipContainerTrait>;
+  using DataTableType = ManagedObjectTableBase<ManagedType, ManagedType,
+                                               RelationshipContainerTrait>;
+  friend class ManagedObjectTableBase<ManagedType, ManagedType,
+                                      RelationshipContainerTrait>;
+
+ public:
+  ManagedObjectHandler() = default;
+  ~ManagedObjectHandler() { Release(); }
+  ManagedObjectHandler(std::atomic<DataTableType*>* object_table,
+                       const ManagedType* managed_object,
+                       std::atomic_uint32_t* use_count)
+      : object_table_(object_table),
+        managed_object_(managed_object),
+        use_count_(use_count) {
+    use_count_->fetch_add(1, std::memory_order_acq_rel);
+  }
+  ManagedObjectHandler(const ManagedObjectHandler& other)
+      : object_table_(other.object_table_),
+        managed_object_(other.managed_object_),
+        use_count_(other.use_count_) {
+    use_count_->fetch_add(1, std::memory_order_acq_rel);
+  }
+  ManagedObjectHandler(ManagedObjectHandler&& other) noexcept
+      : object_table_(other.object_table_),
+        managed_object_(other.managed_object_),
+        use_count_(other.use_count_) {
+    other.object_table_ = nullptr;
+    other.managed_object_ = nullptr;
+    other.use_count_ = nullptr;
+  }
+  ManagedObjectHandler& operator=(const ManagedObjectHandler& other) {
+    if (&other == this) {
+      return *this;
+    }
+
+    if (IsValid()) {
+      Release();
+    }
+
+    other.use_count_->fetch_add(1, std::memory_order_acq_rel);
+
+    object_table_ = other.object_table_;
+    managed_object_ = other.managed_object_;
+    use_count_ = other.use_count_;
+
+    return *this;
+  }
+  ManagedObjectHandler& operator=(ManagedObjectHandler&& other) noexcept {
+    if (&other == this) {
+      return *this;
+    }
+
+    if (IsValid()) {
+      Release();
+    }
+
+    use_count_ = other.use_count_;
+    other.use_count_ = nullptr;
+
+    object_table_ = other.object_table_;
+    managed_object_ = other.managed_object_;
+
+    other.object_table_ = nullptr;
+    other.managed_object_ = nullptr;
+
+    return *this;
+  }
+
+ public:
+  const ManagedType& GetObject() const { return *managed_object_; }
+
+  const ManagedType* GetObjectPtr() const { return managed_object_; }
+
+  const std::atomic_uint32_t* GetUseCountPtr() const { return use_count_; }
+
+  std::uint32_t GetUseCount() const {
+    return use_count_->load(std::memory_order_relaxed);
+  }
+
+  bool IsValid() const { return managed_object_ != nullptr; }
+
+  void Release() {
+    if (!IsValid()) {
+      return;
+    }
+
+    if (use_count_->fetch_sub(1, std::memory_order_acq_rel) == 1) {
+      if (object_table_->load(std::memory_order_acquire)->IsMultiContainer()) {
+        ReleaseMulti();
+      } else {
+        ReleaseNoMulti();
+      }
+    }
+
+    object_table_ = nullptr;
+    managed_object_ = nullptr;
+    use_count_ = nullptr;
+  }
+
+ private:
+  void ReleaseMulti() {
+    do {
+      ExecuteResult result =
+          object_table_->load(std::memory_order_acquire)
+              ->RemoveObjectImp(*managed_object_, use_count_,
+                                RelationshipContainerTrait());
+      if (result == ExecuteResult::SUCCESS) {
+        return;
+      }
+      if (result == ExecuteResult::CUSTOM_ERROR) {
+        continue;
+      }
+      LOG_SYSTEM->CheckResult(result, CODE_LOCATION);
+      return;
+    } while (true);
+  }
+
+  void ReleaseNoMulti() {
+    do {
+      ExecuteResult result =
+          object_table_->load(std::memory_order_acquire)
+              ->RemoveObjectImp(*managed_object_, RelationshipContainerTrait());
+      if (result == ExecuteResult::SUCCESS) {
+        return;
+      }
+      if (result == ExecuteResult::CUSTOM_ERROR) {
+        continue;
+      }
+      LOG_SYSTEM->CheckResult(result, CODE_LOCATION);
+      return;
+    } while (true);
+  }
+
+ private:
+  std::atomic<DataTableType*>* object_table_{nullptr};
+  const ManagedType* managed_object_{nullptr};
+  std::atomic_uint32_t* use_count_{nullptr};
+};
+
+/**
+ * \remark Using this type in reference mode with multiple threads can cause
+ * errors. It is recommended to use this type through replication in a
+ * multi-threaded environment.
+ */
+template <typename ManagedType>
+class ManagedObjectHandler<ManagedType, ManagedType, HashSetTrait> {
+ public:
+  using RelationshipContainerTrait = HashSetTrait;
+  using ThisType = ManagedObjectHandler<ManagedType, ManagedType,
+                                        RelationshipContainerTrait>;
+  using DataTableType = ManagedObjectTableBase<ManagedType, ManagedType,
+                                               RelationshipContainerTrait>;
+  friend class ManagedObjectTableBase<ManagedType, ManagedType,
+                                      RelationshipContainerTrait>;
+
+ public:
+  ManagedObjectHandler() = default;
+  ~ManagedObjectHandler() { Release(); }
+  ManagedObjectHandler(std::atomic<DataTableType*>* object_table,
+                       const ManagedType* managed_object,
+                       std::atomic_uint32_t* use_count)
+      : object_table_(object_table),
+        managed_object_(managed_object),
+        use_count_(use_count) {
+    use_count_->fetch_add(1, std::memory_order_acq_rel);
+  }
+  ManagedObjectHandler(const ManagedObjectHandler& other)
+      : object_table_(other.object_table_),
+        managed_object_(other.managed_object_),
+        use_count_(other.use_count_) {
+    use_count_->fetch_add(1, std::memory_order_acq_rel);
+  }
+  ManagedObjectHandler(ManagedObjectHandler&& other) noexcept
+      : object_table_(other.object_table_),
+        managed_object_(other.managed_object_),
+        use_count_(other.use_count_) {
+    other.object_table_ = nullptr;
+    other.managed_object_ = nullptr;
+    other.use_count_ = nullptr;
+  }
+  ManagedObjectHandler& operator=(const ManagedObjectHandler& other) {
+    if (&other == this) {
+      return *this;
+    }
+
+    if (IsValid()) {
+      Release();
+    }
+
+    other.use_count_->fetch_add(1, std::memory_order_acq_rel);
+
+    object_table_ = other.object_table_;
+    managed_object_ = other.managed_object_;
+    use_count_ = other.use_count_;
+
+    return *this;
+  }
+  ManagedObjectHandler& operator=(ManagedObjectHandler&& other) noexcept {
+    if (&other == this) {
+      return *this;
+    }
+
+    if (IsValid()) {
+      Release();
+    }
+
+    use_count_ = other.use_count_;
+    other.use_count_ = nullptr;
+
+    object_table_ = other.object_table_;
+    managed_object_ = other.managed_object_;
+
+    other.object_table_ = nullptr;
+    other.managed_object_ = nullptr;
+
+    return *this;
+  }
+
+ public:
+  const ManagedType& GetObject() const { return *managed_object_; }
+
+  const ManagedType* GetObjectPtr() const { return managed_object_; }
+
+  const std::atomic_uint32_t* GetUseCountPtr() const { return use_count_; }
+
+  std::uint32_t GetUseCount() const {
+    return use_count_->load(std::memory_order_relaxed);
+  }
+
+  bool IsValid() const { return managed_object_ != nullptr; }
+
+  void Release() {
+    if (!IsValid()) {
+      return;
+    }
+
+    if (use_count_->fetch_sub(1, std::memory_order_acq_rel) == 1) {
+      do {
+        ExecuteResult result =
+            object_table_->load(std::memory_order_acquire)
+                ->RemoveObjectImp(managed_object_,
+                                  RelationshipContainerTrait());
+        if (result == ExecuteResult::SUCCESS) {
+          break;
+        }
+        if (result == ExecuteResult::CUSTOM_ERROR) {
+          continue;
+        }
+        LOG_SYSTEM->CheckResult(result, CODE_LOCATION);
+        break;
+      } while (true);
+    }
+
+    object_table_ = nullptr;
+    managed_object_ = nullptr;
+    use_count_ = nullptr;
+  }
+
+ private:
+  std::atomic<DataTableType*>* object_table_{nullptr};
+  const ManagedType* managed_object_{nullptr};
+  std::atomic_uint32_t* use_count_{nullptr};
+};
+
+/**
+ * \remark Using this type in reference mode with multiple threads can cause
+ * errors. It is recommended to use this type through replication in a
+ * multi-threaded environment.
+ */
+template <typename KeyType, typename ManagedType>
+class ManagedObjectHandler<KeyType, ManagedType, MapTrait> {
+ public:
+  using RelationshipContainerTrait = MapTrait;
   using ThisType =
       ManagedObjectHandler<KeyType, ManagedType, RelationshipContainerTrait>;
   using DataTableType =
@@ -186,14 +463,14 @@ class ManagedObjectHandler<KeyType, ManagedType, NodeKeyTrait> {
         key_(key),
         managed_object_(managed_object),
         use_count_(use_count) {
-    ++(*use_count);
+    use_count_->fetch_add(1, std::memory_order_acq_rel);
   }
   ManagedObjectHandler(const ManagedObjectHandler& other)
       : object_table_(other.object_table_),
         key_(other.key_),
         managed_object_(other.managed_object_),
         use_count_(other.use_count_) {
-    ++(*use_count_);
+    use_count_->fetch_add(1, std::memory_order_acq_rel);
   }
   ManagedObjectHandler(ManagedObjectHandler&& other) noexcept
       : object_table_(other.object_table_),
@@ -214,7 +491,7 @@ class ManagedObjectHandler<KeyType, ManagedType, NodeKeyTrait> {
       Release();
     }
 
-    ++(*(other.use_count_));
+    other.use_count_->fetch_add(1, std::memory_order_acq_rel);
 
     object_table_ = other.object_table_;
     key_ = other.key_;
@@ -257,7 +534,9 @@ class ManagedObjectHandler<KeyType, ManagedType, NodeKeyTrait> {
 
   const std::atomic_uint32_t* GetUseCountPtr() { return use_count_; }
 
-  std::uint32_t GetUseCount() const { return *use_count_; }
+  std::uint32_t GetUseCount() const {
+    return use_count_->load(std::memory_order_relaxed);
+  }
 
   const KeyType* GetKeyPtr() const { return key_; }
 
@@ -268,8 +547,8 @@ class ManagedObjectHandler<KeyType, ManagedType, NodeKeyTrait> {
       return;
     }
 
-    if (use_count_->fetch_sub(1) == 1) {
-      if ((*(*object_table_)).IsMultiContainer()) {
+    if (use_count_->fetch_sub(1, std::memory_order_acq_rel) == 1) {
+      if (object_table_->load(std::memory_order_acquire)->IsMultiContainer()) {
         ReleaseMulti();
       } else {
         ReleaseNoMulti();
@@ -284,12 +563,11 @@ class ManagedObjectHandler<KeyType, ManagedType, NodeKeyTrait> {
 
  private:
   void ReleaseMulti() {
-    ExecuteResult result = ExecuteResult::UNDEFINED_ERROR;
-
     do {
-      result =
-          (*(*object_table_))
-              .RemoveObjectImp(*key_, use_count_, RelationshipContainerTrait());
+      ExecuteResult result =
+          object_table_->load(std::memory_order_acquire)
+              ->RemoveObjectImp(*key_, use_count_,
+                                RelationshipContainerTrait());
       if (result == ExecuteResult::SUCCESS) {
         return;
       }
@@ -302,10 +580,10 @@ class ManagedObjectHandler<KeyType, ManagedType, NodeKeyTrait> {
   }
 
   void ReleaseNoMulti() {
-    ExecuteResult result = ExecuteResult::SUCCESS;
     do {
-      result = (*(*object_table_))
-                   .RemoveObjectImp(*key_, RelationshipContainerTrait());
+      ExecuteResult result =
+          object_table_->load(std::memory_order_acquire)
+              ->RemoveObjectImp(*key_, RelationshipContainerTrait());
       if (result == ExecuteResult::SUCCESS) {
         return;
       }
@@ -330,40 +608,36 @@ class ManagedObjectHandler<KeyType, ManagedType, NodeKeyTrait> {
  * multi-threaded environment.
  */
 template <typename KeyType, typename ManagedType>
-class ManagedObjectHandler<KeyType, ManagedType, HashKeyTrait> {
+class ManagedObjectHandler<KeyType, ManagedType, HashMapTrait> {
  public:
-  using RelationshipContainerTrait = HashKeyTrait;
+  using RelationshipContainerTrait = HashMapTrait;
   using ThisType =
       ManagedObjectHandler<KeyType, ManagedType, RelationshipContainerTrait>;
   using DataTableType =
       ManagedObjectTableBase<KeyType, ManagedType, RelationshipContainerTrait>;
+  using ManagedPairType = std::pair<const KeyType, ManagedType>;
   friend class ManagedObjectTableBase<KeyType, ManagedType,
                                       RelationshipContainerTrait>;
 
  public:
   ManagedObjectHandler() = default;
   ~ManagedObjectHandler() { Release(); }
-  ManagedObjectHandler(
-      std::atomic<ManagedObjectTableBase<
-          KeyType, ManagedType, RelationshipContainerTrait>*>* object_table,
-      const KeyType& key, ManagedType* managed_object,
-      std::atomic_uint32_t* use_count)
+  ManagedObjectHandler(std::atomic<DataTableType*>* object_table,
+                       ManagedPairType* managed_pair_object,
+                       std::atomic_uint32_t* use_count)
       : object_table_(object_table),
-        key_(key),
-        managed_object_(managed_object),
+        managed_object_(managed_pair_object),
         use_count_(use_count) {
-    ++(*use_count);
+    use_count_->fetch_add(1, std::memory_order_acq_rel);
   }
   ManagedObjectHandler(const ManagedObjectHandler& other)
       : object_table_(other.object_table_),
-        key_(other.key_),
         managed_object_(other.managed_object_),
         use_count_(other.use_count_) {
-    ++(*use_count_);
+    use_count_->fetch_add(1, std::memory_order_acq_rel);
   }
   ManagedObjectHandler(ManagedObjectHandler&& other) noexcept
       : object_table_(other.object_table_),
-        key_(other.key_),
         managed_object_(other.managed_object_),
         use_count_(other.use_count_) {
     other.object_table_ = nullptr;
@@ -379,10 +653,9 @@ class ManagedObjectHandler<KeyType, ManagedType, HashKeyTrait> {
       Release();
     }
 
-    ++(*(other.use_count_));
+    other.use_count_->fetch_add(1, std::memory_order_acq_rel);
 
     object_table_ = other.object_table_;
-    key_ = other.key_;
     managed_object_ = other.managed_object_;
     use_count_ = other.use_count_;
 
@@ -401,7 +674,6 @@ class ManagedObjectHandler<KeyType, ManagedType, HashKeyTrait> {
     other.use_count_ = nullptr;
 
     object_table_ = other.object_table_;
-    key_ = other.key_;
     managed_object_ = other.managed_object_;
 
     other.object_table_ = nullptr;
@@ -411,21 +683,31 @@ class ManagedObjectHandler<KeyType, ManagedType, HashKeyTrait> {
   }
 
  public:
-  ManagedType& GetObject() { return *managed_object_; }
+  ManagedType& GetObject() { return managed_object_->second; }
 
-  const ManagedType& GetObject() const { return *managed_object_; }
+  const ManagedType& GetObject() const { return managed_object_->second; }
 
-  ManagedType* GetObjectPtr() { return managed_object_; }
+  ManagedType* GetObjectPtr() { return &(managed_object_->second); }
 
-  const ManagedType* GetObjectPtr() const { return managed_object_; }
+  const ManagedType* GetObjectPtr() const { return &(managed_object_->second); }
+
+  ManagedPairType& GetPair() { return *managed_object_; }
+
+  const ManagedType& GetPair() const { return *managed_object_; }
+
+  ManagedPairType* GetPairPtr() { return managed_object_; }
+
+  const ManagedPairType* GetPairPtr() const { return managed_object_; }
 
   const std::atomic_uint32_t* GetUseCountPtr() const { return use_count_; }
 
-  std::uint32_t GetUseCount() const { return *use_count_; }
+  std::uint32_t GetUseCount() const {
+    return use_count_->load(std::memory_order_relaxed);
+  }
 
-  const KeyType& GetKey() const { return key_; }
+  const KeyType& GetKey() const { return managed_object_->first; }
 
-  const KeyType* GetKeyPtr() const { return &key_; }
+  const KeyType* GetKeyPtr() const { return &(managed_object_->first); }
 
   bool IsValid() const { return managed_object_ != nullptr; }
 
@@ -434,12 +716,21 @@ class ManagedObjectHandler<KeyType, ManagedType, HashKeyTrait> {
       return;
     }
 
-    if (use_count_->fetch_sub(1) == 1) {
-      if ((*(*object_table_)).IsMultiContainer()) {
-        ReleaseMulti();
-      } else {
-        ReleaseNoMulti();
-      }
+    if (use_count_->fetch_sub(1, std::memory_order_acq_rel) == 1) {
+      do {
+        ExecuteResult result =
+            object_table_->load(std::memory_order_acquire)
+                ->RemoveObjectImp(managed_object_,
+                                  RelationshipContainerTrait());
+        if (result == ExecuteResult::SUCCESS) {
+          break;
+        }
+        if (result == ExecuteResult::CUSTOM_ERROR) {
+          continue;
+        }
+        LOG_SYSTEM->CheckResult(result, CODE_LOCATION);
+        break;
+      } while (true);
     }
 
     object_table_ = nullptr;
@@ -448,46 +739,8 @@ class ManagedObjectHandler<KeyType, ManagedType, HashKeyTrait> {
   }
 
  private:
-  void ReleaseMulti() {
-    ExecuteResult result = ExecuteResult::UNDEFINED_ERROR;
-
-    do {
-      result =
-          (*(*object_table_))
-              .RemoveObjectImp(key_, use_count_, RelationshipContainerTrait());
-      if (result == ExecuteResult::SUCCESS) {
-        return;
-      }
-      if (result == ExecuteResult::CUSTOM_ERROR) {
-        continue;
-      }
-      LOG_SYSTEM->CheckResult(result, CODE_LOCATION);
-      return;
-    } while (true);
-  }
-
-  void ReleaseNoMulti() {
-    ExecuteResult result = ExecuteResult::SUCCESS;
-    do {
-      result = (*(*object_table_))
-                   .RemoveObjectImp(key_, RelationshipContainerTrait());
-      if (result == ExecuteResult::SUCCESS) {
-        return;
-      }
-      if (result == ExecuteResult::CUSTOM_ERROR) {
-        continue;
-      }
-      LOG_SYSTEM->CheckResult(result, CODE_LOCATION);
-      return;
-    } while (true);
-  }
-
- private:
-  std::atomic<ManagedObjectTableBase<
-      KeyType, ManagedType, RelationshipContainerTrait>*>* object_table_{
-      nullptr};
-  KeyType key_;
-  ManagedType* managed_object_{nullptr};
+  std::atomic<DataTableType*>* object_table_{nullptr};
+  ManagedPairType* managed_object_{nullptr};
   std::atomic_uint32_t* use_count_{nullptr};
 };
 

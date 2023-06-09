@@ -13,12 +13,12 @@ namespace Manager {
 template <typename ObjectType,
           typename Allocator = std::allocator<ManagedObjectWrapper<ObjectType>>>
 class ManagedObjectSet
-    : public ManagedObjectTableBase<ObjectType, ObjectType, NoKeyTrait> {
+    : public ManagedObjectTableBase<ObjectType, ObjectType, SetTrait> {
  public:
-  using RelationshipContainerTrait = NoKeyTrait;
+  using ContainerTrait = SetTrait;
   using ThisType = ManagedObjectSet<ObjectType, Allocator>;
-  using BaseType = ManagedObjectTableBase<ObjectType, ObjectType,
-                                          RelationshipContainerTrait>;
+  using BaseType =
+      ManagedObjectTableBase<ObjectType, ObjectType, ContainerTrait>;
   using HandlerType = typename BaseType::HandlerType;
   using WrapperType = typename BaseType::WrapperType;
   using ContainerType =
@@ -54,7 +54,7 @@ class ManagedObjectSet
                              HandlerType& handle) override;
 
   ExecuteResult RemoveObjectImp(const ObjectType& removed_object_key,
-                                RelationshipContainerTrait trait) override;
+                                ContainerTrait trait) override;
 
   ExecuteResult GetObjectImp(const ObjectType& key,
                              HandlerType& handler) const override;
@@ -69,9 +69,9 @@ class ManagedObjectSet
 template <typename ObjectType,
           typename Allocator = std::allocator<ManagedObjectWrapper<ObjectType>>>
 class ManagedObjectMultiSet
-    : public ManagedObjectTableBase<ObjectType, ObjectType, NoKeyTrait> {
+    : public ManagedObjectTableBase<ObjectType, ObjectType, ListTrait> {
  public:
-  using RelationshipContainerTrait = NoKeyTrait;
+  using RelationshipContainerTrait = ListTrait;
   using ThisType = ManagedObjectMultiSet<ObjectType, Allocator>;
   using BaseType = ManagedObjectTableBase<ObjectType, ObjectType,
                                           RelationshipContainerTrait>;
@@ -128,7 +128,7 @@ class ManagedObjectMultiSet
 
   ExecuteResult RemoveObjectImp(const ObjectType& removed_object_key,
                                 const std::atomic_uint32_t* use_count_ptr,
-                                NoKeyTrait trait) override;
+                                ListTrait trait) override;
 
   ExecuteResult GetObjectImp(const ObjectType& key,
                              HandlerType& handle) const override;
@@ -282,8 +282,7 @@ std::uint32_t ManagedObjectSet<ObjectType, Allocator>::GetUseCountImp(
 
 template <typename ObjectType, typename Allocator>
 ManagedObjectSet<ObjectType, Allocator>::ManagedObjectSet()
-    : ManagedObjectTableBase<ObjectType, ObjectType,
-                             RelationshipContainerTrait>(this),
+    : ManagedObjectTableBase<ObjectType, ObjectType, ContainerTrait>(this),
       data_(),
       data_mutex_() {}
 
@@ -376,7 +375,7 @@ ExecuteResult ManagedObjectMultiSet<ObjectType, Allocator>::AddObjectImp(
 template <typename ObjectType, typename Allocator>
 ExecuteResult ManagedObjectMultiSet<ObjectType, Allocator>::RemoveObjectImp(
     const ObjectType& removed_object_key,
-    const std::atomic_uint32_t* use_count_ptr, NoKeyTrait trait) {
+    const std::atomic_uint32_t* use_count_ptr, ListTrait trait) {
   std::unique_lock<std::shared_mutex> guard{data_mutex_};
   if (ThisType::this_ptr_ptr_ == nullptr) {
     return ExecuteResult::CUSTOM_ERROR;
@@ -559,7 +558,7 @@ ExecuteResult ManagedObjectSet<ObjectType, Allocator>::AddObjectImp(
 
 template <typename ObjectType, typename Allocator>
 ExecuteResult ManagedObjectSet<ObjectType, Allocator>::RemoveObjectImp(
-    const ObjectType& removed_object_key, RelationshipContainerTrait trait) {
+    const ObjectType& removed_object_key, ContainerTrait trait) {
   std::unique_lock<std::shared_mutex> guard{data_mutex_};
 
   if (ThisType::this_ptr_ptr_ == nullptr) {

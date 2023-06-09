@@ -11,12 +11,12 @@ namespace MM {
 namespace Manager {
 template <typename ObjectType, typename Allocator = std::allocator<ObjectType>>
 class ManagedObjectList
-    : public ManagedObjectTableBase<ObjectType, ObjectType, NoKeyTrait> {
+    : public ManagedObjectTableBase<ObjectType, ObjectType, ListTrait> {
  public:
-  using RelationshipContainerTrait = NoKeyTrait;
+  using ContainerTrait = ListTrait;
   using ThisType = ManagedObjectList<ObjectType, Allocator>;
-  using BaseType = ManagedObjectTableBase<ObjectType, ObjectType,
-                                          RelationshipContainerTrait>;
+  using BaseType =
+      ManagedObjectTableBase<ObjectType, ObjectType, ContainerTrait>;
   using HandlerType = typename BaseType::HandlerType;
   using WrapperType = typename BaseType::WrapperType;
   using ContainerType = std::list<ManagedObjectWrapper<ObjectType>>;
@@ -67,7 +67,7 @@ class ManagedObjectList
 
   ExecuteResult RemoveObjectImp(const ObjectType& removed_object_key,
                                 const std::atomic_uint32_t* use_count_ptr,
-                                NoKeyTrait trait) override;
+                                ListTrait trait) override;
 
   ExecuteResult GetObjectImp(const ObjectType& key,
                              HandlerType& handle) const override;
@@ -243,7 +243,7 @@ ExecuteResult ManagedObjectList<ObjectType, Allocator>::AddObject(
 template <typename ObjectType, typename Allocator>
 ExecuteResult ManagedObjectList<ObjectType, Allocator>::RemoveObjectImp(
     const ObjectType& removed_object_key,
-    const std::atomic_uint32_t* use_count_ptr, NoKeyTrait trait) {
+    const std::atomic_uint32_t* use_count_ptr, ListTrait trait) {
   std::unique_lock<std::shared_mutex> guard{data_mutex_};
   if (ThisType::this_ptr_ptr_ == nullptr) {
     return ExecuteResult::CUSTOM_ERROR;

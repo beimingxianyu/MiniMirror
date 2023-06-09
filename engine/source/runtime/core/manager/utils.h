@@ -113,8 +113,9 @@ struct LockAll {
 
 template <typename ManagedObjectTable>
 std::shared_mutex& ChooseMutex(const ManagedObjectTable& managed_object_table,
-                               std::uint64_t hash_value) {
-  std::uint64_t index = hash_value & 0xF;  // hash_value % 16
+                               std::uint64_t hash_value,
+                               std::uint64_t bucket_count) {
+  std::uint64_t index = hash_value % bucket_count & 0xF;  // hash_value % 16
   switch (index) {
     case 0:
       return managed_object_table.data_mutex0_;
@@ -153,5 +154,34 @@ std::shared_mutex& ChooseMutex(const ManagedObjectTable& managed_object_table,
       return managed_object_table.data_mutex0_;
   }
 }
+
+template <typename HashManagedTable, typename MutexType, typename IsCanMoved>
+class HashLockGuard {
+ public:
+  HashLockGuard() = delete;
+  ~HashLockGuard() = default;
+  HashLockGuard(HashManagedTable* hash_managed_table,
+                const typename HashManagedTable::HashKeyType& key)
+      : hash_managed_table_(hash_managed_table),
+        mutex_(hash_managed_table_->ChooseMutexIn(key)) {
+    MutexType* new_mutex = &(hash_managed_table_->ChooseMutexIn(key));
+    while (mutex_.mutex() != new_mutex) {
+      mutex_.unlock();
+      mutex_ = MutexType(*new_mutex);
+      new_mutex = &(hash_managed_table_->ChooseMutexIN(key));
+    }
+  }
+  HashLockGuard(const HashLockGuard& other) = delete;
+  HashLockGuard(HashLockGuard&& other) = delete;
+  HashLockGuard& operator=(const HashLockGuard& other) = delete;
+  HashLockGuard& operator=(HashLockGuard&& other) = delete;
+
+ public:
+  void Unlock() { mutex_.unlock(); }
+
+ private:
+  HashManagedTable* hash_managed_table_{nullptr};
+  MutexType mutex_;
+};
 }  // namespace Manager
 }  // namespace MM

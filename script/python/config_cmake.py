@@ -23,20 +23,20 @@ def config_mac_address(file_data: str):
     return file_data
 
 
-def cmake_config_system_info(cmake_config_system_info_file: str):
-    file = open(cmake_config_system_info_file, "r", encoding="utf8")
+def cmake_config_system_info(cmake_config_system_info_file_in: str, cmake_config_system_info_file_out: str):
+    file = open(cmake_config_system_info_file_in, "r", encoding="utf8")
     if file.readable():
         file_data = file.read()
         file_data = config_mac_address(file_data)
     else:
-        raise FileNotFoundError("\"cmake_config_system_info_file\" can't read.")
+        raise FileNotFoundError("\"cmake_config_system_info_file_in\" can't read.")
     file.close()
-    file = open(cmake_config_system_info_file, "w", encoding="utf8")
+    file = open(cmake_config_system_info_file_out, "w", encoding="utf8")
 
     if file.writable():
         file.write(file_data)
     else:
-        raise FileExistsError("\"cmake_config_system_info_file\" can't write.")
+        raise FileExistsError("\"cmake_config_system_info_file_out\" can't write.")
     file.close()
     return
 
@@ -44,9 +44,10 @@ def cmake_config_system_info(cmake_config_system_info_file: str):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='manual to this script')
     parser.add_argument("--function", type=str, default="")
-    parser.add_argument("--cmake_config_system_info_file", type=str, default="")
+    parser.add_argument("--cmake_config_system_info_file_in", type=str, default="")
+    parser.add_argument("--cmake_config_system_info_file_out", type=str, default="")
     args = parser.parse_args()
     if args.function != "":
         eval(args.function)
-    if args.cmake_config_system_info_file != "":
-        cmake_config_system_info(args.cmake_config_system_info_file)
+    if args.cmake_config_system_info_file_in != "" and args.cmake_config_system_info_file_out != "":
+        cmake_config_system_info(args.cmake_config_system_info_file_in, args.cmake_config_system_info_file_out)

@@ -33,7 +33,7 @@ set(asset_dir_std "${asset_dir}/standard")
 set(asset_dir_user "${asset_dir}/user")
 set(config_dir "${engine_dir}/config")
 
-execute_process(COMMAND python3 ${script_dir}/python/config_cmake.py --cmake_config_system_info_file ${script_dir}/cmake/hardware_info.cmake)
+execute_process(COMMAND python3 ${script_dir}/python/config_cmake.py --cmake_config_system_info_file_in ${source_config_dir}/script/cmake/hardware_info.cmake.in --cmake_config_system_info_file_out ${script_dir}/cmake/hardware_info.cmake)
 
 add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/engine")
 

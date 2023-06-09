@@ -1,0 +1,2 @@
+set(hardware_info_mac_address @hardware_info_mac_address@)
+set(hardware_info_mac_address_16 @hardware_info_mac_address_16@)

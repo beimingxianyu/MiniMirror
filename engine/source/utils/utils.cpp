@@ -44,10 +44,12 @@ std::uint32_t MM::Utils::MinPrime32(std::uint32_t n) { return MinPrime(n); }
 std::uint64_t MM::Utils::MinPrime64(std::uint64_t n) { return MinPrime(n); }
 
 void MM::Utils::SpinSharedMutex::Lock() {
-  while (is_write_.load(std::memory_order_acquire))
-    ;
-  is_write_.store(true, std::memory_order_release);
-  while (read_count_.load(std::memory_order_acquire) != 0)
+  bool expect = false;
+  while (!is_write_.compare_exchange_weak(
+      expect, true, std::memory_order_acq_rel, std::memory_order_acquire)) {
+    expect = false;
+  }
+  while (read_count_.load(std::memory_order_relaxed) != 0)
     ;
 }
 
@@ -61,14 +63,14 @@ void MM::Utils::SpinSharedMutex::SharedLock() {
   read_count_.fetch_add(1, std::memory_order_acq_rel);
   while (is_write_.load(std::memory_order_acquire)) {
     read_count_.fetch_sub(1, std::memory_order_acq_rel);
-    while (is_write_.load(std::memory_order_acquire))
+    while (is_write_.load(std::memory_order_relaxed))
       ;
     read_count_.fetch_add(1, std::memory_order_acq_rel);
   }
 }
 
 void MM::Utils::SpinSharedMutex::SharedUnlock() {
-  read_count_.fetch_sub(1, std::memory_order_acq_rel);
+  read_count_.fetch_sub(1, std::memory_order_relaxed);
 }
 
 MM::Utils::SpinSharedLock::~SpinSharedLock() {
