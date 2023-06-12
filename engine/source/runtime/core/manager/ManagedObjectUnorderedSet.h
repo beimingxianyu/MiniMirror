@@ -3,6 +3,7 @@
 #include <functional>
 #include <unordered_set>
 
+#include "runtime/core/manager/ManagedObjectHandler.h"
 #include "runtime/core/manager/ManagedObjectTableBase.h"
 #include "runtime/core/manager/utils.h"
 #include "utils/hash_table.h"
@@ -26,8 +27,8 @@ class ManagedObjectUnorderedSet
   using WrapperType = typename BaseType::WrapperType;
   using HandlerType = typename BaseType::HandlerType;
   using ContainerType = Utils::HashSet<
-      WrapperType, typename WrapperType::template HashWrapper<Hash>,
-      typename WrapperType::template EqualWrapper<Equal>, Allocator>;
+      WrapperType, typename WrapperType::template HashWrapperObject<Hash>,
+      typename WrapperType::template EqualWrapperObject<Equal>, Allocator>;
   using ContainerReturnType = const WrapperType;
 
   friend struct LockAll<ThisType>;
@@ -68,6 +69,7 @@ class ManagedObjectUnorderedSet
     data_ = std::move(other);
     size_.store(other.size_.load(std::memory_order_acquire),
                 std::memory_order_relaxed);
+    other.size_.store(0, std::memory_order_release);
   }
   ManagedObjectUnorderedSet& operator=(const ManagedObjectUnorderedSet& other) =
       delete;
@@ -103,6 +105,7 @@ class ManagedObjectUnorderedSet
     data_ = std::move(other.data_);
     size_.store(other.size_.load(std::memory_order_acquire),
                 std::memory_order_relaxed);
+    other.size_.store(0, std::memory_order_release);
 
     return *this;
   }
@@ -163,17 +166,17 @@ class ManagedObjectUnorderedSet
 
     std::pair<ContainerReturnType&, bool> insert_result =
         data_.Emplace(std::move(managed_object));
+
+    if (!insert_result.second) {
+      return ExecuteResult ::OPERATION_NOT_SUPPORTED;
+    }
     handler =
         HandlerType{BaseType::GetThisPtrPtr(),
                     const_cast<ObjectType*>(insert_result.first.GetObjectPtr()),
                     insert_result.first.GetUseCountPtr()};
 
-    if (insert_result.second) {
-      size_.fetch_add(1, std::memory_order_acq_rel);
-      return ExecuteResult ::SUCCESS;
-    }
-
-    return ExecuteResult ::OPERATION_NOT_SUPPORTED;
+    size_.fetch_add(1, std::memory_order_acq_rel);
+    return ExecuteResult ::SUCCESS;
   }
 
   ExecuteResult GetObject(const ObjectType& key, HandlerType& handler) const {
@@ -231,16 +234,16 @@ class ManagedObjectUnorderedSet
   }
 
  protected:
-  ExecuteResult RemoveObjectImp(const ContainerReturnType* removed_object_key,
-                                ContainerTrait) override {
+  ExecuteResult RemoveObjectImp(const ObjectType& removed_object_key,
+                                HashSetTrait) override {
     std::unique_lock<std::shared_mutex> guard{
-        ChooseMutexIn(*removed_object_key)};
+        ChooseMutexIn(removed_object_key)};
     if constexpr (std::is_same_v<CanMovedTrait, CanMoved>) {
-      std::shared_mutex* new_mutex = &ChooseMutexIn(*removed_object_key);
+      std::shared_mutex* new_mutex = &ChooseMutexIn(removed_object_key);
       while (guard.mutex() != new_mutex) {
         guard.unlock();
         guard = std::unique_lock<std::shared_mutex>(*new_mutex);
-        new_mutex = &ChooseMutexIn(*removed_object_key);
+        new_mutex = &ChooseMutexIn(removed_object_key);
       }
     }
 
@@ -248,12 +251,18 @@ class ManagedObjectUnorderedSet
       return ExecuteResult::CUSTOM_ERROR;
     }
 
-    ExecuteResult result = data_.Erase(removed_object_key);
-    if (result == ExecuteResult::SUCCESS) {
+    auto iter = data_.Find(removed_object_key);
+
+    if (iter == nullptr) {
+      return ExecuteResult::PARENT_OBJECT_NOT_CONTAIN_SPECIFIC_CHILD_OBJECT;
+    }
+
+    if (iter->GetUseCount() == 0) {
+      data_.Erase(iter);
       size_.fetch_sub(1, std::memory_order_acq_rel);
     }
 
-    return result;
+    return ExecuteResult::SUCCESS;
   }
 
  private:
@@ -266,6 +275,11 @@ class ManagedObjectUnorderedSet
       LockAll guard(*this);
       data_.ReHash(new_size);
     }
+  }
+
+  std::shared_mutex& ChooseMutexIn(const ContainerReturnType& key) const {
+    return ChooseMutex(*this, typename WrapperType::HashWrapperObject{}(key),
+                       data_.BucketCount());
   }
 
   std::shared_mutex& ChooseMutexIn(const ObjectType& key) const {
@@ -299,20 +313,20 @@ template <typename ObjectType, typename Hash = std::hash<ObjectType>,
           typename Allocator = std::allocator<ManagedObjectWrapper<ObjectType>>,
           typename IsCanMoved = CanMoved>
 class ManagedObjectUnorderedMultiSet
-    : public ManagedObjectTableBase<ObjectType, ObjectType, ListTrait> {
+    : public ManagedObjectTableBase<ObjectType, ObjectType, HashSetTrait> {
  public:
   using RelationshipContainerTrait = HashSetTrait;
   using CanMovedTrait = IsCanMoved;
-  using ThisType = ManagedObjectUnorderedSet<ObjectType, Hash, Equal, Allocator,
-                                             CanMovedTrait>;
+  using ThisType = ManagedObjectUnorderedMultiSet<ObjectType, Hash, Equal,
+                                                  Allocator, CanMovedTrait>;
   using BaseType = ManagedObjectTableBase<ObjectType, ObjectType,
                                           RelationshipContainerTrait>;
   using HashKeyType = ObjectType;
   using WrapperType = typename BaseType::WrapperType;
   using HandlerType = typename BaseType::HandlerType;
   using ContainerType = Utils::MultiHashSet<
-      WrapperType, typename WrapperType::template HashWrapper<Hash>,
-      typename WrapperType::template EqualWrapper<Equal>, Allocator>;
+      WrapperType, typename WrapperType::template HashWrapperObject<Hash>,
+      typename WrapperType::template EqualWrapperObject<Equal>, Allocator>;
   using ContainerReturnType = const WrapperType;
 
   friend struct LockAll<ThisType>;
@@ -354,6 +368,7 @@ class ManagedObjectUnorderedMultiSet
     data_ = std::move(data_);
     size_.store(other.size_.load(std::memory_order_acquire),
                 std::memory_order_relaxed);
+    other.size_.store(0, std::memory_order_release);
   }
   ManagedObjectUnorderedMultiSet& operator=(
       const ManagedObjectUnorderedMultiSet& other) = delete;
@@ -388,6 +403,7 @@ class ManagedObjectUnorderedMultiSet
     data_ = std::move(other.data_);
     size_.store(other.size_.load(std::memory_order_acquire),
                 std::memory_order_relaxed);
+    other.size_.store(0, std::memory_order_release);
 
     return *this;
   }
@@ -549,7 +565,7 @@ class ManagedObjectUnorderedMultiSet
     for (std::uint32_t i = 0; i != equal_range.size(); ++i) {
       handlers.emplace_back(
           BaseType::GetThisPtrPtr(),
-          const_cast<ObjectType*>(equal_range[i]->GetObjectPtr),
+          const_cast<ObjectType*>(equal_range[i]->GetObjectPtr()),
           equal_range[i]->GetUseCountPtr());
     }
 
@@ -602,24 +618,24 @@ class ManagedObjectUnorderedMultiSet
     }
 
     for (std::uint32_t i = 0; i != equal_range.size(); ++i) {
-      use_counts.emplace_back(equal_range[i].GetUseCount());
+      use_counts.emplace_back(equal_range[i]->GetUseCount());
     }
 
     return ExecuteResult::SUCCESS;
   }
 
  protected:
-  ExecuteResult RemoveObjectImp(const ObjectType* removed_object_key,
-                                const std::atomic_uint32_t*,
+  ExecuteResult RemoveObjectImp(const ObjectType& removed_object_key,
+                                const std::atomic_uint32_t* use_count_ptr,
                                 RelationshipContainerTrait) override {
     std::unique_lock<std::shared_mutex> guard{
-        ChooseMutexIn(*removed_object_key)};
+        ChooseMutexIn(removed_object_key)};
     if constexpr (std::is_same_v<CanMovedTrait, CanMoved>) {
-      std::shared_mutex* new_mutex = &ChooseMutexIn(*removed_object_key);
+      std::shared_mutex* new_mutex = &ChooseMutexIn(removed_object_key);
       while (guard.mutex() != new_mutex) {
         guard.unlock();
         guard = std::unique_lock<std::shared_mutex>(*new_mutex);
-        new_mutex = &ChooseMutexIn(*removed_object_key);
+        new_mutex = &ChooseMutexIn(removed_object_key);
       }
     }
 
@@ -627,12 +643,24 @@ class ManagedObjectUnorderedMultiSet
       return ExecuteResult::CUSTOM_ERROR;
     }
 
-    ExecuteResult result = data_.Erase(removed_object_key);
-    if (result == ExecuteResult::SUCCESS) {
-      size_.fetch_sub(1, std::memory_order_acq_rel);
+    std::vector<ContainerReturnType*> equal_range =
+        data_.EqualRange(removed_object_key);
+    if (equal_range.empty()) {
+      return ExecuteResult::PARENT_OBJECT_NOT_CONTAIN_SPECIFIC_CHILD_OBJECT;
     }
 
-    return result;
+    for (std::uint32_t i = 0; i != equal_range.size(); ++i) {
+      if (equal_range[i]->GetUseCountPtr() == use_count_ptr) {
+        if (equal_range[i]->GetUseCount() == 0) {
+          data_.Erase(equal_range[i]);
+          size_.fetch_sub(1, std::memory_order_acq_rel);
+        }
+
+        return ExecuteResult ::SUCCESS;
+      }
+    }
+
+    return ExecuteResult ::PARENT_OBJECT_NOT_CONTAIN_SPECIFIC_CHILD_OBJECT;
   }
 
  private:

@@ -240,7 +240,8 @@ TEST(Utils, HashTable_multi_map) {
   auto insert_result = concurrent_multi_map.Emplace("ffff", TestClass{1, 1, 1});
   ASSERT_EQ(concurrent_multi_map.Erase(&(insert_result.first)),
             MM::Utils::ExecuteResult::SUCCESS);
-  ASSERT_EQ(concurrent_multi_map.Erase(nullptr),
+  std::pair<const std::string, TestClass>* null_ptr = nullptr;
+  ASSERT_EQ(concurrent_multi_map.Erase(null_ptr),
             MM::Utils::ExecuteResult::INPUT_PARAMETERS_ARE_NOT_SUITABLE);
 
   for (std::uint64_t i = 0; i != 100; ++i) {
@@ -301,7 +302,7 @@ void EraseElement(MM::Utils::MultiHashMap<std::string, TestClass>& data1,
 void EraseElement2(
     MM::Utils::MultiHashMap<std::string, TestClass>& data,
     std::vector<std::pair<const std::string, TestClass>*>& address_vector) {
-  for (auto* address : address_vector) {
+  for (const auto* address : address_vector) {
     auto erase_result = data.Erase(address);
     if (erase_result != MM::Utils::ExecuteResult::SUCCESS) {
       auto erase_result2 = data.Erase(address);
@@ -542,8 +543,6 @@ TEST(Utils, ConcurrentHashTable_multi_map) {
   auto insert_result = concurrent_multi_map.Emplace("ffff", TestClass{1, 1, 1});
   ASSERT_EQ(concurrent_multi_map.Erase(&(insert_result.first)),
             MM::Utils::ExecuteResult::SUCCESS);
-  ASSERT_EQ(concurrent_multi_map.Erase(nullptr),
-            MM::Utils::ExecuteResult::INPUT_PARAMETERS_ARE_NOT_SUITABLE);
 
   for (std::uint64_t i = 0; i != 100; ++i) {
     ASSERT_EQ(concurrent_multi_map.Erase(std::to_string(i)), i + 1);

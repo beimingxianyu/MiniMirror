@@ -23,8 +23,9 @@ class ManagedObjectUnorderedMap
   using HashKeyType = KeyType;
   using WrapperType = typename BaseType::WrapperType;
   using HandlerType = typename BaseType::HandlerType;
-  using ContainerType =
-      Utils::HashMap<KeyType, WrapperType, Hash, Equal, Allocator>;
+  using ContainerType = Utils::HashMap<
+      KeyType, WrapperType, typename WrapperType::template HashWrapperKey<Hash>,
+      typename WrapperType::template EqualWrapperKey<Equal>, Allocator>;
   using ContainerReturnType = std::pair<const KeyType, WrapperType>;
 
   friend struct LockAll<ThisType>;
@@ -166,10 +167,10 @@ class ManagedObjectUnorderedMap
       return ExecuteResult ::OPERATION_NOT_SUPPORTED;
     }
 
-    handler =
-        HandlerType{BaseType::GetThisPtrPtr(),
-                    const_cast<ContainerReturnType*>(&(insert_result.first)),
-                    insert_result.first.second.GetUseCountPtr()};
+    handler = HandlerType{
+        BaseType::GetThisPtrPtr(), &(insert_result.first.first),
+        const_cast<ValueType*>(insert_result.first.second.GetObjectPtr()),
+        insert_result.first.second.GetUseCountPtr()};
 
     size_.fetch_add(1, std::memory_order_acq_rel);
     return ExecuteResult ::SUCCESS;
@@ -196,8 +197,8 @@ class ManagedObjectUnorderedMap
       return ExecuteResult::PARENT_OBJECT_NOT_CONTAIN_SPECIFIC_CHILD_OBJECT;
     }
 
-    handler = HandlerType{BaseType::GetThisPtrPtr(),
-                          const_cast<ContainerReturnType*>(iter),
+    handler = HandlerType{BaseType::GetThisPtrPtr(), &(iter->first),
+                          const_cast<ValueType*>(iter->second.GetObjectPtr()),
                           iter->second.GetUseCountPtr()};
 
     return ExecuteResult::SUCCESS;
@@ -228,16 +229,16 @@ class ManagedObjectUnorderedMap
   }
 
  protected:
-  ExecuteResult RemoveObjectImp(const ContainerReturnType* removed_object_ptr,
-                                ContainerTrait) override {
+  ExecuteResult RemoveObjectImp(const KeyType& removed_object_key,
+                                HashMapTrait) override {
     std::unique_lock<std::shared_mutex> guard{
-        ChooseMutexIn(removed_object_ptr->first)};
+        ChooseMutexIn(removed_object_key)};
     if constexpr (std::is_same_v<CanMovedTrait, CanMoved>) {
-      std::shared_mutex* new_mutex = &ChooseMutexIn(removed_object_ptr->first);
+      std::shared_mutex* new_mutex = &ChooseMutexIn(removed_object_key);
       while (guard.mutex() != new_mutex) {
         guard.unlock();
         guard = std::unique_lock<std::shared_mutex>(*new_mutex);
-        new_mutex = &ChooseMutexIn(removed_object_ptr->first);
+        new_mutex = &ChooseMutexIn(removed_object_key);
       }
     }
 
@@ -245,12 +246,19 @@ class ManagedObjectUnorderedMap
       return ExecuteResult::CUSTOM_ERROR;
     }
 
-    ExecuteResult result = data_.Erase(removed_object_ptr);
-    if (result == ExecuteResult::SUCCESS) {
+    auto iter = data_.Find(removed_object_key);
+
+    if (iter == nullptr) {
+      return ExecuteResult::PARENT_OBJECT_NOT_CONTAIN_SPECIFIC_CHILD_OBJECT;
+    }
+
+    if (iter->second.GetUseCount() == 0) {
+      data_.Erase(iter);
+
       size_.fetch_sub(1, std::memory_order_acq_rel);
     }
 
-    return result;
+    return ExecuteResult ::SUCCESS;
   }
 
  private:
@@ -310,8 +318,9 @@ class ManagedObjectUnorderedMultiMap
   using HashKeyType = KeyType;
   using WrapperType = typename BaseType::WrapperType;
   using HandlerType = typename BaseType::HandlerType;
-  using ContainerType =
-      Utils::MultiHashMap<KeyType, WrapperType, Hash, Equal, Allocator>;
+  using ContainerType = Utils::MultiHashMap<
+      KeyType, WrapperType, typename WrapperType::template HashWrapperKey<Hash>,
+      typename WrapperType::template EqualWrapperKey<Equal>, Allocator>;
   using ContainerReturnType = std::pair<const KeyType, WrapperType>;
 
   friend struct LockAll<ThisType>;
@@ -455,11 +464,10 @@ class ManagedObjectUnorderedMultiMap
       return ExecuteResult ::OPERATION_NOT_SUPPORTED;
     }
 
-    handler =
-        HandlerType{BaseType::GetThisPtrPtr(),
-                    const_cast<ContainerReturnType*>(&(insert_result.first)),
-                    insert_result.first.second.GetUseCountPtr()};
-
+    handler = HandlerType{
+        BaseType::GetThisPtrPtr(), &(insert_result.first.first),
+        const_cast<ValueType*>(insert_result.first.second.GetObjectPtr()),
+        insert_result.first.second.GetUseCountPtr()};
     size_.fetch_add(1, std::memory_order_acq_rel);
     return ExecuteResult ::SUCCESS;
   }
@@ -485,8 +493,8 @@ class ManagedObjectUnorderedMultiMap
       return ExecuteResult::PARENT_OBJECT_NOT_CONTAIN_SPECIFIC_CHILD_OBJECT;
     }
 
-    handler = HandlerType{BaseType::GetThisPtrPtr(),
-                          const_cast<ContainerReturnType*>(iter),
+    handler = HandlerType{BaseType::GetThisPtrPtr(), &(iter->first),
+                          const_cast<ValueType*>(iter->second.GetObjectPtr()),
                           iter->second.GetUseCountPtr()};
 
     return ExecuteResult::PARENT_OBJECT_NOT_CONTAIN_SPECIFIC_CHILD_OBJECT;
@@ -515,9 +523,10 @@ class ManagedObjectUnorderedMultiMap
 
     for (std::uint32_t i = 0; i != equal_range.size(); ++i) {
       if (equal_range[i]->second.GetUseCountPtr() == use_count_ptr) {
-        handler = HandlerType{BaseType::GetThisPtrPtr(),
-                              const_cast<ContainerReturnType*>(equal_range[i]),
-                              equal_range[i]->second.GetUseCountPtr()};
+        handler = HandlerType{
+            BaseType::GetThisPtrPtr(), &(equal_range[i]->first),
+            const_cast<ValueType*>(equal_range[i]->second.GetObjectPtr()),
+            equal_range[i]->second.GetUseCountPtr()};
 
         return ExecuteResult::SUCCESS;
       }
@@ -548,9 +557,10 @@ class ManagedObjectUnorderedMultiMap
 
     for (std::uint32_t i = 0; i != equal_range.size(); ++i) {
       if (equal_range[i]->second.GetObject() == object) {
-        handler = HandlerType{BaseType::GetThisPtrPtr(),
-                              const_cast<ContainerReturnType*>(equal_range[i]),
-                              equal_range[i]->second.GetUseCountPtr()};
+        handler = HandlerType{
+            BaseType::GetThisPtrPtr(), &(equal_range[i]->first),
+            const_cast<ValueType*>(equal_range[i]->second.GetObjectPtr()),
+            equal_range[i]->second.GetUseCountPtr()};
 
         return ExecuteResult::SUCCESS;
       }
@@ -581,9 +591,10 @@ class ManagedObjectUnorderedMultiMap
     }
 
     for (std::uint32_t i = 0; i != equal_range.size(); ++i) {
-      handlers.emplace_back(BaseType::GetThisPtrPtr(),
-                            const_cast<ContainerReturnType*>(equal_range[i]),
-                            equal_range[i]->second.GetUseCountPtr());
+      handlers.emplace_back(
+          BaseType::GetThisPtrPtr(), &(equal_range[i]->first),
+          const_cast<ValueType*>(equal_range[i]->second.GetObjectPtr()),
+          equal_range[i]->second.GetUseCountPtr());
     }
 
     return ExecuteResult::SUCCESS;
@@ -668,16 +679,17 @@ class ManagedObjectUnorderedMultiMap
   }
 
  protected:
-  ExecuteResult RemoveObjectImp(const ContainerReturnType* removed_object_ptr,
-                                ContainerTrait) override {
+  ExecuteResult RemoveObjectImp(const KeyType& removed_object_key,
+                                const std::atomic_uint32_t* use_count_ptr,
+                                HashMapTrait) override {
     std::unique_lock<std::shared_mutex> guard{
-        ChooseMutexIn(removed_object_ptr->first)};
+        ChooseMutexIn(removed_object_key)};
     if constexpr (std::is_same_v<CanMovedTrait, CanMoved>) {
-      std::shared_mutex* new_mutex = &ChooseMutexIn(removed_object_ptr->first);
+      std::shared_mutex* new_mutex = &ChooseMutexIn(removed_object_key);
       while (guard.mutex() != new_mutex) {
         guard.unlock();
         guard = std::unique_lock<std::shared_mutex>(*new_mutex);
-        new_mutex = &ChooseMutexIn(removed_object_ptr->first);
+        new_mutex = &ChooseMutexIn(removed_object_key);
       }
     }
 
@@ -685,12 +697,24 @@ class ManagedObjectUnorderedMultiMap
       return ExecuteResult::CUSTOM_ERROR;
     }
 
-    ExecuteResult result = data_.Erase(removed_object_ptr);
-    if (result == ExecuteResult::SUCCESS) {
-      size_.fetch_sub(1, std::memory_order_acq_rel);
+    std::vector<ContainerReturnType*> equal_range =
+        data_.EqualRange(removed_object_key);
+    if (equal_range.empty()) {
+      return ExecuteResult::PARENT_OBJECT_NOT_CONTAIN_SPECIFIC_CHILD_OBJECT;
     }
 
-    return result;
+    for (std::uint32_t i = 0; i != equal_range.size(); ++i) {
+      if (equal_range[i]->second.GetUseCountPtr() == use_count_ptr) {
+        if (equal_range[i]->second.GetUseCount() == 0) {
+          data_.Erase(equal_range[i]);
+          size_.fetch_sub(1, std::memory_order_acq_rel);
+        }
+
+        return ExecuteResult ::SUCCESS;
+      }
+    }
+
+    return ExecuteResult::PARENT_OBJECT_NOT_CONTAIN_SPECIFIC_CHILD_OBJECT;
   }
 
  private:

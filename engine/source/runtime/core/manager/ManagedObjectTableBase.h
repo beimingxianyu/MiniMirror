@@ -27,8 +27,7 @@ using CannotMoved = Utils::FalseType;
  * errors. It is recommended to use this type through replication in a
  * multi-threaded environment.
  */
-template <typename KeyType, typename ManagedType,
-          typename RelationshipContainerTrait>
+template <typename KeyType, typename ManagedType, typename ContainerTrait>
 class ManagedObjectHandler;
 
 template <typename ManagedType>
@@ -60,7 +59,7 @@ class ManagedObjectWrapper {
 
   friend bool operator==(const ManagedObjectWrapper<ManagedType>& lhs,
                          const ManagedObjectWrapper<ManagedType>& rhs) {
-    return lhs.managed_object_ == rhs.managed_object_;
+    return *(lhs.managed_object_) == *(rhs.managed_object_);
   }
 
   friend bool operator==(const ManagedObjectWrapper<ManagedType>& lhs,
@@ -74,22 +73,56 @@ class ManagedObjectWrapper {
   }
 
  public:
+  template <typename Less>
+  using LessWrapperKey = Less;
+
   template <typename Less = std::less<ManagedType>>
-  struct LessWrapper {
+  struct LessWrapperObject {
+    using is_transparent = void;
+
     bool operator()(const ManagedObjectWrapper<ManagedType>& lhs,
                     const ManagedObjectWrapper<ManagedType>& rhs) const;
+
+    template <typename K>
+    bool operator()(const ManagedObjectWrapper<ManagedType>& lhs,
+                    const K& rhs) const;
+
+    template <typename K>
+    bool operator()(const K& lhs,
+                    const ManagedObjectWrapper<ManagedType>& rhs) const;
   };
+
+  template <typename Equal>
+  using EqualWrapperKey = Equal;
 
   template <typename Equal = std::equal_to<ManagedType>>
-  struct EqualWrapper {
+  struct EqualWrapperObject {
+    using is_transparent = void;
+
     bool operator()(const ManagedObjectWrapper<ManagedType>& lhs,
+                    const ManagedObjectWrapper<ManagedType>& rhs) const;
+
+    template <typename K>
+    bool operator()(const ManagedObjectWrapper<ManagedType>& lhs,
+                    const K& rhs) const;
+
+    template <typename K>
+    bool operator()(const K& lhs,
                     const ManagedObjectWrapper<ManagedType>& rhs) const;
   };
 
+  template <class Hash>
+  using HashWrapperKey = Hash;
+
   template <typename Hash = std::hash<ManagedType>>
-  struct HashWrapper {
+  struct HashWrapperObject {
+    using is_transparent = void;
+
     std::uint64_t operator()(
         const ManagedObjectWrapper<ManagedType>& object_wrapper) const;
+
+    template <typename K>
+    std::uint64_t operator()(const K& object) const;
   };
 
  public:
@@ -113,15 +146,57 @@ class ManagedObjectWrapper {
 };
 
 template <typename ManagedType>
+template <typename Less>
+template <typename K>
+bool ManagedObjectWrapper<ManagedType>::LessWrapperObject<Less>::operator()(
+    const ManagedObjectWrapper<ManagedType>& lhs, const K& rhs) const {
+  return Less{}(*(lhs.managed_object_), rhs);
+}
+
+template <typename ManagedType>
+template <typename Less>
+template <typename K>
+bool ManagedObjectWrapper<ManagedType>::LessWrapperObject<Less>::operator()(
+    const K& lhs, const ManagedObjectWrapper<ManagedType>& rhs) const {
+  return Less{}(lhs, *(rhs.managed_object_));
+}
+
+template <typename ManagedType>
 template <typename Hash>
-std::uint64_t ManagedObjectWrapper<ManagedType>::HashWrapper<Hash>::operator()(
+template <typename K>
+std::uint64_t
+ManagedObjectWrapper<ManagedType>::HashWrapperObject<Hash>::operator()(
+    const K& object) const {
+  return Hash{}(object);
+}
+
+template <typename ManagedType>
+template <typename Equal>
+template <typename K>
+bool ManagedObjectWrapper<ManagedType>::EqualWrapperObject<Equal>::operator()(
+    const K& lhs, const ManagedObjectWrapper<ManagedType>& rhs) const {
+  return Equal{}(lhs, *(rhs.managed_object_));
+}
+
+template <typename ManagedType>
+template <typename Equal>
+template <typename K>
+bool ManagedObjectWrapper<ManagedType>::EqualWrapperObject<Equal>::operator()(
+    const ManagedObjectWrapper<ManagedType>& lhs, const K& rhs) const {
+  return Equal{}(*(lhs.managed_object_), rhs);
+}
+
+template <typename ManagedType>
+template <typename Hash>
+std::uint64_t
+ManagedObjectWrapper<ManagedType>::HashWrapperObject<Hash>::operator()(
     const ManagedObjectWrapper<ManagedType>& object_wrapper) const {
   return Hash{}(*(object_wrapper.managed_object_));
 }
 
 template <typename ManagedType>
 template <typename Equal>
-bool ManagedObjectWrapper<ManagedType>::EqualWrapper<Equal>::operator()(
+bool ManagedObjectWrapper<ManagedType>::EqualWrapperObject<Equal>::operator()(
     const ManagedObjectWrapper<ManagedType>& lhs,
     const ManagedObjectWrapper<ManagedType>& rhs) const {
   return Equal{}(*(lhs.managed_object_), *(rhs.managed_object_));
@@ -129,7 +204,7 @@ bool ManagedObjectWrapper<ManagedType>::EqualWrapper<Equal>::operator()(
 
 template <typename ManagedType>
 template <typename Less>
-bool ManagedObjectWrapper<ManagedType>::LessWrapper<Less>::operator()(
+bool ManagedObjectWrapper<ManagedType>::LessWrapperObject<Less>::operator()(
     const ManagedObjectWrapper<ManagedType>& lhs,
     const ManagedObjectWrapper<ManagedType>& rhs) const {
   return Less{}(*(lhs.managed_object_), *(rhs.managed_object_));
@@ -255,12 +330,19 @@ class ManagedObjectTableBase : virtual public MM::MMObject {
       const KeyType& removed_object_key,
       const std::atomic_uint32_t* use_count_ptr, MapTrait trait);
 
-  virtual ExecuteResult RemoveObjectImp(const WrapperType* removed_object_ptr,
+  virtual ExecuteResult RemoveObjectImp(const ValueType& removed_object_key,
                                         HashSetTrait);
 
   virtual ExecuteResult RemoveObjectImp(
-      const std::pair<const KeyType, WrapperType>* removed_object_ptr,
-      HashMapTrait);
+      const ValueType& removed_object_key,
+      const std::atomic_uint32_t* use_count_ptr, HashSetTrait);
+
+  virtual ExecuteResult RemoveObjectImp(const KeyType& removed_object_key,
+                                        HashMapTrait);
+
+  virtual ExecuteResult RemoveObjectImp(
+      const KeyType& removed_object_key,
+      const std::atomic_uint32_t* use_count_ptr, HashMapTrait);
 
  protected:
   // If it is virtual inheritance, the update of the value will be handed over
@@ -272,18 +354,7 @@ template <typename KeyType, typename ValueType,
           typename RelationshipContainerTrait>
 ExecuteResult
 ManagedObjectTableBase<KeyType, ValueType, RelationshipContainerTrait>::
-    RemoveObjectImp(const ValueType& removed_object_key,
-                    const std::atomic_uint32_t* use_count_ptr, SetTrait trait) {
-  LOG_FATAL("This function should not be called.");
-
-  return ExecuteResult::UNDEFINED_ERROR;
-}
-
-template <typename KeyType, typename ValueType,
-          typename RelationshipContainerTrait>
-ExecuteResult
-ManagedObjectTableBase<KeyType, ValueType, RelationshipContainerTrait>::
-    RemoveObjectImp(const ValueType& removed_object_key, SetTrait trait) {
+    RemoveObjectImp(const KeyType&, const std::atomic_uint32_t*, HashMapTrait) {
   LOG_FATAL("This function should not be called.");
 
   return ExecuteResult::UNDEFINED_ERROR;
@@ -293,7 +364,8 @@ template <typename KeyType, typename ValueType,
           typename RelationshipContainerTrait>
 ExecuteResult ManagedObjectTableBase<
     KeyType, ValueType,
-    RelationshipContainerTrait>::RemoveObjectImp(const WrapperType*,
+    RelationshipContainerTrait>::RemoveObjectImp(const ValueType&,
+                                                 const std::atomic_uint32_t*,
                                                  HashSetTrait) {
   LOG_FATAL("This function should not be called.");
 
@@ -304,8 +376,38 @@ template <typename KeyType, typename ValueType,
           typename RelationshipContainerTrait>
 ExecuteResult
 ManagedObjectTableBase<KeyType, ValueType, RelationshipContainerTrait>::
-    RemoveObjectImp(const std::pair<const KeyType, WrapperType>*,
-                    HashMapTrait) {
+    RemoveObjectImp(const ValueType&, const std::atomic_uint32_t*, SetTrait) {
+  LOG_FATAL("This function should not be called.");
+
+  return ExecuteResult::UNDEFINED_ERROR;
+}
+
+template <typename KeyType, typename ValueType,
+          typename RelationshipContainerTrait>
+ExecuteResult ManagedObjectTableBase<
+    KeyType, ValueType,
+    RelationshipContainerTrait>::RemoveObjectImp(const ValueType&, SetTrait) {
+  LOG_FATAL("This function should not be called.");
+
+  return ExecuteResult::UNDEFINED_ERROR;
+}
+
+template <typename KeyType, typename ValueType,
+          typename RelationshipContainerTrait>
+ExecuteResult ManagedObjectTableBase<
+    KeyType, ValueType,
+    RelationshipContainerTrait>::RemoveObjectImp(const ValueType&,
+                                                 HashSetTrait) {
+  LOG_FATAL("This function should not be called.");
+
+  return ExecuteResult::UNDEFINED_ERROR;
+}
+
+template <typename KeyType, typename ValueType,
+          typename RelationshipContainerTrait>
+ExecuteResult ManagedObjectTableBase<
+    KeyType, ValueType,
+    RelationshipContainerTrait>::RemoveObjectImp(const KeyType&, HashMapTrait) {
   LOG_FATAL("This function should not be called.");
 
   return ExecuteResult::UNDEFINED_ERROR;
@@ -315,8 +417,7 @@ template <typename KeyType, typename ValueType,
           typename RelationshipContainerTrait>
 ExecuteResult
 ManagedObjectTableBase<KeyType, ValueType, RelationshipContainerTrait>::
-    RemoveObjectImp(const KeyType& removed_object_key,
-                    const std::atomic_uint32_t* use_count_ptr, MapTrait trait) {
+    RemoveObjectImp(const KeyType&, const std::atomic_uint32_t*, MapTrait) {
   LOG_FATAL("This function should not be called.");
 
   return ExecuteResult::UNDEFINED_ERROR;
@@ -324,9 +425,9 @@ ManagedObjectTableBase<KeyType, ValueType, RelationshipContainerTrait>::
 
 template <typename KeyType, typename ValueType,
           typename RelationshipContainerTrait>
-ExecuteResult
-ManagedObjectTableBase<KeyType, ValueType, RelationshipContainerTrait>::
-    RemoveObjectImp(const KeyType& removed_object_key, MapTrait trait) {
+ExecuteResult ManagedObjectTableBase<
+    KeyType, ValueType,
+    RelationshipContainerTrait>::RemoveObjectImp(const KeyType&, MapTrait) {
   LOG_FATAL("This function should not be called.");
 
   return ExecuteResult::UNDEFINED_ERROR;
@@ -455,8 +556,9 @@ bool ManagedObjectTableBase<
 
 template <typename KeyType, typename ValueType,
           typename RelationshipContainerTrait>
-bool ManagedObjectTableBase<KeyType, ValueType, RelationshipContainerTrait>::
-    Have(const KeyType& key) const {
+bool ManagedObjectTableBase<KeyType, ValueType,
+                            RelationshipContainerTrait>::Have(const KeyType&)
+    const {
   LOG_FATAL("This function should not be called.");
 
   return false;

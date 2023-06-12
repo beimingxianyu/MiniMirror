@@ -344,11 +344,9 @@ class ManagedObjectHandler<ManagedType, ManagedType, HashSetTrait> {
   }
 
  public:
-  const ManagedType& GetObject() const { return managed_object_->GetObject(); }
+  const ManagedType& GetObject() const { return *managed_object_; }
 
-  const ManagedType* GetObjectPtr() const {
-    return managed_object_->GetObjectPtr();
-  }
+  const ManagedType* GetObjectPtr() const { return *managed_object_; }
 
   const std::atomic_uint32_t* GetUseCountPtr() const { return use_count_; }
 
@@ -364,19 +362,11 @@ class ManagedObjectHandler<ManagedType, ManagedType, HashSetTrait> {
     }
 
     if (use_count_->fetch_sub(1, std::memory_order_acq_rel) == 1) {
-      do {
-        ExecuteResult result =
-            object_table_->load(std::memory_order_acquire)
-                ->RemoveObjectImp(managed_object_, ContainerTrait());
-        if (result == ExecuteResult::SUCCESS) {
-          break;
-        }
-        if (result == ExecuteResult::CUSTOM_ERROR) {
-          continue;
-        }
-        LOG_SYSTEM->CheckResult(result, CODE_LOCATION);
-        break;
-      } while (true);
+      if (object_table_->load(std::memory_order_acquire)->IsMultiContainer()) {
+        ReleaseMulti();
+      } else {
+        ReleaseNoMulti();
+      }
     }
 
     object_table_ = nullptr;
@@ -385,8 +375,41 @@ class ManagedObjectHandler<ManagedType, ManagedType, HashSetTrait> {
   }
 
  private:
+  void ReleaseMulti() {
+    do {
+      ExecuteResult result =
+          object_table_->load(std::memory_order_acquire)
+              ->RemoveObjectImp(*managed_object_, use_count_, ContainerTrait());
+      if (result == ExecuteResult::SUCCESS) {
+        return;
+      }
+      if (result == ExecuteResult::CUSTOM_ERROR) {
+        continue;
+      }
+      LOG_SYSTEM->CheckResult(result, CODE_LOCATION);
+      return;
+    } while (true);
+  }
+
+  void ReleaseNoMulti() {
+    do {
+      ExecuteResult result =
+          object_table_->load(std::memory_order_acquire)
+              ->RemoveObjectImp(*managed_object_, ContainerTrait());
+      if (result == ExecuteResult::SUCCESS) {
+        return;
+      }
+      if (result == ExecuteResult::CUSTOM_ERROR) {
+        continue;
+      }
+      LOG_SYSTEM->CheckResult(result, CODE_LOCATION);
+      return;
+    } while (true);
+  }
+
+ private:
   std::atomic<DataTableType*>* object_table_{nullptr};
-  const typename DataTableType::WrapperType* managed_object_{nullptr};
+  const ManagedType* managed_object_{nullptr};
   std::atomic_uint32_t* use_count_{nullptr};
 };
 
@@ -464,6 +487,7 @@ class ManagedObjectHandler<KeyType, ManagedType, MapTrait> {
 
     std::swap(use_count_, other.use_count_);
     std::swap(object_table_, other.object_table_);
+    std::swap(key_, other.key_);
     std::swap(managed_object_, other.managed_object_);
 
     return *this;
@@ -558,32 +582,34 @@ class ManagedObjectHandler<KeyType, ManagedType, HashMapTrait> {
   using ThisType = ManagedObjectHandler<KeyType, ManagedType, ContainerTrait>;
   using DataTableType =
       ManagedObjectTableBase<KeyType, ManagedType, ContainerTrait>;
-  using ManagedPairType =
-      std::pair<const KeyType, typename DataTableType::WrapperType>;
   friend class ManagedObjectTableBase<KeyType, ManagedType, ContainerTrait>;
 
  public:
   ManagedObjectHandler() = default;
   ~ManagedObjectHandler() { Release(); }
   ManagedObjectHandler(std::atomic<DataTableType*>* object_table,
-                       ManagedPairType* managed_pair_object,
+                       const KeyType* key, ManagedType* managed_object,
                        std::atomic_uint32_t* use_count)
       : object_table_(object_table),
-        managed_object_(managed_pair_object),
+        key_(key),
+        managed_object_(managed_object),
         use_count_(use_count) {
     use_count_->fetch_add(1, std::memory_order_acq_rel);
   }
   ManagedObjectHandler(const ManagedObjectHandler& other)
       : object_table_(other.object_table_),
+        key_(other.key_),
         managed_object_(other.managed_object_),
         use_count_(other.use_count_) {
     use_count_->fetch_add(1, std::memory_order_acq_rel);
   }
   ManagedObjectHandler(ManagedObjectHandler&& other) noexcept
       : object_table_(other.object_table_),
+        key_(other.key_),
         managed_object_(other.managed_object_),
         use_count_(other.use_count_) {
     other.object_table_ = nullptr;
+    other.key_ = nullptr;
     other.managed_object_ = nullptr;
     other.use_count_ = nullptr;
   }
@@ -599,6 +625,7 @@ class ManagedObjectHandler<KeyType, ManagedType, HashMapTrait> {
     other.use_count_->fetch_add(1, std::memory_order_acq_rel);
 
     object_table_ = other.object_table_;
+    key_ = other.key_;
     managed_object_ = other.managed_object_;
     use_count_ = other.use_count_;
 
@@ -614,6 +641,7 @@ class ManagedObjectHandler<KeyType, ManagedType, HashMapTrait> {
     }
 
     std::swap(use_count_, other.use_count_);
+    std::swap(key_, other.key_);
     std::swap(object_table_, other.object_table_);
     std::swap(managed_object_, other.managed_object_);
 
@@ -621,27 +649,13 @@ class ManagedObjectHandler<KeyType, ManagedType, HashMapTrait> {
   }
 
  public:
-  ManagedType& GetObject() { return managed_object_->second.GetObject(); }
+  ManagedType& GetObject() { return *managed_object_; }
 
-  const ManagedType& GetObject() const {
-    return managed_object_->second.GetObject();
-  }
+  const ManagedType& GetObject() const { return *managed_object_; }
 
-  ManagedType* GetObjectPtr() {
-    return &(managed_object_->second.GetObjectPtr());
-  }
+  ManagedType* GetObjectPtr() { return managed_object_; }
 
-  const ManagedType* GetObjectPtr() const {
-    return &(managed_object_->second.GetUseCountPtr());
-  }
-
-  ManagedPairType& GetPair() { return *managed_object_; }
-
-  const ManagedType& GetPair() const { return *managed_object_; }
-
-  ManagedPairType* GetPairPtr() { return managed_object_; }
-
-  const ManagedPairType* GetPairPtr() const { return managed_object_; }
+  const ManagedType* GetObjectPtr() const { return managed_object_; }
 
   const std::atomic_uint32_t* GetUseCountPtr() const { return use_count_; }
 
@@ -649,9 +663,9 @@ class ManagedObjectHandler<KeyType, ManagedType, HashMapTrait> {
     return use_count_->load(std::memory_order_relaxed);
   }
 
-  const KeyType& GetKey() const { return managed_object_->first; }
+  const KeyType& GetKey() const { return *key_; }
 
-  const KeyType* GetKeyPtr() const { return &(managed_object_->first); }
+  const KeyType* GetKeyPtr() const { return key_; }
 
   bool IsValid() const { return managed_object_ != nullptr; }
 
@@ -661,19 +675,11 @@ class ManagedObjectHandler<KeyType, ManagedType, HashMapTrait> {
     }
 
     if (use_count_->fetch_sub(1, std::memory_order_acq_rel) == 1) {
-      do {
-        ExecuteResult result =
-            object_table_->load(std::memory_order_acquire)
-                ->RemoveObjectImp(managed_object_, ContainerTrait());
-        if (result == ExecuteResult::SUCCESS) {
-          break;
-        }
-        if (result == ExecuteResult::CUSTOM_ERROR) {
-          continue;
-        }
-        LOG_SYSTEM->CheckResult(result, CODE_LOCATION);
-        break;
-      } while (true);
+      if (object_table_->load(std::memory_order_acquire)->IsMultiContainer()) {
+        ReleaseMulti();
+      } else {
+        ReleaseNoMulti();
+      }
     }
 
     object_table_ = nullptr;
@@ -682,8 +688,41 @@ class ManagedObjectHandler<KeyType, ManagedType, HashMapTrait> {
   }
 
  private:
+  void ReleaseMulti() {
+    do {
+      ExecuteResult result =
+          object_table_->load(std::memory_order_acquire)
+              ->RemoveObjectImp(*key_, use_count_, ContainerTrait());
+      if (result == ExecuteResult::SUCCESS) {
+        return;
+      }
+      if (result == ExecuteResult::CUSTOM_ERROR) {
+        continue;
+      }
+      LOG_SYSTEM->CheckResult(result, CODE_LOCATION);
+      return;
+    } while (true);
+  }
+
+  void ReleaseNoMulti() {
+    do {
+      ExecuteResult result = object_table_->load(std::memory_order_acquire)
+                                 ->RemoveObjectImp(*key_, ContainerTrait());
+      if (result == ExecuteResult::SUCCESS) {
+        return;
+      }
+      if (result == ExecuteResult::CUSTOM_ERROR) {
+        continue;
+      }
+      LOG_SYSTEM->CheckResult(result, CODE_LOCATION);
+      return;
+    } while (true);
+  }
+
+ private:
   std::atomic<DataTableType*>* object_table_{nullptr};
-  ManagedPairType* managed_object_{nullptr};
+  const KeyType* key_{nullptr};
+  ManagedType* managed_object_{nullptr};
   std::atomic_uint32_t* use_count_{nullptr};
 };
 

@@ -8,19 +8,20 @@
 namespace MM {
 namespace Manager {
 
-template <typename KeyType, typename ValueType,
+template <typename KeyType, typename ValueType, typename Less = std::less<>,
           typename Allocator = std::allocator<
               std::pair<const KeyType, ManagedObjectWrapper<ValueType>>>>
 class ManagedObjectMap
     : public ManagedObjectTableBase<KeyType, ValueType, MapTrait> {
  public:
   using ContainerTrait = MapTrait;
-  using ThisType = ManagedObjectMap<KeyType, ValueType, Allocator>;
+  using ThisType = ManagedObjectMap<KeyType, ValueType, Less, Allocator>;
   using BaseType = ManagedObjectTableBase<KeyType, ValueType, ContainerTrait>;
   using HandlerType = typename BaseType::HandlerType;
   using WrapperType = typename BaseType::WrapperType;
-  using ContainerType = std::map<KeyType, ManagedObjectWrapper<ValueType>,
-                                 std::less<KeyType>, Allocator>;
+  using ContainerType =
+      std::map<KeyType, WrapperType,
+               typename WrapperType::template LessWrapperKey<Less>, Allocator>;
 
  public:
   ManagedObjectMap();
@@ -57,19 +58,21 @@ class ManagedObjectMap
   mutable std::shared_mutex data_mutex_;
 };
 
-template <typename KeyType, typename ValueType,
+template <typename KeyType, typename ValueType, typename Less = std::less<>,
           typename Allocator = std::allocator<
               std::pair<const KeyType, ManagedObjectWrapper<ValueType>>>>
 class ManagedObjectMultiMap
     : public ManagedObjectTableBase<KeyType, ValueType, MapTrait> {
  public:
   using ContainerTrait = MapTrait;
-  using ThisType = ManagedObjectMultiMap<KeyType, ValueType, Allocator>;
+  using ThisType = ManagedObjectMultiMap<KeyType, ValueType, Less, Allocator>;
   using BaseType = ManagedObjectTableBase<KeyType, ValueType, ContainerTrait>;
   using HandlerType = typename BaseType::HandlerType;
   using WrapperType = typename BaseType::WrapperType;
-  using ContainerType = std::multimap<KeyType, ManagedObjectWrapper<ValueType>,
-                                      std::less<KeyType>, Allocator>;
+  using ContainerType =
+      std::multimap<KeyType, ManagedObjectWrapper<ValueType>,
+                    typename WrapperType::template LessWrapperKey<Less>,
+                    Allocator>;
 
  public:
   ManagedObjectMultiMap();
@@ -125,14 +128,16 @@ class ManagedObjectMultiMap
   mutable std::shared_mutex data_mutex_{};
 };
 
-template <typename KeyType, typename ValueType, typename Allocator>
-ManagedObjectMap<KeyType, ValueType, Allocator>::ManagedObjectMap()
+template <typename KeyType, typename ValueType, typename Less,
+          typename Allocator>
+ManagedObjectMap<KeyType, ValueType, Less, Allocator>::ManagedObjectMap()
     : ManagedObjectTableBase<KeyType, ValueType, ContainerTrait>(this),
       data_(),
       data_mutex_() {}
 
-template <typename KeyType, typename ValueType, typename Allocator>
-ManagedObjectMap<KeyType, ValueType, Allocator>::~ManagedObjectMap() {
+template <typename KeyType, typename ValueType, typename Less,
+          typename Allocator>
+ManagedObjectMap<KeyType, ValueType, Less, Allocator>::~ManagedObjectMap() {
   if (GetSize() != 0) {
     LOG_ERROR(
         "The container is not empty, and destroying it will result in an "
@@ -140,8 +145,9 @@ ManagedObjectMap<KeyType, ValueType, Allocator>::~ManagedObjectMap() {
   }
 }
 
-template <typename KeyType, typename ValueType, typename Allocator>
-ManagedObjectMap<KeyType, ValueType, Allocator>::ManagedObjectMap(
+template <typename KeyType, typename ValueType, typename Less,
+          typename Allocator>
+ManagedObjectMap<KeyType, ValueType, Less, Allocator>::ManagedObjectMap(
     ManagedObjectMap&& other) noexcept {
   std::unique_lock<std::shared_mutex> guard{other.data_mutex_};
 
@@ -149,9 +155,10 @@ ManagedObjectMap<KeyType, ValueType, Allocator>::ManagedObjectMap(
   data_ = std::move(other.data_);
 }
 
-template <typename KeyType, typename ValueType, typename Allocator>
-ManagedObjectMap<KeyType, ValueType, Allocator>&
-ManagedObjectMap<KeyType, ValueType, Allocator>::operator=(
+template <typename KeyType, typename ValueType, typename Less,
+          typename Allocator>
+ManagedObjectMap<KeyType, ValueType, Less, Allocator>&
+ManagedObjectMap<KeyType, ValueType, Less, Allocator>::operator=(
     ManagedObjectMap&& other) noexcept {
   if (&other == this) {
     return *this;
@@ -173,21 +180,24 @@ ManagedObjectMap<KeyType, ValueType, Allocator>::operator=(
   return *this;
 }
 
-template <typename KeyType, typename ValueType, typename Allocator>
-size_t ManagedObjectMap<KeyType, ValueType, Allocator>::GetSize() const {
+template <typename KeyType, typename ValueType, typename Less,
+          typename Allocator>
+size_t ManagedObjectMap<KeyType, ValueType, Less, Allocator>::GetSize() const {
   return data_.size();
 }
 
-template <typename KeyType, typename ValueType, typename Allocator>
-bool ManagedObjectMap<KeyType, ValueType, Allocator>::Have(
+template <typename KeyType, typename ValueType, typename Less,
+          typename Allocator>
+bool ManagedObjectMap<KeyType, ValueType, Less, Allocator>::Have(
     const KeyType& key) const {
   std::shared_lock<std::shared_mutex> guard{data_mutex_};
   typename ContainerType::const_iterator iter = data_.find(key);
   return iter != data_.end();
 }
 
-template <typename KeyType, typename ValueType, typename Allocator>
-uint32_t ManagedObjectMap<KeyType, ValueType, Allocator>::Count(
+template <typename KeyType, typename ValueType, typename Less,
+          typename Allocator>
+uint32_t ManagedObjectMap<KeyType, ValueType, Less, Allocator>::Count(
     const KeyType& key) const {
   if (Have(key)) {
     return 1;
@@ -196,19 +206,23 @@ uint32_t ManagedObjectMap<KeyType, ValueType, Allocator>::Count(
   return 0;
 }
 
-template <typename KeyType, typename ValueType, typename Allocator>
-bool ManagedObjectMap<KeyType, ValueType, Allocator>::IsMultiContainer() const {
+template <typename KeyType, typename ValueType, typename Less,
+          typename Allocator>
+bool ManagedObjectMap<KeyType, ValueType, Less, Allocator>::IsMultiContainer()
+    const {
   return false;
 }
 
-template <typename KeyType, typename ValueType, typename Allocator>
-bool ManagedObjectMap<KeyType, ValueType, Allocator>::IsRelationshipContainer()
-    const {
+template <typename KeyType, typename ValueType, typename Less,
+          typename Allocator>
+bool ManagedObjectMap<KeyType, ValueType, Less,
+                      Allocator>::IsRelationshipContainer() const {
   return true;
 }
 
-template <typename KeyType, typename ValueType, typename Allocator>
-ExecuteResult ManagedObjectMap<KeyType, ValueType, Allocator>::AddObject(
+template <typename KeyType, typename ValueType, typename Less,
+          typename Allocator>
+ExecuteResult ManagedObjectMap<KeyType, ValueType, Less, Allocator>::AddObject(
     const KeyType& key, ValueType&& managed_object, HandlerType& handler) {
   if (!ThisType::TestMovedWhenAddObject()) {
     return ExecuteResult::OPERATION_NOT_SUPPORTED;
@@ -217,13 +231,10 @@ ExecuteResult ManagedObjectMap<KeyType, ValueType, Allocator>::AddObject(
   std::unique_lock<std::shared_mutex> guard{data_mutex_};
   std::pair<typename ContainerType::iterator, bool> insert_result =
       data_.emplace(std::make_pair(key, std::move(managed_object)));
-  HandlerType new_handler = HandlerType{
+  handler = HandlerType{
       BaseType::GetThisPtrPtr(), &(insert_result.first->first),
       const_cast<ValueType*>(insert_result.first->second.GetObjectPtr()),
       insert_result.first->second.GetUseCountPtr()};
-  guard.unlock();
-
-  handler = std::move(new_handler);
 
   if (insert_result.second) {
     return ExecuteResult::SUCCESS;
@@ -232,8 +243,10 @@ ExecuteResult ManagedObjectMap<KeyType, ValueType, Allocator>::AddObject(
   return ExecuteResult::INPUT_PARAMETERS_ARE_NOT_SUITABLE;
 }
 
-template <typename KeyType, typename ValueType, typename Allocator>
-ExecuteResult ManagedObjectMap<KeyType, ValueType, Allocator>::RemoveObjectImp(
+template <typename KeyType, typename ValueType, typename Less,
+          typename Allocator>
+ExecuteResult
+ManagedObjectMap<KeyType, ValueType, Less, Allocator>::RemoveObjectImp(
     const KeyType& removed_object_key, ContainerTrait) {
   std::unique_lock<std::shared_mutex> guard{data_mutex_};
 
@@ -254,8 +267,9 @@ ExecuteResult ManagedObjectMap<KeyType, ValueType, Allocator>::RemoveObjectImp(
   return ExecuteResult ::SUCCESS;
 }
 
-template <typename KeyType, typename ValueType, typename Allocator>
-ExecuteResult ManagedObjectMap<KeyType, ValueType, Allocator>::GetObject(
+template <typename KeyType, typename ValueType, typename Less,
+          typename Allocator>
+ExecuteResult ManagedObjectMap<KeyType, ValueType, Less, Allocator>::GetObject(
     const KeyType& key, HandlerType& handle) const {
   if (!ThisType::TestMovedWhenGetObject()) {
     return ExecuteResult::OPERATION_NOT_SUPPORTED;
@@ -269,17 +283,16 @@ ExecuteResult ManagedObjectMap<KeyType, ValueType, Allocator>::GetObject(
     return ExecuteResult::PARENT_OBJECT_NOT_CONTAIN_SPECIFIC_CHILD_OBJECT;
   }
 
-  HandlerType new_handler{BaseType::GetThisPtrPtr(), &(iter->first),
-                          const_cast<ValueType*>(iter->second.GetObjectPtr()),
-                          iter->second.GetUseCountPtr()};
-  guard.unlock();
-  handle = std::move(new_handler);
+  handle = HandlerType{BaseType::GetThisPtrPtr(), &(iter->first),
+                       const_cast<ValueType*>(iter->second.GetObjectPtr()),
+                       iter->second.GetUseCountPtr()};
 
   return ExecuteResult::SUCCESS;
 }
 
-template <typename KeyType, typename ValueType, typename Allocator>
-uint32_t ManagedObjectMap<KeyType, ValueType, Allocator>::GetUseCount(
+template <typename KeyType, typename ValueType, typename Less,
+          typename Allocator>
+uint32_t ManagedObjectMap<KeyType, ValueType, Less, Allocator>::GetUseCount(
     const KeyType& key) const {
   if (!ThisType::TestMoveWhenGetUseCount()) {
     return 0;
@@ -296,14 +309,18 @@ uint32_t ManagedObjectMap<KeyType, ValueType, Allocator>::GetUseCount(
   return iter->second.GetUseCount();
 }
 
-template <typename KeyType, typename ValueType, typename Allocator>
-ManagedObjectMultiMap<KeyType, ValueType, Allocator>::ManagedObjectMultiMap()
+template <typename KeyType, typename ValueType, typename Less,
+          typename Allocator>
+ManagedObjectMultiMap<KeyType, ValueType, Less,
+                      Allocator>::ManagedObjectMultiMap()
     : ManagedObjectTableBase<KeyType, ValueType, ContainerTrait>(this),
       data_(),
       data_mutex_() {}
 
-template <typename KeyType, typename ValueType, typename Allocator>
-ManagedObjectMultiMap<KeyType, ValueType, Allocator>::~ManagedObjectMultiMap() {
+template <typename KeyType, typename ValueType, typename Less,
+          typename Allocator>
+ManagedObjectMultiMap<KeyType, ValueType, Less,
+                      Allocator>::~ManagedObjectMultiMap() {
   if (GetSize() != 0) {
     LOG_ERROR(
         "The container is not empty, and destroying it will result in an "
@@ -311,18 +328,20 @@ ManagedObjectMultiMap<KeyType, ValueType, Allocator>::~ManagedObjectMultiMap() {
   }
 }
 
-template <typename KeyType, typename ValueType, typename Allocator>
-ManagedObjectMultiMap<KeyType, ValueType, Allocator>::ManagedObjectMultiMap(
-    ManagedObjectMultiMap&& other) noexcept {
+template <typename KeyType, typename ValueType, typename Less,
+          typename Allocator>
+ManagedObjectMultiMap<KeyType, ValueType, Less, Allocator>::
+    ManagedObjectMultiMap(ManagedObjectMultiMap&& other) noexcept {
   std::unique_lock<std::shared_mutex> guard(other.data_mutex_);
 
   BaseType::operator=(std::move(other));
   data_ = std::move(data_);
 }
 
-template <typename KeyType, typename ValueType, typename Allocator>
-ManagedObjectMultiMap<KeyType, ValueType, Allocator>&
-ManagedObjectMultiMap<KeyType, ValueType, Allocator>::operator=(
+template <typename KeyType, typename ValueType, typename Less,
+          typename Allocator>
+ManagedObjectMultiMap<KeyType, ValueType, Less, Allocator>&
+ManagedObjectMultiMap<KeyType, ValueType, Less, Allocator>::operator=(
     ManagedObjectMultiMap&& other) noexcept {
   if (&other == this) {
     return *this;
@@ -344,41 +363,49 @@ ManagedObjectMultiMap<KeyType, ValueType, Allocator>::operator=(
   return *this;
 }
 
-template <typename KeyType, typename ValueType, typename Allocator>
-size_t ManagedObjectMultiMap<KeyType, ValueType, Allocator>::GetSize() const {
+template <typename KeyType, typename ValueType, typename Less,
+          typename Allocator>
+size_t ManagedObjectMultiMap<KeyType, ValueType, Less, Allocator>::GetSize()
+    const {
   return data_.size();
 }
 
-template <typename KeyType, typename ValueType, typename Allocator>
-bool ManagedObjectMultiMap<KeyType, ValueType, Allocator>::Have(
+template <typename KeyType, typename ValueType, typename Less,
+          typename Allocator>
+bool ManagedObjectMultiMap<KeyType, ValueType, Less, Allocator>::Have(
     const KeyType& key) const {
   std::shared_lock<std::shared_mutex> guard{data_mutex_};
 
   return data_.count(key) != 0;
 }
 
-template <typename KeyType, typename ValueType, typename Allocator>
-uint32_t ManagedObjectMultiMap<KeyType, ValueType, Allocator>::Count(
+template <typename KeyType, typename ValueType, typename Less,
+          typename Allocator>
+uint32_t ManagedObjectMultiMap<KeyType, ValueType, Less, Allocator>::Count(
     const KeyType& key) const {
   std::shared_lock<std::shared_mutex> guard{data_mutex_};
 
   return data_.count(key);
 }
 
-template <typename KeyType, typename ValueType, typename Allocator>
-bool ManagedObjectMultiMap<KeyType, ValueType, Allocator>::IsMultiContainer()
-    const {
+template <typename KeyType, typename ValueType, typename Less,
+          typename Allocator>
+bool ManagedObjectMultiMap<KeyType, ValueType, Less,
+                           Allocator>::IsMultiContainer() const {
   return true;
 }
 
-template <typename KeyType, typename ValueType, typename Allocator>
-bool ManagedObjectMultiMap<KeyType, ValueType,
+template <typename KeyType, typename ValueType, typename Less,
+          typename Allocator>
+bool ManagedObjectMultiMap<KeyType, ValueType, Less,
                            Allocator>::IsRelationshipContainer() const {
   return true;
 }
 
-template <typename KeyType, typename ValueType, typename Allocator>
-ExecuteResult ManagedObjectMultiMap<KeyType, ValueType, Allocator>::AddObject(
+template <typename KeyType, typename ValueType, typename Less,
+          typename Allocator>
+ExecuteResult
+ManagedObjectMultiMap<KeyType, ValueType, Less, Allocator>::AddObject(
     const KeyType& key, ValueType&& managed_object, HandlerType& handler) {
   if (!ThisType::TestMovedWhenAddObject()) {
     return ExecuteResult::OPERATION_NOT_SUPPORTED;
@@ -387,20 +414,18 @@ ExecuteResult ManagedObjectMultiMap<KeyType, ValueType, Allocator>::AddObject(
   std::unique_lock<std::shared_mutex> guard{data_mutex_};
   typename ContainerType::iterator insert_result =
       data_.emplace(std::make_pair(key, std::move(managed_object)));
-  HandlerType new_handler{
-      BaseType::GetThisPtrPtr(), &(insert_result->first),
-      const_cast<ValueType*>(insert_result->second.GetObjectPtr()),
-      insert_result->second.GetUseCountPtr()};
-
-  guard.unlock();
-  handler = std::move(new_handler);
+  handler =
+      HandlerType{BaseType::GetThisPtrPtr(), &(insert_result->first),
+                  const_cast<ValueType*>(insert_result->second.GetObjectPtr()),
+                  insert_result->second.GetUseCountPtr()};
 
   return ExecuteResult::SUCCESS;
 }
 
-template <typename KeyType, typename ValueType, typename Allocator>
+template <typename KeyType, typename ValueType, typename Less,
+          typename Allocator>
 ExecuteResult
-ManagedObjectMultiMap<KeyType, ValueType, Allocator>::RemoveObjectImp(
+ManagedObjectMultiMap<KeyType, ValueType, Less, Allocator>::RemoveObjectImp(
     const KeyType& removed_object_key,
     const std::atomic_uint32_t* use_count_ptr, MapTrait) {
   std::unique_lock<std::shared_mutex> guard{data_mutex_};
@@ -428,8 +453,10 @@ ManagedObjectMultiMap<KeyType, ValueType, Allocator>::RemoveObjectImp(
   return ExecuteResult::PARENT_OBJECT_NOT_CONTAIN_SPECIFIC_CHILD_OBJECT;
 }
 
-template <typename KeyType, typename ValueType, typename Allocator>
-ExecuteResult ManagedObjectMultiMap<KeyType, ValueType, Allocator>::GetObject(
+template <typename KeyType, typename ValueType, typename Less,
+          typename Allocator>
+ExecuteResult
+ManagedObjectMultiMap<KeyType, ValueType, Less, Allocator>::GetObject(
     const KeyType& key, HandlerType& handler) const {
   if (!ThisType::TestMovedWhenGetObject()) {
     return ExecuteResult::OPERATION_NOT_SUPPORTED;
@@ -443,19 +470,18 @@ ExecuteResult ManagedObjectMultiMap<KeyType, ValueType, Allocator>::GetObject(
     return ExecuteResult::PARENT_OBJECT_NOT_CONTAIN_SPECIFIC_CHILD_OBJECT;
   }
 
-  HandlerType new_handler{
+  handler = HandlerType{
       BaseType::GetThisPtrPtr(), &(equal_range.first->first),
       const_cast<ValueType*>(equal_range.first->second.GetObjectPtr()),
       equal_range.first->second.GetUseCountPtr()};
-  guard.unlock();
-
-  handler = std::move(new_handler);
 
   return ExecuteResult::PARENT_OBJECT_NOT_CONTAIN_SPECIFIC_CHILD_OBJECT;
 }
 
-template <typename KeyType, typename ValueType, typename Allocator>
-ExecuteResult ManagedObjectMultiMap<KeyType, ValueType, Allocator>::GetObject(
+template <typename KeyType, typename ValueType, typename Less,
+          typename Allocator>
+ExecuteResult
+ManagedObjectMultiMap<KeyType, ValueType, Less, Allocator>::GetObject(
     const KeyType& key, const std::atomic_uint32_t* use_count_ptr,
     HandlerType& handler) const {
   if (!ThisType::TestMovedWhenGetObject()) {
@@ -473,13 +499,9 @@ ExecuteResult ManagedObjectMultiMap<KeyType, ValueType, Allocator>::GetObject(
   for (typename ContainerType::const_iterator iter = equal_range.first;
        iter != equal_range.second; ++iter) {
     if (iter->second.GetUseCountPtr() == use_count_ptr) {
-      HandlerType new_handler{
-          BaseType::GetThisPtrPtr(), &(iter->first),
-          const_cast<ValueType*>(iter->second.GetObjectPtr()),
-          iter->second.GetUseCountPtr()};
-
-      guard.unlock();
-      handler = std::move(new_handler);
+      handler = HandlerType{BaseType::GetThisPtrPtr(), &(iter->first),
+                            const_cast<ValueType*>(iter->second.GetObjectPtr()),
+                            iter->second.GetUseCountPtr()};
 
       return ExecuteResult::SUCCESS;
     }
@@ -488,8 +510,10 @@ ExecuteResult ManagedObjectMultiMap<KeyType, ValueType, Allocator>::GetObject(
   return ExecuteResult::PARENT_OBJECT_NOT_CONTAIN_SPECIFIC_CHILD_OBJECT;
 }
 
-template <typename KeyType, typename ValueType, typename Allocator>
-ExecuteResult ManagedObjectMultiMap<KeyType, ValueType, Allocator>::GetObject(
+template <typename KeyType, typename ValueType, typename Less,
+          typename Allocator>
+ExecuteResult
+ManagedObjectMultiMap<KeyType, ValueType, Less, Allocator>::GetObject(
     const KeyType& key, const ValueType& object, HandlerType& handler) const {
   if (!ThisType::TestMovedWhenGetObject()) {
     return ExecuteResult::OPERATION_NOT_SUPPORTED;
@@ -506,13 +530,9 @@ ExecuteResult ManagedObjectMultiMap<KeyType, ValueType, Allocator>::GetObject(
   for (typename ContainerType::const_iterator iter = equal_range.first;
        iter != equal_range.second; ++iter) {
     if (iter->second.GetObject() == object) {
-      HandlerType new_handler{
-          BaseType::GetThisPtrPtr(), &(iter->first),
-          const_cast<ValueType*>(iter->second.GetObjectPtr()),
-          iter->second.GetUseCountPtr()};
-
-      guard.unlock();
-      handler = std::move(new_handler);
+      handler = HandlerType{BaseType::GetThisPtrPtr(), &(iter->first),
+                            const_cast<ValueType*>(iter->second.GetObjectPtr()),
+                            iter->second.GetUseCountPtr()};
 
       return ExecuteResult::SUCCESS;
     }
@@ -521,8 +541,10 @@ ExecuteResult ManagedObjectMultiMap<KeyType, ValueType, Allocator>::GetObject(
   return ExecuteResult::PARENT_OBJECT_NOT_CONTAIN_SPECIFIC_CHILD_OBJECT;
 }
 
-template <typename KeyType, typename ValueType, typename Allocator>
-ExecuteResult ManagedObjectMultiMap<KeyType, ValueType, Allocator>::GetObject(
+template <typename KeyType, typename ValueType, typename Less,
+          typename Allocator>
+ExecuteResult
+ManagedObjectMultiMap<KeyType, ValueType, Less, Allocator>::GetObject(
     const KeyType& key, std::vector<HandlerType>& handles) const {
   if (!ThisType::TestMovedWhenGetObject()) {
     return ExecuteResult::OPERATION_NOT_SUPPORTED;
@@ -546,8 +568,10 @@ ExecuteResult ManagedObjectMultiMap<KeyType, ValueType, Allocator>::GetObject(
   return ExecuteResult::SUCCESS;
 }
 
-template <typename KeyType, typename ValueType, typename Allocator>
-uint32_t ManagedObjectMultiMap<KeyType, ValueType, Allocator>::GetUseCount(
+template <typename KeyType, typename ValueType, typename Less,
+          typename Allocator>
+uint32_t
+ManagedObjectMultiMap<KeyType, ValueType, Less, Allocator>::GetUseCount(
     const KeyType& key) const {
   if (!ThisType::TestMoveWhenGetUseCount()) {
     return 0;
@@ -564,8 +588,10 @@ uint32_t ManagedObjectMultiMap<KeyType, ValueType, Allocator>::GetUseCount(
   return equal_range.first->second.GetUseCount();
 }
 
-template <typename KeyType, typename ValueType, typename Allocator>
-uint32_t ManagedObjectMultiMap<KeyType, ValueType, Allocator>::GetUseCount(
+template <typename KeyType, typename ValueType, typename Less,
+          typename Allocator>
+uint32_t
+ManagedObjectMultiMap<KeyType, ValueType, Less, Allocator>::GetUseCount(
     const KeyType& key, const std::atomic_uint32_t* use_count_ptr) const {
   if (!ThisType::TestMoveWhenGetUseCount()) {
     return 0;
@@ -589,8 +615,10 @@ uint32_t ManagedObjectMultiMap<KeyType, ValueType, Allocator>::GetUseCount(
   return 0;
 }
 
-template <typename KeyType, typename ValueType, typename Allocator>
-uint32_t ManagedObjectMultiMap<KeyType, ValueType, Allocator>::GetUseCount(
+template <typename KeyType, typename ValueType, typename Less,
+          typename Allocator>
+uint32_t
+ManagedObjectMultiMap<KeyType, ValueType, Less, Allocator>::GetUseCount(
     const KeyType& key, const ValueType& object) const {
   if (!ThisType::TestMoveWhenGetUseCount()) {
     return 0;
@@ -614,8 +642,10 @@ uint32_t ManagedObjectMultiMap<KeyType, ValueType, Allocator>::GetUseCount(
   return 0;
 }
 
-template <typename KeyType, typename ValueType, typename Allocator>
-ExecuteResult ManagedObjectMultiMap<KeyType, ValueType, Allocator>::GetUseCount(
+template <typename KeyType, typename ValueType, typename Less,
+          typename Allocator>
+ExecuteResult
+ManagedObjectMultiMap<KeyType, ValueType, Less, Allocator>::GetUseCount(
     const KeyType& key, std::vector<std::uint32_t>& use_counts) const {
   if (!ThisType::TestMoveWhenGetUseCount()) {
     return ExecuteResult::OPERATION_NOT_SUPPORTED;

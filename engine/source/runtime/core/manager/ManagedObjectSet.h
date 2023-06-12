@@ -10,19 +10,21 @@
 namespace MM {
 namespace Manager {
 // TODO Add custom comparator functionality(set, multiset, map, multimap)
-template <typename ObjectType,
+template <typename ObjectType, typename Less = std::less<>,
           typename Allocator = std::allocator<ManagedObjectWrapper<ObjectType>>>
 class ManagedObjectSet
     : public ManagedObjectTableBase<ObjectType, ObjectType, SetTrait> {
  public:
   using ContainerTrait = SetTrait;
-  using ThisType = ManagedObjectSet<ObjectType, Allocator>;
+  using ThisType = ManagedObjectSet<ObjectType, Less, Allocator>;
   using BaseType =
       ManagedObjectTableBase<ObjectType, ObjectType, ContainerTrait>;
   using HandlerType = typename BaseType::HandlerType;
   using WrapperType = typename BaseType::WrapperType;
   using ContainerType =
-      std::set<ManagedObjectWrapper<ObjectType>, std::less<>, Allocator>;
+      std::set<WrapperType,
+               typename WrapperType::template LessWrapperObject<Less>,
+               Allocator>;
 
  public:
   ManagedObjectSet();
@@ -58,19 +60,21 @@ class ManagedObjectSet
   mutable std::shared_mutex data_mutex_;
 };
 
-template <typename ObjectType,
+template <typename ObjectType, typename Less = std::less<>,
           typename Allocator = std::allocator<ManagedObjectWrapper<ObjectType>>>
 class ManagedObjectMultiSet
     : public ManagedObjectTableBase<ObjectType, ObjectType, ListTrait> {
  public:
   using ContainerTrait = ListTrait;
-  using ThisType = ManagedObjectMultiSet<ObjectType, Allocator>;
+  using ThisType = ManagedObjectMultiSet<ObjectType, Less, Allocator>;
   using BaseType =
       ManagedObjectTableBase<ObjectType, ObjectType, ContainerTrait>;
   using HandlerType = typename BaseType::HandlerType;
   using WrapperType = typename BaseType::WrapperType;
   using ContainerType =
-      std::multiset<ManagedObjectWrapper<ObjectType>, std::less<>, Allocator>;
+      std::multiset<WrapperType,
+                    typename WrapperType::template LessWrapperObject<Less>,
+                    Allocator>;
 
  public:
   ManagedObjectMultiSet();
@@ -124,8 +128,8 @@ class ManagedObjectMultiSet
   mutable std::shared_mutex data_mutex_{};
 };
 
-template <typename ObjectType, typename Allocator>
-ManagedObjectMultiSet<ObjectType, Allocator>::~ManagedObjectMultiSet() {
+template <typename ObjectType, typename Less, typename Allocator>
+ManagedObjectMultiSet<ObjectType, Less, Allocator>::~ManagedObjectMultiSet() {
   if (GetSize() != 0) {
     LOG_ERROR(
         "The container is not empty, and destroying it will result in an "
@@ -133,8 +137,8 @@ ManagedObjectMultiSet<ObjectType, Allocator>::~ManagedObjectMultiSet() {
   }
 }
 
-template <typename ObjectType, typename Allocator>
-ManagedObjectSet<ObjectType, Allocator>::~ManagedObjectSet() {
+template <typename ObjectType, typename Less, typename Allocator>
+ManagedObjectSet<ObjectType, Less, Allocator>::~ManagedObjectSet() {
   if (GetSize() != 0) {
     LOG_ERROR(
         "The container is not empty, and destroying it will result in an "
@@ -142,8 +146,8 @@ ManagedObjectSet<ObjectType, Allocator>::~ManagedObjectSet() {
   }
 }
 
-template <typename ObjectType, typename Allocator>
-ExecuteResult ManagedObjectMultiSet<ObjectType, Allocator>::GetUseCount(
+template <typename ObjectType, typename Less, typename Allocator>
+ExecuteResult ManagedObjectMultiSet<ObjectType, Less, Allocator>::GetUseCount(
     const ObjectType& key, std::vector<std::uint32_t>& use_counts) const {
   if (!ThisType::TestMoveWhenGetUseCount()) {
     return ExecuteResult::OPERATION_NOT_SUPPORTED;
@@ -165,8 +169,8 @@ ExecuteResult ManagedObjectMultiSet<ObjectType, Allocator>::GetUseCount(
   return ExecuteResult::SUCCESS;
 }
 
-template <typename ObjectType, typename Allocator>
-std::uint32_t ManagedObjectMultiSet<ObjectType, Allocator>::GetUseCount(
+template <typename ObjectType, typename Less, typename Allocator>
+std::uint32_t ManagedObjectMultiSet<ObjectType, Less, Allocator>::GetUseCount(
     const ObjectType& key, const std::atomic_uint32_t* use_count_ptr) const {
   if (!ThisType::TestMoveWhenGetUseCount()) {
     return 0;
@@ -190,8 +194,8 @@ std::uint32_t ManagedObjectMultiSet<ObjectType, Allocator>::GetUseCount(
   return 0;
 }
 
-template <typename ObjectType, typename Allocator>
-std::uint32_t ManagedObjectMultiSet<ObjectType, Allocator>::GetUseCount(
+template <typename ObjectType, typename Less, typename Allocator>
+std::uint32_t ManagedObjectMultiSet<ObjectType, Less, Allocator>::GetUseCount(
     const ObjectType& key) const {
   if (!ThisType::TestMoveWhenGetUseCount()) {
     return 0;
@@ -208,8 +212,8 @@ std::uint32_t ManagedObjectMultiSet<ObjectType, Allocator>::GetUseCount(
   return equal_range.first->GetUseCount();
 }
 
-template <typename ObjectType, typename Allocator>
-std::uint32_t ManagedObjectSet<ObjectType, Allocator>::GetUseCount(
+template <typename ObjectType, typename Less, typename Allocator>
+std::uint32_t ManagedObjectSet<ObjectType, Less, Allocator>::GetUseCount(
     const ObjectType& key) const {
   if (!BaseType::TestMoveWhenGetUseCount()) {
     return 0;
@@ -225,20 +229,20 @@ std::uint32_t ManagedObjectSet<ObjectType, Allocator>::GetUseCount(
   return 0;
 }
 
-template <typename ObjectType, typename Allocator>
-ManagedObjectSet<ObjectType, Allocator>::ManagedObjectSet()
+template <typename ObjectType, typename Less, typename Allocator>
+ManagedObjectSet<ObjectType, Less, Allocator>::ManagedObjectSet()
     : ManagedObjectTableBase<ObjectType, ObjectType, ContainerTrait>(this),
       data_(),
       data_mutex_() {}
 
-template <typename ObjectType, typename Allocator>
-ManagedObjectMultiSet<ObjectType, Allocator>::ManagedObjectMultiSet()
+template <typename ObjectType, typename Less, typename Allocator>
+ManagedObjectMultiSet<ObjectType, Less, Allocator>::ManagedObjectMultiSet()
     : ManagedObjectTableBase<ObjectType, ObjectType, ContainerTrait>(this),
       data_(),
       data_mutex_() {}
 
-template <typename ObjectType, typename Allocator>
-ManagedObjectMultiSet<ObjectType, Allocator>::ManagedObjectMultiSet(
+template <typename ObjectType, typename Less, typename Allocator>
+ManagedObjectMultiSet<ObjectType, Less, Allocator>::ManagedObjectMultiSet(
     ManagedObjectMultiSet&& other) noexcept {
   std::unique_lock<std::shared_mutex> guard{other.data_mutex_};
 
@@ -246,9 +250,9 @@ ManagedObjectMultiSet<ObjectType, Allocator>::ManagedObjectMultiSet(
   data_ = std::move(other.data_);
 }
 
-template <typename ObjectType, typename Allocator>
-ManagedObjectMultiSet<ObjectType, Allocator>&
-ManagedObjectMultiSet<ObjectType, Allocator>::operator=(
+template <typename ObjectType, typename Less, typename Allocator>
+ManagedObjectMultiSet<ObjectType, Less, Allocator>&
+ManagedObjectMultiSet<ObjectType, Less, Allocator>::operator=(
     ManagedObjectMultiSet&& other) noexcept {
   if (&other == this) {
     return *this;
@@ -270,8 +274,8 @@ ManagedObjectMultiSet<ObjectType, Allocator>::operator=(
   return *this;
 }
 
-template <typename ObjectType, typename Allocator>
-ExecuteResult ManagedObjectMultiSet<ObjectType, Allocator>::AddObject(
+template <typename ObjectType, typename Less, typename Allocator>
+ExecuteResult ManagedObjectMultiSet<ObjectType, Less, Allocator>::AddObject(
     ObjectType&& managed_object, HandlerType& handler) {
   if (!ThisType::TestMovedWhenAddObject()) {
     return ExecuteResult::OPERATION_NOT_SUPPORTED;
@@ -291,8 +295,9 @@ ExecuteResult ManagedObjectMultiSet<ObjectType, Allocator>::AddObject(
   return ExecuteResult::SUCCESS;
 }
 
-template <typename ObjectType, typename Allocator>
-ExecuteResult ManagedObjectMultiSet<ObjectType, Allocator>::RemoveObjectImp(
+template <typename ObjectType, typename Less, typename Allocator>
+ExecuteResult
+ManagedObjectMultiSet<ObjectType, Less, Allocator>::RemoveObjectImp(
     const ObjectType& removed_object_key,
     const std::atomic_uint32_t* use_count_ptr, ListTrait) {
   std::unique_lock<std::shared_mutex> guard{data_mutex_};
@@ -320,8 +325,8 @@ ExecuteResult ManagedObjectMultiSet<ObjectType, Allocator>::RemoveObjectImp(
   return ExecuteResult::PARENT_OBJECT_NOT_CONTAIN_SPECIFIC_CHILD_OBJECT;
 }
 
-template <typename ObjectType, typename Allocator>
-ExecuteResult ManagedObjectMultiSet<ObjectType, Allocator>::GetObject(
+template <typename ObjectType, typename Less, typename Allocator>
+ExecuteResult ManagedObjectMultiSet<ObjectType, Less, Allocator>::GetObject(
     const ObjectType& key, HandlerType& handle) const {
   if (!ThisType::TestMovedWhenGetObject()) {
     return ExecuteResult::OPERATION_NOT_SUPPORTED;
@@ -346,8 +351,8 @@ ExecuteResult ManagedObjectMultiSet<ObjectType, Allocator>::GetObject(
   return ExecuteResult::SUCCESS;
 }
 
-template <typename ObjectType, typename Allocator>
-ExecuteResult ManagedObjectMultiSet<ObjectType, Allocator>::GetObject(
+template <typename ObjectType, typename Less, typename Allocator>
+ExecuteResult ManagedObjectMultiSet<ObjectType, Less, Allocator>::GetObject(
     const ObjectType& key, const std::atomic_uint32_t* use_count_ptr,
     ThisType::HandlerType& handle) const {
   if (!ThisType::TestMovedWhenGetObject()) {
@@ -384,8 +389,8 @@ ExecuteResult ManagedObjectMultiSet<ObjectType, Allocator>::GetObject(
   return ExecuteResult::INPUT_PARAMETERS_ARE_NOT_SUITABLE;
 }
 
-template <typename ObjectType, typename Allocator>
-ExecuteResult ManagedObjectMultiSet<ObjectType, Allocator>::GetObject(
+template <typename ObjectType, typename Less, typename Allocator>
+ExecuteResult ManagedObjectMultiSet<ObjectType, Less, Allocator>::GetObject(
     const ObjectType& key, std::vector<HandlerType>& handlers) const {
   if (!ThisType::TestMovedWhenGetObject()) {
     return ExecuteResult::OPERATION_NOT_SUPPORTED;
@@ -409,9 +414,9 @@ ExecuteResult ManagedObjectMultiSet<ObjectType, Allocator>::GetObject(
   return ExecuteResult::SUCCESS;
 }
 
-template <typename ObjectType, typename Allocator>
-ManagedObjectSet<ObjectType, Allocator>&
-ManagedObjectSet<ObjectType, Allocator>::operator=(
+template <typename ObjectType, typename Less, typename Allocator>
+ManagedObjectSet<ObjectType, Less, Allocator>&
+ManagedObjectSet<ObjectType, Less, Allocator>::operator=(
     ManagedObjectSet&& other) noexcept {
   if (&other == this) {
     return *this;
@@ -433,8 +438,8 @@ ManagedObjectSet<ObjectType, Allocator>::operator=(
   return *this;
 }
 
-template <typename ObjectType, typename Allocator>
-ManagedObjectSet<ObjectType, Allocator>::ManagedObjectSet(
+template <typename ObjectType, typename Less, typename Allocator>
+ManagedObjectSet<ObjectType, Less, Allocator>::ManagedObjectSet(
     ManagedObjectSet&& other) noexcept {
   std::unique_lock<std::shared_mutex> guard{other.data_mutex_};
 
@@ -442,8 +447,8 @@ ManagedObjectSet<ObjectType, Allocator>::ManagedObjectSet(
   data_ = std::move(other.data_);
 }
 
-template <typename ObjectType, typename Allocator>
-ExecuteResult ManagedObjectSet<ObjectType, Allocator>::AddObject(
+template <typename ObjectType, typename Less, typename Allocator>
+ExecuteResult ManagedObjectSet<ObjectType, Less, Allocator>::AddObject(
     ObjectType&& managed_object, HandlerType& handle) {
   if (!BaseType::TestMovedWhenAddObject()) {
     return ExecuteResult::OPERATION_NOT_SUPPORTED;
@@ -463,8 +468,8 @@ ExecuteResult ManagedObjectSet<ObjectType, Allocator>::AddObject(
   return ExecuteResult::SUCCESS;
 }
 
-template <typename ObjectType, typename Allocator>
-ExecuteResult ManagedObjectSet<ObjectType, Allocator>::RemoveObjectImp(
+template <typename ObjectType, typename Less, typename Allocator>
+ExecuteResult ManagedObjectSet<ObjectType, Less, Allocator>::RemoveObjectImp(
     const ObjectType& removed_object_key, ContainerTrait) {
   std::unique_lock<std::shared_mutex> guard{data_mutex_};
 
@@ -485,8 +490,8 @@ ExecuteResult ManagedObjectSet<ObjectType, Allocator>::RemoveObjectImp(
   return ExecuteResult::SUCCESS;
 }
 
-template <typename ObjectType, typename Allocator>
-ExecuteResult ManagedObjectSet<ObjectType, Allocator>::GetObject(
+template <typename ObjectType, typename Less, typename Allocator>
+ExecuteResult ManagedObjectSet<ObjectType, Less, Allocator>::GetObject(
     const ObjectType& key, HandlerType& handler) const {
   if (!BaseType::TestMovedWhenGetObject()) {
     return ExecuteResult::OPERATION_NOT_SUPPORTED;
@@ -509,25 +514,26 @@ ExecuteResult ManagedObjectSet<ObjectType, Allocator>::GetObject(
   return ExecuteResult::PARENT_OBJECT_NOT_CONTAIN_SPECIFIC_CHILD_OBJECT;
 }
 
-template <typename ObjectType, typename Allocator>
-bool ManagedObjectSet<ObjectType, Allocator>::Have(
+template <typename ObjectType, typename Less, typename Allocator>
+bool ManagedObjectSet<ObjectType, Less, Allocator>::Have(
     const ObjectType& key) const {
   std::shared_lock<std::shared_mutex> guard{data_mutex_};
   return data_.find(key) != data_.end();
 }
 
-template <typename ObjectType, typename Allocator>
-bool ManagedObjectSet<ObjectType, Allocator>::IsRelationshipContainer() const {
+template <typename ObjectType, typename Less, typename Allocator>
+bool ManagedObjectSet<ObjectType, Less, Allocator>::IsRelationshipContainer()
+    const {
   return false;
 }
 
-template <typename ObjectType, typename Allocator>
-bool ManagedObjectSet<ObjectType, Allocator>::IsMultiContainer() const {
+template <typename ObjectType, typename Less, typename Allocator>
+bool ManagedObjectSet<ObjectType, Less, Allocator>::IsMultiContainer() const {
   return false;
 }
 
-template <typename ObjectType, typename Allocator>
-uint32_t ManagedObjectSet<ObjectType, Allocator>::Count(
+template <typename ObjectType, typename Less, typename Allocator>
+uint32_t ManagedObjectSet<ObjectType, Less, Allocator>::Count(
     const ObjectType& key) const {
   if (Have(key)) {
     return 1;
@@ -536,8 +542,8 @@ uint32_t ManagedObjectSet<ObjectType, Allocator>::Count(
   return 0;
 }
 
-template <typename ObjectType, typename Allocator>
-size_t ManagedObjectSet<ObjectType, Allocator>::GetSize() const {
+template <typename ObjectType, typename Less, typename Allocator>
+size_t ManagedObjectSet<ObjectType, Less, Allocator>::GetSize() const {
   return data_.size();
 }
 }  // namespace Manager

@@ -117,5 +117,53 @@ struct IfThenElse<false, True, False> {
 
 template <bool Condition, typename True, typename False>
 using IfThenElseT = typename IfThenElse<Condition, True, False>::Type;
+
+template <bool Condition1, bool Condition2, typename T>
+struct IsOr {};
+
+template <typename T>
+struct IsOr<true, true, T> {
+  using Type = T;
+};
+
+template <typename T>
+struct IsOr<true, false, T> {
+  using Type = T;
+};
+
+template <typename T>
+struct IsOr<false, true, T> {
+  using Type = T;
+};
+
+template <bool Condition1, bool Condition2, typename T>
+struct IsAnd {};
+
+template <typename T>
+struct IsAnd<true, true, T> {
+  using Type = T;
+};
+
+template <bool Condition1, bool Condition2, typename T>
+struct IsXor {};
+
+template <typename T>
+struct IsXor<true, false, T> {
+  using Type = T;
+};
+
+template <typename T>
+struct IsXor<false, true, T> {
+  using Type = T;
+};
+
+template <bool Condition1, bool Condition2, typename T>
+using IsOrT = typename IsOr<Condition1, Condition2, T>::Type;
+
+template <bool Condition1, bool Condition2, typename T>
+using IsAndT = typename IsAnd<Condition1, Condition2, T>::Type;
+
+template <bool Condition1, bool Condition2, typename T>
+using IsXorT = typename IsXor<Condition1, Condition2, T>::Type;
 }  // namespace Utils
 }  // namespace MM

@@ -13,11 +13,9 @@
 
 namespace MM {
 namespace Utils {
-
 template <typename RelationshipTrait, typename MultiTrait, typename KeyType,
           typename ObjectType, typename ReturnType,
-          typename Hash = std::hash<KeyType>,
-          typename Equal = std::equal_to<KeyType>,
+          typename Hash = std::hash<KeyType>, typename Equal = std::equal_to<>,
           typename Allocator = std::allocator<ObjectType>>
 class HashTable {
  public:
@@ -219,8 +217,13 @@ class HashTable {
     return ExecuteResult::PARENT_OBJECT_NOT_CONTAIN_SPECIFIC_CHILD_OBJECT;
   }
 
-  std::uint32_t Erase(const KeyType& key) {
-    std::uint64_t hash_code = Hash{}(key);
+  ExecuteResult Erase(ObjectType* object_ptr) {
+    return Erase(const_cast<const ObjectType*>(object_ptr));
+  }
+
+  template <typename K>
+  std::uint32_t Erase(const K& key) {
+    std::uint64_t hash_code = GetObjectHash(key);
 
     std::uint64_t data_offset = hash_code % bucket_count_;
     if (data_[data_offset].object_ == nullptr) {
@@ -228,7 +231,7 @@ class HashTable {
     }
 
     std::uint32_t count = 0;
-    while (KeyEqual2(*(data_[data_offset].object_), key)) {
+    while (KeyEqual(*(data_[data_offset].object_), key)) {
       if (data_[data_offset].next_node_) {
         Node* old_node = data_[data_offset].next_node_;
         data_[data_offset] = std::move(*(data_[data_offset].next_node_));
@@ -245,7 +248,7 @@ class HashTable {
 
     Node* node_ptr = &data_[data_offset];
     while (node_ptr->next_node_) {
-      if (KeyEqual2(*(node_ptr->next_node_->object_), key)) {
+      if (KeyEqual(*(node_ptr->next_node_->object_), key)) {
         Node* old_nex_node = node_ptr->next_node_;
         node_ptr->next_node_ = node_ptr->next_node_->next_node_;
         delete old_nex_node;
@@ -260,8 +263,9 @@ class HashTable {
     return count;
   }
 
-  std::uint32_t Count(const KeyType& key) const {
-    std::uint64_t hash_code = Hash{}(key);
+  template <typename K>
+  std::uint32_t Count(const K& key) const {
+    std::uint64_t hash_code = GetObjectHash(key);
 
     const Node* first_node = &data_[hash_code % bucket_count_];
     if (first_node->object_ == nullptr) {
@@ -270,7 +274,7 @@ class HashTable {
 
     std::uint32_t count = 0;
     while (first_node) {
-      if (KeyEqual2(*(first_node->object_), key)) {
+      if (KeyEqual(*(first_node->object_), key)) {
         ++count;
       }
       first_node = first_node->next_node_;
@@ -279,14 +283,15 @@ class HashTable {
     return count;
   }
 
-  ReturnType* Find(const KeyType& key) {
-    std::uint64_t hash_code = Hash{}(key);
+  template <typename K>
+  ReturnType* Find(const K& key) {
+    std::uint64_t hash_code = GetObjectHash(key);
 
     Node* first_node = &data_[hash_code % bucket_count_];
 
     if (first_node->object_) {
       while (first_node) {
-        if (KeyEqual2(*(first_node->object_), key)) {
+        if (KeyEqual(*(first_node->object_), key)) {
           return first_node->object_.get();
         }
         first_node = first_node->next_node_;
@@ -298,14 +303,15 @@ class HashTable {
     return nullptr;
   }
 
-  const ReturnType* Find(const KeyType& key) const {
-    std::uint64_t hash_code = Hash{}(key);
+  template <typename K>
+  const ReturnType* Find(const K& key) const {
+    std::uint64_t hash_code = GetObjectHash(key);
 
     const Node* first_node = &data_[hash_code % bucket_count_];
 
     if (first_node->object_) {
       while (first_node) {
-        if (KeyEqual2(*(first_node->object_), key)) {
+        if (KeyEqual(*(first_node->object_), key)) {
           return first_node->object_.get();
         }
         first_node = first_node->next_node_;
@@ -317,10 +323,14 @@ class HashTable {
     return nullptr;
   }
 
-  bool Contains(const KeyType& key) const { return Find(key) != nullptr; }
+  template <typename K>
+  bool Contains(const K& key) const {
+    return Find(key) != nullptr;
+  }
 
-  std::vector<ReturnType*> EqualRange(const KeyType& key) {
-    std::uint64_t hash_code = Hash{}(key);
+  template <typename K>
+  std::vector<ReturnType*> EqualRange(const K& key) {
+    std::uint64_t hash_code = GetObjectHash(key);
 
     Node* first_node = &data_[hash_code % bucket_count_];
 
@@ -330,7 +340,7 @@ class HashTable {
 
     std::vector<ReturnType*> result;
     while (first_node) {
-      if (KeyEqual2(*(first_node->object_), key)) {
+      if (KeyEqual(*(first_node->object_), key)) {
         result.emplace_back(first_node->object_.get());
       }
 
@@ -340,8 +350,9 @@ class HashTable {
     return result;
   }
 
-  std::vector<const ReturnType*> EqualRange(const KeyType& key) const {
-    std::uint64_t hash_code = Hash{}(key);
+  template <typename K>
+  std::vector<const ReturnType*> EqualRange(const K& key) const {
+    std::uint64_t hash_code = GetObjectHash(key);
 
     const Node* first_node = &data_[hash_code % bucket_count_];
 
@@ -351,7 +362,7 @@ class HashTable {
 
     std::vector<const ReturnType*> result;
     while (first_node) {
-      if (KeyEqual2(*(first_node->object_), key)) {
+      if (KeyEqual(*(first_node->object_), key)) {
         result.emplace_back(first_node->object_.get());
       }
 
@@ -572,40 +583,42 @@ class HashTable {
     node->next_node_ = nullptr;
   }
 
-  std::uint64_t GetObjectHash(const ObjectType& object, IsMap) {
+  std::uint64_t GetObjectHash(const ObjectType& object, IsMap) const {
     return Hash{}(object.first);
   }
 
-  std::uint64_t GetObjectHash(const ObjectType& object, IsSet) {
+  std::uint64_t GetObjectHash(const ObjectType& object, IsSet) const {
     return Hash{}(object);
   }
 
-  std::uint64_t GetObjectHash(const ObjectType& object) {
+  template <typename K>
+  std::uint64_t GetObjectHash(const K& key) const {
+    return Hash{}(key);
+  }
+
+  template <>
+  std::uint64_t GetObjectHash<ObjectType>(const ObjectType& object) const {
     return GetObjectHash(object, RelationshipTrait());
   }
 
+  template <typename K>
+  bool KeyEqual(const ObjectType& lhs, const K& rhs, IsMap) const {
+    return Equal{}(lhs.first, rhs);
+  }
+
+  template <>
   bool KeyEqual(const ObjectType& lhs, const ObjectType& rhs, IsMap) const {
     return Equal{}(lhs.first, rhs.first);
   }
 
-  bool KeyEqual(const ObjectType& lhs, const ObjectType& rhs, IsSet) const {
+  template <typename K>
+  bool KeyEqual(const ObjectType& lhs, const K& rhs, IsSet) const {
     return Equal{}(lhs, rhs);
   }
 
-  bool KeyEqual(const ObjectType& lhs, const ObjectType& rhs) const {
+  template <typename K>
+  bool KeyEqual(const ObjectType& lhs, const K& rhs) const {
     return KeyEqual(lhs, rhs, RelationshipTrait{});
-  }
-
-  bool KeyEqual2(const ObjectType& lhs, const KeyType& rhs, IsMap) const {
-    return Equal{}(lhs.first, rhs);
-  }
-
-  bool KeyEqual2(const ObjectType& lhs, const KeyType& rhs, IsSet) const {
-    return Equal{}(lhs, rhs);
-  }
-
-  bool KeyEqual2(const ObjectType& lhs, const KeyType& rhs) const {
-    return KeyEqual2(lhs, rhs, RelationshipTrait{});
   }
 
   void RehashWhenNeed() {
@@ -653,8 +666,7 @@ class HashTable {
 
 template <typename RelationshipTrait, typename MultiTrait, typename KeyType,
           typename ObjectType, typename ReturnType,
-          typename Hash = std::hash<KeyType>,
-          typename Equal = std::equal_to<KeyType>,
+          typename Hash = std::hash<KeyType>, typename Equal = std::equal_to<>,
           typename Allocator = std::allocator<ObjectType>>
 class ConcurrentHashTable {
  public:
@@ -882,6 +894,57 @@ class ConcurrentHashTable {
     return Emplace(MultiTrait{}, std::forward<Args>(args)...);
   }
 
+  ExecuteResult Erase(ObjectType* object_ptr) {
+    if (object_ptr == nullptr) {
+      return ExecuteResult::INPUT_PARAMETERS_ARE_NOT_SUITABLE;
+    }
+
+    std::uint64_t hash_code = GetObjectHash(*object_ptr);
+    LockGuard<UniqueLockType> guard{*this, hash_code};
+    MutexType* new_mutex = &guard.ChooseMutex(hash_code);
+    while (new_mutex != guard.guard_.mutex()) {
+      guard.Unlock();
+      guard.guard_ = std::move(std::unique_lock(*new_mutex));
+      new_mutex = &guard.ChooseMutex(hash_code);
+    }
+
+    std::uint64_t data_offset = hash_code % bucket_count_;
+    if (data_[data_offset].object_ == nullptr) {
+      return ExecuteResult::PARENT_OBJECT_NOT_CONTAIN_SPECIFIC_CHILD_OBJECT;
+    }
+
+    Node* first_node = &data_[data_offset];
+    if (first_node->object_.get() == object_ptr) {
+      if (data_[data_offset].next_node_) {
+        Node* old_node = first_node->next_node_;
+        data_[data_offset] = std::move(*(first_node->next_node_));
+        delete old_node;
+      } else {
+        data_[data_offset].object_.reset();
+      }
+      size_.fetch_sub(1, std::memory_order_relaxed);
+
+      return ExecuteResult::SUCCESS;
+    }
+
+    while (first_node->next_node_ != nullptr &&
+           first_node->next_node_->object_.get() != object_ptr) {
+      first_node = first_node->next_node_;
+    }
+
+    if (first_node->next_node_ != nullptr &&
+        first_node->next_node_->object_.get() == object_ptr) {
+      Node* old_next_node = first_node->next_node_;
+      first_node->next_node_ = first_node->next_node_->next_node_;
+      delete old_next_node;
+      size_.fetch_sub(1, std::memory_order_relaxed);
+
+      return ExecuteResult::SUCCESS;
+    }
+
+    return ExecuteResult::PARENT_OBJECT_NOT_CONTAIN_SPECIFIC_CHILD_OBJECT;
+  }
+
   ExecuteResult Erase(const ObjectType* object_ptr) {
     if (object_ptr == nullptr) {
       return ExecuteResult::INPUT_PARAMETERS_ARE_NOT_SUITABLE;
@@ -933,8 +996,9 @@ class ConcurrentHashTable {
     return ExecuteResult::PARENT_OBJECT_NOT_CONTAIN_SPECIFIC_CHILD_OBJECT;
   }
 
-  std::uint32_t Erase(const KeyType& key) {
-    std::uint64_t hash_code = Hash{}(key);
+  template <typename K>
+  std::uint32_t Erase(const K& key) {
+    std::uint64_t hash_code = GetObjectHash(key);
     LockGuard<UniqueLockType> guard{*this, hash_code};
     MutexType* new_mutex = &guard.ChooseMutex(hash_code);
     while (new_mutex != guard.guard_.mutex()) {
@@ -949,7 +1013,7 @@ class ConcurrentHashTable {
     }
 
     std::uint32_t count = 0;
-    while (KeyEqual2(*(data_[data_offset].object_), key)) {
+    while (KeyEqual(*(data_[data_offset].object_), key)) {
       if (data_[data_offset].next_node_) {
         Node* old_node = data_[data_offset].next_node_;
         data_[data_offset] = std::move(*(data_[data_offset].next_node_));
@@ -966,7 +1030,7 @@ class ConcurrentHashTable {
 
     Node* node_ptr = &data_[data_offset];
     while (node_ptr->next_node_) {
-      if (KeyEqual2(*(node_ptr->next_node_->object_), key)) {
+      if (KeyEqual(*(node_ptr->next_node_->object_), key)) {
         Node* old_nex_node = node_ptr->next_node_;
         node_ptr->next_node_ = node_ptr->next_node_->next_node_;
         delete old_nex_node;
@@ -981,8 +1045,9 @@ class ConcurrentHashTable {
     return count;
   }
 
-  std::uint32_t Count(const KeyType& key) const {
-    std::uint64_t hash_code = Hash{}(key);
+  template <typename K>
+  std::uint32_t Count(const K& key) const {
+    std::uint64_t hash_code = GetObjectHash(key);
     LockGuard<SharedLockType> guard(*this, hash_code);
     MutexType* new_mutex = &guard.ChooseMutex(hash_code);
     while (new_mutex != guard.guard_.mutex()) {
@@ -998,7 +1063,7 @@ class ConcurrentHashTable {
 
     std::uint32_t count = 0;
     while (first_node) {
-      if (KeyEqual2(*(first_node->object_), key)) {
+      if (KeyEqual(*(first_node->object_), key)) {
         ++count;
       }
       first_node = first_node->next_node_;
@@ -1007,8 +1072,9 @@ class ConcurrentHashTable {
     return count;
   }
 
-  ReturnType* Find(const KeyType& key) {
-    std::uint64_t hash_code = Hash{}(key);
+  template <typename K>
+  ReturnType* Find(const K& key) {
+    std::uint64_t hash_code = GetObjectHash(key);
     LockGuard<SharedLockType> guard(*this, hash_code);
     MutexType* new_mutex = &guard.ChooseMutex(hash_code);
     while (new_mutex != guard.guard_.mutex()) {
@@ -1021,7 +1087,7 @@ class ConcurrentHashTable {
 
     if (first_node->object_) {
       while (first_node) {
-        if (KeyEqual2(*(first_node->object_), key)) {
+        if (KeyEqual(*(first_node->object_), key)) {
           return first_node->object_.get();
         }
         first_node = first_node->next_node_;
@@ -1033,8 +1099,9 @@ class ConcurrentHashTable {
     return nullptr;
   }
 
-  const ReturnType* Find(const KeyType& key) const {
-    std::uint64_t hash_code = Hash{}(key);
+  template <typename K>
+  const ReturnType* Find(const K& key) const {
+    std::uint64_t hash_code = GetObjectHash(key);
     LockGuard<SharedLockType> guard(*this, hash_code);
     MutexType* new_mutex = &guard.ChooseMutex(hash_code);
     while (new_mutex != guard.guard_.mutex()) {
@@ -1047,7 +1114,7 @@ class ConcurrentHashTable {
 
     if (first_node->object_) {
       while (first_node) {
-        if (KeyEqual2(*(first_node->object_), key)) {
+        if (KeyEqual(*(first_node->object_), key)) {
           return first_node->object_.get();
         }
         first_node = first_node->next_node_;
@@ -1059,7 +1126,10 @@ class ConcurrentHashTable {
     return nullptr;
   }
 
-  bool Contains(const KeyType& key) const { return Find(key) != nullptr; }
+  template <typename K>
+  bool Contains(const K& key) const {
+    return Find(key) != nullptr;
+  }
 
   std::vector<ReturnType*> EqualRange(const KeyType& key) {
     std::uint64_t hash_code = Hash{}(key);
@@ -1079,7 +1149,7 @@ class ConcurrentHashTable {
 
     std::vector<ReturnType*> result;
     while (first_node) {
-      if (KeyEqual2(*(first_node->object_), key)) {
+      if (KeyEqual(*(first_node->object_), key)) {
         result.emplace_back(first_node->object_.get());
       }
 
@@ -1107,7 +1177,7 @@ class ConcurrentHashTable {
 
     std::vector<const ReturnType*> result;
     while (first_node) {
-      if (KeyEqual2(*(first_node->object_), key)) {
+      if (KeyEqual(*(first_node->object_), key)) {
         result.emplace_back(first_node->object_.get());
       }
 
@@ -1361,40 +1431,42 @@ class ConcurrentHashTable {
     node->next_node_ = nullptr;
   }
 
-  std::uint64_t GetObjectHash(const ObjectType& object, IsMap) {
+  std::uint64_t GetObjectHash(const ObjectType& object, IsMap) const {
     return Hash{}(object.first);
   }
 
-  std::uint64_t GetObjectHash(const ObjectType& object, IsSet) {
+  std::uint64_t GetObjectHash(const ObjectType& object, IsSet) const {
     return Hash{}(object);
   }
 
-  std::uint64_t GetObjectHash(const ObjectType& object) {
+  template <typename K>
+  std::uint64_t GetObjectHash(const K& key) const {
+    return Hash{}(key);
+  }
+
+  template <>
+  std::uint64_t GetObjectHash(const ObjectType& object) const {
     return GetObjectHash(object, RelationshipTrait());
   }
 
+  template <typename K>
+  bool KeyEqual(const ObjectType& lhs, const K& rhs, IsMap) const {
+    return Equal{}(lhs.first, rhs);
+  }
+
+  template <>
   bool KeyEqual(const ObjectType& lhs, const ObjectType& rhs, IsMap) const {
     return Equal{}(lhs.first, rhs.first);
   }
 
-  bool KeyEqual(const ObjectType& lhs, const ObjectType& rhs, IsSet) const {
+  template <typename K>
+  bool KeyEqual(const ObjectType& lhs, const K& rhs, IsSet) const {
     return Equal{}(lhs, rhs);
   }
 
-  bool KeyEqual(const ObjectType& lhs, const ObjectType& rhs) const {
+  template <typename K>
+  bool KeyEqual(const ObjectType& lhs, const K& rhs) const {
     return KeyEqual(lhs, rhs, RelationshipTrait{});
-  }
-
-  bool KeyEqual2(const ObjectType& lhs, const KeyType& rhs, IsMap) const {
-    return Equal{}(lhs.first, rhs);
-  }
-
-  bool KeyEqual2(const ObjectType& lhs, const KeyType& rhs, IsSet) const {
-    return Equal{}(lhs, rhs);
-  }
-
-  bool KeyEqual2(const ObjectType& lhs, const KeyType& rhs) const {
-    return KeyEqual2(lhs, rhs, RelationshipTrait{});
   }
 
   void RehashWhenNeed() {
@@ -1613,20 +1685,20 @@ class ConcurrentHashTable {
 };
 
 template <typename ObjectType, typename Hash = std::hash<ObjectType>,
-          typename Equal = std::equal_to<ObjectType>,
+          typename Equal = std::equal_to<>,
           typename Allocator = std::allocator<ObjectType>>
 using HashSet = HashTable<FalseType, FalseType, ObjectType, ObjectType,
                           const ObjectType, Hash, Equal, Allocator>;
 
 template <typename ObjectType, typename Hash = std::hash<ObjectType>,
-          typename Equal = std::equal_to<ObjectType>,
+          typename Equal = std::equal_to<>,
           typename Allocator = std::allocator<ObjectType>>
 using MultiHashSet = HashTable<FalseType, TrueType, ObjectType, ObjectType,
                                const ObjectType, Hash, Equal, Allocator>;
 
 template <typename KeyObject, typename ValueObject,
           typename Hash = std::hash<KeyObject>,
-          typename Equal = std::equal_to<KeyObject>,
+          typename Equal = std::equal_to<>,
           typename Allocator =
               std::allocator<std::pair<const KeyObject, ValueObject>>>
 using HashMap =
@@ -1636,7 +1708,7 @@ using HashMap =
 
 template <typename KeyObject, typename ValueObject,
           typename Hash = std::hash<KeyObject>,
-          typename Equal = std::equal_to<KeyObject>,
+          typename Equal = std::equal_to<>,
           typename Allocator =
               std::allocator<std::pair<const KeyObject, ValueObject>>>
 using MultiHashMap =
@@ -1645,14 +1717,14 @@ using MultiHashMap =
               std::pair<const KeyObject, ValueObject>, Hash, Equal, Allocator>;
 
 template <typename ObjectType, typename Hash = std::hash<ObjectType>,
-          typename Equal = std::equal_to<ObjectType>,
+          typename Equal = std::equal_to<>,
           typename Allocator = std::allocator<ObjectType>>
 using ConcurrentSet =
     ConcurrentHashTable<FalseType, FalseType, ObjectType, ObjectType,
                         const ObjectType, Hash, Equal, Allocator>;
 
 template <typename ObjectType, typename Hash = std::hash<ObjectType>,
-          typename Equal = std::equal_to<ObjectType>,
+          typename Equal = std::equal_to<>,
           typename Allocator = std::allocator<ObjectType>>
 using ConcurrentMultiSet =
     ConcurrentHashTable<FalseType, TrueType, ObjectType, ObjectType,
@@ -1660,7 +1732,7 @@ using ConcurrentMultiSet =
 
 template <typename KeyObject, typename ValueObject,
           typename Hash = std::hash<KeyObject>,
-          typename Equal = std::equal_to<KeyObject>,
+          typename Equal = std::equal_to<>,
           typename Allocator =
               std::allocator<std::pair<const KeyObject, ValueObject>>>
 using ConcurrentMap = ConcurrentHashTable<
@@ -1669,7 +1741,7 @@ using ConcurrentMap = ConcurrentHashTable<
 
 template <typename KeyObject, typename ValueObject,
           typename Hash = std::hash<KeyObject>,
-          typename Equal = std::equal_to<KeyObject>,
+          typename Equal = std::equal_to<>,
           typename Allocator =
               std::allocator<std::pair<const KeyObject, ValueObject>>>
 using ConcurrentMultiMap = ConcurrentHashTable<
