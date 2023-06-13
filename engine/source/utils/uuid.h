@@ -12,7 +12,11 @@ class UUID {
   friend struct std::hash<UUID>;
 
  public:
+  struct UUIDEmptyInit {};
+
+ public:
   UUID();
+  explicit UUID(UUIDEmptyInit);
   ~UUID() = default;
   UUID(const UUID& other) = default;
   UUID(UUID&& other) noexcept = default;

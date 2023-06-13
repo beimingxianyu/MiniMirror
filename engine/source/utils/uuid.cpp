@@ -163,3 +163,6 @@ bool MM::Utils::operator>=(const MM::Utils::UUID& lhs,
                            const MM::Utils::UUID& rhs) {
   return !(lhs < rhs);
 }
+
+MM::Utils::UUID::UUID(MM::Utils::UUID::UUIDEmptyInit)
+    : first_part_(0), second_part_(0) {}

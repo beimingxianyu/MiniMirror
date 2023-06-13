@@ -1,5 +1,7 @@
 #pragma once
 
+#include <memory>
+
 #include "runtime/platform/base/MMObject.h"
 #include "runtime/platform/base/error.h"
 
@@ -10,22 +12,33 @@ using ManagedObjectID = MM::Utils::GUID;
 
 class ManagedObjectBase : virtual public MMObject {
  public:
-  ManagedObjectBase() = default;
+  ManagedObjectBase() = delete;
   virtual ~ManagedObjectBase() = default;
-  ManagedObjectBase(const ManagedObjectBase& other) = delete;
+  explicit ManagedObjectBase(const std::string& object_name);
+  ManagedObjectBase(const ManagedObjectBase& other) = default;
   ManagedObjectBase(ManagedObjectBase&& other) noexcept = default;
-  ManagedObjectBase& operator=(const ManagedObjectBase& other) = delete;
+  ManagedObjectBase& operator=(const ManagedObjectBase& other);
   ManagedObjectBase& operator=(ManagedObjectBase&& other) noexcept;
 
  public:
-  bool IsValid() const override;
+  const std::string& GetObjectName() const;
+
+  ManagedObjectID GetObjectID() const;
 
   virtual std::size_t GetObjectSize() const;
 
-  virtual ExecuteResult GetLightCopy() const;
+  //  virtual ExecuteResult GetLightCopy(
+  //      const std::string& new_object_name,
+  //      std::unique_ptr<ManagedObjectBase>& output_new_light_copy_object)
+  //      const;
+  //
+  //  virtual ExecuteResult GetDeepCopy(
+  //      const std::string& new_object_name,
+  //      std::unique_ptr<ManagedObjectBase>& output_new_deep_copy_object)
+  //      const;
 
-  virtual ExecuteResult GetDeepCopy(
-      ManagedObjectID& new_managed_object_ID) const;
+ private:
+  std::string object_name_{};
 };
 
 }  // namespace Manager

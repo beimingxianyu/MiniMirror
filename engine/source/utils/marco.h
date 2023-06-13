@@ -70,6 +70,7 @@ namespace Utils {
       failed_callback                                         \
     }                                                         \
   }
+
 #define MM_MULTIPLE_CHECK(executor, failed_callback)                  \
   {                                                                   \
     if (ExecuteResult MM_RESULT_CODE = executor;                      \
@@ -78,6 +79,7 @@ namespace Utils {
       failed_callback                                                 \
     }                                                                 \
   }
+
 #define MM_RESULT_CODE_EQUAL(result, target_error_code) \
   (result) == (target_error_code)
 

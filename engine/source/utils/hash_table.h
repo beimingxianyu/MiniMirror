@@ -356,7 +356,7 @@ class HashTable {
 
     const Node* first_node = &data_[hash_code % bucket_count_];
 
-    if (first_node == nullptr) {
+    if (first_node->object_ == nullptr) {
       return std::vector<const ReturnType*>{};
     }
 
@@ -1171,7 +1171,7 @@ class ConcurrentHashTable {
 
     const Node* first_node = data_[hash_code % bucket_count_];
 
-    if (first_node == nullptr) {
+    if (first_node->object_ == nullptr) {
       return std::vector<const ReturnType>{};
     }
 
