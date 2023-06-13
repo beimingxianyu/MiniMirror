@@ -71,6 +71,14 @@ namespace Utils {
     }                                                         \
   }
 
+#define MM_CHECK_WITHOUT_LOG(executor, failed_callback) \
+  {                                                     \
+    if (ExecuteResult MM_RESULT_CODE = executor;        \
+        MM_RESULT_CODE != MM::ExecuteResult::SUCCESS) { \
+      failed_callback                                   \
+    }                                                   \
+  }
+
 #define MM_MULTIPLE_CHECK(executor, failed_callback)                  \
   {                                                                   \
     if (ExecuteResult MM_RESULT_CODE = executor;                      \
@@ -78,6 +86,14 @@ namespace Utils {
       LOG_SYSTEM->CheckMultipleResult(MM_RESULT_CODE, CODE_LOCATION); \
       failed_callback                                                 \
     }                                                                 \
+  }
+
+#define MM_MULTIPLE_CHECK_WITHOUT_LOG(executor, failed_callback) \
+  {                                                              \
+    if (ExecuteResult MM_RESULT_CODE = executor;                 \
+        MM_RESULT_CODE != MM::ExecuteResult::SUCCESS) {          \
+      failed_callback                                            \
+    }                                                            \
   }
 
 #define MM_RESULT_CODE_EQUAL(result, target_error_code) \
@@ -94,6 +110,14 @@ namespace Utils {
 
 // TODO 添加对各种情况的警告（如内存不足）
 #define VK_CHECK(vk_executor, failed_callback)                                 \
+  {                                                                            \
+    if (VkResult VK_RESULT_CODE = vk_executor; VK_RESULT_CODE != VK_SUCCESS) { \
+      LOG_SYSTEM->CheckResult(VK_RESULT_CODE, CODE_LOCATION);                  \
+      failed_callback;                                                         \
+    }                                                                          \
+  }
+
+#define VK_CHECK_WITHOUT_LOG(vk_executor, failed_callback)                     \
   {                                                                            \
     if (VkResult VK_RESULT_CODE = vk_executor; VK_RESULT_CODE != VK_SUCCESS) { \
       failed_callback;                                                         \

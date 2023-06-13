@@ -104,6 +104,8 @@ class ManagerBaseImp {
   ManagerBaseImp& operator=(ManagerBaseImp&& other) = delete;
 
  public:
+  std::uint64_t GetSize() const { return ID_to_object_container_.GetSize(); }
+
   bool Have(ManagedObjectID object_ID) const {
     return ID_to_object_container_.Have(object_ID);
   }
@@ -116,8 +118,9 @@ class ManagerBaseImp {
                              std::vector<ManagedObjectID>& IDs) const {
     std::vector<typename BaseNameToIDContainer::HandlerType>
         name_to_ID_handlers;
-    MM_CHECK(name_to_ID_container_.GetObject(object_name, name_to_ID_handlers),
-             return MM_RESULT_CODE;)
+    MM_CHECK_WITHOUT_LOG(
+        name_to_ID_container_.GetObject(object_name, name_to_ID_handlers),
+        return MM_RESULT_CODE;)
 
     if (name_to_ID_handlers.empty()) {
       return Utils::ExecuteResult::
@@ -138,14 +141,14 @@ class ManagerBaseImp {
     typename BaseIDToObjectContainer ::HandlerType ID_to_object_handler;
 
     ManagedObjectID copy_ID = managed_object.GetObjectID();
-    MM_CHECK(
+    MM_CHECK_WITHOUT_LOG(
         name_to_ID_container_.AddObject(managed_object.GetObjectName(),
                                         std::move(copy_ID), name_ID_handler),
         return MM_RESULT_CODE;)
-    MM_CHECK(ID_to_object_container_.AddObject(managed_object.GetObjectID(),
-                                               std::move(managed_object),
-                                               ID_to_object_handler),
-             return MM_RESULT_CODE;)
+    MM_CHECK_WITHOUT_LOG(ID_to_object_container_.AddObject(
+                             managed_object.GetObjectID(),
+                             std::move(managed_object), ID_to_object_handler),
+                         return MM_RESULT_CODE;)
     handler = HandlerType{std::move(name_ID_handler),
                           std::move(ID_to_object_handler)};
 
@@ -157,9 +160,10 @@ class ManagerBaseImp {
     typename BaseIDToObjectContainer ::HandlerType ID_to_object_handler;
     std::vector<typename BaseNameToIDContainer::HandlerType> name_ID_handlers;
 
-    MM_CHECK(ID_to_object_container_.GetObject(object_id, ID_to_object_handler),
-             return MM_RESULT_CODE;)
-    MM_CHECK(
+    MM_CHECK_WITHOUT_LOG(
+        ID_to_object_container_.GetObject(object_id, ID_to_object_handler),
+        return MM_RESULT_CODE;)
+    MM_CHECK_WITHOUT_LOG(
         name_to_ID_container_.GetObject(
             ID_to_object_handler.GetObject().GetObjectName(), name_ID_handlers),
         return MM_RESULT_CODE;)
@@ -181,8 +185,9 @@ class ManagerBaseImp {
                                     std::vector<HandlerType>& handlers) const {
     std::vector<typename BaseNameToIDContainer ::HandlerType> name_id_handlers;
 
-    MM_CHECK(name_to_ID_container_.GetObject(object_name, name_id_handlers),
-             return MM_RESULT_CODE;)
+    MM_CHECK_WITHOUT_LOG(
+        name_to_ID_container_.GetObject(object_name, name_id_handlers),
+        return MM_RESULT_CODE;)
 
     if (name_id_handlers.empty()) {
       return ExecuteResult ::PARENT_OBJECT_NOT_CONTAIN_SPECIFIC_CHILD_OBJECT;
@@ -190,9 +195,9 @@ class ManagerBaseImp {
 
     for (auto& name_ID_handler : name_id_handlers) {
       typename BaseIDToObjectContainer::HandlerType id_object_handler;
-      MM_CHECK(ID_to_object_container_.GetObject(name_ID_handler.GetObject(),
-                                                 id_object_handler),
-               continue;)
+      MM_CHECK_WITHOUT_LOG(ID_to_object_container_.GetObject(
+                               name_ID_handler.GetObject(), id_object_handler),
+                           continue;)
 
       handlers.emplace_back(std::move(name_ID_handler),
                             std::move(id_object_handler));
