@@ -28,12 +28,6 @@ inline float Rad2Deg(const float& rad) {
   return rad * MM::MathDefinition::MATH_RAD2DEG;
 }
 
-template <typename T>
-std::uint64_t Hash(T&& value) {
-  std::hash<typename std::decay<T>::type> hash;
-  return hash(std::forward<T>(value));
-}
-
 bool NearOne(const float& value);
 
 bool NearOne(const double& value);

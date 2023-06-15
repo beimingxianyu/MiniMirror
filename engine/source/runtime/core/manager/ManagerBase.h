@@ -5,15 +5,12 @@
 
 namespace MM {
 namespace Manager {
-template <
-    typename ManagedType,
-    typename IsDeriveFromManagedObjectBase = typename std::enable_if<
-        std::is_base_of<ManagedObjectBase, ManagedType>::value, void>::type>
+template <typename ManagedType>
 class ManagerBaseImp {
  public:
   class BaseHandler;
 
-  using ThisType = ManagerBaseImp<ManagedType, IsDeriveFromManagedObjectBase>;
+  using ThisType = ManagerBaseImp<ManagedType>;
   using BaseNameToIDContainer =
       ManagedObjectUnorderedMultiMap<std::string, ManagedObjectID>;
   using BaseIDToObjectContainer =
@@ -70,6 +67,12 @@ class ManagerBaseImp {
       return ID_to_object_handler_.GetObject();
     }
 
+    ManagedType* GetObjectPtr() { return ID_to_object_handler_.GetObjectPtr(); }
+
+    const ManagedType* GetObjectPtr() const {
+      return ID_to_object_handler_.GetObjectPtr();
+    }
+
     typename BaseNameToIDContainer::HandlerType& GetNameToIDHandler() {
       return name_to_ID_handler_;
     }
@@ -79,11 +82,12 @@ class ManagerBaseImp {
       return name_to_ID_handler_;
     }
 
-    BaseIDToObjectContainer& GetIDToObjectHandler() {
+    typename BaseIDToObjectContainer::HandlerType& GetIDToObjectHandler() {
       return ID_to_object_handler_;
     }
 
-    const BaseIDToObjectContainer& GetIDToObjectHandler() const {
+    const typename BaseIDToObjectContainer::HandlerType& GetIDToObjectHandler()
+        const {
       return ID_to_object_handler_;
     }
 
@@ -104,6 +108,10 @@ class ManagerBaseImp {
   ManagerBaseImp& operator=(ManagerBaseImp&& other) = delete;
 
  public:
+  bool IsValid() const {
+    return name_to_ID_container_.IsValid() && ID_to_object_container_.IsValid();
+  }
+
   std::uint64_t GetSize() const { return ID_to_object_container_.GetSize(); }
 
   bool Have(ManagedObjectID object_ID) const {
@@ -223,22 +231,31 @@ class ManagerBaseImp {
   BaseIDToObjectContainer ID_to_object_container_{};
 };
 
+using ManagedObjectIsSmartPoint = Utils::TrueType;
+using ManagedObjectIsNotSmartPoint = Utils::FalseType;
+
+template <typename ManagedType, typename ManagedTypeIsSmartPointType>
+struct ManagedBaseValidate;
+
 template <typename ManagedType>
-class ManagerBase : public ManagerBaseImp<ManagedType> {
- public:
-  using HandlerType = typename ManagerBaseImp<ManagedType>::HandlerType;
-
- public:
-  ManagerBase(const ManagerBase& other) = delete;
-  ManagerBase(ManagerBase&& other) = delete;
-  ManagerBase& operator=(const ManagerBase& other) = delete;
-  ManagerBase& operator=(ManagerBase&& other) = delete;
-
- protected:
-  ManagerBase() = default;
-  explicit ManagerBase(std::uint64_t size)
-      : ManagerBaseImp<ManagedType>(size) {}
-  virtual ~ManagerBase() = default;
+struct ManagedBaseValidate<ManagedType, ManagedObjectIsSmartPoint> {
+  using Type = std::enable_if_t<
+      std::is_base_of_v<ManagedObjectBase, typename ManagedType::element_type>,
+      ManagerBaseImp<ManagedType>>;
 };
+
+template <typename ManagedType>
+struct ManagedBaseValidate<ManagedType, ManagedObjectIsNotSmartPoint> {
+  using Type =
+      std::enable_if_t<std::is_base_of_v<ManagedObjectBase, ManagedType>,
+                       ManagerBaseImp<ManagedType>>;
+  ;
+};
+
+template <typename ManagedType,
+          typename ManagedTypeIsSmartPointType = ManagedObjectIsNotSmartPoint>
+using ManagerBase =
+    typename ManagedBaseValidate<ManagedType,
+                                 ManagedTypeIsSmartPointType>::Type;
 };  // namespace Manager
 }  // namespace MM

@@ -157,13 +157,13 @@ struct IsXor<false, true, T> {
   using Type = T;
 };
 
-template <bool Condition1, bool Condition2, typename T>
-using IsOrT = typename IsOr<Condition1, Condition2, T>::Type;
+template <bool Condition1, bool Condition2>
+using IsOrT = typename IsOr<Condition1, Condition2, void>::Type;
 
-template <bool Condition1, bool Condition2, typename T>
-using IsAndT = typename IsAnd<Condition1, Condition2, T>::Type;
+template <bool Condition1, bool Condition2>
+using IsAndT = typename IsAnd<Condition1, Condition2, void>::Type;
 
-template <bool Condition1, bool Condition2, typename T>
-using IsXorT = typename IsXor<Condition1, Condition2, T>::Type;
+template <bool Condition1, bool Condition2>
+using IsXorT = typename IsXor<Condition1, Condition2, void>::Type;
 }  // namespace Utils
 }  // namespace MM

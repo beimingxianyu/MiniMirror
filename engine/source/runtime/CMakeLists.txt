@@ -49,21 +49,13 @@ target_link_libraries(manager PUBLIC base log_system)
 #####################################################
 #####################  resource  ####################
 #####################################################
-########## asset_type ##########
-AddModule("asset_type" "${CMAKE_CURRENT_SOURCE_DIR}/resource/asset_type")
-target_link_libraries(asset_type PUBLIC math assimp_lib stb task_system)
-
 ########## resource_system ##########
 AddModule("asset_system" "${CMAKE_CURRENT_SOURCE_DIR}/resource/asset_system")
-target_link_libraries(asset_system PUBLIC file_system config_system log_system asset_type)
+target_link_libraries(asset_system PUBLIC file_system config_system log_system math assimp_lib stb task_system)
 
 #####################################################
 #####################  function  ####################
 #####################################################
-##########  globel_context  ##########
-# AddModule("globel_context" "${CMAKE_CURRENT_SOURCE_DIR}/function/global")
-# target_link_libraries(globel_context PUBLIC config_system log_system file_system)
-
 ##########  render  ##########
 AddModule("render" "${CMAKE_CURRENT_SOURCE_DIR}/function/render")
 target_link_libraries(render PUBLIC math color log_system config_system file_system asset_system vulkan_lib glfw stb task_system)

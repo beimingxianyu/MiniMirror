@@ -3,8 +3,6 @@
 MM::AssetSystem::AssetManager* MM::AssetSystem::AssetManager::asset_manager_{
     nullptr};
 std::mutex MM::AssetSystem::AssetManager::sync_flag_{};
-std::set<std::string> MM::AssetSystem::AssetManager::support_image_format{
-    {"jpg", "png"}};
 
 MM::AssetSystem::AssetSystem* MM::AssetSystem::AssetSystem::asset_system_{
     nullptr};
@@ -121,6 +119,7 @@ MM::AssetSystem::AssetManager* MM::AssetSystem::AssetManager::GetInstance() {
       asset_manager_ = new AssetManager{};
     }
   }
+
   return asset_manager_;
 }
 

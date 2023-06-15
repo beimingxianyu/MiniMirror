@@ -1,7 +1,11 @@
 #pragma once
 
+#include <cstddef>
+
 namespace MM {
 namespace Utils {
+#define OFFSET_OF(class_, member) offsetof(class_, member)
+
 #define MM_STR(str) #str
 
 #define MM_CAT_IMP(a, b) a##b
@@ -25,9 +29,9 @@ namespace Utils {
 
 #define FILE_SYSTEM file_system
 
-#define IMPORT_FILE_SYSTEM                         \
-  inline MM::FileSystem::FileSystem* FILE_SYSTEM { \
-    MM::FileSystem::FileSystem::GetInstance()      \
+#define IMPORT_FILE_SYSTEM                               \
+  inline const MM::FileSystem::FileSystem* FILE_SYSTEM { \
+    MM::FileSystem::FileSystem::GetInstance()            \
   }
 
 #define TASK_SYSTEM task_system
@@ -48,27 +52,91 @@ namespace Utils {
   LOG_SYSTEM->Log(log_level, CODE_LOCATION + __VA_ARGS__)
 
 #define LOG_DEBUG(...) \
-  LOG(MM::LogSystem::LogSystem::LogLevel::Debug, __VA_ARGS__)
+  LOG(MM::LogSystem::LogSystem::LogLevel::DEBUG, __VA_ARGS__)
 
-#define LOG_INFO(...) LOG(MM::LogSystem::LogSystem::LogLevel::Info, __VA_ARGS__)
+#define LOG_TRACE(...) \
+  LOG(MM::LogSystem::LogSystem::LogLevel::TRACE, __VA_ARGS__)
 
-#define LOG_WARN(...) LOG(MM::LogSystem::LogSystem::LogLevel::Warn, __VA_ARGS__)
+#define LOG_INFO(...) LOG(MM::LogSystem::LogSystem::LogLevel::INFO, __VA_ARGS__)
+
+#define LOG_WARN(...) LOG(MM::LogSystem::LogSystem::LogLevel::WARN, __VA_ARGS__)
 
 #define LOG_ERROR(...) \
-  LOG(MM::LogSystem::LogSystem::LogLevel::Error, __VA_ARGS__)
+  LOG(MM::LogSystem::LogSystem::LogLevel::ERROR, __VA_ARGS__)
 
 #define LOG_FATAL(...) \
-  LOG(MM::LogSystem::LogSystem::LogLevel::Fatal, __VA_ARGS__)
+  LOG(MM::LogSystem::LogSystem::LogLevel::FATAL, __VA_ARGS__)
 
 #define MM_RESULT_CODE __MM__result_code_name
 
-#define MM_CHECK(executor, failed_callback)                   \
+#define MM_CHECK(executor, failed_callback)                    \
+  {                                                            \
+    if (ExecuteResult MM_RESULT_CODE = executor;               \
+        MM_RESULT_CODE != MM::ExecuteResult::SUCCESS) {        \
+      LOG_SYSTEM->CheckResult(MM_RESULT_CODE, CODE_LOCATION,   \
+                              MM::LogSystem::LogLevel::ERROR); \
+      failed_callback                                          \
+    }                                                          \
+  }
+
+#define MM_CHECK_LOG_TRACE(executor, failed_callback)          \
+  {                                                            \
+    if (ExecuteResult MM_RESULT_CODE = executor;               \
+        MM_RESULT_CODE != MM::ExecuteResult::SUCCESS) {        \
+      LOG_SYSTEM->CheckResult(MM_RESULT_CODE, CODE_LOCATION,   \
+                              MM::LogSystem::LogLevel::TRACE); \
+      failed_callback                                          \
+    }                                                          \
+  }
+
+#define MM_CHECK_LOG_INFO(executor, failed_callback)          \
   {                                                           \
     if (ExecuteResult MM_RESULT_CODE = executor;              \
         MM_RESULT_CODE != MM::ExecuteResult::SUCCESS) {       \
-      LOG_SYSTEM->CheckResult(MM_RESULT_CODE, CODE_LOCATION); \
+      LOG_SYSTEM->CheckResult(MM_RESULT_CODE, CODE_LOCATION,  \
+                              MM::LogSystem::LogLevel::INFO); \
       failed_callback                                         \
     }                                                         \
+  }
+
+#define MM_CHECK_LOG_DEBUG(executor, failed_callback)          \
+  {                                                            \
+    if (ExecuteResult MM_RESULT_CODE = executor;               \
+        MM_RESULT_CODE != MM::ExecuteResult::SUCCESS) {        \
+      LOG_SYSTEM->CheckResult(MM_RESULT_CODE, CODE_LOCATION,   \
+                              MM::LogSystem::LogLevel::DEBUG); \
+      failed_callback                                          \
+    }                                                          \
+  }
+
+#define MM_CHECK_LOG_WARN(executor, failed_callback)          \
+  {                                                           \
+    if (ExecuteResult MM_RESULT_CODE = executor;              \
+        MM_RESULT_CODE != MM::ExecuteResult::SUCCESS) {       \
+      LOG_SYSTEM->CheckResult(MM_RESULT_CODE, CODE_LOCATION,  \
+                              MM::LogSystem::LogLevel::WARN); \
+      failed_callback                                         \
+    }                                                         \
+  }
+
+#define MM_CHECK_LOG_ERROR(executor, failed_callback)          \
+  {                                                            \
+    if (ExecuteResult MM_RESULT_CODE = executor;               \
+        MM_RESULT_CODE != MM::ExecuteResult::SUCCESS) {        \
+      LOG_SYSTEM->CheckResult(MM_RESULT_CODE, CODE_LOCATION,   \
+                              MM::LogSystem::LogLevel::ERROR); \
+      failed_callback                                          \
+    }                                                          \
+  }
+
+#define MM_CHECK_LOG_FATAL(executor, failed_callback)          \
+  {                                                            \
+    if (ExecuteResult MM_RESULT_CODE = executor;               \
+        MM_RESULT_CODE != MM::ExecuteResult::SUCCESS) {        \
+      LOG_SYSTEM->CheckResult(MM_RESULT_CODE, CODE_LOCATION,   \
+                              MM::LogSystem::LogLevel::FATAL); \
+      failed_callback                                          \
+    }                                                          \
   }
 
 #define MM_CHECK_WITHOUT_LOG(executor, failed_callback) \
@@ -79,13 +147,74 @@ namespace Utils {
     }                                                   \
   }
 
-#define MM_MULTIPLE_CHECK(executor, failed_callback)                  \
+#define MM_MULTIPLE_CHECK(executor, failed_callback)                   \
+  {                                                                    \
+    if (ExecuteResult MM_RESULT_CODE = executor;                       \
+        MM_RESULT_CODE != MM::ExecuteResult::SUCCESS) {                \
+      LOG_SYSTEM->CheckMultipleResult(MM_RESULT_CODE, CODE_LOCATION,   \
+                                      MM::LogSystem::LogLevel::ERROR); \
+      failed_callback                                                  \
+    }                                                                  \
+  }
+
+#define MM_MULTIPLE_CHECK_LOG_TRACE(executor, failed_callback)         \
+  {                                                                    \
+    if (ExecuteResult MM_RESULT_CODE = executor;                       \
+        MM_RESULT_CODE != MM::ExecuteResult::SUCCESS) {                \
+      LOG_SYSTEM->CheckMultipleResult(MM_RESULT_CODE, CODE_LOCATION,   \
+                                      MM::LogSystem::LogLevel::TRACE); \
+      failed_callback                                                  \
+    }                                                                  \
+  }
+
+#define MM_MULTIPLE_CHECK_LOG_INFO(executor, failed_callback)         \
   {                                                                   \
     if (ExecuteResult MM_RESULT_CODE = executor;                      \
         MM_RESULT_CODE != MM::ExecuteResult::SUCCESS) {               \
-      LOG_SYSTEM->CheckMultipleResult(MM_RESULT_CODE, CODE_LOCATION); \
+      LOG_SYSTEM->CheckMultipleResult(MM_RESULT_CODE, CODE_LOCATION,  \
+                                      MM::LogSystem::LogLevel::INFO); \
       failed_callback                                                 \
     }                                                                 \
+  }
+
+#define MM_MULTIPLE_CHECK_LOG_DEBUG(executor, failed_callback)         \
+  {                                                                    \
+    if (ExecuteResult MM_RESULT_CODE = executor;                       \
+        MM_RESULT_CODE != MM::ExecuteResult::SUCCESS) {                \
+      LOG_SYSTEM->CheckMultipleResult(MM_RESULT_CODE, CODE_LOCATION,   \
+                                      MM::LogSystem::LogLevel::DEBUG); \
+      failed_callback                                                  \
+    }                                                                  \
+  }
+
+#define MM_MULTIPLE_CHECK_LOG_WARN(executor, failed_callback)         \
+  {                                                                   \
+    if (ExecuteResult MM_RESULT_CODE = executor;                      \
+        MM_RESULT_CODE != MM::ExecuteResult::SUCCESS) {               \
+      LOG_SYSTEM->CheckMultipleResult(MM_RESULT_CODE, CODE_LOCATION,  \
+                                      MM::LogSystem::LogLevel::WARN); \
+      failed_callback                                                 \
+    }                                                                 \
+  }
+
+#define MM_MULTIPLE_CHECK_LOG_ERROR(executor, failed_callback)         \
+  {                                                                    \
+    if (ExecuteResult MM_RESULT_CODE = executor;                       \
+        MM_RESULT_CODE != MM::ExecuteResult::SUCCESS) {                \
+      LOG_SYSTEM->CheckMultipleResult(MM_RESULT_CODE, CODE_LOCATION,   \
+                                      MM::LogSystem::LogLevel::ERROR); \
+      failed_callback                                                  \
+    }                                                                  \
+  }
+
+#define MM_MULTIPLE_CHECK_LOG_FATAL(executor, failed_callback)         \
+  {                                                                    \
+    if (ExecuteResult MM_RESULT_CODE = executor;                       \
+        MM_RESULT_CODE != MM::ExecuteResult::SUCCESS) {                \
+      LOG_SYSTEM->CheckMultipleResult(MM_RESULT_CODE, CODE_LOCATION,   \
+                                      MM::LogSystem::LogLevel::FATAL); \
+      failed_callback                                                  \
+    }                                                                  \
   }
 
 #define MM_MULTIPLE_CHECK_WITHOUT_LOG(executor, failed_callback) \

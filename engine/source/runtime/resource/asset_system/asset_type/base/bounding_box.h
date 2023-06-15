@@ -1,15 +1,16 @@
 #pragma once
 
-#include "runtime/resource/asset_type/base/vertex.h"
 #include "runtime/core/math/math.h"
+#include "vertex.h"
 
 namespace MM {
+namespace AssetSystem {
 namespace AssetType {
 class Mesh;
 
 class BoundingBox {
-public:
-  enum class BoundingBoxType { AABB, CAPSULE};
+ public:
+  enum class BoundingBoxType { AABB, CAPSULE };
 
   BoundingBox() = default;
   virtual ~BoundingBox() = default;
@@ -28,18 +29,18 @@ public:
   virtual void UpdateBoundingBoxWithOneVertex(const Vertex& vertex) = 0;
 };
 
-class RectangleBox : public BoundingBox{
-public:
+class RectangleBox : public BoundingBox {
+ public:
   RectangleBox() = default;
   ~RectangleBox() override = default;
   RectangleBox(const Math::vec3& left_bottom_forward,
-          const Math::vec3& right_top_back);
+               const Math::vec3& right_top_back);
   RectangleBox(const RectangleBox& other) = default;
   RectangleBox(RectangleBox&& other) noexcept = default;
   RectangleBox& operator=(const RectangleBox& other);
   RectangleBox& operator=(RectangleBox&& other) noexcept;
 
-public:
+ public:
   float& GetTop();
   const float& GetTop() const;
   void SetTop(const float& new_top);
@@ -92,67 +93,68 @@ public:
     swap(lhs.right_top_back, rhs.right_top_back);
   }
 
-private:
+ private:
   /**
    * \brief The offset value from the center of the mesh.
    */
   Math::vec3 left_bottom_forward{MathDefinition::VEC3_ZERO};
   /**
-  * \brief The offset value from the center of the mesh.
-  */
- Math::vec3 right_top_back{MathDefinition::VEC3_ZERO};
+   * \brief The offset value from the center of the mesh.
+   */
+  Math::vec3 right_top_back{MathDefinition::VEC3_ZERO};
 };
 
-class CapsuleBox : public BoundingBox{
-public:
- CapsuleBox() = default;
- ~CapsuleBox() override = default;
- CapsuleBox(const CapsuleBox& other) = default;
- CapsuleBox(CapsuleBox&& other) noexcept = default;
- CapsuleBox& operator=(const CapsuleBox& other);
- CapsuleBox& operator=(CapsuleBox&& other) noexcept;
+class CapsuleBox : public BoundingBox {
+ public:
+  CapsuleBox() = default;
+  ~CapsuleBox() override = default;
+  CapsuleBox(const CapsuleBox& other) = default;
+  CapsuleBox(CapsuleBox&& other) noexcept = default;
+  CapsuleBox& operator=(const CapsuleBox& other);
+  CapsuleBox& operator=(CapsuleBox&& other) noexcept;
 
-public:
- float& GetRadius();
- const float& GetRadius() const;
- void SetRadius(const float& new_radius);
+ public:
+  float& GetRadius();
+  const float& GetRadius() const;
+  void SetRadius(const float& new_radius);
 
- float& GetTop();
- const float& GetTop() const;
- void SetTop(const float& new_top);
+  float& GetTop();
+  const float& GetTop() const;
+  void SetTop(const float& new_top);
 
- float& GetBottom();
- const float& GetBottom() const;
- void SetBottom(const float& new_bottom);
+  float& GetBottom();
+  const float& GetBottom() const;
+  void SetBottom(const float& new_bottom);
 
- RectangleBox GetRectangleBoxFormThis() const;
+  RectangleBox GetRectangleBoxFormThis() const;
 
- bool IsValid() const override;
+  bool IsValid() const override;
 
- BoundingBoxType GetBoundingType() const override;
+  BoundingBoxType GetBoundingType() const override;
 
- void UpdateBoundingBox(const Mesh& mesh) override;
+  void UpdateBoundingBox(const Mesh& mesh) override;
 
- void UpdateBoundingBoxWithOneVertex(const Vertex& vertex) override;
+  void UpdateBoundingBoxWithOneVertex(const Vertex& vertex) override;
 
-private:
- float radius_{0};
- float top_{0};
- float bottom_{};
- /*      
-  *      
-  *          ====     <------ top
-  *        =      = 
-  *      =          = 
-  *      =          =
-  *      =          =
-  * ---> =          = <------ radius
-  *      =          =
-  *      =          =
-  *      =          =
-  *       =        =
-  *          ====     <------ bottom
-  */
+ private:
+  float radius_{0.0f};
+  float top_{0.0f};
+  float bottom_{0.0f};
+  /*
+   *
+   *          ====     <------ top
+   *        =      =
+   *      =          =
+   *      =          =
+   *      =          =
+   * ---> =          = <------ radius
+   *      =          =
+   *      =          =
+   *      =          =
+   *       =        =
+   *          ====     <------ bottom
+   */
 };
-}
-}
+}  // namespace AssetType
+}  // namespace AssetSystem
+}  // namespace MM

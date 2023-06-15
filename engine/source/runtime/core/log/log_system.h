@@ -1,12 +1,11 @@
 #pragma once
 
-#include <iostream>
-
+#include <spdlog/async.h>
+#include <spdlog/async_logger.h>
 #include <spdlog/sinks/stdout_color_sinks.h>
 #include <spdlog/spdlog.h>
-#include <spdlog/async_logger.h>
-#include <spdlog/async.h>
 
+#include <iostream>
 #include <mutex>
 
 #include "runtime/platform/base/error.h"
@@ -14,17 +13,16 @@
 namespace MM {
 namespace LogSystem {
 class LogSystem {
-public:
-  enum class LogLevel : uint8_t { Trace, Info, Debug, Warn, Error, Fatal };
+ public:
+  enum class LogLevel : uint8_t { TRACE, INFO, DEBUG, WARN, ERROR, FATAL };
 
-public:
+ public:
   LogSystem(const LogSystem& other) = delete;
   LogSystem(LogSystem&& other) = delete;
   LogSystem& operator=(const LogSystem& other) = delete;
   LogSystem& operator=(LogSystem&& other) = delete;
 
-
-public:
+ public:
   static LogSystem* GetInstance();
 
   void SetLevel(const LogLevel& level);
@@ -32,22 +30,22 @@ public:
   template <typename... ARGS>
   void Log(const LogLevel& level, ARGS&&... args) const {
     switch (level) {
-      case LogLevel::Trace:
+      case LogLevel::TRACE:
         LogSystem::logger_->trace(std::forward<ARGS>(args)...);
         break;
-      case LogLevel::Info:
+      case LogLevel::INFO:
         LogSystem::logger_->info(std::forward<ARGS>(args)...);
         break;
-      case LogLevel::Debug:
+      case LogLevel::DEBUG:
         LogSystem::logger_->debug(std::forward<ARGS>(args)...);
         break;
-      case LogLevel::Warn:
+      case LogLevel::WARN:
         LogSystem::logger_->warn(std::forward<ARGS>(args)...);
         break;
-      case LogLevel::Error:
+      case LogLevel::ERROR:
         LogSystem::logger_->error(std::forward<ARGS>(args)...);
         break;
-      case LogLevel::Fatal:
+      case LogLevel::FATAL:
         LogSystem::logger_->critical(std::forward<ARGS>(args)...);
         FatalCallback(std::forward<ARGS>(args)...);
         break;
@@ -56,32 +54,32 @@ public:
     }
   }
 
-  template<typename ...ARGS>
+  template <typename... ARGS>
   void LogTrace(ARGS&&... args) const {
     logger_->trace(std::forward<ARGS>(args)...);
   }
 
-  template<typename  ...ARGS>
+  template <typename... ARGS>
   void LogInfo(ARGS&&... args) const {
     logger_->info(std::forward<ARGS>(args)...);
   }
 
-  template<typename ...ARGS>
+  template <typename... ARGS>
   void LogDebug(ARGS&&... args) const {
     logger_->debug(std::forward<ARGS>(args)...);
   }
 
-  template<typename ...ARGS>
+  template <typename... ARGS>
   void LogWarn(ARGS&&... args) const {
     logger_->warn(std::forward<ARGS>(args)...);
   }
 
-  template<typename ...ARGS>
+  template <typename... ARGS>
   void LogError(ARGS&&... args) const {
     logger_->error(std::forward<ARGS>(args)...);
   }
 
-  template<typename ...ARGS>
+  template <typename... ARGS>
   void LogFatal(ARGS&&... args) const {
     logger_->critical(std::forward<ARGS>(args)...);
     FatalCallback(std::forward<ARGS>(args)...);
@@ -93,25 +91,29 @@ public:
     throw std::runtime_error(format_str);
   }
 
-  ExecuteResult CheckResult(ExecuteResult result, const std::string& log_prefix) const;
+  ExecuteResult CheckResult(ExecuteResult result, const std::string& log_prefix,
+                            LogLevel log_level = LogLevel::ERROR) const;
 
-  ExecuteResult CheckMultipleResult(ExecuteResult result, const std::string& log_prefix) const;
+  MM::ExecuteResult CheckMultipleResult(ExecuteResult result,
+                                        const std::string& log_prefix,
+                                        LogLevel log_level) const;
 
-private:
+ private:
   /**
-   * \brief Destroy the instance. If it is successfully destroyed, it returns true, otherwise it returns false.
-   * \return If it is successfully destroyed, it returns true, otherwise it returns false.
+   * \brief Destroy the instance. If it is successfully destroyed, it returns
+   * true, otherwise it returns false. \return If it is successfully destroyed,
+   * it returns true, otherwise it returns false.
    */
   static bool Destroy();
 
-protected:
+ protected:
   LogSystem() = default;
   ~LogSystem();
   static LogSystem* log_system_;
 
-private:
+ private:
   static std::mutex sync_flag_;
   std::shared_ptr<spdlog::logger> logger_{nullptr};
 };
-}
-} // namespace MM
+}  // namespace LogSystem
+}  // namespace MM

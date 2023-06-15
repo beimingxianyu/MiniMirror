@@ -486,8 +486,8 @@ MM::ExecuteResult MM::RenderSystem::RenderEngine::CopyImage(
 
     if (src_image.GetImage() == dest_image.GetImage()) {
       std::uint64_t hash_value =
-          Math::Hash(region.dstSubresource.mipLevel) +
-          (Math::Hash(region.dstSubresource.baseArrayLayer) << 8);
+          MM::Utils::Hash(region.dstSubresource.mipLevel) +
+          (MM::Utils::Hash(region.dstSubresource.baseArrayLayer) << 8);
       for (const auto& image_write_area : image_write_areas[hash_value]) {
         if (Utils::ImageRegionIsOverlap(region.srcOffset,
                                         image_write_area.GetOffset(),
@@ -504,8 +504,8 @@ MM::ExecuteResult MM::RenderSystem::RenderEngine::CopyImage(
   }
   for (const auto& region : regions) {
     std::uint64_t hash_value =
-        Math::Hash(region.dstSubresource.mipLevel) +
-        (Math::Hash(region.dstSubresource.baseArrayLayer) << 8);
+        MM::Utils::Hash(region.dstSubresource.mipLevel) +
+        (MM::Utils::Hash(region.dstSubresource.baseArrayLayer) << 8);
     for (const auto& image_write_area : image_write_areas[hash_value]) {
       if (Utils::ImageRegionIsOverlap(region.srcOffset,
                                       image_write_area.GetOffset(),
@@ -1770,13 +1770,13 @@ VkBool32 MM::RenderSystem::ValidationLayerDebugCall(
     LogSystem::LogSystem::LogLevel log_level;
     switch (message_severity) {
       case VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT:
-        log_level = LogSystem::LogSystem::LogLevel::Warn;
+        log_level = LogSystem::LogSystem::LogLevel::WARN;
         break;
       case VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT:
-        log_level = LogSystem::LogSystem::LogLevel::Error;
+        log_level = LogSystem::LogSystem::LogLevel::ERROR;
         break;
       default:
-        log_level = LogSystem::LogSystem::LogLevel::Warn;
+        log_level = LogSystem::LogSystem::LogLevel::WARN;
     }
     LOG(log_level, std::string("validation layer: ") + callback_data->pMessage);
   }

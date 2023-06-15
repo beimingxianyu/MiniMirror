@@ -27,6 +27,10 @@ class ManagedObjectBase : virtual public MMObject {
 
   virtual std::size_t GetObjectSize() const;
 
+  friend void Swap(ManagedObjectBase& lhs, ManagedObjectBase& rhs) noexcept;
+
+  friend void swap(ManagedObjectBase& lhs, ManagedObjectBase& rhs) noexcept;
+
   //  virtual ExecuteResult GetLightCopy(
   //      const std::string& new_object_name,
   //      std::unique_ptr<ManagedObjectBase>& output_new_light_copy_object)

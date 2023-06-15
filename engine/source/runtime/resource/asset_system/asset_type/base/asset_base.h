@@ -1,25 +1,29 @@
 #pragma once
 
-#include <stb_image.h>
-
 #include <memory>
 #include <string>
 
+#include "runtime/core/manager/ManagerBase.h"
 #include "runtime/platform/base/MMObject.h"
-#include "runtime/resource/asset_type/base/asset_data.h"
-#include "runtime/resource/asset_type/base/import_other_system.h"
+#include "runtime/resource/asset_system/asset_type/base/asset_type_define.h"
+#include "runtime/resource/asset_system/import_other_system.h"
+#include "stb_image.h"
 #include "utils/utils.h"
 
 namespace MM {
+namespace AssetSystem {
 namespace AssetType {
-class AssetBase : virtual public MMObject {
+class AssetBase : public Manager::ManagedObjectBase {
  public:
   AssetBase() = delete;
   virtual ~AssetBase() = default;
-  AssetBase(const std::string& asset_name, const uint64_t& asset_ID);
-  AssetBase(const AssetBase& other) = default;
+  explicit AssetBase(const FileSystem::Path& asset_path);
+  AssetBase(const std::string& asset_name, AssetID asset_id)
+      : Manager::ManagedObjectBase(asset_name),
+        asset_path_and_last_editing_time_hash(asset_id) {}
+  AssetBase(const AssetBase& other) = delete;
   AssetBase(AssetBase&& other) noexcept;
-  AssetBase& operator=(const AssetBase& other);
+  AssetBase& operator=(const AssetBase& other) = delete;
   AssetBase& operator=(AssetBase&& other) noexcept;
 
   friend bool operator==(const AssetBase& lhs, const AssetBase& rhs);
@@ -29,9 +33,7 @@ class AssetBase : virtual public MMObject {
  public:
   const std::string& GetAssetName() const;
 
-  AssetBase& SetAssetName(const std::string& new_asset_name);
-
-  AssetID GetAssetID() const;
+  std::uint64_t GetAssetID() const;
 
   bool IsValid() const override;
 
@@ -39,17 +41,15 @@ class AssetBase : virtual public MMObject {
 
   virtual std::string GetAssetTypeString() const;
 
-  virtual const void* GetData() const = 0;
-
-  virtual void Release() = 0;
+  virtual void Release();
 
   friend void Swap(AssetBase& lhs, AssetBase& rhs) noexcept;
 
   friend void swap(AssetBase& lhs, AssetBase& rhs) noexcept;
 
  private:
-  std::string asset_name_{};
-  std::uint64_t asset_path_and_last_editing_time_hash{};
+  AssetID asset_path_and_last_editing_time_hash{};
 };
 }  // namespace AssetType
+}  // namespace AssetSystem
 }  // namespace MM

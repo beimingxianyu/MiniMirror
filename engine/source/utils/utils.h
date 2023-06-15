@@ -104,5 +104,11 @@ class SpinUniqueLock {
  private:
   SpinSharedMutex& spin_shared_mutex_;
 };
+
+template <typename T>
+std::uint64_t Hash(T&& value) {
+  std::hash<typename std::decay<T>::type> hash;
+  return hash(std::forward<T>(value));
+}
 }  // namespace Utils
 }  // namespace MM

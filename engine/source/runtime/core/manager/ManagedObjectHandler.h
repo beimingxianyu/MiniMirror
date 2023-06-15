@@ -111,7 +111,7 @@ class ManagedObjectHandler<ManagedType, ManagedType, ListTrait> {
         if (result == ExecuteResult::CUSTOM_ERROR) {
           continue;
         }
-        LOG_SYSTEM->CheckResult(result, CODE_LOCATION);
+        LOG_SYSTEM->CheckResult(result, CODE_LOCATION, LogLevel::Trace);
         break;
       } while (true);
     }
@@ -243,7 +243,7 @@ class ManagedObjectHandler<ManagedType, ManagedType, SetTrait> {
       if (result == ExecuteResult::CUSTOM_ERROR) {
         continue;
       }
-      LOG_SYSTEM->CheckResult(result, CODE_LOCATION);
+      LOG_SYSTEM->CheckResult(result, CODE_LOCATION, LogLevel::Trace);
       return;
     } while (true);
   }
@@ -259,7 +259,7 @@ class ManagedObjectHandler<ManagedType, ManagedType, SetTrait> {
       if (result == ExecuteResult::CUSTOM_ERROR) {
         continue;
       }
-      LOG_SYSTEM->CheckResult(result, CODE_LOCATION);
+      LOG_SYSTEM->CheckResult(result, CODE_LOCATION, LogLevel::Trace);
       return;
     } while (true);
   }
@@ -386,7 +386,7 @@ class ManagedObjectHandler<ManagedType, ManagedType, HashSetTrait> {
       if (result == ExecuteResult::CUSTOM_ERROR) {
         continue;
       }
-      LOG_SYSTEM->CheckResult(result, CODE_LOCATION);
+      LOG_SYSTEM->CheckResult(result, CODE_LOCATION, LogLevel::Trace);
       return;
     } while (true);
   }
@@ -402,7 +402,7 @@ class ManagedObjectHandler<ManagedType, ManagedType, HashSetTrait> {
       if (result == ExecuteResult::CUSTOM_ERROR) {
         continue;
       }
-      LOG_SYSTEM->CheckResult(result, CODE_LOCATION);
+      LOG_SYSTEM->CheckResult(result, CODE_LOCATION, LogLevel::Trace);
       return;
     } while (true);
   }
@@ -543,7 +543,7 @@ class ManagedObjectHandler<KeyType, ManagedType, MapTrait> {
       if (result == ExecuteResult::CUSTOM_ERROR) {
         continue;
       }
-      LOG_SYSTEM->CheckResult(result, CODE_LOCATION);
+      LOG_SYSTEM->CheckResult(result, CODE_LOCATION, LogLevel::Trace);
       return;
     } while (true);
   }
@@ -558,7 +558,7 @@ class ManagedObjectHandler<KeyType, ManagedType, MapTrait> {
       if (result == ExecuteResult::CUSTOM_ERROR) {
         continue;
       }
-      LOG_SYSTEM->CheckResult(result, CODE_LOCATION);
+      LOG_SYSTEM->CheckResult(result, CODE_LOCATION, LogLevel::Trace);
       return;
     } while (true);
   }
@@ -699,7 +699,7 @@ class ManagedObjectHandler<KeyType, ManagedType, HashMapTrait> {
       if (result == ExecuteResult::CUSTOM_ERROR) {
         continue;
       }
-      LOG_SYSTEM->CheckResult(result, CODE_LOCATION);
+      LOG_SYSTEM->CheckResult(result, CODE_LOCATION, LogLevel::Trace);
       return;
     } while (true);
   }
@@ -714,7 +714,7 @@ class ManagedObjectHandler<KeyType, ManagedType, HashMapTrait> {
       if (result == ExecuteResult::CUSTOM_ERROR) {
         continue;
       }
-      LOG_SYSTEM->CheckResult(result, CODE_LOCATION);
+      LOG_SYSTEM->CheckResult(result, CODE_LOCATION, LogLevel::Trace);
       return;
     } while (true);
   }

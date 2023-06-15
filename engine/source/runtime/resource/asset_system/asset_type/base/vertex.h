@@ -1,11 +1,10 @@
 #pragma once
 
 #include "runtime/core/math/math.h"
+#include "utils/marco.h"
 
 namespace MM {
-namespace RenderSystem {
-
-}
+namespace AssetSystem {
 namespace AssetType {
 class Vertex {
  public:
@@ -59,7 +58,7 @@ class Vertex {
 
   constexpr static uint64_t GetOffsetOfNormal();
 
-  constexpr static uint64_t GetOffsetOfTangent() ;
+  constexpr static uint64_t GetOffsetOfTangent();
 
   constexpr static uint64_t GetOffsetOfBiTangent();
 
@@ -74,4 +73,5 @@ class Vertex {
   alignas(16) Math::vec3 bi_tangent_{MathDefinition::VEC3_ZERO};
 };
 }  // namespace AssetType
+}  // namespace AssetSystem
 }  // namespace MM

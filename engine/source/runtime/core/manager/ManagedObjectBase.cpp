@@ -49,5 +49,27 @@ ManagedObjectBase& ManagedObjectBase::operator=(
 
   return *this;
 }
+
+void Swap(ManagedObjectBase& lhs, ManagedObjectBase& rhs) noexcept {
+  using std::swap;
+
+  if (&lhs == &rhs) {
+    return;
+  }
+
+  swap(dynamic_cast<MMObject&>(lhs), dynamic_cast<MMObject&>(rhs));
+  swap(lhs.object_name_, rhs.object_name_);
+}
+
+void swap(ManagedObjectBase& lhs, ManagedObjectBase& rhs) noexcept {
+  using std::swap;
+
+  if (&lhs == &rhs) {
+    return;
+  }
+
+  swap(dynamic_cast<MMObject&>(lhs), dynamic_cast<MMObject&>(rhs));
+  swap(lhs.object_name_, rhs.object_name_);
+}
 }  // namespace Manager
 }  // namespace MM
