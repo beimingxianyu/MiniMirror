@@ -124,10 +124,11 @@ void MM::AssetSystem::AssetType::swap(Image& lhs, Image& rhs) noexcept {
 const void* MM::AssetSystem::AssetType::Image::GetPixels() const {
   return image_pixels_.get();
 }
+
 MM::AssetSystem::AssetType::Image::Image(
     const std::string& asset_name, MM::AssetSystem::AssetType::AssetID asset_id,
     const MM::AssetSystem::AssetType::Image::ImageInfo& image_info,
-    std::unique_ptr<stbi_uc, StbiImageFree> image_pixels)
+    std::unique_ptr<stbi_uc, StbiImageFree>&& image_pixels)
     : AssetBase(asset_name, asset_id),
       image_info_(image_info),
       image_pixels_(std::move(image_pixels)) {}

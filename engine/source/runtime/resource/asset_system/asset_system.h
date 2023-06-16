@@ -17,7 +17,7 @@ namespace MM {
 namespace AssetSystem {
 class AssetSystem;
 
-class AssetManager
+class AssetManager final
     : public Manager::ManagerBase<std::unique_ptr<AssetType::AssetBase>,
                                   Manager::ManagedObjectIsSmartPoint> {
   friend class AssetSystem;
@@ -41,122 +41,50 @@ class AssetManager
   AssetManager& operator=(AssetManager&& other) = delete;
 
  public:
-  class AssetHandler {
+  class AssetHandler : public BaseHandlerType {
    public:
     AssetHandler() = default;
     ~AssetHandler() = default;
     AssetHandler(BaseHandler&& base_handler,
                  typename AssetIDToObjectIDContainerType::HandlerType&&
-                     asset_id_to_object_id_handler)
-        : base_handler_(std::move(base_handler)),
-          asset_ID_to_object_handler_(
-              std::move(asset_id_to_object_id_handler)) {}
+                     asset_id_to_object_id_handler);
     AssetHandler(const AssetHandler& other) = default;
-    AssetHandler(AssetHandler&& other) noexcept
-        : base_handler_(std::move(other.base_handler_)),
-          asset_ID_to_object_handler_(
-              std::move(other.asset_ID_to_object_handler_)) {}
-    AssetHandler& operator=(const AssetHandler& other) {
-      if (&other == this) {
-        return *this;
-      }
-
-      base_handler_ = other.base_handler_;
-      asset_ID_to_object_handler_ = other.asset_ID_to_object_handler_;
-
-      return *this;
-    }
-    AssetHandler& operator=(AssetHandler&& other) noexcept {
-      if (&other == this) {
-        return *this;
-      }
-
-      base_handler_ = std::move(other.base_handler_);
-      asset_ID_to_object_handler_ =
-          std::move(other.asset_ID_to_object_handler_);
-
-      return *this;
-    }
+    AssetHandler(AssetHandler&& other) noexcept;
+    AssetHandler& operator=(const AssetHandler& other);
+    AssetHandler& operator=(AssetHandler&& other) noexcept;
 
    public:
-    bool IsValid() const { return base_handler_.IsValid(); }
+    bool IsValid() const override;
 
-    Manager::ManagedObjectID GetObjectID() const {
-      return base_handler_.GetObjectID();
-    }
+    AssetType::AssetID GetAssetID() const;
 
-    AssetType::AssetID GetAssetID() const {
-      return asset_ID_to_object_handler_.GetKey();
-    }
+    const std::string& GetAssetName() const;
 
-    const std::string& GetObjectName() const {
-      return base_handler_.GetObjectName();
-    }
+    AssetType::AssetBase& GetAsset();
 
-    const std::string& GetAssetName() const { return GetObjectName(); }
+    const AssetType::AssetBase& GetAsset() const;
 
-    ManagedType& GetObject() { return base_handler_.GetObject(); }
+    AssetType::AssetBase* GetAssetPtr();
 
-    const ManagedType& GetObject() const { return base_handler_.GetObject(); }
+    const AssetType::AssetBase* GetAssetPtr() const;
 
-    ManagedType* GetObjectPtr() { return base_handler_.GetObjectPtr(); }
-
-    const ManagedType* GetObjectPtr() const {
-      return base_handler_.GetObjectPtr();
-    }
-
-    AssetType::AssetBase& GetAsset() { return *GetObject(); }
-
-    const AssetType::AssetBase& GetAsset() const { return *GetObject(); }
-
-    AssetType::AssetBase* GetAssetPtr() { return GetObject().get(); }
-
-    const AssetType::AssetBase* GetAssetPtr() const {
-      return GetObject().get();
-    }
-
-    void Release() {
-      base_handler_.Release();
-      asset_ID_to_object_handler_.Release();
-    }
-
-    typename BaseNameToIDContainer::HandlerType& GetNameToIDHandler() {
-      return base_handler_.GetNameToIDHandler();
-    }
-
-    const typename BaseNameToIDContainer::HandlerType& GetNameToIDHandler()
-        const {
-      return base_handler_.GetNameToIDHandler();
-    }
-
-    typename BaseIDToObjectContainer::HandlerType& GetIDToObjectHandler() {
-      return base_handler_.GetIDToObjectHandler();
-    }
-
-    const typename BaseIDToObjectContainer::HandlerType& GetIDToObjectHandler()
-        const {
-      return base_handler_.GetIDToObjectHandler();
-    }
+    void Release() override;
 
     typename AssetIDToObjectIDContainerType ::HandlerType&
-    GetAssetIDToObjectIDHandler() {
-      return asset_ID_to_object_handler_;
-    }
+    GetAssetIDToObjectIDHandler();
 
     const typename AssetIDToObjectIDContainerType ::HandlerType&
-    GetAssetIDToObjectIDHandler() const {
-      return asset_ID_to_object_handler_;
-    }
+    GetAssetIDToObjectIDHandler() const;
 
    private:
-    BaseHandlerType base_handler_{};
     AssetIDToObjectIDContainerType ::HandlerType asset_ID_to_object_handler_{};
   };
 
  public:
   static AssetManager* GetInstance();
 
-  ExecuteResult AddAsset(AssetType::AssetBase&& asset, HandlerType& handler);
+  ExecuteResult AddAsset(std::unique_ptr<AssetType::AssetBase>&& asset,
+                         HandlerType& handler);
 
   ExecuteResult AddImage(FileSystem::Path image_path, int desired_channels,
                          HandlerType& handler);
@@ -164,7 +92,7 @@ class AssetManager
   ExecuteResult AddImage(
       const std::string& asset_name, AssetType::AssetID asset_id,
       const AssetType::Image::ImageInfo& image_info,
-      std::unique_ptr<stbi_uc, AssetType::Image::StbiImageFree> image_pixels,
+      std::unique_ptr<stbi_uc, AssetType::Image::StbiImageFree>&& image_pixels,
       HandlerType& handler);
 
   ExecuteResult AddMesh(const FileSystem::Path& mesh_path, uint32_t mesh_index,
@@ -179,28 +107,42 @@ class AssetManager
 
   ExecuteResult AddMesh(
       const std::string& asset_name, AssetType::AssetID asset_ID,
-      std::unique_ptr<AssetType::CapsuleBox>&& aabb_box,
+      std::unique_ptr<AssetType::CapsuleBox>&& capsule_box,
       std::unique_ptr<std::vector<uint32_t>>&& indexes,
       std::unique_ptr<std::vector<AssetType::Vertex>>&& vertices,
       HandlerType& handler);
 
-  ExecuteResult GetIDByAssetID(AssetType::AssetID asset_id,
-                               Manager::ManagedObjectID& object_id) const;
+  ExecuteResult GetAssetByID(Manager::ManagedObjectID managed_object_ID,
+                             HandlerType& handler) const;
 
-  ExecuteResult GetNameByAssetID(AssetType::AssetID asset_id,
+  ExecuteResult GetAssetByAssetID(AssetType::AssetID asset_ID,
+                                  HandlerType& handler) const;
+
+  ExecuteResult GetAssetByName(const std::string& name,
+                               std::vector<HandlerType>& handlers) const;
+
+  ExecuteResult GetAssetByAssetName(const std::string& asset_name,
+                                    std::vector<HandlerType>& handler) const;
+
+  ExecuteResult GetIDByAssetID(AssetType::AssetID asset_ID,
+                               Manager::ManagedObjectID& object_ID) const;
+
+  ExecuteResult GetNameByAssetID(AssetType::AssetID asset_ID,
                                  std::string& name) const;
 
-  ExecuteResult GetAssetNameByAssetID(AssetType::AssetID asset_id,
+  ExecuteResult GetAssetNameByAssetID(AssetType::AssetID asset_ID,
                                       std::string& asset_name) const;
 
-  ExecuteResult GetAssetIDByID(Manager::ManagedObjectID object_id,
-                               AssetType::AssetID asset_id) const;
+  ExecuteResult GetAssetIDByID(Manager::ManagedObjectID object_ID,
+                               AssetType::AssetID& asset_ID) const;
 
-  ExecuteResult GetAssetIDByName(std::string& name,
-                                 AssetType::AssetID asset_id) const;
+  ExecuteResult GetAssetIDByName(
+      const std::string& name,
+      std::vector<AssetType::AssetID>& asset_IDs) const;
 
-  ExecuteResult GetAssetIDByAssetName(std::string& asset_name,
-                                      AssetType::AssetID asset_id) const;
+  ExecuteResult GetAssetIDByAssetName(
+      const std::string& asset_name,
+      std::vector<AssetType::AssetID>& asset_IDs) const;
 
  private:
   ~AssetManager() = default;

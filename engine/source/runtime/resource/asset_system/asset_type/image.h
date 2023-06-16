@@ -36,7 +36,7 @@ class Image : public AssetBase {
                  int desired_channels = STBI_rgb_alpha);
   Image(const std::string& asset_name, AssetID asset_id,
         const ImageInfo& image_info,
-        std::unique_ptr<stbi_uc, StbiImageFree> image_pixels);
+        std::unique_ptr<stbi_uc, StbiImageFree>&& image_pixels);
   Image(const Image& other) = delete;
   Image(Image&& other) noexcept;
   Image& operator=(const Image& other) = delete;
