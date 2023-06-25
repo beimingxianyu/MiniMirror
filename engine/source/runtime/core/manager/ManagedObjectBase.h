@@ -12,7 +12,7 @@ using ManagedObjectID = MM::Utils::GUID;
 
 class ManagedObjectBase : virtual public MMObject {
  public:
-  ManagedObjectBase() = delete;
+  ManagedObjectBase() = default;
   virtual ~ManagedObjectBase() = default;
   explicit ManagedObjectBase(const std::string& object_name);
   ManagedObjectBase(const ManagedObjectBase& other) = default;
@@ -24,8 +24,6 @@ class ManagedObjectBase : virtual public MMObject {
   const std::string& GetObjectName() const;
 
   ManagedObjectID GetObjectID() const;
-
-  virtual std::size_t GetObjectSize() const;
 
   friend void Swap(ManagedObjectBase& lhs, ManagedObjectBase& rhs) noexcept;
 

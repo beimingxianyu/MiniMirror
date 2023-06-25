@@ -26,7 +26,14 @@ AddExecutable("manager_test" "${CMAKE_CURRENT_SOURCE_DIR}/core/manager")
 target_link_libraries(manager_test PRIVATE GTest::gtest_main manager)
 CopySharedLibraryToDestDirPostBuild(manager_test ${engine_dir}/bin manager ${engine_dir_test}/bin)
 
+##########  asset_system ##########
+AddExecutable("asset_system_test" "${CMAKE_CURRENT_SOURCE_DIR}/resource/asset_system")
+target_link_libraries(asset_system_test PRIVATE asset_system GTest::gtest_main)
+target_compile_definitions(asset_system_test PRIVATE "TEST_FILE_DIR_TEST=\"${test_file_dir_test}\"")
+CopyDir("${source_test_file_dir_test}/asset_system" "${test_file_dir_test}")
+
 include(GoogleTest)
 gtest_discover_tests(config_system_test)
 gtest_discover_tests(file_system_test)
 gtest_discover_tests(manager_test)
+gtest_discover_tests(asset_system_test)

@@ -1447,7 +1447,8 @@ bool MM::RenderSystem::VertexAndIndexBuffer::Reserve(
         index_result = (*object).ReserveIndexBuffer(new_index_buffer_size);
       });
 
-  TASK_SYSTEM->RunAndWait(TaskSystem::TaskType::Render, task_flow);
+  auto future = TASK_SYSTEM->Run(TaskSystem::TaskType::Render, task_flow);
+  future.get();
 
   if (buffer_result && index_result) {
     return true;

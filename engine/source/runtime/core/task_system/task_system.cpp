@@ -47,30 +47,30 @@ void MM::TaskSystem::TaskSystem::WaitForAll(const TaskType& task_type) {
 
 size_t MM::TaskSystem::TaskSystem::NumWorkers(
     const TaskType& task_type) const noexcept {
-  auto& executor = ChooseExecutor(task_type);
+  const auto& executor = ChooseExecutor(task_type);
   return executor.num_workers();
 }
 
 size_t MM::TaskSystem::TaskSystem::NumTopologies(
     const TaskType& task_type) const {
-  auto& executor = ChooseExecutor(task_type);
+  const auto& executor = ChooseExecutor(task_type);
   return executor.num_topologies();
 }
 
 size_t MM::TaskSystem::TaskSystem::NumTaskFlows(
     const TaskType& task_type) const {
-  auto& executor = ChooseExecutor(task_type);
+  const auto& executor = ChooseExecutor(task_type);
   return executor.num_taskflows();
 }
 
 int MM::TaskSystem::TaskSystem::ThisWorkerId(const TaskType& task_type) const {
-  auto& executor = ChooseExecutor(task_type);
+  const auto& executor = ChooseExecutor(task_type);
   return executor.this_worker_id();
 }
 
 size_t MM::TaskSystem::TaskSystem::NumObservers(
     const TaskType& task_type) const noexcept {
-  auto& executor = ChooseExecutor(task_type);
+  const auto& executor = ChooseExecutor(task_type);
   return executor.num_observers();
 }
 
@@ -117,6 +117,7 @@ const tf::Executor& MM::TaskSystem::TaskSystem::ChooseExecutor(
 
   return total_executor_;
 }
+
 MM::TaskSystem::TaskSystem::TaskSystem()
     : total_executor_(3),
       logic_executor_(4),

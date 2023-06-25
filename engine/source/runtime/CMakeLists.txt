@@ -51,11 +51,11 @@ target_link_libraries(manager PUBLIC base log_system)
 #####################################################
 ########## resource_system ##########
 AddModule("asset_system" "${CMAKE_CURRENT_SOURCE_DIR}/resource/asset_system")
-target_link_libraries(asset_system PUBLIC file_system config_system log_system math assimp_lib stb task_system)
+target_link_libraries(asset_system PUBLIC file_system config_system log_system math assimp::assimp stb task_system manager)
 
 #####################################################
 #####################  function  ####################
 #####################################################
 ##########  render  ##########
 AddModule("render" "${CMAKE_CURRENT_SOURCE_DIR}/function/render")
-target_link_libraries(render PUBLIC math color log_system config_system file_system asset_system vulkan_lib glfw stb task_system)
+target_link_libraries(render PUBLIC math color log_system config_system file_system asset_system vulkan_lib glfw task_system)

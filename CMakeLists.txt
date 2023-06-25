@@ -38,6 +38,6 @@ execute_process(COMMAND python3 ${script_dir}/python/config_cmake.py --cmake_con
 add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/engine")
 
 if (enable_test)
-    set(engine_dir_test "${CMAKE_CURRENT_SOURCE_DIR}/build/${CMAKE_BUILD_TYPE}")
+    set(engine_dir_test "${engine_dir}")
     add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/test")
 endif ()

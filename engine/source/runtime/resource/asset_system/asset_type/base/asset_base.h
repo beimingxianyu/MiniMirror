@@ -7,7 +7,7 @@
 #include "runtime/platform/base/MMObject.h"
 #include "runtime/resource/asset_system/asset_type/base/asset_type_define.h"
 #include "runtime/resource/asset_system/import_other_system.h"
-#include "stb_image.h"
+#include "utils/Json.h"
 #include "utils/utils.h"
 
 namespace MM {
@@ -15,12 +15,10 @@ namespace AssetSystem {
 namespace AssetType {
 class AssetBase : public Manager::ManagedObjectBase {
  public:
-  AssetBase() = delete;
+  AssetBase() = default;
   virtual ~AssetBase() = default;
   explicit AssetBase(const FileSystem::Path& asset_path);
-  AssetBase(const std::string& asset_name, AssetID asset_id)
-      : Manager::ManagedObjectBase(asset_name),
-        asset_path_and_last_editing_time_hash(asset_id) {}
+  AssetBase(const FileSystem::Path& asset_path, AssetID asset_id);
   AssetBase(const AssetBase& other) = delete;
   AssetBase(AssetBase&& other) noexcept;
   AssetBase& operator=(const AssetBase& other) = delete;
@@ -41,6 +39,10 @@ class AssetBase : public Manager::ManagedObjectBase {
 
   virtual std::string GetAssetTypeString() const;
 
+  const FileSystem::Path& GetAssetPath() const;
+
+  virtual MM::ExecuteResult GetJson(Utils::Json::Document& document) const;
+
   virtual void Release();
 
   friend void Swap(AssetBase& lhs, AssetBase& rhs) noexcept;
@@ -48,7 +50,8 @@ class AssetBase : public Manager::ManagedObjectBase {
   friend void swap(AssetBase& lhs, AssetBase& rhs) noexcept;
 
  private:
-  AssetID asset_path_and_last_editing_time_hash{};
+  FileSystem::Path asset_path_{""};
+  AssetID asset_path_and_last_editing_time_hash{0};
 };
 }  // namespace AssetType
 }  // namespace AssetSystem

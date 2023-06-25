@@ -2919,7 +2919,8 @@ MM::RenderSystem::CommandExecutor::RecordAndSubmitCommandASync(
     }
   }
 
-  TASK_SYSTEM->RunAndWait(TaskSystem::TaskType::Render, taskflow);
+  auto future = TASK_SYSTEM->Run(TaskSystem::TaskType::Render, taskflow);
+  future.get();
 
   return result;
 }

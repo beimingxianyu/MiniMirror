@@ -6,8 +6,6 @@
 
 namespace MM {
 namespace Manager {
-std::size_t ManagedObjectBase::GetObjectSize() const { return 0; }
-
 // ExecuteResult ManagedObjectBase::GetLightCopy(
 //     const std::string&, std::unique_ptr<ManagedObjectBase>&) const {
 //   return ExecuteResult::SUCCESS;

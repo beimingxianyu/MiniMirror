@@ -584,9 +584,15 @@ void MM::FileSystem::swap(MM::FileSystem::Path& lhs,
 }
 
 std::uint64_t MM::FileSystem::Path::GetHash() const {
-  std::hash<std::string> hash;
-  return hash(String());
+  std::hash<std::string_view> hash;
+  return hash(StringView());
 }
+
+std::string_view MM::FileSystem::Path::StringView() const {
+  return std::string_view(path_.c_str());
+}
+
+const char* MM::FileSystem::Path::CStr() const { return path_.c_str(); }
 
 MM::FileSystem::FileSystem::~FileSystem() { file_system_ = nullptr; }
 

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "runtime/core/math/math.h"
+#include "utils/error.h"
 #include "vertex.h"
 
 namespace MM {
@@ -24,7 +25,7 @@ class BoundingBox {
 
   virtual BoundingBoxType GetBoundingType() const = 0;
 
-  virtual void UpdateBoundingBox(const Mesh& mesh) = 0;
+  virtual Utils::ExecuteResult UpdateBoundingBox(const Mesh& mesh) = 0;
 
   virtual void UpdateBoundingBoxWithOneVertex(const Vertex& vertex) = 0;
 };
@@ -77,7 +78,7 @@ class RectangleBox : public BoundingBox {
 
   BoundingBoxType GetBoundingType() const override;
 
-  void UpdateBoundingBox(const Mesh& mesh) override;
+  Utils::ExecuteResult UpdateBoundingBox(const Mesh& mesh) override;
 
   void UpdateBoundingBoxWithOneVertex(const Vertex& vertex) override;
 
@@ -132,7 +133,7 @@ class CapsuleBox : public BoundingBox {
 
   BoundingBoxType GetBoundingType() const override;
 
-  void UpdateBoundingBox(const Mesh& mesh) override;
+  Utils::ExecuteResult UpdateBoundingBox(const Mesh& mesh) override;
 
   void UpdateBoundingBoxWithOneVertex(const Vertex& vertex) override;
 

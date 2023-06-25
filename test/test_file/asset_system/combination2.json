@@ -1,0 +1,24 @@
+{
+  "asset type": "test asset type",
+  "version": "1.0.0",
+  "images": [
+    {
+      "image path": "./test_picture1.jpg",
+      "image channel": 3
+    },
+    {
+      "image path": "./test_picture7.png",
+      "image channel": 4
+    }
+  ],
+  "meshes": [
+    {
+      "mesh path": "./monkey.obj",
+      "mesh index": 0
+    },
+    {
+      "mesh path": "./model.fbx",
+      "mesh index": 0
+    }
+  ]
+}

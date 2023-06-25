@@ -1,4 +1,7 @@
-#include "bounding_box.h"
+#include "runtime/resource/asset_system/asset_type/base/bounding_box.h"
+
+#include "runtime/platform/base/error.h"
+#include "runtime/resource/asset_system/asset_type/Mesh.h"
 
 MM::AssetSystem::AssetType::BoundingBox&
 MM::AssetSystem::AssetType::BoundingBox::operator=(const BoundingBox& other) {
@@ -168,6 +171,64 @@ MM::AssetSystem::AssetType::RectangleBox::GetBoundingType() const {
   return BoundingBoxType::AABB;
 }
 
+void MM::AssetSystem::AssetType::RectangleBox::UpdateBoundingBoxWithOneVertex(
+    const MM::AssetSystem::AssetType::Vertex& vertex) {
+  const Math::vec3& vertex_position = vertex.GetPosition();
+
+  if (vertex_position.x < left_bottom_forward.x) {
+    left_bottom_forward.x = vertex_position.x;
+  }
+  if (vertex_position.x > right_top_back.x) {
+    right_top_back.x = vertex_position.x;
+  }
+  if (vertex_position.y < left_bottom_forward.y) {
+    left_bottom_forward.y = vertex_position.y;
+  }
+  if (vertex_position.y > right_top_back.y) {
+    right_top_back.y = vertex_position.y;
+  }
+  if (vertex_position.z < left_bottom_forward.z) {
+    left_bottom_forward.z = vertex_position.z;
+  }
+  if (vertex_position.z > right_top_back.z) {
+    right_top_back.z = vertex_position.z;
+  }
+}
+
+MM::ExecuteResult MM::AssetSystem::AssetType::RectangleBox::UpdateBoundingBox(
+    const Mesh& mesh) {
+  if (!mesh.IsValid()) {
+    return ExecuteResult ::INPUT_PARAMETERS_ARE_INCORRECT;
+  }
+
+  const std::vector<Vertex>& mesh_vertices = mesh.GetVertices();
+
+  for (const auto& vertex : mesh_vertices) {
+    const Math::vec3& vertex_position = vertex.GetPosition();
+
+    if (vertex_position.x < left_bottom_forward.x) {
+      left_bottom_forward.x = vertex_position.x;
+    }
+    if (vertex_position.x > right_top_back.x) {
+      right_top_back.x = vertex_position.x;
+    }
+    if (vertex_position.y < left_bottom_forward.y) {
+      left_bottom_forward.y = vertex_position.y;
+    }
+    if (vertex_position.y > right_top_back.y) {
+      right_top_back.y = vertex_position.y;
+    }
+    if (vertex_position.z < left_bottom_forward.z) {
+      left_bottom_forward.z = vertex_position.z;
+    }
+    if (vertex_position.z > right_top_back.z) {
+      right_top_back.z = vertex_position.z;
+    }
+  }
+
+  return ExecuteResult ::SUCCESS;
+}
+
 MM::AssetSystem::AssetType::CapsuleBox&
 MM::AssetSystem::AssetType::CapsuleBox::operator=(const CapsuleBox& other) {
   if (&other == this) {
@@ -241,4 +302,48 @@ bool MM::AssetSystem::AssetType::CapsuleBox::IsValid() const {
 MM::AssetSystem::AssetType::BoundingBox::BoundingBoxType
 MM::AssetSystem::AssetType::CapsuleBox::GetBoundingType() const {
   return BoundingBoxType::CAPSULE;
+}
+
+void MM::AssetSystem::AssetType::CapsuleBox::UpdateBoundingBoxWithOneVertex(
+    const MM::AssetSystem::AssetType::Vertex& vertex) {
+  const Math::vec3 vertex_position = vertex.GetPosition();
+
+  float distance = std::sqrt(std::pow(vertex_position.x, 2) +
+                             std::pow(vertex_position.z, 2));
+  if (distance > radius_) {
+    radius_ = distance;
+  }
+  if (vertex_position.y > top_) {
+    top_ = vertex_position.y;
+  }
+  if (vertex_position.y < bottom_) {
+    bottom_ = vertex_position.y;
+  }
+}
+
+MM::ExecuteResult MM::AssetSystem::AssetType::CapsuleBox::UpdateBoundingBox(
+    const Mesh& mesh) {
+  if (!mesh.IsValid()) {
+    return ExecuteResult ::INPUT_PARAMETERS_ARE_INCORRECT;
+  }
+
+  const std::vector<Vertex>& mesh_vertices = mesh.GetVertices();
+
+  for (const auto& vertex : mesh_vertices) {
+    const Math::vec3& vertex_position = vertex.GetPosition();
+
+    float distance = std::sqrt(std::pow(vertex_position.x, 2) +
+                               std::pow(vertex_position.z, 2));
+    if (distance > radius_) {
+      radius_ = distance;
+    }
+    if (vertex_position.y > top_) {
+      top_ = vertex_position.y;
+    }
+    if (vertex_position.y < bottom_) {
+      bottom_ = vertex_position.y;
+    }
+  }
+
+  return ExecuteResult ::SUCCESS;
 }

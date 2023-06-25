@@ -111,7 +111,8 @@ class ManagedObjectHandler<ManagedType, ManagedType, ListTrait> {
         if (result == ExecuteResult::CUSTOM_ERROR) {
           continue;
         }
-        LOG_SYSTEM->CheckResult(result, CODE_LOCATION, LogLevel::Trace);
+        LOG_SYSTEM->CheckResult(result, CODE_LOCATION,
+                                LogSystem::LogSystem::LogLevel::ERROR);
         break;
       } while (true);
     }
@@ -119,6 +120,14 @@ class ManagedObjectHandler<ManagedType, ManagedType, ListTrait> {
     object_table_ = nullptr;
     managed_object_ = nullptr;
     use_count_ = nullptr;
+  }
+
+  template <typename DriveType>
+  ManagedObjectHandler<DriveType, DriveType, ListTrait> DynamicCast() {
+    static_assert(std::is_base_of_v<ManagedType, DriveType>);
+
+    return ManagedObjectHandler<DriveType, DriveType, ListTrait>{
+        object_table_, dynamic_cast<DriveType*>(managed_object_), use_count_};
   }
 
  private:
@@ -231,6 +240,14 @@ class ManagedObjectHandler<ManagedType, ManagedType, SetTrait> {
     use_count_ = nullptr;
   }
 
+  template <typename DriveType>
+  ManagedObjectHandler<DriveType, DriveType, ContainerTrait> DynamicCast() {
+    static_assert(std::is_base_of_v<ManagedType, DriveType>);
+
+    return ManagedObjectHandler<DriveType, DriveType, ListTrait>{
+        object_table_, dynamic_cast<DriveType*>(managed_object_), use_count_};
+  }
+
  private:
   void ReleaseMulti() {
     do {
@@ -243,7 +260,8 @@ class ManagedObjectHandler<ManagedType, ManagedType, SetTrait> {
       if (result == ExecuteResult::CUSTOM_ERROR) {
         continue;
       }
-      LOG_SYSTEM->CheckResult(result, CODE_LOCATION, LogLevel::Trace);
+      LOG_SYSTEM->CheckResult(result, CODE_LOCATION,
+                              LogSystem::LogSystem::LogLevel::ERROR);
       return;
     } while (true);
   }
@@ -259,7 +277,8 @@ class ManagedObjectHandler<ManagedType, ManagedType, SetTrait> {
       if (result == ExecuteResult::CUSTOM_ERROR) {
         continue;
       }
-      LOG_SYSTEM->CheckResult(result, CODE_LOCATION, LogLevel::Trace);
+      LOG_SYSTEM->CheckResult(result, CODE_LOCATION,
+                              LogSystem::LogSystem::LogLevel::ERROR);
       return;
     } while (true);
   }
@@ -374,6 +393,14 @@ class ManagedObjectHandler<ManagedType, ManagedType, HashSetTrait> {
     use_count_ = nullptr;
   }
 
+  template <typename DriveType>
+  ManagedObjectHandler<DriveType, DriveType, ContainerTrait> DynamicCast() {
+    static_assert(std::is_base_of_v<ManagedType, DriveType>);
+
+    return ManagedObjectHandler<DriveType, DriveType, ListTrait>{
+        object_table_, dynamic_cast<DriveType*>(managed_object_), use_count_};
+  }
+
  private:
   void ReleaseMulti() {
     do {
@@ -386,7 +413,8 @@ class ManagedObjectHandler<ManagedType, ManagedType, HashSetTrait> {
       if (result == ExecuteResult::CUSTOM_ERROR) {
         continue;
       }
-      LOG_SYSTEM->CheckResult(result, CODE_LOCATION, LogLevel::Trace);
+      LOG_SYSTEM->CheckResult(result, CODE_LOCATION,
+                              LogSystem::LogSystem::LogLevel::ERROR);
       return;
     } while (true);
   }
@@ -402,7 +430,8 @@ class ManagedObjectHandler<ManagedType, ManagedType, HashSetTrait> {
       if (result == ExecuteResult::CUSTOM_ERROR) {
         continue;
       }
-      LOG_SYSTEM->CheckResult(result, CODE_LOCATION, LogLevel::Trace);
+      LOG_SYSTEM->CheckResult(result, CODE_LOCATION,
+                              LogSystem::LogSystem::LogLevel::ERROR);
       return;
     } while (true);
   }
@@ -531,6 +560,15 @@ class ManagedObjectHandler<KeyType, ManagedType, MapTrait> {
     use_count_ = nullptr;
   }
 
+  template <typename DriveType>
+  ManagedObjectHandler<DriveType, DriveType, ContainerTrait> DynamicCast() {
+    static_assert(std::is_base_of_v<ManagedType, DriveType>);
+
+    return ManagedObjectHandler<DriveType, DriveType, ListTrait>{
+        object_table_, key_, dynamic_cast<DriveType*>(managed_object_),
+        use_count_};
+  }
+
  private:
   void ReleaseMulti() {
     do {
@@ -543,7 +581,8 @@ class ManagedObjectHandler<KeyType, ManagedType, MapTrait> {
       if (result == ExecuteResult::CUSTOM_ERROR) {
         continue;
       }
-      LOG_SYSTEM->CheckResult(result, CODE_LOCATION, LogLevel::Trace);
+      LOG_SYSTEM->CheckResult(result, CODE_LOCATION,
+                              LogSystem::LogSystem::LogLevel::ERROR);
       return;
     } while (true);
   }
@@ -558,7 +597,8 @@ class ManagedObjectHandler<KeyType, ManagedType, MapTrait> {
       if (result == ExecuteResult::CUSTOM_ERROR) {
         continue;
       }
-      LOG_SYSTEM->CheckResult(result, CODE_LOCATION, LogLevel::Trace);
+      LOG_SYSTEM->CheckResult(result, CODE_LOCATION,
+                              LogSystem::LogSystem::LogLevel::ERROR);
       return;
     } while (true);
   }
@@ -687,6 +727,15 @@ class ManagedObjectHandler<KeyType, ManagedType, HashMapTrait> {
     use_count_ = nullptr;
   }
 
+  template <typename DriveType>
+  ManagedObjectHandler<DriveType, DriveType, ContainerTrait> DynamicCast() {
+    static_assert(std::is_base_of_v<ManagedType, DriveType>);
+
+    return ManagedObjectHandler<DriveType, DriveType, ListTrait>{
+        object_table_, key_, dynamic_cast<DriveType*>(managed_object_),
+        use_count_};
+  }
+
  private:
   void ReleaseMulti() {
     do {
@@ -699,7 +748,8 @@ class ManagedObjectHandler<KeyType, ManagedType, HashMapTrait> {
       if (result == ExecuteResult::CUSTOM_ERROR) {
         continue;
       }
-      LOG_SYSTEM->CheckResult(result, CODE_LOCATION, LogLevel::Trace);
+      LOG_SYSTEM->CheckResult(result, CODE_LOCATION,
+                              LogSystem::LogSystem::LogLevel::ERROR);
       return;
     } while (true);
   }
@@ -714,7 +764,8 @@ class ManagedObjectHandler<KeyType, ManagedType, HashMapTrait> {
       if (result == ExecuteResult::CUSTOM_ERROR) {
         continue;
       }
-      LOG_SYSTEM->CheckResult(result, CODE_LOCATION, LogLevel::Trace);
+      LOG_SYSTEM->CheckResult(result, CODE_LOCATION,
+                              LogSystem::LogSystem::LogLevel::ERROR);
       return;
     } while (true);
   }

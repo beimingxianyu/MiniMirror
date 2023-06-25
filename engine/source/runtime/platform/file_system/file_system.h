@@ -42,6 +42,10 @@ class Path {
    */
   std::string String() const;
 
+  std::string_view StringView() const;
+
+  const char* CStr() const;
+
   /**
    * \brief Checks whether path refers to existing file system object.
    * \return If the file or directory exists, return true;otherwise, return
