@@ -5,7 +5,10 @@
 
 #include <assimp/Importer.hpp>
 
+#include "runtime/platform/base/error.h"
+#include "runtime/platform/file_system/file_system.h"
 #include "runtime/resource/asset_system/asset_type/base/asset_base.h"
+#include "runtime/resource/asset_system/asset_type/base/asset_type_define.h"
 #include "runtime/resource/asset_system/asset_type/base/bounding_box.h"
 #include "runtime/resource/asset_system/asset_type/base/vertex.h"
 
@@ -48,6 +51,11 @@ class Mesh : public AssetBase {
   AssetType GetAssetType() const override;
 
   ExecuteResult GetJson(Utils::Json::Document& document) const override;
+
+  static ExecuteResult CalculateAssetID(
+      const FileSystem::Path& path, std::uint32_t index,
+      AssetSystem::AssetType::BoundingBox::BoundingBoxType bounding_box_type,
+      AssetID& asset_ID);
 
   void Release() override;
 

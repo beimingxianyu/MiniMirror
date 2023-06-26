@@ -8,8 +8,15 @@
 
 #include "glm/fwd.hpp"
 #include "rapidjson/document.h"
+#include "runtime/platform/base/error.h"
 #include "runtime/platform/file_system/file_system.h"
+#include "runtime/resource/asset_system/AssetManager.h"
 #include "runtime/resource/asset_system/AssetSystem.h"
+#include "runtime/resource/asset_system/asset_type/Image.h"
+#include "runtime/resource/asset_system/asset_type/Mesh.h"
+#include "runtime/resource/asset_system/asset_type/base/asset_type_define.h"
+#include "runtime/resource/asset_system/asset_type/base/bounding_box.h"
+#include "utils/error.h"
 
 TEST(asset_system, asset_base) {
   MM::FileSystem::Path path1(""),
@@ -101,8 +108,12 @@ TEST(asset_system, image) {
   MM::AssetSystem::AssetType::AssetID asset_id2 =
       path2.GetHash() ^
       static_cast<std::uint64_t>(last_write_time2.time_since_epoch().count());
+  MM::AssetSystem::AssetType::AssetID asset_id2_1 = asset_id2 + 1,
+                                      asset_id2_2 = asset_id2 + 2,
+                                      asset_id2_3 = asset_id2 + 3,
+                                      asset_id2_4 = asset_id2 + 4;
   // image2_1
-  ASSERT_EQ(image2_1.GetAssetID(), asset_id2);
+  ASSERT_EQ(image2_1.GetAssetID(), asset_id2_1);
   ASSERT_EQ(image2_1.IsValid(), true);
   ASSERT_EQ(image2_1.GetAssetName(), path2.GetFileName());
   ASSERT_EQ(image2_1.GetAssetPath(), path2);
@@ -133,7 +144,7 @@ TEST(asset_system, image) {
   ASSERT_EQ(image2_1.IsValid(), false);
   ASSERT_EQ(image2_1.GetAssetID(), 0);
   // image2_2
-  ASSERT_EQ(image2_2.GetAssetID(), asset_id2);
+  ASSERT_EQ(image2_2.GetAssetID(), asset_id2_2);
   ASSERT_EQ(image2_2.IsValid(), true);
   ASSERT_EQ(image2_2.GetAssetName(), path2.GetFileName());
   ASSERT_EQ(image2_2.GetAssetPath(), path2);
@@ -163,7 +174,7 @@ TEST(asset_system, image) {
   ASSERT_EQ(image2_2.IsValid(), false);
   ASSERT_EQ(image2_2.GetAssetID(), 0);
   // image2_3
-  ASSERT_EQ(image2_3.GetAssetID(), asset_id2);
+  ASSERT_EQ(image2_3.GetAssetID(), asset_id2_3);
   ASSERT_EQ(image2_3.IsValid(), true);
   ASSERT_EQ(image2_3.GetAssetName(), path2.GetFileName());
   ASSERT_EQ(image2_3.GetAssetPath(), path2);
@@ -193,7 +204,7 @@ TEST(asset_system, image) {
   ASSERT_EQ(image2_3.IsValid(), false);
   ASSERT_EQ(image2_3.GetAssetID(), 0);
   // image2_4
-  ASSERT_EQ(image2_4.GetAssetID(), asset_id2);
+  ASSERT_EQ(image2_4.GetAssetID(), asset_id2_4);
   ASSERT_EQ(image2_4.IsValid(), true);
   ASSERT_EQ(image2_4.GetAssetName(), path2.GetFileName());
   ASSERT_EQ(image2_4.GetAssetPath(), path2);
@@ -233,8 +244,12 @@ TEST(asset_system, image) {
   MM::AssetSystem::AssetType::AssetID asset_id3 =
       path3.GetHash() ^
       static_cast<std::uint64_t>(last_write_time3.time_since_epoch().count());
+  MM::AssetSystem::AssetType::AssetID asset_id3_1 = asset_id3 + 1,
+                                      asset_id3_2 = asset_id3 + 2,
+                                      asset_id3_3 = asset_id3 + 3,
+                                      asset_id3_4 = asset_id3 + 4;
   // image3_1
-  ASSERT_EQ(image3_1.GetAssetID(), asset_id3);
+  ASSERT_EQ(image3_1.GetAssetID(), asset_id3_1);
   ASSERT_EQ(image3_1.IsValid(), true);
   ASSERT_EQ(image3_1.GetAssetName(), path3.GetFileName());
   ASSERT_EQ(image3_1.GetAssetPath(), path3);
@@ -264,7 +279,7 @@ TEST(asset_system, image) {
   ASSERT_EQ(image3_1.IsValid(), false);
   ASSERT_EQ(image3_1.GetAssetID(), 0);
   // image3_2
-  ASSERT_EQ(image3_2.GetAssetID(), asset_id3);
+  ASSERT_EQ(image3_2.GetAssetID(), asset_id3_2);
   ASSERT_EQ(image3_2.IsValid(), true);
   ASSERT_EQ(image3_2.GetAssetName(), path3.GetFileName());
   ASSERT_EQ(image3_2.GetAssetPath(), path3);
@@ -294,7 +309,7 @@ TEST(asset_system, image) {
   ASSERT_EQ(image3_2.IsValid(), false);
   ASSERT_EQ(image3_2.GetAssetID(), 0);
   // image3_3
-  ASSERT_EQ(image3_3.GetAssetID(), asset_id3);
+  ASSERT_EQ(image3_3.GetAssetID(), asset_id3_3);
   ASSERT_EQ(image3_3.IsValid(), true);
   ASSERT_EQ(image3_3.GetAssetName(), path3.GetFileName());
   ASSERT_EQ(image3_3.GetAssetPath(), path3);
@@ -324,7 +339,7 @@ TEST(asset_system, image) {
   ASSERT_EQ(image3_3.IsValid(), false);
   ASSERT_EQ(image3_3.GetAssetID(), 0);
   // image3_4
-  ASSERT_EQ(image3_4.GetAssetID(), asset_id3);
+  ASSERT_EQ(image3_4.GetAssetID(), asset_id3_4);
   ASSERT_EQ(image3_4.IsValid(), true);
   ASSERT_EQ(image3_4.GetAssetName(), path3.GetFileName());
   ASSERT_EQ(image3_4.GetAssetPath(), path3);
@@ -400,8 +415,20 @@ TEST(asset_system, mesh) {
   MM::AssetSystem::AssetType::AssetID asset_id2 =
       path2.GetHash() ^
       static_cast<std::uint64_t>(last_write_time2.time_since_epoch().count());
+  MM::AssetSystem::AssetType::AssetID asset_id2_1, asset_id2_2;
+  ASSERT_EQ(MM::AssetSystem::AssetType::Mesh::CalculateAssetID(
+                path2, 0,
+                MM::AssetSystem::AssetType::BoundingBox::BoundingBoxType::AABB,
+                asset_id2_1),
+            MM::Utils::ExecuteResult::SUCCESS);
+  ASSERT_EQ(
+      MM::AssetSystem::AssetType::Mesh::CalculateAssetID(
+          path2, 0,
+          MM::AssetSystem::AssetType::BoundingBox::BoundingBoxType::CAPSULE,
+          asset_id2_2),
+      MM::Utils::ExecuteResult::SUCCESS);
   // mesh2_1
-  ASSERT_EQ(mesh2_1.GetAssetID(), asset_id2);
+  ASSERT_EQ(mesh2_1.GetAssetID(), asset_id2_1);
   ASSERT_EQ(mesh2_1.IsValid(), true);
   ASSERT_EQ(mesh2_1.GetAssetName(), path2.GetFileName());
   ASSERT_EQ(mesh2_1.GetAssetPath(), path2);
@@ -424,7 +451,7 @@ TEST(asset_system, mesh) {
   ASSERT_EQ(mesh2_1.GetAssetID(), 0);
   ASSERT_EQ(mesh2_1.IsValid(), false);
   // mesh2_2
-  ASSERT_EQ(mesh2_2.GetAssetID(), asset_id2);
+  ASSERT_EQ(mesh2_2.GetAssetID(), asset_id2_2);
   ASSERT_EQ(mesh2_2.IsValid(), true);
   ASSERT_EQ(mesh2_2.GetAssetName(), path2.GetFileName());
   ASSERT_EQ(mesh2_2.GetAssetPath(), path2);
@@ -468,8 +495,20 @@ TEST(asset_system, mesh) {
   MM::AssetSystem::AssetType::AssetID asset_id3 =
       path3.GetHash() ^
       static_cast<std::uint64_t>(last_write_time3.time_since_epoch().count());
+  MM::AssetSystem::AssetType::AssetID asset_id3_1, asset_id3_2;
+  ASSERT_EQ(MM::AssetSystem::AssetType::Mesh::CalculateAssetID(
+                path3, 0,
+                MM::AssetSystem::AssetType::BoundingBox::BoundingBoxType::AABB,
+                asset_id3_1),
+            MM::Utils::ExecuteResult::SUCCESS);
+  ASSERT_EQ(
+      MM::AssetSystem::AssetType::Mesh::CalculateAssetID(
+          path3, 0,
+          MM::AssetSystem::AssetType::BoundingBox::BoundingBoxType::CAPSULE,
+          asset_id3_2),
+      MM::Utils::ExecuteResult::SUCCESS);
   // mesh3_1
-  ASSERT_EQ(mesh3_1.GetAssetID(), asset_id3);
+  ASSERT_EQ(mesh3_1.GetAssetID(), asset_id3_1);
   ASSERT_EQ(mesh3_1.IsValid(), true);
   ASSERT_EQ(mesh3_1.GetAssetName(), path3.GetFileName());
   ASSERT_EQ(mesh3_1.GetAssetPath(), path3);
@@ -491,7 +530,7 @@ TEST(asset_system, mesh) {
   ASSERT_EQ(mesh3_1.GetAssetID(), 0);
   ASSERT_EQ(mesh3_1.IsValid(), false);
   // mesh3_2
-  ASSERT_EQ(mesh3_2.GetAssetID(), asset_id3);
+  ASSERT_EQ(mesh3_2.GetAssetID(), asset_id3_2);
   ASSERT_EQ(mesh3_2.IsValid(), true);
   ASSERT_EQ(mesh3_2.GetAssetName(), path3.GetFileName());
   ASSERT_EQ(mesh3_2.GetAssetPath(), path3);
@@ -518,59 +557,189 @@ TEST(asset_system, mesh) {
 }
 
 TEST(asset_system, combination) {
-  struct ImageImageMesh : public MM::AssetSystem::AssetType::Combination {
-    explicit ImageImageMesh(const MM::FileSystem::Path& json_path)
+  struct ImageImageMeshMesh : public MM::AssetSystem::AssetType::Combination {
+    explicit ImageImageMeshMesh(const MM::FileSystem::Path& json_path)
         : MM::AssetSystem::AssetType::Combination(json_path) {}
 
     MM::AssetSystem::AssetManager::AssetHandler GetHandler(
         std::uint64_t index) {
       return Get(index);
     }
+
+    bool IsValid() const {
+      bool result = true;
+      if (GetAssetHandlers().empty()) {
+        return false;
+      }
+      for (const auto& h : GetAssetHandlers()) {
+        if (!h.IsValid()) {
+          result = false;
+        }
+      }
+      return result;
+    }
   };
 
-  ImageImageMesh image_image_mesh1(MM::FileSystem::Path(MM::FileSystem::Path(
-      std::string(TEST_FILE_DIR_TEST) + "/asset_system/combination2.json")));
-  ImageImageMesh image_image_mesh2(std::string(TEST_FILE_DIR_TEST) +
-                                   "/asset_system/combination1.json");
+  MM::FileSystem::Path json_path1{std::string(TEST_FILE_DIR_TEST) +
+                                  "/asset_system/combination2.json"},
+      json_path2{std::string(TEST_FILE_DIR_TEST) +
+                 "/asset_system/combination1.json"};
+  ImageImageMeshMesh image_image_mesh1(json_path1);
+  ImageImageMeshMesh image_image_mesh2(json_path2);
 
   // image_image_mesh1
   ASSERT_EQ(image_image_mesh1.GetAssetID(), 0);
   ASSERT_EQ(image_image_mesh1.IsValid(), false);
 
   // image_image_mesh2
-  auto image1 = image_image_mesh2.GetHandler(0);
-  auto image2 = image_image_mesh2.GetHandler(1);
-  auto mesh1 = image_image_mesh2.GetHandler(2);
-  auto mesh2 = image_image_mesh2.GetHandler(3);
+  MM::FileSystem::LastWriteTime last_write_time_path;
+  ASSERT_EQ(MM::FileSystem::FileSystem::GetInstance()->GetLastWriteTime(
+                json_path2, last_write_time_path),
+            MM::Utils::ExecuteResult::SUCCESS);
+  ASSERT_EQ(
+      image_image_mesh2.GetAssetID(),
+      json_path2.GetHash() ^ last_write_time_path.time_since_epoch().count());
+  ASSERT_EQ(image_image_mesh2.IsValid(), true);
+  auto& image1 = dynamic_cast<MM::AssetSystem::AssetType::Image&>(
+      *image_image_mesh2.GetHandler(0).GetObject());
+  auto& image2 = dynamic_cast<MM::AssetSystem::AssetType::Image&>(
+      *image_image_mesh2.GetHandler(1).GetObject());
+  auto& mesh1 = dynamic_cast<MM::AssetSystem::AssetType::Mesh&>(
+      *image_image_mesh2.GetHandler(2).GetObject());
+  auto& mesh2 = dynamic_cast<MM::AssetSystem::AssetType::Mesh&>(
+      *image_image_mesh2.GetHandler(3).GetObject());
+
+  MM::FileSystem::Path path1(std::string(TEST_FILE_DIR_TEST) +
+                             "/asset_system/test_picture1.jpg"),
+      path2(std::string(TEST_FILE_DIR_TEST) +
+            "/asset_system/test_picture2.png"),
+      path3(std::string(TEST_FILE_DIR_TEST) + "/asset_system/monkey.obj"),
+      path4(std::string(TEST_FILE_DIR_TEST) + "/asset_system/model.fbx");
+
+  MM::FileSystem::LastWriteTime last_write_time1, last_write_time2,
+      last_write_time3, last_write_time4;
+  auto* file_system = MM::FileSystem::FileSystem::GetInstance();
+  ASSERT_EQ(file_system->GetLastWriteTime(path1, last_write_time1),
+            MM::Utils::ExecuteResult::SUCCESS);
+  ASSERT_EQ(file_system->GetLastWriteTime(path2, last_write_time2),
+            MM::Utils::ExecuteResult::SUCCESS);
+  ASSERT_EQ(file_system->GetLastWriteTime(path3, last_write_time3),
+            MM::Utils::ExecuteResult::SUCCESS);
+  ASSERT_EQ(file_system->GetLastWriteTime(path4, last_write_time4),
+            MM::Utils::ExecuteResult::SUCCESS);
+  MM::AssetSystem::AssetType::AssetID asset_id1, asset_id2, asset_id3,
+      asset_id4;
+  ASSERT_EQ(
+      MM::AssetSystem::AssetType::Image::CalculateAssetID(path1, 3, asset_id1),
+      MM::ExecuteResult::SUCCESS);
+  ASSERT_EQ(
+      MM::AssetSystem::AssetType::Image::CalculateAssetID(path2, 4, asset_id2),
+      MM::ExecuteResult::SUCCESS);
+  ASSERT_EQ(MM::AssetSystem::AssetType::Mesh::CalculateAssetID(
+                path3, 0,
+                MM::AssetSystem::AssetType::BoundingBox::BoundingBoxType::AABB,
+                asset_id3),
+            MM::ExecuteResult::SUCCESS);
+  ASSERT_EQ(
+      MM::AssetSystem::AssetType::Mesh::CalculateAssetID(
+          path4, 0,
+          MM::AssetSystem::AssetType::BoundingBox::BoundingBoxType::CAPSULE,
+          asset_id4),
+      MM::ExecuteResult::SUCCESS);
 
   // image1
-  ASSERT_EQ(image2_3.GetAssetID(), asset_id2);
-  ASSERT_EQ(image2_3.IsValid(), true);
-  ASSERT_EQ(image2_3.GetAssetName(), path2.GetFileName());
-  ASSERT_EQ(image2_3.GetAssetPath(), path2);
-  ASSERT_EQ(image2_3.GetAssetType(),
+  ASSERT_EQ(image1.GetAssetID(), asset_id1);
+  ASSERT_EQ(image1.IsValid(), true);
+  ASSERT_EQ(image1.GetAssetName(), path1.GetFileName());
+  ASSERT_EQ(image1.GetAssetPath(), path1);
+  ASSERT_EQ(image1.GetAssetType(),
             MM::AssetSystem::AssetType::AssetType::IMAGE);
-  ASSERT_EQ(image2_3.GetAssetTypeString(), std::string(MM_ASSET_TYPE_IMAGE));
-  ASSERT_EQ(image2_3.GetImageFormat(),
+  ASSERT_EQ(image1.GetAssetTypeString(), std::string(MM_ASSET_TYPE_IMAGE));
+  ASSERT_EQ(image1.GetImageFormat(),
             MM::AssetSystem::AssetType::ImageFormat::RGB);
-  ASSERT_EQ(image2_3.GetImageChannels(), 3);
-  ASSERT_EQ(image2_3.GetImageWidth(), 1200);
-  ASSERT_EQ(image2_3.GetImageHeight(), 1200);
-  ASSERT_EQ(image2_3.GetImageSize(),
-            image2_3.GetImageWidth() * image2_3.GetImageHeight() * 3);
-  ASSERT_NE(image2_3.GetPixelsData(), nullptr);
-  MM::Utils::Json::Document json2_3;
-  json2_3.SetObject();
-  ASSERT_EQ(image2_3.GetJson(json2_3), MM::Utils::ExecuteResult::SUCCESS);
-  ASSERT_EQ(json2_3["name"].GetString(), image2_3.GetAssetName());
-  ASSERT_EQ(json2_3["path"].GetString(), image2_3.GetAssetPath().String());
-  ASSERT_EQ(json2_3["asset id"].GetUint64(), image2_3.GetAssetID());
-  ASSERT_EQ(json2_3["image width"].GetUint(), image2_3.GetImageWidth());
-  ASSERT_EQ(json2_3["image height"].GetUint(), image2_3.GetImageHeight());
-  ASSERT_EQ(json2_3["image channels"].GetUint(), image2_3.GetImageChannels());
-  ASSERT_EQ(json2_3["image size"].GetUint(), image2_3.GetImageSize());
-  ASSERT_EQ(json2_3["image format"], "RGB");
-  image2_3.Release();
-  ASSERT_EQ(image2_3.IsValid(), false);
-  ASSERT_EQ(image2_3.GetAssetID(), 0);
+  ASSERT_EQ(image1.GetImageChannels(), 3);
+  ASSERT_EQ(image1.GetImageWidth(), 1200);
+  ASSERT_EQ(image1.GetImageHeight(), 1200);
+  ASSERT_EQ(image1.GetImageSize(),
+            image1.GetImageWidth() * image1.GetImageHeight() * 3);
+  ASSERT_NE(image1.GetPixelsData(), nullptr);
+  MM::Utils::Json::Document json1;
+  json1.SetObject();
+  ASSERT_EQ(image1.GetJson(json1), MM::Utils::ExecuteResult::SUCCESS);
+  ASSERT_EQ(json1["name"].GetString(), image1.GetAssetName());
+  ASSERT_EQ(json1["path"].GetString(), image1.GetAssetPath().String());
+  ASSERT_EQ(json1["asset id"].GetUint64(), image1.GetAssetID());
+  ASSERT_EQ(json1["image width"].GetUint(), image1.GetImageWidth());
+  ASSERT_EQ(json1["image height"].GetUint(), image1.GetImageHeight());
+  ASSERT_EQ(json1["image channels"].GetUint(), image1.GetImageChannels());
+  ASSERT_EQ(json1["image size"].GetUint(), image1.GetImageSize());
+  ASSERT_EQ(json1["image format"], "RGB");
+
+  // image2
+  ASSERT_EQ(image2.GetAssetID(), asset_id2);
+  ASSERT_EQ(image2.IsValid(), true);
+  ASSERT_EQ(image2.GetAssetName(), path2.GetFileName());
+  ASSERT_EQ(image2.GetAssetPath(), path2);
+  ASSERT_EQ(image2.GetAssetType(),
+            MM::AssetSystem::AssetType::AssetType::IMAGE);
+  ASSERT_EQ(image2.GetAssetTypeString(), std::string(MM_ASSET_TYPE_IMAGE));
+  ASSERT_EQ(image2.GetImageFormat(),
+            MM::AssetSystem::AssetType::ImageFormat::RGB_ALPHA);
+  ASSERT_EQ(image2.GetImageChannels(), 4);
+  ASSERT_EQ(image2.GetImageWidth(), 541);
+  ASSERT_EQ(image2.GetImageHeight(), 1200);
+  ASSERT_EQ(image2.GetImageSize(),
+            image2.GetImageWidth() * image2.GetImageHeight() * 4);
+  ASSERT_NE(image2.GetPixelsData(), nullptr);
+  MM::Utils::Json::Document json2;
+  json2.SetObject();
+  ASSERT_EQ(image2.GetJson(json2), MM::Utils::ExecuteResult::SUCCESS);
+  ASSERT_EQ(json2["name"].GetString(), image2.GetAssetName());
+  ASSERT_EQ(json2["path"].GetString(), image2.GetAssetPath().String());
+  ASSERT_EQ(json2["asset id"].GetUint64(), image2.GetAssetID());
+  ASSERT_EQ(json2["image width"].GetUint(), image2.GetImageWidth());
+  ASSERT_EQ(json2["image height"].GetUint(), image2.GetImageHeight());
+  ASSERT_EQ(json2["image channels"].GetUint(), image2.GetImageChannels());
+  ASSERT_EQ(json2["image size"].GetUint(), image2.GetImageSize());
+  ASSERT_EQ(json2["image format"], "RGB_ALPHA");
+
+  // mesh1
+  ASSERT_EQ(mesh1.GetAssetID(), asset_id3);
+  ASSERT_EQ(mesh1.IsValid(), true);
+  ASSERT_EQ(mesh1.GetAssetName(), path3.GetFileName());
+  ASSERT_EQ(mesh1.GetAssetPath(), path3);
+  ASSERT_EQ(mesh1.GetAssetType(), MM::AssetSystem::AssetType::AssetType::MESH);
+  ASSERT_EQ(mesh1.GetAssetTypeString(), std::string(MM_ASSET_TYPE_MESH));
+  ASSERT_EQ(mesh1.GetBoundingBox().GetBoundingType(),
+            MM::AssetSystem::AssetType::BoundingBox::BoundingBoxType::AABB);
+  const MM::AssetSystem::AssetType::RectangleBox& mesh1_box =
+      dynamic_cast<const MM::AssetSystem::AssetType::RectangleBox&>(
+          mesh1.GetBoundingBox());
+  ASSERT_EQ(mesh1_box.IsValid(), true);
+  ASSERT_FLOAT_EQ(mesh1_box.GetLeft(), -1.36718789);
+  ASSERT_FLOAT_EQ(mesh1_box.GetBottom(), -0.984375);
+  ASSERT_FLOAT_EQ(mesh1_box.GetForward(), -0.851562023);
+  ASSERT_FLOAT_EQ(mesh1_box.GetRight(), 1.36718789);
+  ASSERT_FLOAT_EQ(mesh1_box.GetTop(), 0.984375);
+  ASSERT_FLOAT_EQ(mesh1_box.GetBack(), 0.851562023);
+
+  // mesh2
+  ASSERT_EQ(mesh2.GetAssetID(), asset_id4);
+  ASSERT_EQ(mesh2.IsValid(), true);
+  ASSERT_EQ(mesh2.GetAssetName(), path4.GetFileName());
+  ASSERT_EQ(mesh2.GetAssetPath(), path4);
+  ASSERT_EQ(mesh2.GetAssetType(), MM::AssetSystem::AssetType::AssetType::MESH);
+  ASSERT_EQ(mesh2.GetAssetTypeString(), std::string(MM_ASSET_TYPE_MESH));
+  ASSERT_EQ(mesh2.GetBoundingBox().GetBoundingType(),
+            MM::AssetSystem::AssetType::BoundingBox::BoundingBoxType::CAPSULE);
+  const MM::AssetSystem::AssetType::CapsuleBox& mesh2_box =
+      dynamic_cast<const MM::AssetSystem::AssetType::CapsuleBox&>(
+          mesh2.GetBoundingBox());
+  ASSERT_FLOAT_EQ(mesh2_box.GetRadius(), 4.4917974);
+  ASSERT_FLOAT_EQ(mesh2_box.GetTop(), 2.19192767);
+  ASSERT_FLOAT_EQ(mesh2_box.GetBottom(), -1.02342343);
+
+  image_image_mesh2.Release();
+  ASSERT_EQ(image_image_mesh2.IsValid(), false);
+  ASSERT_EQ(image_image_mesh2.GetAssetID(), 0);
 }

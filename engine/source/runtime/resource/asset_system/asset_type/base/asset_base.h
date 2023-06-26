@@ -49,6 +49,9 @@ class AssetBase : public Manager::ManagedObjectBase {
 
   friend void swap(AssetBase& lhs, AssetBase& rhs) noexcept;
 
+ protected:
+  void SetAssetID(AssetID asset_ID);
+
  private:
   FileSystem::Path asset_path_{""};
   AssetID asset_path_and_last_editing_time_hash{0};

@@ -48,6 +48,7 @@ MM::AssetSystem::AssetType::Image::Image(const FileSystem::Path& image_path,
                 image_path.String() +
                 ",because this format are not supported.");
   }
+  SetAssetID(GetAssetID() + image_info_.image_channels_);
   image_info_.image_width_ = image_width;
   image_info_.image_height_ = image_height;
   image_info_.original_image_channels_ = image_channels;
@@ -194,4 +195,16 @@ MM::ExecuteResult MM::AssetSystem::AssetType::Image::GetJson(
 std::uint32_t MM::AssetSystem::AssetType::Image::GetOriginalImageChannels()
     const {
   return image_info_.original_image_channels_;
+}
+
+MM::ExecuteResult MM::AssetSystem::AssetType::Image::CalculateAssetID(
+    const MM::FileSystem::Path& path, std::uint32_t desired_channels,
+    MM::AssetSystem::AssetType::AssetID& asset_ID) {
+  FileSystem::LastWriteTime last_write_time;
+  MM_CHECK_WITHOUT_LOG(FILE_SYSTEM->GetLastWriteTime(path, last_write_time),
+                       return MM_RESULT_CODE;)
+
+  asset_ID = (path.GetHash() ^ last_write_time.time_since_epoch().count()) +
+             desired_channels;
+  return ExecuteResult ::SUCCESS;
 }

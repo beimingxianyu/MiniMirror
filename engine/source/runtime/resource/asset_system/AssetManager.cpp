@@ -253,6 +253,10 @@ MM::ExecuteResult MM::AssetSystem::AssetManager::GetAssetIDByAssetName(
   return GetAssetIDByName(asset_name, asset_IDs);
 }
 
+bool AssetManager::Have(AssetType::AssetID asset_ID) const {
+  return asset_ID_to_object_ID_.Have(asset_ID);
+}
+
 MM::AssetSystem::AssetManager::AssetHandler::AssetHandler(
     MM::AssetSystem::AssetManager::AssetHandler::BaseHandler&& base_handler,
     MM::AssetSystem::AssetManager::AssetIDToObjectIDContainerType ::

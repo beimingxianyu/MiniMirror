@@ -112,6 +112,8 @@ class Path {
    */
   void ReplacePath(const std::string& other_path);
 
+  Path GetParentDirPath() const;
+
   /**
    * \brief Get hash value of path..
    */

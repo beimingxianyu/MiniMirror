@@ -7,7 +7,7 @@ MM::AssetSystem::AssetType::AssetBase::AssetBase(
       asset_path_and_last_editing_time_hash(0) {
   FileSystem::LastWriteTime last_write_time;
   MM_CHECK(FILE_SYSTEM->GetLastWriteTime(asset_path, last_write_time),
-           LOG_ERROR(asset_path.String() + "is not exists.");
+           LOG_ERROR(asset_path.String() + " is not exists.");
            asset_path_ = FileSystem::Path(""); return;);
   asset_path_and_last_editing_time_hash =
       asset_path.GetHash() ^
@@ -116,4 +116,9 @@ MM::ExecuteResult MM::AssetSystem::AssetType::AssetBase::GetJson(
     rapidjson::Document&) const {
   LOG_FATAL("This function should not be called.");
   return MM::ExecuteResult::UNDEFINED_ERROR;
+}
+
+void MM::AssetSystem::AssetType::AssetBase::SetAssetID(
+    MM::AssetSystem::AssetType::AssetID asset_ID) {
+  asset_path_and_last_editing_time_hash = asset_ID;
 }

@@ -100,14 +100,14 @@ bool MM::FileSystem::Path::IsDirectory() const {
 }
 
 std::string MM::FileSystem::Path::GetFileName() const {
-  if (IsDirectory()) {
+  if (!IsDirectory()) {
     return path_.filename().string();
   }
   return std::string{};
 }
 
 std::string MM::FileSystem::Path::GetExtension() const {
-  if (IsDirectory()) {
+  if (!IsDirectory()) {
     return path_.extension().string();
   }
   return std::string{};
@@ -593,6 +593,17 @@ std::string_view MM::FileSystem::Path::StringView() const {
 }
 
 const char* MM::FileSystem::Path::CStr() const { return path_.c_str(); }
+
+MM::FileSystem::Path MM::FileSystem::Path::GetParentDirPath() const {
+  if (!IsExists()) {
+    return Path{""};
+  }
+  if (IsDirectory()) {
+    return *this;
+  }
+
+  return Path{path_.parent_path()};
+}
 
 MM::FileSystem::FileSystem::~FileSystem() { file_system_ = nullptr; }
 

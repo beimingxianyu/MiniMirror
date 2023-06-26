@@ -49,13 +49,13 @@ class Combination : public AssetBase {
       const FileSystem::Path& json_path,
       const Utils::Json::Document& combination_json,
       TaskSystem::Taskflow& taskflow, TaskSystem::Future<void>* future,
-      std::vector<AssetManager::AssetHandler>& images);
+      std::vector<AssetManager::AssetHandler>& images, bool& load_result);
 
   static Utils::ExecuteResult LoadMeshes(
       const FileSystem::Path& json_path,
-      const Utils::Json::Document& combination_json,
+      const rapidjson::Document& combination_json,
       TaskSystem::Taskflow& taskflow, TaskSystem::Future<void>* future,
-      std::vector<AssetManager::AssetHandler>& meshes);
+      std::vector<AssetManager::AssetHandler>& meshes, bool& load_result);
 
  private:
   std::vector<AssetManager::AssetHandler> asset_handlers_{};

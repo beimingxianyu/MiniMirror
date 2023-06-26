@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <map>
 #include <set>
 #include <shared_mutex>
@@ -7,6 +8,7 @@
 #include "runtime/core/manager/ManagerBase.h"
 #include "runtime/resource/asset_system/asset_type/Image.h"
 #include "runtime/resource/asset_system/asset_type/Mesh.h"
+#include "runtime/resource/asset_system/asset_type/base/asset_type_define.h"
 #include "runtime/resource/asset_system/import_other_system.h"
 #include "utils/marco.h"
 
@@ -53,6 +55,8 @@ class AssetManager final
    public:
     bool IsValid() const override;
 
+    std::uint32_t GetUseCount() { return GetIDToObjectHandler().GetUseCount(); }
+
     AssetType::AssetID GetAssetID() const;
 
     const std::string& GetAssetName() const;
@@ -79,6 +83,8 @@ class AssetManager final
 
  public:
   static AssetManager* GetInstance();
+
+  bool Have(AssetType::AssetID asset_ID) const;
 
   ExecuteResult AddAsset(std::unique_ptr<AssetType::AssetBase>&& asset,
                          HandlerType& handler);

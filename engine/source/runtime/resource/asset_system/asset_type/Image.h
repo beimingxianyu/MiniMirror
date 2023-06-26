@@ -4,6 +4,8 @@
 
 #include <cstdint>
 
+#include "runtime/platform/base/error.h"
+#include "runtime/platform/file_system/file_system.h"
 #include "runtime/resource/asset_system/asset_type/base/asset_base.h"
 #include "runtime/resource/asset_system/asset_type/base/asset_type_define.h"
 
@@ -76,6 +78,10 @@ class Image : public AssetBase {
   AssetType GetAssetType() const override;
 
   const void* GetPixelsData() const;
+
+  static ExecuteResult CalculateAssetID(const FileSystem::Path& path,
+                                        std::uint32_t desired_channels,
+                                        AssetID& asset_ID);
 
   void Release() override;
 

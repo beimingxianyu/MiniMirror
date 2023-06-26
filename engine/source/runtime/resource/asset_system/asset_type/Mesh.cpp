@@ -1,6 +1,9 @@
 #include "runtime/resource/asset_system/asset_type/Mesh.h"
 
+#include <cstdint>
+
 #include "base/asset_base.h"
+#include "base/bounding_box.h"
 #include "runtime/platform/base/error.h"
 
 MM::AssetSystem::AssetType::Mesh::Mesh(const FileSystem::Path& mesh_path,
@@ -19,7 +22,11 @@ MM::AssetSystem::AssetType::Mesh::Mesh(const FileSystem::Path& mesh_path,
 
   if (!Mesh::IsValid()) {
     AssetBase::Release();
+    return;
   }
+
+  SetAssetID(GetAssetID() + mesh_index +
+             (static_cast<std::uint64_t>(0x1) << 16));
 }
 
 MM::AssetSystem::AssetType::Mesh::Mesh(
@@ -263,5 +270,39 @@ MM::AssetSystem::AssetType::Mesh::Mesh(
 
   if (!Mesh::IsValid()) {
     AssetBase::Release();
+    return;
   }
+
+  std::uint64_t bounding_type_offset = 0;
+  switch (GetBoundingBox().GetBoundingType()) {
+    case BoundingBox::BoundingBoxType::AABB:
+      bounding_type_offset = static_cast<std::uint64_t>(0x1) << 16;
+      break;
+    case BoundingBox::BoundingBoxType::CAPSULE:
+      bounding_type_offset = static_cast<std::uint64_t>(0x1) << 32;
+      break;
+  }
+  SetAssetID(GetAssetID() + mesh_index + bounding_type_offset);
+}
+
+MM::ExecuteResult MM::AssetSystem::AssetType::Mesh::CalculateAssetID(
+    const MM::FileSystem::Path& path, std::uint32_t index,
+    MM::AssetSystem::AssetType::BoundingBox::BoundingBoxType bounding_box_type,
+    MM::AssetSystem::AssetType::AssetID& asset_ID) {
+  FileSystem::LastWriteTime last_write_time;
+  MM_CHECK_WITHOUT_LOG(FILE_SYSTEM->GetLastWriteTime(path, last_write_time),
+                       return MM_RESULT_CODE;)
+
+  std::uint64_t bounding_type_offset = 0;
+  switch (bounding_box_type) {
+    case BoundingBox::BoundingBoxType::AABB:
+      bounding_type_offset = static_cast<std::uint64_t>(0x1) << 16;
+      break;
+    case BoundingBox::BoundingBoxType::CAPSULE:
+      bounding_type_offset = static_cast<std::uint64_t>(0x1) << 32;
+      break;
+  }
+  asset_ID = (path.GetHash() ^ last_write_time.time_since_epoch().count()) +
+             (index + bounding_type_offset);
+  return ExecuteResult ::SUCCESS;
 }
