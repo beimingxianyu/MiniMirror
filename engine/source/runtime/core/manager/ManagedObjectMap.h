@@ -225,7 +225,7 @@ template <typename KeyType, typename ValueType, typename Less,
 ExecuteResult ManagedObjectMap<KeyType, ValueType, Less, Allocator>::AddObject(
     const KeyType& key, ValueType&& managed_object, HandlerType& handler) {
   if (!ThisType::TestMovedWhenAddObject()) {
-    return ExecuteResult::OPERATION_NOT_SUPPORTED;
+    return ExecuteResult::OBJECT_IS_INVALID;
   }
 
   std::unique_lock<std::shared_mutex> guard{data_mutex_};
@@ -240,7 +240,7 @@ ExecuteResult ManagedObjectMap<KeyType, ValueType, Less, Allocator>::AddObject(
     return ExecuteResult::SUCCESS;
   }
 
-  return ExecuteResult::INPUT_PARAMETERS_ARE_NOT_SUITABLE;
+  return ExecuteResult::SUCCESS;
 }
 
 template <typename KeyType, typename ValueType, typename Less,
@@ -272,7 +272,7 @@ template <typename KeyType, typename ValueType, typename Less,
 ExecuteResult ManagedObjectMap<KeyType, ValueType, Less, Allocator>::GetObject(
     const KeyType& key, HandlerType& handle) const {
   if (!ThisType::TestMovedWhenGetObject()) {
-    return ExecuteResult::OPERATION_NOT_SUPPORTED;
+    return ExecuteResult::OBJECT_IS_INVALID;
   }
 
   std::shared_lock<std::shared_mutex> guard{data_mutex_};
@@ -294,7 +294,7 @@ template <typename KeyType, typename ValueType, typename Less,
           typename Allocator>
 uint32_t ManagedObjectMap<KeyType, ValueType, Less, Allocator>::GetUseCount(
     const KeyType& key) const {
-  if (!ThisType::TestMoveWhenGetUseCount()) {
+  if (!ThisType::TestMovedWhenGetUseCount()) {
     return 0;
   }
 
@@ -408,7 +408,7 @@ ExecuteResult
 ManagedObjectMultiMap<KeyType, ValueType, Less, Allocator>::AddObject(
     const KeyType& key, ValueType&& managed_object, HandlerType& handler) {
   if (!ThisType::TestMovedWhenAddObject()) {
-    return ExecuteResult::OPERATION_NOT_SUPPORTED;
+    return ExecuteResult::OBJECT_IS_INVALID;
   }
 
   std::unique_lock<std::shared_mutex> guard{data_mutex_};
@@ -459,7 +459,7 @@ ExecuteResult
 ManagedObjectMultiMap<KeyType, ValueType, Less, Allocator>::GetObject(
     const KeyType& key, HandlerType& handler) const {
   if (!ThisType::TestMovedWhenGetObject()) {
-    return ExecuteResult::OPERATION_NOT_SUPPORTED;
+    return ExecuteResult::OBJECT_IS_INVALID;
   }
 
   std::shared_lock<std::shared_mutex> guard{data_mutex_};
@@ -485,7 +485,7 @@ ManagedObjectMultiMap<KeyType, ValueType, Less, Allocator>::GetObject(
     const KeyType& key, const std::atomic_uint32_t* use_count_ptr,
     HandlerType& handler) const {
   if (!ThisType::TestMovedWhenGetObject()) {
-    return ExecuteResult::OPERATION_NOT_SUPPORTED;
+    return ExecuteResult::OBJECT_IS_INVALID;
   }
 
   std::shared_lock<std::shared_mutex> guard{data_mutex_};
@@ -516,7 +516,7 @@ ExecuteResult
 ManagedObjectMultiMap<KeyType, ValueType, Less, Allocator>::GetObject(
     const KeyType& key, const ValueType& object, HandlerType& handler) const {
   if (!ThisType::TestMovedWhenGetObject()) {
-    return ExecuteResult::OPERATION_NOT_SUPPORTED;
+    return ExecuteResult::OBJECT_IS_INVALID;
   }
 
   std::shared_lock<std::shared_mutex> guard{data_mutex_};
@@ -547,7 +547,7 @@ ExecuteResult
 ManagedObjectMultiMap<KeyType, ValueType, Less, Allocator>::GetObject(
     const KeyType& key, std::vector<HandlerType>& handles) const {
   if (!ThisType::TestMovedWhenGetObject()) {
-    return ExecuteResult::OPERATION_NOT_SUPPORTED;
+    return ExecuteResult::OBJECT_IS_INVALID;
   }
 
   std::shared_lock<std::shared_mutex> guard{data_mutex_};
@@ -573,7 +573,7 @@ template <typename KeyType, typename ValueType, typename Less,
 uint32_t
 ManagedObjectMultiMap<KeyType, ValueType, Less, Allocator>::GetUseCount(
     const KeyType& key) const {
-  if (!ThisType::TestMoveWhenGetUseCount()) {
+  if (!ThisType::TestMovedWhenGetUseCount()) {
     return 0;
   }
 
@@ -593,7 +593,7 @@ template <typename KeyType, typename ValueType, typename Less,
 uint32_t
 ManagedObjectMultiMap<KeyType, ValueType, Less, Allocator>::GetUseCount(
     const KeyType& key, const std::atomic_uint32_t* use_count_ptr) const {
-  if (!ThisType::TestMoveWhenGetUseCount()) {
+  if (!ThisType::TestMovedWhenGetUseCount()) {
     return 0;
   }
 
@@ -620,7 +620,7 @@ template <typename KeyType, typename ValueType, typename Less,
 uint32_t
 ManagedObjectMultiMap<KeyType, ValueType, Less, Allocator>::GetUseCount(
     const KeyType& key, const ValueType& object) const {
-  if (!ThisType::TestMoveWhenGetUseCount()) {
+  if (!ThisType::TestMovedWhenGetUseCount()) {
     return 0;
   }
 
@@ -647,8 +647,8 @@ template <typename KeyType, typename ValueType, typename Less,
 ExecuteResult
 ManagedObjectMultiMap<KeyType, ValueType, Less, Allocator>::GetUseCount(
     const KeyType& key, std::vector<std::uint32_t>& use_counts) const {
-  if (!ThisType::TestMoveWhenGetUseCount()) {
-    return ExecuteResult::OPERATION_NOT_SUPPORTED;
+  if (!ThisType::TestMovedWhenGetUseCount()) {
+    return ExecuteResult::OBJECT_IS_INVALID;
   }
 
   std::shared_lock<std::shared_mutex> guard{data_mutex_};

@@ -309,7 +309,7 @@ class ManagedObjectTableBase : virtual public MM::MMObject {
 
   bool TestMovedWhenGetObject() const;
 
-  bool TestMoveWhenGetUseCount() const;
+  bool TestMovedWhenGetUseCount() const;
 
  protected:
   virtual ExecuteResult RemoveObjectImp(
@@ -436,7 +436,7 @@ ExecuteResult ManagedObjectTableBase<
 template <typename KeyType, typename ValueType,
           typename RelationshipContainerTrait>
 bool ManagedObjectTableBase<KeyType, ValueType, RelationshipContainerTrait>::
-    TestMoveWhenGetUseCount() const {
+    TestMovedWhenGetUseCount() const {
   if (!IsValid()) {
     LOG_WARN("You cannot get use count from the moved container.");
     return false;

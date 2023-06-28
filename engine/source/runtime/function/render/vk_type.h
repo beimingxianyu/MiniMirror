@@ -10,8 +10,7 @@
 #include <utility>
 #include <vector>
 
-#include "runtime/function/render/pre_header.h"
-#include "runtime/resource/asset_type/asset_type.h"
+#include "runtime/function/render/import_other_system.h"
 
 // TODO Split these classes into different files.
 namespace MM {

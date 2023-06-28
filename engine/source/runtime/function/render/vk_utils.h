@@ -1,12 +1,13 @@
 #pragma once
 
-#include <vulkan/vulkan.h>
 #include <vk_mem_alloc.h>
+#include <vulkan/vulkan.h>
 
 #include <vector>
 
-#include "vk_command.h"
-#include "runtime/function/render/pre_header.h"
+#include "runtime/function/render/import_other_system.h"
+#include "runtime/function/render/vk_command.h"
+#include "runtime/function/render/vk_type_define.h"
 
 namespace MM {
 namespace RenderSystem {
@@ -16,59 +17,30 @@ class AllocatedCommandBuffer;
 class RenderEngine;
 class BufferChunkInfo;
 
-enum class ImageTransferMode {
-  INIT_TO_ATTACHMENT,
-  INIT_TO_TRANSFER_DESTINATION,
-  TRANSFER_DESTINATION_TO_SHARED_READABLE,
-  TRANSFER_DESTINATION_TO_SHARED_PRESENT,
-  ATTACHMENT_TO_PRESENT,
-  INIT_TO_DEPTH_TEST,
-  ATTACHMENT_TO_TRANSFER_SOURCE,
-  TRANSFER_DESTINATION_TO_TRANSFER_SOURCE
-};
-
-enum class ResourceType {
-  Texture,
-  BUFFER,
-  VERTEX_BUFFER,
-  FRAME_BUFFER,
-  CONSTANTS,
-  STAGE_BUFFER,
-  UNDEFINED
-};
-
-/**
- * \brief Memory operations allowed for rendering resources.
- */
-enum class MemoryOperate { READ, WRITE, READ_AND_WRITE, UNDEFINED };
-
-enum class CommandBufferType { GRAPH, COMPUTE, TRANSFORM, UNDEFINED };
-
 namespace Utils {
 ExecuteResult VkResultToMMResult(VkResult vk_result);
 
-// TODO Add default value annotations for various functions that obtain creation information, such as the \ref GetSamplerCreateInfo function.
+// TODO Add default value annotations for various functions that obtain creation
+// information, such as the \ref GetSamplerCreateInfo function.
 VkCommandPoolCreateInfo GetCommandPoolCreateInfo(
-    const uint32_t& queue_family_index, const VkCommandPoolCreateFlags& flags = 0);
+    const uint32_t& queue_family_index,
+    const VkCommandPoolCreateFlags& flags = 0);
 
 VkCommandBufferAllocateInfo GetCommandBufferAllocateInfo(
     const VkCommandPool& command_pool, const uint32_t& count = 1,
     const VkCommandBufferLevel& level = VK_COMMAND_BUFFER_LEVEL_PRIMARY);
 
-[[deprecated]]
-VkBufferCreateInfo GetBufferCreateInfo(const VkDeviceSize& size,
-                                       const VkBufferUsageFlags& usage,
-                                       const VkBufferCreateFlags& flags = 0);
+[[deprecated]] VkBufferCreateInfo GetBufferCreateInfo(
+    const VkDeviceSize& size, const VkBufferUsageFlags& usage,
+    const VkBufferCreateFlags& flags = 0);
 
 VkBufferCreateInfo GetBufferCreateInfo(const VkDeviceSize& size,
                                        const VkBufferUsageFlags& usage,
                                        std::vector<std::uint32_t>& queue_index,
                                        const VkBufferCreateFlags& flags = 0);
-[[deprecated]]
-VkImageCreateInfo GetImageCreateInfo(const VkFormat& image_format,
-                                     const VkImageUsageFlags& usage,
-                                     const VkExtent3D& extent,
-                                     const VkImageCreateFlags& flags = 0);
+[[deprecated]] VkImageCreateInfo GetImageCreateInfo(
+    const VkFormat& image_format, const VkImageUsageFlags& usage,
+    const VkExtent3D& extent, const VkImageCreateFlags& flags = 0);
 
 VkImageCreateInfo GetImageCreateInfo(const VkFormat& image_format,
                                      const VkImageUsageFlags& usage,
@@ -87,10 +59,11 @@ VkFenceCreateInfo GetFenceCreateInfo(const VkFenceCreateFlags& flags = 0);
 
 VkFence GetVkFence(const VkDevice& device, const bool& is_signaled = false);
 
-[[deprecated]]
-VkSubmitInfo GetCommandSubmitInfo(const VkCommandBuffer& command_buffer, const uint32_t& command_count = 1);
+[[deprecated]] VkSubmitInfo GetCommandSubmitInfo(
+    const VkCommandBuffer& command_buffer, const uint32_t& command_count = 1);
 
-VkSubmitInfo GetCommandSubmitInfo(const std::vector<VkCommandBuffer>& command_buffers);
+VkSubmitInfo GetCommandSubmitInfo(
+    const std::vector<VkCommandBuffer>& command_buffers);
 
 VkSubmitInfo GetCommandSubmitInfo(
     const std::vector<AllocatedCommandBuffer>& command_buffers);
@@ -105,17 +78,15 @@ ExecuteResult SubmitCommandBuffers(
  * \param transfer_mode The image transfer operation mode to be executed.
  * \return The \ref VkImageMemoryBarrier2
  * \remark Blockage at all stages, poor performance. \n
- * \remark sub_image.aspectMask = (transfer_mode == ImageTransferMode::INIT_TO_DEPTH_TEST) \n
- *                          ? VK_IMAGE_ASPECT_DEPTH_BIT \n
- *                          : VK_IMAGE_ASPECT_COLOR_BIT; \n
- * sub_image.baseMipLevel = 0; \n
+ * \remark sub_image.aspectMask = (transfer_mode ==
+ * ImageTransferMode::INIT_TO_DEPTH_TEST) \n ? VK_IMAGE_ASPECT_DEPTH_BIT \n :
+ * VK_IMAGE_ASPECT_COLOR_BIT; \n sub_image.baseMipLevel = 0; \n
  * sub_image.levelCount = 1; \n
  * sub_image.baseArrayLayer = 0; \n
  * sub_image.layerCount = 1;
  */
-VkImageMemoryBarrier2 GetImageMemoryBarrier(AllocatedImage& image,
-                                              const ImageTransferMode&
-                                              transfer_mode);
+VkImageMemoryBarrier2 GetImageMemoryBarrier(
+    AllocatedImage& image, const ImageTransferMode& transfer_mode);
 
 /**
  * \brief Get \ref VkImageMemoryBarrier2, but performance is poor.
@@ -125,36 +96,30 @@ VkImageMemoryBarrier2 GetImageMemoryBarrier(AllocatedImage& image,
  * \return The \ref VkImageMemoryBarrier2
  * \remark Blockage at all stages, poor performance.
  */
-[[deprecated]]
-VkImageMemoryBarrier2 GetImageMemoryBarrier(AllocatedImage& image,
-                                            const VkImageLayout& old_layout,
-                                              const VkImageLayout& new_layout);
+[[deprecated]] VkImageMemoryBarrier2 GetImageMemoryBarrier(
+    AllocatedImage& image, const VkImageLayout& old_layout,
+    const VkImageLayout& new_layout);
 
-[[deprecated]]
-VkDependencyInfo GetImageDependencyInfo(VkImageMemoryBarrier2& image_barrier,
-                                        const VkDependencyFlags& flags = 0);
+[[deprecated]] VkDependencyInfo GetImageDependencyInfo(
+    VkImageMemoryBarrier2& image_barrier, const VkDependencyFlags& flags = 0);
 
 VkMemoryBarrier2 GetMemoryBarrier(VkPipelineStageFlags2 src_stage,
                                   VkAccessFlags2 src_access,
                                   VkPipelineStageFlags2 dest_stage,
                                   VkAccessFlags2 dest_access);
 
-VkBufferMemoryBarrier2 GetBufferMemoryBarrier(VkPipelineStageFlags2 src_stage,
-                                              VkAccessFlags2 src_access,
-                                              VkPipelineStageFlags2 dest_stage,
-                                              VkAccessFlags2 dest_access, 
-                                              std::uint32_t src_queue_family_index,
-                                              std::uint32_t dest_queue_family_index,
-                                              const AllocatedBuffer& buffer,
-                                              VkDeviceSize offset,
-                                              VkDeviceSize size);
+VkBufferMemoryBarrier2 GetBufferMemoryBarrier(
+    VkPipelineStageFlags2 src_stage, VkAccessFlags2 src_access,
+    VkPipelineStageFlags2 dest_stage, VkAccessFlags2 dest_access,
+    std::uint32_t src_queue_family_index, std::uint32_t dest_queue_family_index,
+    const AllocatedBuffer& buffer, VkDeviceSize offset, VkDeviceSize size);
 // TODO stage buffer memory barrier
-//VkBufferMemoryBarrier2 GetBufferMemoryBarrier(
+// VkBufferMemoryBarrier2 GetBufferMemoryBarrier(
 //    VkPipelineStageFlags2 src_stage, VkAccessFlags2 src_access,
 //    VkPipelineStageFlags2 dest_stage, VkAccessFlags2 dest_access,
-//    std::uint32_t src_queue_family_index, std::uint32_t dest_queue_family_index,
-//    const AllocatedStageBuffer& allocated_buffer, VkDeviceSize offset,
-//    VkDeviceSize size);
+//    std::uint32_t src_queue_family_index, std::uint32_t
+//    dest_queue_family_index, const AllocatedStageBuffer& allocated_buffer,
+//    VkDeviceSize offset, VkDeviceSize size);
 
 VkImageMemoryBarrier2 GetImageMemoryBarrier(
     VkPipelineStageFlags2 src_stage, VkAccessFlags2 src_access,
@@ -203,39 +168,33 @@ VkDependencyInfo GetDependencyInfo(
     const std::vector<VkImageMemoryBarrier2>& image_barriers,
     VkDependencyFlags dependency_flags = 0);
 
-VkDependencyInfo GetBufferQueueFamilyOwnershipTransformDependencyInfo(AllocatedBuffer& buffer, std::uint32_t dest_queue_family_index);
+VkDependencyInfo GetBufferQueueFamilyOwnershipTransformDependencyInfo(
+    AllocatedBuffer& buffer, std::uint32_t dest_queue_family_index);
 
 // TODO stage buffer memory ownership transform
-//VkDependencyInfo GetBufferQueueFamilyOwnershipTransformDependencyInfo(
+// VkDependencyInfo GetBufferQueueFamilyOwnershipTransformDependencyInfo(
 //    AllocatedStageBuffer& buffer, std::uint32_t dest_queue_family_index);
 
 /**
  * \remark Blockage at all stages, poor performance.
-*/
-[[deprecated]]
-void AddTransferImageCommands(VkCommandBuffer& command_buffer, AllocatedImage& image,
-                              const ImageTransferMode& transfer_mode,
-                              const VkDependencyFlags& flags = 0);
+ */
+[[deprecated]] void AddTransferImageCommands(
+    VkCommandBuffer& command_buffer, AllocatedImage& image,
+    const ImageTransferMode& transfer_mode, const VkDependencyFlags& flags = 0);
 
-[[deprecated]]
-void AddTransferImageCommands(VkCommandBuffer& command_buffer,
-                              AllocatedImage& image,
-                              const VkImageLayout& old_layout,
-                              const VkImageLayout& new_layout,
-                              const VkDependencyFlags& flags = 0);
+[[deprecated]] void AddTransferImageCommands(
+    VkCommandBuffer& command_buffer, AllocatedImage& image,
+    const VkImageLayout& old_layout, const VkImageLayout& new_layout,
+    const VkDependencyFlags& flags = 0);
 
-[[deprecated]]
-void AddTransferImageCommands(AllocatedCommandBuffer& command_buffer,
-                              AllocatedImage& image,
-                              const ImageTransferMode& transfer_mode,
-                              const VkDependencyFlags& flags = 0);
+[[deprecated]] void AddTransferImageCommands(
+    AllocatedCommandBuffer& command_buffer, AllocatedImage& image,
+    const ImageTransferMode& transfer_mode, const VkDependencyFlags& flags = 0);
 
-[[deprecated]]
-void AddTransferImageCommands(AllocatedCommandBuffer& command_buffer,
-                              AllocatedImage& image,
-                              const VkImageLayout& old_layout,
-                              const VkImageLayout& new_layout,
-                              const VkDependencyFlags& flags = 0);
+[[deprecated]] void AddTransferImageCommands(
+    AllocatedCommandBuffer& command_buffer, AllocatedImage& image,
+    const VkImageLayout& old_layout, const VkImageLayout& new_layout,
+    const VkDependencyFlags& flags = 0);
 
 VkBufferImageCopy GetBufferToImageCopyRegion(
     const VkImageAspectFlagBits& aspect, const VkExtent3D& image_extent,
@@ -246,13 +205,10 @@ bool DescriptorTypeIsImage(const VkDescriptorType& descriptor_type);
 
 bool DescriptorTypeIsImageSampler(const VkDescriptorType& descriptor_type);
 
-VkImageViewCreateInfo GetImageViewCreateInfo(const AllocatedImage& image,
-                                             const VkFormat& format,
-                                             const VkImageViewType& view_type,
-                                             const VkImageAspectFlags&
-                                             aspect_flags,
-                                             const VkImageViewCreateFlags& flags
-                                                 = 0);
+VkImageViewCreateInfo GetImageViewCreateInfo(
+    const AllocatedImage& image, const VkFormat& format,
+    const VkImageViewType& view_type, const VkImageAspectFlags& aspect_flags,
+    const VkImageViewCreateFlags& flags = 0);
 /**
  *\remark The default setting is: \n
  *sampler_create_info.magFilter = VK_FILTER_LINEAR; \n
@@ -268,25 +224,27 @@ VkImageViewCreateInfo GetImageViewCreateInfo(const AllocatedImage& image,
  *sampler_create_info.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR; \n
  *sampler_create_info.mipLodBias = 0.0f; \n
  *sampler_create_info.minLod = 0.0f; \n
- *sampler_create_info.maxLod = 0.0f; 
-**/
-VkSamplerCreateInfo GetSamplerCreateInfo(const VkPhysicalDevice& physical_device);
+ *sampler_create_info.maxLod = 0.0f;
+ **/
+VkSamplerCreateInfo GetSamplerCreateInfo(
+    const VkPhysicalDevice& physical_device);
 
-VkSemaphoreCreateInfo GetSemaphoreCreateInfo(const VkSemaphoreCreateFlags& flags = 0);
+VkSemaphoreCreateInfo GetSemaphoreCreateInfo(
+    const VkSemaphoreCreateFlags& flags = 0);
 
 bool DescriptorTypeIsDynamicBuffer(const VkDescriptorType& descriptor_type);
 
 bool DescriptorTypeIsBuffer(const VkDescriptorType& descriptor_type);
 
 /**
- * \brief Determine whether the buffer/image can be mapped (accessible to the CPU)
- * based on \ref memory_usage and \ref allocation_flags.
+ * \brief Determine whether the buffer/image can be mapped (accessible to the
+ * CPU) based on \ref memory_usage and \ref allocation_flags.
  */
 bool CanBeMapped(const VmaMemoryUsage& memory_usage,
                  const VmaAllocationCreateFlags& allocation_flags);
 
-VkDeviceSize GetMinAlignmentSizeFromOriginalSize(const VkDeviceSize& min_alignment,
-                              const VkDeviceSize& original_size);
+VkDeviceSize GetMinAlignmentSizeFromOriginalSize(
+    const VkDeviceSize& min_alignment, const VkDeviceSize& original_size);
 
 bool DescriptorTypeIsStorageBuffer(const VkDescriptorType& descriptor_type);
 
@@ -297,14 +255,14 @@ bool DescriptorTypeIsUniformBuffer(const VkDescriptorType& descriptor_type);
 bool DescriptorTypeIsTexelBuffer(const VkDescriptorType& descriptor_type);
 
 AllocatedBuffer CreateBuffer(
-    const RenderEngine* engine,
-    const size_t& alloc_size, const VkBufferUsageFlags& usage,
-    const VmaMemoryUsage& memory_usage,
-    const VmaAllocationCreateFlags& allocation_flags = 0, const bool& is_BDA_buffer = true);
+    const RenderEngine* engine, const size_t& alloc_size,
+    const VkBufferUsageFlags& usage, const VmaMemoryUsage& memory_usage,
+    const VmaAllocationCreateFlags& allocation_flags = 0,
+    const bool& is_BDA_buffer = true);
 
 VkBufferCopy2 GetBufferCopy(const VkDeviceSize& size,
-                                  const VkDeviceSize& src_offset = 0,
-                                  const VkDeviceSize& dest_offset = 0);
+                            const VkDeviceSize& src_offset = 0,
+                            const VkDeviceSize& dest_offset = 0);
 
 VkCopyBufferInfo2 GetCopyBufferInfo(AllocatedBuffer& src_buffer,
                                     AllocatedBuffer& dest_buffer,
@@ -326,16 +284,15 @@ bool ResourceImageCanWrite(const VkDescriptorType& descriptor_type);
 
 bool ResourceBufferCanWrite(const VkDescriptorType& descriptor_type);
 
-bool GetImageUsageFromDescriptorType(
-    const VkDescriptorType& descriptor_type, VkImageUsageFlags&
-    output_image_usage);
+bool GetImageUsageFromDescriptorType(const VkDescriptorType& descriptor_type,
+                                     VkImageUsageFlags& output_image_usage);
 
 bool GetBufferUsageFromDescriptorType(const VkDescriptorType& descriptor_type,
                                       VkImageUsageFlags& output_buffer_usage);
 
 bool ImageRegionIsOverlap(const VkOffset3D& src_offset,
-                        const VkOffset3D& dest_offset,
-                        const VkExtent3D& extent);
+                          const VkOffset3D& dest_offset,
+                          const VkExtent3D& extent);
 
 bool ImageRegionAreaLessThanImageExtent(const VkOffset3D& offset,
                                         const VkExtent3D& extent,
@@ -352,12 +309,10 @@ VkImageCopy2 GetImageCopy(const VkImageSubresourceLayers& src_sub_resource,
                           const VkOffset3D& dest_offset,
                           const VkExtent3D& extent);
 
-VkCopyImageInfo2 GetCopyImageInfo(AllocatedImage& src_image,
-                                  AllocatedImage& dest_image,
-                                  const VkImageLayout& src_layout,
-                                  const VkImageLayout& dest_layout,
-                                  const std::vector<VkImageCopy2>&
-                                  copy_regions);
+VkCopyImageInfo2 GetCopyImageInfo(
+    AllocatedImage& src_image, AllocatedImage& dest_image,
+    const VkImageLayout& src_layout, const VkImageLayout& dest_layout,
+    const std::vector<VkImageCopy2>& copy_regions);
 
 VkCopyImageInfo2 GetCopyImageInfo(
     const AllocatedImage& src_image, AllocatedImage& dest_image,
@@ -367,8 +322,7 @@ VkCopyImageInfo2 GetCopyImageInfo(
 ExecuteResult GetEndSizeAndOffset(
     const AllocatedBuffer& buffer,
     std::list<std::shared_ptr<BufferChunkInfo>>& buffer_chunks_info,
-    VkDeviceSize& output_end_size,
-    VkDeviceSize& output_offset);
+    VkDeviceSize& output_end_size, VkDeviceSize& output_offset);
 
 VkCommandBufferBeginInfo GetCommandBufferBeginInfo(
     VkCommandBufferUsageFlags flags = 0,
@@ -379,6 +333,6 @@ ExecuteResult BeginCommandBuffer(
     const VkCommandBufferInheritanceInfo* inheritance_info = nullptr);
 
 ExecuteResult EndCommandBuffer(AllocatedCommandBuffer& command_buffer);
-}
-}
-}
+}  // namespace Utils
+}  // namespace RenderSystem
+}  // namespace MM

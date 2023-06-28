@@ -4,6 +4,10 @@
 
 #include "AssetManager.h"
 
+#include <cstdint>
+
+#include "runtime/platform/base/error.h"
+
 namespace MM {
 namespace AssetSystem {
 MM::AssetSystem::AssetManager* MM::AssetSystem::AssetManager::asset_manager_{
@@ -27,7 +31,16 @@ MM::AssetSystem::AssetManager* MM::AssetSystem::AssetManager::GetInstance() {
   } else {
     std::lock_guard<std::mutex> guard{sync_flag_};
     if (!asset_manager_) {
-      asset_manager_ = new AssetManager{};
+      std::uint64_t asset_size = 0;
+      if (CONFIG_SYSTEM->GetConfig("manager_size_asset_manager", asset_size) !=
+          ExecuteResult::SUCCESS) {
+        LOG_WARN("The number of managed asset was not specified.");
+        if (CONFIG_SYSTEM->GetConfig("manager_size", asset_size) !=
+            ExecuteResult::SUCCESS) {
+          LOG_FATAL("The number of managed objects was not specified.");
+        }
+      }
+      asset_manager_ = new AssetManager{asset_size};
     }
   }
 
@@ -257,6 +270,15 @@ bool AssetManager::Have(AssetType::AssetID asset_ID) const {
   return asset_ID_to_object_ID_.Have(asset_ID);
 }
 
+AssetManager::AssetManager(std::uint64_t size)
+    : Manager::ManagerBase<std::unique_ptr<AssetType::AssetBase>,
+                           Manager::ManagedObjectIsSmartPoint>(size),
+      asset_ID_to_object_ID_(size) {}
+
+bool AssetManager::IsValid() const {
+  return ManagerBaseImp::IsValid() & asset_ID_to_object_ID_.IsValid();
+}
+
 MM::AssetSystem::AssetManager::AssetHandler::AssetHandler(
     MM::AssetSystem::AssetManager::AssetHandler::BaseHandler&& base_handler,
     MM::AssetSystem::AssetManager::AssetIDToObjectIDContainerType ::
@@ -348,6 +370,10 @@ const MM::Manager::ManagedObjectUnorderedMap<
 MM::AssetSystem::AssetManager::AssetHandler::GetAssetIDToObjectIDHandler()
     const {
   return asset_ID_to_object_handler_;
+}
+
+std::uint32_t AssetManager::AssetHandler::GetUseCount() {
+  return GetIDToObjectHandler().GetUseCount();
 }
 }  // namespace AssetSystem
 }  // namespace MM

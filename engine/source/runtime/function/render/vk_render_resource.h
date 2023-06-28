@@ -8,7 +8,7 @@
 #include <mutex>
 #include <unordered_map>
 
-#include "runtime/function/render/pre_header.h"
+#include "runtime/function/render/import_other_system.h"
 #include "runtime/function/render/vk_render_resource.h"
 #include "runtime/function/render/vk_type.h"
 #include "runtime/function/render/vk_utils.h"
@@ -36,7 +36,7 @@ class RenderResourceBase : public ManagedObjectBase {
  public:
   const std::string& GetResourceName() const;
 
-  const uint32_t& GetResourceID() const;
+  RenderResuorceID GetRenderResourceDataID() const;
 
   virtual bool IsValid() const;
   ;

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <iterator>
 #include <map>
 #include <set>
 #include <shared_mutex>
@@ -55,7 +56,7 @@ class AssetManager final
    public:
     bool IsValid() const override;
 
-    std::uint32_t GetUseCount() { return GetIDToObjectHandler().GetUseCount(); }
+    std::uint32_t GetUseCount();
 
     AssetType::AssetID GetAssetID() const;
 
@@ -82,6 +83,8 @@ class AssetManager final
   };
 
  public:
+  bool IsValid() const override;
+
   static AssetManager* GetInstance();
 
   bool Have(AssetType::AssetID asset_ID) const;
@@ -147,14 +150,15 @@ class AssetManager final
       const std::string& asset_name,
       std::vector<AssetType::AssetID>& asset_IDs) const;
 
+ protected:
+  AssetManager() = default;
+  AssetManager(std::uint64_t size);
+  static AssetManager* asset_manager_;
+
  private:
   ~AssetManager() = default;
 
   static bool Destroy();
-
- protected:
-  AssetManager() = default;
-  static AssetManager* asset_manager_;
 
  private:
   AssetIDToObjectIDContainerType asset_ID_to_object_ID_{};

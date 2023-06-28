@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstdint>
+
 #include "runtime/core/manager/ManagedObjectBase.h"
 #include "runtime/core/manager/ManagedObjectUnorderedMap.h"
 
@@ -111,7 +113,7 @@ class ManagerBaseImp {
   ManagerBaseImp& operator=(ManagerBaseImp&& other) = delete;
 
  public:
-  bool IsValid() const {
+  virtual bool IsValid() const {
     return name_to_ID_container_.IsValid() && ID_to_object_container_.IsValid();
   }
 
@@ -127,7 +129,8 @@ class ManagerBaseImp {
 
   ExecuteResult GetNameByID(ManagedObjectID managed_object_id,
                             std::string& name) const {
-    return GetNameByID(managed_object_id, name, ManagedTypeIsSmartPointType{});
+    return GetNameByIDImp(managed_object_id, name,
+                          ManagedTypeIsSmartPointType{});
   }
 
   ExecuteResult GetIDsByName(const std::string& object_name,
@@ -149,6 +152,8 @@ class ManagerBaseImp {
 
     return ExecuteResult ::SUCCESS;
   }
+
+  void Reserve(std::uint64_t size) {}
 
  protected:
   ExecuteResult AddObjectBase(ManagedType&& managed_object,
@@ -201,9 +206,9 @@ class ManagerBaseImp {
   virtual ~ManagerBaseImp() = default;
 
  private:
-  ExecuteResult GetNameByID(ManagedObjectID managed_object_id,
-                            std::string& name,
-                            ManagedObjectIsNotSmartPoint) const {
+  ExecuteResult GetNameByIDImp(ManagedObjectID managed_object_id,
+                               std::string& name,
+                               ManagedObjectIsNotSmartPoint) const {
     typename BaseIDToObjectContainer ::HandlerType handler;
 
     MM_CHECK_WITHOUT_LOG(
@@ -215,9 +220,9 @@ class ManagerBaseImp {
     return ExecuteResult ::SUCCESS;
   }
 
-  ExecuteResult GetNameByID(ManagedObjectID managed_object_id,
-                            std::string& name,
-                            ManagedObjectIsSmartPoint) const {
+  ExecuteResult GetNameByIDImp(ManagedObjectID managed_object_id,
+                               std::string& name,
+                               ManagedObjectIsSmartPoint) const {
     typename BaseIDToObjectContainer ::HandlerType handler;
 
     MM_CHECK_WITHOUT_LOG(

@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstdint>
+
 #include "runtime/core/manager/ManagedObjectHandler.h"
 #include "runtime/core/manager/utils.h"
 #include "utils/hash_table.h"
@@ -110,6 +112,11 @@ class ManagedObjectUnorderedMap
     return size_.load(std::memory_order_relaxed);
   }
 
+  void Reserve(std::uint64_t new_size) {
+    LockAll guard(*this);
+    data_.ReHash(new_size);
+  }
+
   bool Have(const KeyType& key) const override {
     std::shared_lock<std::shared_mutex> guard(ChooseMutexIn(key));
     if constexpr (std::is_same_v<CanMovedTrait, CanMoved>) {
@@ -145,7 +152,7 @@ class ManagedObjectUnorderedMap
   ExecuteResult AddObject(const KeyType& key, ValueType&& managed_object,
                           HandlerType& handler) {
     if (!ThisType::TestMovedWhenAddObject()) {
-      return ExecuteResult::OPERATION_NOT_SUPPORTED;
+      return ExecuteResult::OBJECT_IS_INVALID;
     }
 
     ResizeWhenNeeded();
@@ -178,7 +185,7 @@ class ManagedObjectUnorderedMap
 
   ExecuteResult GetObject(const KeyType& key, HandlerType& handler) const {
     if (!ThisType::TestMovedWhenGetObject()) {
-      return ExecuteResult::OPERATION_NOT_SUPPORTED;
+      return ExecuteResult::OBJECT_IS_INVALID;
     }
 
     std::shared_lock<std::shared_mutex> guard{ChooseMutexIn(key)};
@@ -205,7 +212,7 @@ class ManagedObjectUnorderedMap
   }
 
   uint32_t GetUseCount(const KeyType& key) const {
-    if (!ThisType::TestMoveWhenGetUseCount()) {
+    if (!ThisType::TestMovedWhenGetUseCount()) {
       return 0;
     }
 
@@ -264,12 +271,11 @@ class ManagedObjectUnorderedMap
  private:
   void ResizeWhenNeeded() {
     if (data_.BucketCount() - size_.load(std::memory_order_acquire) < 128) {
-      LockAll guard(*this);
       std::uint32_t new_size = data_.BucketCount() * 2;
       if (new_size < 2048) {
         new_size = 2048;
       }
-      data_.ReHash(new_size);
+      Reserve(new_size);
     }
   }
 
@@ -407,6 +413,11 @@ class ManagedObjectUnorderedMultiMap
     return size_.load(std::memory_order_relaxed);
   }
 
+  void Reserve(std::uint64_t new_size) {
+    LockAll guard(*this);
+    data_.ReHash(new_size);
+  }
+
   bool Have(const KeyType& key) const override {
     std::shared_lock<std::shared_mutex> guard{ChooseMutexIn(key)};
     if constexpr (std::is_same_v<CanMovedTrait, CanMoved>) {
@@ -442,7 +453,7 @@ class ManagedObjectUnorderedMultiMap
   ExecuteResult AddObject(const KeyType& key, ValueType&& managed_object,
                           HandlerType& handler) {
     if (!ThisType::TestMovedWhenAddObject()) {
-      return ExecuteResult::OPERATION_NOT_SUPPORTED;
+      return ExecuteResult::OBJECT_IS_INVALID;
     }
 
     ResizeWhenNeeded();
@@ -474,7 +485,7 @@ class ManagedObjectUnorderedMultiMap
 
   ExecuteResult GetObject(const KeyType& key, HandlerType& handler) const {
     if (!ThisType::TestMovedWhenGetObject()) {
-      return ExecuteResult::OPERATION_NOT_SUPPORTED;
+      return ExecuteResult::INPUT_PARAMETERS_ARE_NOT_SUITABLE;
     }
 
     std::shared_lock<std::shared_mutex> guard{ChooseMutexIn(key)};
@@ -504,7 +515,7 @@ class ManagedObjectUnorderedMultiMap
                           const std::atomic_uint32_t* use_count_ptr,
                           HandlerType& handler) const {
     if (!ThisType::TestMovedWhenGetObject()) {
-      return ExecuteResult::OPERATION_NOT_SUPPORTED;
+      return ExecuteResult::OBJECT_IS_INVALID;
     }
 
     std::shared_lock<std::shared_mutex> guard{ChooseMutexIn(key)};
@@ -538,7 +549,7 @@ class ManagedObjectUnorderedMultiMap
   ExecuteResult GetObject(const KeyType& key, const ValueType& object,
                           HandlerType& handler) const {
     if (!ThisType::TestMovedWhenGetObject()) {
-      return ExecuteResult::OPERATION_NOT_SUPPORTED;
+      return ExecuteResult::OBJECT_IS_INVALID;
     }
 
     std::shared_lock<std::shared_mutex> guard{ChooseMutexIn(key)};
@@ -572,7 +583,7 @@ class ManagedObjectUnorderedMultiMap
   ExecuteResult GetObject(const KeyType& key,
                           std::vector<HandlerType>& handlers) const {
     if (!ThisType::TestMovedWhenGetObject()) {
-      return ExecuteResult::OPERATION_NOT_SUPPORTED;
+      return ExecuteResult::OBJECT_IS_INVALID;
     }
 
     std::shared_lock<std::shared_mutex> guard{ChooseMutexIn(key)};
@@ -601,7 +612,7 @@ class ManagedObjectUnorderedMultiMap
   }
 
   std::uint32_t GetUseCount(const KeyType& key) const {
-    if (!ThisType::TestMoveWhenGetUseCount()) {
+    if (!ThisType::TestMovedWhenGetUseCount()) {
       return 0;
     }
 
@@ -624,7 +635,7 @@ class ManagedObjectUnorderedMultiMap
   }
 
   std::uint32_t GetUseCount(const KeyType& key, const ValueType& object) const {
-    if (!ThisType::TestMoveWhenGetUseCount()) {
+    if (!ThisType::TestMovedWhenGetUseCount()) {
       return 0;
     }
 
@@ -653,8 +664,8 @@ class ManagedObjectUnorderedMultiMap
 
   ExecuteResult GetUseCount(const KeyType& key,
                             std::vector<std::uint32_t>& use_counts) const {
-    if (!ThisType::TestMoveWhenGetUseCount()) {
-      return ExecuteResult::OPERATION_NOT_SUPPORTED;
+    if (!ThisType::TestMovedWhenGetUseCount()) {
+      return ExecuteResult::OBJECT_IS_INVALID;
     }
 
     std::shared_lock<std::shared_mutex> guard{ChooseMutexIn(key)};
@@ -724,8 +735,7 @@ class ManagedObjectUnorderedMultiMap
       if (new_size < 2048) {
         new_size = 2048;
       }
-      LockAll guard(*this);
-      data_.ReHash(new_size);
+      Reserve(new_size);
     }
   }
 

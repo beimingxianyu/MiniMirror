@@ -1,5 +1,6 @@
 #include "runtime/function/render/vk_render_resource.h"
 
+#include "RenderResourceManager.h"
 #include "runtime/function/render/vk_engine.h"
 
 std::mutex MM::RenderSystem::RenderResourceManager::sync_flag_{};
@@ -240,7 +241,7 @@ std::uint32_t MM::RenderSystem::RenderResourceManager::SaveData(
   if (resource->GetResourceType() == ResourceType::STAGE_BUFFER) {
     return 0;
   }
-  auto resource_ID = resource->GetResourceID();
+  auto resource_ID = resource->GetRenderResourceDataID();
 
   RenderManageBase<RenderResourceBase>::SaveData(std::move(resource));
 
@@ -257,7 +258,7 @@ std::uint32_t MM::RenderSystem::RenderResourceManager::SaveData(
   if (resource->GetResourceType() == ResourceType::STAGE_BUFFER) {
     return 0;
   }
-  auto resource_ID = resource->GetResourceID();
+  auto resource_ID = resource->GetRenderResourceDataID();
 
   RenderManageBase<RenderResourceBase>::SaveData(std::move(resource));
 
@@ -400,103 +401,6 @@ bool MM::RenderSystem::RenderResourceManager::Destroy() {
 
   return true;
 }
-
-MM::RenderSystem::RenderResourceBase::RenderResourceBase()
-    : ManagedObjectBase() {}
-
-MM::RenderSystem::RenderResourceBase::RenderResourceBase(
-    const std::string& resource_name)
-    : ManagedObjectBase(
-          resource_name,
-          RenderResourceManager::GetInstance()->GetIncreaseIndex()) {}
-
-MM::RenderSystem::RenderResourceBase::RenderResourceBase(
-    RenderResourceBase&& other) noexcept
-    : ManagedObjectBase(std::move(other)) {}
-
-MM::RenderSystem::RenderResourceBase&
-MM::RenderSystem::RenderResourceBase::operator=(
-    const RenderResourceBase& other) {
-  if (&other == this) {
-    return *this;
-  }
-  ManagedObjectBase::operator=(other);
-
-  return *this;
-}
-
-MM::RenderSystem::RenderResourceBase&
-MM::RenderSystem::RenderResourceBase::operator=(
-    RenderResourceBase&& other) noexcept {
-  if (&other == this) {
-    return *this;
-  }
-  ManagedObjectBase::operator=(std::move(other));
-
-  return *this;
-}
-
-const std::string& MM::RenderSystem::RenderResourceBase::GetResourceName()
-    const {
-  return GetObjectName();
-}
-
-const uint32_t& MM::RenderSystem::RenderResourceBase::GetResourceID() const {
-  return GetObjectID();
-}
-
-MM::RenderSystem::ResourceType
-MM::RenderSystem::RenderResourceBase::GetResourceType() const {
-  return ResourceType::UNDEFINED;
-}
-
-std::unique_ptr<MM::RenderSystem::RenderResourceBase>
-MM::RenderSystem::RenderResourceBase::GetLightCopy(
-    const std::string& new_name_of_copy_resource) const {
-  RenderResourceBase* new_render_resource =
-      new RenderResourceBase(new_name_of_copy_resource);
-  return std::unique_ptr<RenderResourceBase>(new_render_resource);
-}
-
-std::unique_ptr<MM::RenderSystem::RenderResourceBase>
-MM::RenderSystem::RenderResourceBase::GetDeepCopy(
-    const std::string& new_name_of_copy_resource) const {
-  RenderResourceBase* new_render_resource =
-      new RenderResourceBase(new_name_of_copy_resource);
-  return std::unique_ptr<RenderResourceBase>(new_render_resource);
-}
-
-void MM::RenderSystem::RenderResourceBase::SetResourceName(
-    const std::string& new_resource_name) {
-  SetObjectName(new_resource_name);
-}
-
-void MM::RenderSystem::RenderResourceBase::SetResourceID(
-    const std::uint32_t& new_resource_ID) {
-  SetObjectID(new_resource_ID);
-}
-
-MM::RenderSystem::RenderResourceBase::RenderResourceBase(
-    const std::string& resource_name, const std::uint32_t& new_resource_ID)
-    : ManagedObjectBase(resource_name, new_resource_ID) {}
-
-void MM::RenderSystem::RenderResourceBase::Release() {
-  ManagedObjectBase::Release();
-}
-
-void MM::RenderSystem::RenderResourceBase::Reset(
-    MM::RenderSystem::RenderResourceBase* other) {
-  if (other == nullptr) {
-    RenderResourceBase::Release();
-    return;
-  }
-  operator=(*other);
-}
-bool MM::RenderSystem::RenderResourceBase::IsArray() const { return false; }
-bool MM::RenderSystem::RenderResourceBase::CanWrite() const { return false; }
-VkDeviceSize MM::RenderSystem::RenderResourceBase::GetSize() const { return 0; }
-uint32_t MM::RenderSystem::RenderResourceBase::UseCount() const { return 0; }
-bool MM::RenderSystem::RenderResourceBase::IsValid() const { return false; }
 
 MM::RenderSystem::RenderResourceTexture::RenderResourceTexture(
     const std::string& resource_name, RenderEngine* engine,

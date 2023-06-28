@@ -25,6 +25,8 @@ class ManagedObjectBase : virtual public MMObject {
 
   ManagedObjectID GetObjectID() const;
 
+  bool LowLevelEqual(const ManagedObjectBase& other) const;
+
   friend void Swap(ManagedObjectBase& lhs, ManagedObjectBase& rhs) noexcept;
 
   friend void swap(ManagedObjectBase& lhs, ManagedObjectBase& rhs) noexcept;

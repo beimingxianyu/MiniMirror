@@ -69,5 +69,9 @@ void swap(ManagedObjectBase& lhs, ManagedObjectBase& rhs) noexcept {
   swap(dynamic_cast<MMObject&>(lhs), dynamic_cast<MMObject&>(rhs));
   swap(lhs.object_name_, rhs.object_name_);
 }
+
+bool ManagedObjectBase::LowLevelEqual(const ManagedObjectBase& other) const {
+  return GetObjectID() == other.GetObjectID();
+}
 }  // namespace Manager
 }  // namespace MM

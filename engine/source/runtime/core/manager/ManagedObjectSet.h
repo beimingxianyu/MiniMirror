@@ -149,8 +149,8 @@ ManagedObjectSet<ObjectType, Less, Allocator>::~ManagedObjectSet() {
 template <typename ObjectType, typename Less, typename Allocator>
 ExecuteResult ManagedObjectMultiSet<ObjectType, Less, Allocator>::GetUseCount(
     const ObjectType& key, std::vector<std::uint32_t>& use_counts) const {
-  if (!ThisType::TestMoveWhenGetUseCount()) {
-    return ExecuteResult::OPERATION_NOT_SUPPORTED;
+  if (!ThisType::TestMovedWhenGetUseCount()) {
+    return ExecuteResult::OBJECT_IS_INVALID;
   }
 
   std::shared_lock<std::shared_mutex> guard{data_mutex_};
@@ -172,7 +172,7 @@ ExecuteResult ManagedObjectMultiSet<ObjectType, Less, Allocator>::GetUseCount(
 template <typename ObjectType, typename Less, typename Allocator>
 std::uint32_t ManagedObjectMultiSet<ObjectType, Less, Allocator>::GetUseCount(
     const ObjectType& key, const std::atomic_uint32_t* use_count_ptr) const {
-  if (!ThisType::TestMoveWhenGetUseCount()) {
+  if (!ThisType::TestMovedWhenGetUseCount()) {
     return 0;
   }
 
@@ -197,7 +197,7 @@ std::uint32_t ManagedObjectMultiSet<ObjectType, Less, Allocator>::GetUseCount(
 template <typename ObjectType, typename Less, typename Allocator>
 std::uint32_t ManagedObjectMultiSet<ObjectType, Less, Allocator>::GetUseCount(
     const ObjectType& key) const {
-  if (!ThisType::TestMoveWhenGetUseCount()) {
+  if (!ThisType::TestMovedWhenGetUseCount()) {
     return 0;
   }
 
@@ -215,7 +215,7 @@ std::uint32_t ManagedObjectMultiSet<ObjectType, Less, Allocator>::GetUseCount(
 template <typename ObjectType, typename Less, typename Allocator>
 std::uint32_t ManagedObjectSet<ObjectType, Less, Allocator>::GetUseCount(
     const ObjectType& key) const {
-  if (!BaseType::TestMoveWhenGetUseCount()) {
+  if (!BaseType::TestMovedWhenGetUseCount()) {
     return 0;
   }
 
@@ -278,7 +278,7 @@ template <typename ObjectType, typename Less, typename Allocator>
 ExecuteResult ManagedObjectMultiSet<ObjectType, Less, Allocator>::AddObject(
     ObjectType&& managed_object, HandlerType& handler) {
   if (!ThisType::TestMovedWhenAddObject()) {
-    return ExecuteResult::OPERATION_NOT_SUPPORTED;
+    return ExecuteResult::OBJECT_IS_INVALID;
   }
 
   std::unique_lock<std::shared_mutex> guard{data_mutex_};
@@ -329,7 +329,7 @@ template <typename ObjectType, typename Less, typename Allocator>
 ExecuteResult ManagedObjectMultiSet<ObjectType, Less, Allocator>::GetObject(
     const ObjectType& key, HandlerType& handle) const {
   if (!ThisType::TestMovedWhenGetObject()) {
-    return ExecuteResult::OPERATION_NOT_SUPPORTED;
+    return ExecuteResult::OBJECT_IS_INVALID;
   }
 
   std::shared_lock<std::shared_mutex> guard{data_mutex_};
@@ -356,7 +356,7 @@ ExecuteResult ManagedObjectMultiSet<ObjectType, Less, Allocator>::GetObject(
     const ObjectType& key, const std::atomic_uint32_t* use_count_ptr,
     ThisType::HandlerType& handle) const {
   if (!ThisType::TestMovedWhenGetObject()) {
-    return ExecuteResult::OPERATION_NOT_SUPPORTED;
+    return ExecuteResult::OBJECT_IS_INVALID;
   }
 
   std::shared_lock<std::shared_mutex> guard{data_mutex_};
@@ -393,7 +393,7 @@ template <typename ObjectType, typename Less, typename Allocator>
 ExecuteResult ManagedObjectMultiSet<ObjectType, Less, Allocator>::GetObject(
     const ObjectType& key, std::vector<HandlerType>& handlers) const {
   if (!ThisType::TestMovedWhenGetObject()) {
-    return ExecuteResult::OPERATION_NOT_SUPPORTED;
+    return ExecuteResult::OBJECT_IS_INVALID;
   }
 
   std::shared_lock<std::shared_mutex> guard{data_mutex_};
@@ -451,7 +451,7 @@ template <typename ObjectType, typename Less, typename Allocator>
 ExecuteResult ManagedObjectSet<ObjectType, Less, Allocator>::AddObject(
     ObjectType&& managed_object, HandlerType& handle) {
   if (!BaseType::TestMovedWhenAddObject()) {
-    return ExecuteResult::OPERATION_NOT_SUPPORTED;
+    return ExecuteResult::OBJECT_IS_INVALID;
   }
 
   std::unique_lock<std::shared_mutex> guard{data_mutex_};
@@ -494,7 +494,7 @@ template <typename ObjectType, typename Less, typename Allocator>
 ExecuteResult ManagedObjectSet<ObjectType, Less, Allocator>::GetObject(
     const ObjectType& key, HandlerType& handler) const {
   if (!BaseType::TestMovedWhenGetObject()) {
-    return ExecuteResult::OPERATION_NOT_SUPPORTED;
+    return ExecuteResult::OBJECT_IS_INVALID;
   }
 
   std::shared_lock<std::shared_mutex> guard{data_mutex_};

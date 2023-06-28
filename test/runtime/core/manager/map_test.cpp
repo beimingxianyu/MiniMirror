@@ -19,7 +19,7 @@ TEST(manager, map) {
   EXPECT_EQ(map_data.AddObject(1, std::string("2"), *handler1),
             MM::ExecuteResult::SUCCESS);
   EXPECT_EQ(map_data.AddObject(1, std::string("3"), *handler2),
-            MM::ExecuteResult::INPUT_PARAMETERS_ARE_NOT_SUITABLE);
+            MM::ExecuteResult::SUCCESS);
   EXPECT_EQ(handler1->GetObject() == handler2->GetObject(), true);
   EXPECT_EQ(handler1->GetObject(), std::string("2"));
   EXPECT_EQ(handler2->GetObject(), std::string("2"));
