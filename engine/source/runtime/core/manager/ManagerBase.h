@@ -1,9 +1,12 @@
 #pragma once
 
+#include <atomic>
 #include <cstdint>
+#include <vector>
 
 #include "runtime/core/manager/ManagedObjectBase.h"
 #include "runtime/core/manager/ManagedObjectUnorderedMap.h"
+#include "runtime/platform/base/error.h"
 
 namespace MM {
 namespace Manager {
@@ -78,6 +81,14 @@ class ManagerBaseImp {
       return ID_to_object_handler_.GetObjectPtr();
     }
 
+    const std::atomic_uint32_t* GetObjectUseCountPtr() const {
+      return ID_to_object_handler_.GetUseCountPtr();
+    }
+
+    const std::atomic_uint32_t* GetNameToIDHandlerUseCountPtr() const {
+      return name_to_ID_handler_.GetUseCountPtr();
+    }
+
     typename BaseNameToIDContainer::HandlerType& GetNameToIDHandler() {
       return name_to_ID_handler_;
     }
@@ -123,13 +134,13 @@ class ManagerBaseImp {
     return ID_to_object_container_.Have(object_ID);
   }
 
-  std::uint32_t Count(ManagedObjectID object_id) const {
-    return ID_to_object_container_.Count(object_id);
+  std::uint32_t Count(ManagedObjectID object_ID) const {
+    return ID_to_object_container_.Count(object_ID);
   }
 
-  ExecuteResult GetNameByID(ManagedObjectID managed_object_id,
+  ExecuteResult GetNameByID(ManagedObjectID managed_object_ID,
                             std::string& name) const {
-    return GetNameByIDImp(managed_object_id, name,
+    return GetNameByIDImp(managed_object_ID, name,
                           ManagedTypeIsSmartPointType{});
   }
 
@@ -156,31 +167,37 @@ class ManagerBaseImp {
   void Reserve(std::uint64_t size) {}
 
  protected:
+  ExecuteResult GetIDToObjectHandler(
+      ManagedObjectID object_ID,
+      typename BaseIDToObjectContainer::HandlerType& handler) const {
+    return ID_to_object_container_.GetObject(object_ID, handler);
+  }
+
   ExecuteResult AddObjectBase(ManagedType&& managed_object,
                               HandlerType& handler) {
     return AddObjectBaseImp(std::move(managed_object), handler,
                             ManagedTypeIsSmartPointType{});
   }
 
-  ExecuteResult GetObjectByIDBase(ManagedObjectID object_id,
+  ExecuteResult GetObjectByIDBase(ManagedObjectID object_ID,
                                   HandlerType& handler) const {
-    return GetObjectByIDBaseImp(object_id, handler,
+    return GetObjectByIDBaseImp(object_ID, handler,
                                 ManagedTypeIsSmartPointType{});
   }
 
   ExecuteResult GetObjectByNameBase(const std::string& object_name,
                                     std::vector<HandlerType>& handlers) const {
-    std::vector<typename BaseNameToIDContainer ::HandlerType> name_id_handlers;
+    std::vector<typename BaseNameToIDContainer ::HandlerType> name_ID_handlers;
 
     MM_CHECK_WITHOUT_LOG(
-        name_to_ID_container_.GetObject(object_name, name_id_handlers),
+        name_to_ID_container_.GetObject(object_name, name_ID_handlers),
         return MM_RESULT_CODE;)
 
-    if (name_id_handlers.empty()) {
+    if (name_ID_handlers.empty()) {
       return ExecuteResult ::PARENT_OBJECT_NOT_CONTAIN_SPECIFIC_CHILD_OBJECT;
     }
 
-    for (auto& name_ID_handler : name_id_handlers) {
+    for (auto& name_ID_handler : name_ID_handlers) {
       typename BaseIDToObjectContainer::HandlerType id_object_handler;
       MM_CHECK_WITHOUT_LOG(ID_to_object_container_.GetObject(
                                name_ID_handler.GetObject(), id_object_handler),
@@ -206,13 +223,13 @@ class ManagerBaseImp {
   virtual ~ManagerBaseImp() = default;
 
  private:
-  ExecuteResult GetNameByIDImp(ManagedObjectID managed_object_id,
+  ExecuteResult GetNameByIDImp(ManagedObjectID managed_object_ID,
                                std::string& name,
                                ManagedObjectIsNotSmartPoint) const {
     typename BaseIDToObjectContainer ::HandlerType handler;
 
     MM_CHECK_WITHOUT_LOG(
-        ID_to_object_container_.GetObject(managed_object_id, handler),
+        ID_to_object_container_.GetObject(managed_object_ID, handler),
         return MM_RESULT_CODE;)
 
     name = handler.GetObject().GetObjectName();
@@ -220,13 +237,13 @@ class ManagerBaseImp {
     return ExecuteResult ::SUCCESS;
   }
 
-  ExecuteResult GetNameByIDImp(ManagedObjectID managed_object_id,
+  ExecuteResult GetNameByIDImp(ManagedObjectID managed_object_ID,
                                std::string& name,
                                ManagedObjectIsSmartPoint) const {
     typename BaseIDToObjectContainer ::HandlerType handler;
 
     MM_CHECK_WITHOUT_LOG(
-        ID_to_object_container_.GetObject(managed_object_id, handler),
+        ID_to_object_container_.GetObject(managed_object_ID, handler),
         return MM_RESULT_CODE;)
 
     name = handler.GetObject()->GetObjectName();
@@ -276,14 +293,14 @@ class ManagerBaseImp {
     return ExecuteResult ::SUCCESS;
   }
 
-  ExecuteResult GetObjectByIDBaseImp(ManagedObjectID object_id,
+  ExecuteResult GetObjectByIDBaseImp(ManagedObjectID object_ID,
                                      HandlerType& handler,
                                      ManagedObjectIsNotSmartPoint) const {
     typename BaseIDToObjectContainer ::HandlerType ID_to_object_handler;
     std::vector<typename BaseNameToIDContainer::HandlerType> name_ID_handlers;
 
     MM_CHECK_WITHOUT_LOG(
-        ID_to_object_container_.GetObject(object_id, ID_to_object_handler),
+        ID_to_object_container_.GetObject(object_ID, ID_to_object_handler),
         return MM_RESULT_CODE;)
     MM_CHECK_WITHOUT_LOG(
         name_to_ID_container_.GetObject(
@@ -291,7 +308,7 @@ class ManagerBaseImp {
         return MM_RESULT_CODE;)
 
     for (auto& name_ID_handler : name_ID_handlers) {
-      if (name_ID_handler.GetObject() == object_id) {
+      if (name_ID_handler.GetObject() == object_ID) {
         handler = HandlerType{std::move(name_ID_handler),
                               std::move(ID_to_object_handler)};
 
@@ -303,14 +320,14 @@ class ManagerBaseImp {
     return ExecuteResult ::UNDEFINED_ERROR;
   }
 
-  ExecuteResult GetObjectByIDBaseImp(ManagedObjectID object_id,
+  ExecuteResult GetObjectByIDBaseImp(ManagedObjectID object_ID,
                                      HandlerType& handler,
                                      ManagedObjectIsSmartPoint) const {
     typename BaseIDToObjectContainer ::HandlerType ID_to_object_handler;
     std::vector<typename BaseNameToIDContainer::HandlerType> name_ID_handlers;
 
     MM_CHECK_WITHOUT_LOG(
-        ID_to_object_container_.GetObject(object_id, ID_to_object_handler),
+        ID_to_object_container_.GetObject(object_ID, ID_to_object_handler),
         return MM_RESULT_CODE;)
     MM_CHECK_WITHOUT_LOG(name_to_ID_container_.GetObject(
                              ID_to_object_handler.GetObject()->GetObjectName(),
@@ -318,7 +335,7 @@ class ManagerBaseImp {
                          return MM_RESULT_CODE;)
 
     for (auto& name_ID_handler : name_ID_handlers) {
-      if (name_ID_handler.GetObject() == object_id) {
+      if (name_ID_handler.GetObject() == object_ID) {
         handler = HandlerType{std::move(name_ID_handler),
                               std::move(ID_to_object_handler)};
 

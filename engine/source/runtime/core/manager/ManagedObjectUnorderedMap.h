@@ -527,7 +527,7 @@ class ManagedObjectUnorderedMultiMap
         new_mutex = &ChooseMutexIn(key);
       }
     }
-    std::vector<ContainerReturnType*> equal_range = data_.equal_range(key);
+    std::vector<const ContainerReturnType*> equal_range = data_.EqualRange(key);
     if (equal_range.empty()) {
       return ExecuteResult::PARENT_OBJECT_NOT_CONTAIN_SPECIFIC_CHILD_OBJECT;
     }

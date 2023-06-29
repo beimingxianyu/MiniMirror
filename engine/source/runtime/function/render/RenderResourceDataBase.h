@@ -11,34 +11,30 @@
 
 namespace MM {
 namespace RenderSystem {
-class RenderResourceBase : public Manager::ManagedObjectBase {
-  friend class RenderResourceTexture;
-  friend class RenderResourceBuffer;
-  friend class RenderResourceMesh;
-  friend class RenderResourceFrameBuffer;
-  template <typename ConstantType>
-  friend class RenderResourceConstants;
+class RenderResourceDataBase : public Manager::ManagedObjectBase {
+ public:
+  RenderResourceDataBase(const std::string& resource_name,
+                         const RenderResourceDataID& render_resource_data_ID);
+  RenderResourceDataBase() = default;
+  ~RenderResourceDataBase() override = default;
+  RenderResourceDataBase(const RenderResourceDataBase& other) = delete;
+  RenderResourceDataBase(RenderResourceDataBase&& other) noexcept = default;
+  RenderResourceDataBase& operator=(const RenderResourceDataBase& other) =
+      delete;
+  RenderResourceDataBase& operator=(RenderResourceDataBase&& other) noexcept;
 
  public:
-  RenderResourceBase() = default;
-  ~RenderResourceBase() override = default;
-  RenderResourceBase(const RenderResourceBase& other) = delete;
-  RenderResourceBase(RenderResourceBase&& other) noexcept = default;
-  RenderResourceBase& operator=(const RenderResourceBase& other) = delete;
-  RenderResourceBase& operator=(RenderResourceBase&& other) noexcept;
+  bool operator==(const RenderResourceDataBase& rhs) const;
 
- public:
-  bool operator==(const RenderResourceBase& rhs) const;
+  bool operator!=(const RenderResourceDataBase& rhs) const;
 
-  bool operator!=(const RenderResourceBase& rhs) const;
+  bool operator<(const RenderResourceDataBase& rhs) const;
 
-  bool operator<(const RenderResourceBase& rhs) const;
+  bool operator>(const RenderResourceDataBase& rhs) const;
 
-  bool operator>(const RenderResourceBase& rhs) const;
+  bool operator<=(const RenderResourceDataBase& rhs) const;
 
-  bool operator<=(const RenderResourceBase& rhs) const;
-
-  bool operator>=(const RenderResourceBase& rhs) const;
+  bool operator>=(const RenderResourceDataBase& rhs) const;
 
  public:
   const std::string& GetResourceName() const;
@@ -72,12 +68,8 @@ class RenderResourceBase : public Manager::ManagedObjectBase {
 
   virtual bool CanWrite() const;
 
-  virtual std::unique_ptr<RenderResourceBase> GetCopy(
+  virtual std::unique_ptr<RenderResourceDataBase> GetCopy(
       const std::string& new_name_of_copy_resource) const;
-
- protected:
-  RenderResourceBase(const std::string& resource_name,
-                     const RenderResourceDataID& render_resource_data_ID);
 
  private:
   RenderResourceDataID render_resource_data_ID_{};

@@ -6,7 +6,6 @@
 #include <vector>
 
 #include "runtime/function/render/import_other_system.h"
-#include "runtime/function/render/vk_command.h"
 #include "runtime/function/render/vk_type_define.h"
 
 namespace MM {

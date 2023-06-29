@@ -41,7 +41,7 @@ class RenderResourceDataID {
  public:
   AssetSystem::AssetType::AssetID GetAssetID() const;
 
-  RenderResourceDataAttributeID GetResourceAttribute() const;
+  RenderResourceDataAttributeID GetResourceAttributeID() const;
 
   void SetAssetID(AssetSystem::AssetType::AssetID asset_ID);
 
@@ -65,6 +65,6 @@ template <>
 struct std::hash<MM::RenderSystem::RenderResourceDataID> {
   std::uint64_t operator()(
       const MM::RenderSystem::RenderResourceDataID& object) const {
-    return object.GetAssetID() ^ object.GetResourceAttribute();
+    return object.GetAssetID() ^ object.GetResourceAttributeID().GetHashCode();
   }
 };

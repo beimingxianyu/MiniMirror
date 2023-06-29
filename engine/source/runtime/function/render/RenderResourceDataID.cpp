@@ -4,8 +4,6 @@
 
 #include "runtime/function/render/RenderResourceDataID.h"
 
-#include "RenderResourceDataAttributeID.h"
-
 MM::RenderSystem::RenderResourceDataID::RenderResourceDataID(
     MM::AssetSystem::AssetType::AssetID asset_ID,
     const RenderResourceDataAttributeID& resource_attribute)
@@ -17,7 +15,7 @@ MM::RenderSystem::RenderResourceDataID::GetAssetID() const {
 }
 
 MM::RenderSystem::RenderResourceDataAttributeID
-MM::RenderSystem::RenderResourceDataID::GetResourceAttribute() const {
+MM::RenderSystem::RenderResourceDataID::GetResourceAttributeID() const {
   return resource_attribute_ID_;
 }
 

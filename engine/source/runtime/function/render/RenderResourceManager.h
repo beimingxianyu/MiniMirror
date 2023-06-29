@@ -2,22 +2,24 @@
 #include <memory>
 #include <vector>
 
-#include "RenderResourceDataID.h"
 #include "runtime/core/manager/ManagedObjectBase.h"
 #include "runtime/core/manager/ManagedObjectUnorderedMap.h"
 #include "runtime/core/manager/ManagerBase.h"
-#include "runtime/function/render/RenderResourceBase.h"
+#include "runtime/function/render/RenderResourceDataBase.h"
+#include "runtime/function/render/RenderResourceDataID.h"
+#include "runtime/function/render/import_other_system.h"
 #include "runtime/platform/base/error.h"
+#include "utils/marco.h"
 
 namespace MM {
 namespace RenderSystem {
 class RenderResourceManager
-    : public Manager::ManagerBase<std::unique_ptr<RenderResourceBase>,
+    : public Manager::ManagerBase<std::unique_ptr<RenderResourceDataBase>,
                                   Manager::ManagedObjectIsSmartPoint> {
  public:
   class RenderResourceHandler;
 
-  using ManagedType = std::unique_ptr<RenderResourceBase>;
+  using ManagedType = std::unique_ptr<RenderResourceDataBase>;
   using BaseManegerType =
       Manager::ManagerBase<ManagedType, Manager::ManagedObjectIsSmartPoint>;
   using HandlerType = RenderResourceHandler;
@@ -71,7 +73,10 @@ class RenderResourceManager
     }
 
    public:
-    bool IsValid() const override;
+    bool IsValid() const override {
+      return BaseHandlerType ::IsValid() &&
+             render_resource_ID_to_object_ID_handler_.IsValid();
+    }
 
     std::uint32_t GetUseCount() { return GetIDToObjectHandler().GetUseCount(); }
 
@@ -83,15 +88,17 @@ class RenderResourceManager
       return GetObjectName();
     }
 
-    RenderResourceBase& GetRenderResourceData() { return *GetObject(); }
+    RenderResourceDataBase& GetRenderResourceData() { return *GetObject(); }
 
-    const RenderResourceBase& GetRenderResourceData() const {
+    const RenderResourceDataBase& GetRenderResourceData() const {
       return *GetObject();
     }
 
-    RenderResourceBase* GetRenderResourceDataPtr() { return GetObject().get(); }
+    RenderResourceDataBase* GetRenderResourceDataPtr() {
+      return GetObject().get();
+    }
 
-    const RenderResourceBase* GetRenderResourceDataPtr() const {
+    const RenderResourceDataBase* GetRenderResourceDataPtr() const {
       return GetObject().get();
     }
 
@@ -116,9 +123,13 @@ class RenderResourceManager
   };
 
   struct Policy {
-    struct OnlyWritten {};
-    struct OnlyNotWritten {};
-    struct Both {};
+    struct OnlyWrittenType {};
+    struct OnlyNotWrittenType {};
+    struct BothType {};
+
+    static OnlyNotWrittenType only_not_written_;
+    static OnlyWrittenType only_written_;
+    static BothType both_;
   };
 
  public:
@@ -126,49 +137,25 @@ class RenderResourceManager
 
   static RenderResourceManager* GetInstance();
 
-  bool Have(const RenderResourceDataID& render_resource_data_ID) {
-    return render_resource_data_ID_to_object_ID_.Have(render_resource_data_ID);
-  }
+  bool Have(const RenderResourceDataID& render_resource_data_ID);
 
   ExecuteResult AddRenderResourceData(ManagedType&& render_resource_data,
-                                      HandlerType& handler) {
-    RenderResourceDataID render_resource_data_ID =
-        render_resource_data->GetRenderResourceDataID();
-
-    BaseHandlerType base_handler_type;
-    MM_CHECK_WITHOUT_LOG(
-        AddObjectBase(std::move(render_resource_data), base_handler_type),
-        return MM_RESULT_CODE;);
-
-    RenderResourceDataIDToObjectIDContainerType ::HandlerType
-        render_resource_ID_to_object_ID_handler;
-    MM_CHECK_WITHOUT_LOG(
-        render_resource_data_ID_to_object_ID_.AddObject(
-            render_resource_data_ID, base_handler_type.GetObjectID(),
-            render_resource_ID_to_object_ID_handler),
-        return MM_RESULT_CODE;);
-
-    handler = HandlerType{std::move(base_handler_type),
-                          std::move(render_resource_ID_to_object_ID_handler)};
-
-    return ExecuteResult ::SUCCESS;
-  }
+                                      HandlerType& handler);
 
   ExecuteResult GetRenderResourceDataByID(
-      const Manager::ManagedObjectID& render_resource_data_ID,
-      HandlerType& handler) const;
+      const Manager::ManagedObjectID& object_ID, HandlerType& handler) const;
 
   ExecuteResult GetRenderResourceDataByID(
-      const Manager::ManagedObjectID& render_resource_data_ID,
-      HandlerType& handler, Policy::Both) const;
+      const Manager::ManagedObjectID& object_ID, HandlerType& handler,
+      Policy::BothType) const;
 
   ExecuteResult GetRenderResourceDataByID(
-      const Manager::ManagedObjectID& render_resource_data_ID,
-      HandlerType& handler, Policy::OnlyWritten) const;
+      const Manager::ManagedObjectID& object_ID, HandlerType& handler,
+      Policy::OnlyWrittenType) const;
 
   ExecuteResult GetRenderResourceDataByID(
-      const Manager::ManagedObjectID& render_resource_data_ID,
-      HandlerType& handler, Policy::OnlyNotWritten) const;
+      const Manager::ManagedObjectID& object_ID, HandlerType& handler,
+      Policy::OnlyNotWrittenType) const;
 
   ExecuteResult GetRenderResourceDataByRenderResourceDataID(
       const RenderResourceDataID& render_resource_data_ID,
@@ -176,49 +163,49 @@ class RenderResourceManager
 
   ExecuteResult GetRenderResourceDataByRenderResourceDataID(
       const RenderResourceDataID& render_resource_data_ID,
-      std::vector<HandlerType>& handlers, Policy::Both) const;
+      std::vector<HandlerType>& handlers, Policy::BothType) const;
 
   ExecuteResult GetRenderResourceDataByRenderResourceDataID(
       const RenderResourceDataID& render_resource_data_ID,
-      std::vector<HandlerType>& handlers, Policy::OnlyWritten) const;
+      std::vector<HandlerType>& handlers, Policy::OnlyWrittenType) const;
 
   ExecuteResult GetRenderResourceDataByRenderResourceDataID(
       const RenderResourceDataID& render_resource_data_ID,
-      std::vector<HandlerType>& handlers, Policy::OnlyNotWritten) const;
+      std::vector<HandlerType>& handlers, Policy::OnlyNotWrittenType) const;
 
   ExecuteResult GetRenderResourceDataByName(
       const std::string& name, std::vector<HandlerType>& handlers) const;
 
   ExecuteResult GetRenderResourceDataByName(const std::string& name,
                                             std::vector<HandlerType>& handlers,
-                                            Policy::Both) const;
+                                            Policy::BothType) const;
 
   ExecuteResult GetRenderResourceDataByName(const std::string& name,
                                             std::vector<HandlerType>& handlers,
-                                            Policy::OnlyWritten) const;
+                                            Policy::OnlyWrittenType) const;
 
   ExecuteResult GetRenderResourceDataByName(const std::string& name,
                                             std::vector<HandlerType>& handlers,
-                                            Policy::OnlyNotWritten) const;
+                                            Policy::OnlyNotWrittenType) const;
 
-  ExecuteResult GetIDBYRenderResourceDataID(
+  ExecuteResult GetIDByRenderResourceDataID(
       const RenderResourceDataID& render_resource_data_ID,
       std::vector<Manager::ManagedObjectID>& managed_object_IDs) const;
 
-  ExecuteResult GetIDBYRenderResourceDataID(
+  ExecuteResult GetIDByRenderResourceDataID(
       const RenderResourceDataID& render_resource_data_ID,
       std::vector<Manager::ManagedObjectID>& managed_object_IDs,
-      Policy::Both) const;
+      Policy::BothType) const;
 
-  ExecuteResult GetIDBYRenderResourceDataID(
+  ExecuteResult GetIDByRenderResourceDataID(
       const RenderResourceDataID& render_resource_data_ID,
       std::vector<Manager::ManagedObjectID>& managed_object_IDs,
-      Policy::OnlyWritten) const;
+      Policy::OnlyWrittenType) const;
 
-  ExecuteResult GetIDBYRenderResourceDataID(
+  ExecuteResult GetIDByRenderResourceDataID(
       const RenderResourceDataID& render_resource_data_ID,
       std::vector<Manager::ManagedObjectID>& managed_object_IDs,
-      Policy::OnlyNotWritten) const;
+      Policy::OnlyNotWrittenType) const;
 
   ExecuteResult GetNameByRenderResourceID(
       const RenderResourceDataID& render_resource_data_ID,
@@ -226,48 +213,52 @@ class RenderResourceManager
 
   ExecuteResult GetNameByRenderResourceID(
       const RenderResourceDataID& render_resource_data_ID,
-      std::vector<std::string>& names, Policy::Both) const;
+      std::vector<std::string>& names, Policy::BothType) const;
 
   ExecuteResult GetNameByRenderResourceID(
       const RenderResourceDataID& render_resource_data_ID,
-      std::vector<std::string>& names, Policy::OnlyWritten) const;
+      std::vector<std::string>& names, Policy::OnlyWrittenType) const;
 
   ExecuteResult GetNameByRenderResourceID(
       const RenderResourceDataID& render_resource_data_ID,
-      std::vector<std::string>& names, Policy::OnlyNotWritten) const;
+      std::vector<std::string>& names, Policy::OnlyNotWrittenType) const;
 
-  ExecuteResult GetRenderResourceIDByID(
+  ExecuteResult GetRenderResourceDataIDByID(
       const Manager::ManagedObjectID& managed_object_ID,
       RenderResourceDataID& render_resource_data_ID) const;
 
-  ExecuteResult GetRenderResourceIDByID(
+  ExecuteResult GetRenderResourceDataIDByID(
       const Manager::ManagedObjectID& managed_object_ID,
-      RenderResourceDataID& render_resource_data_ID, Policy::Both) const;
+      RenderResourceDataID& render_resource_data_ID, Policy::BothType) const;
 
-  ExecuteResult GetRenderResourceIDByID(
-      const Manager::ManagedObjectID& managed_object_ID,
-      RenderResourceDataID& render_resource_data_ID, Policy::OnlyWritten) const;
-
-  ExecuteResult GetRenderResourceIDByID(
+  ExecuteResult GetRenderResourceDataIDByID(
       const Manager::ManagedObjectID& managed_object_ID,
       RenderResourceDataID& render_resource_data_ID,
-      Policy::OnlyNotWritten) const;
+      Policy::OnlyWrittenType) const;
+
+  ExecuteResult GetRenderResourceDataIDByID(
+      const Manager::ManagedObjectID& managed_object_ID,
+      RenderResourceDataID& render_resource_data_ID,
+      Policy::OnlyNotWrittenType) const;
 
   ExecuteResult GetRenderResourceDataIDByName(
       const std::string& name,
-      RenderResourceDataID& render_resource_data_ID) const;
+      std::vector<RenderResourceDataID>& render_resource_data_IDs) const;
 
   ExecuteResult GetRenderResourceDataIDByName(
-      const std::string& name, RenderResourceDataID& render_resource_data_ID,
-      Policy::Both) const;
+      const std::string& name,
+      std::vector<RenderResourceDataID>& render_resource_data_IDs,
+      Policy::BothType) const;
 
   ExecuteResult GetRenderResourceDataIDByName(
-      const std::string& name, RenderResourceDataID& render_resource_data_ID,
-      Policy::OnlyWritten) const;
+      const std::string& name,
+      std::vector<RenderResourceDataID>& render_resource_data_IDs,
+      Policy::OnlyWrittenType) const;
 
   ExecuteResult GetRenderResourceDataIDByName(
-      const std::string& name, RenderResourceDataID& render_resource_data_ID,
-      Policy::OnlyNotWritten) const;
+      const std::string& name,
+      std::vector<RenderResourceDataID>& render_resource_data_IDs,
+      Policy::OnlyNotWrittenType) const;
 
  protected:
   RenderResourceManager() = default;

@@ -30,7 +30,7 @@ static VKAPI_ATTR VkBool32 VKAPI_CALL ValidationLayerDebugCall(
     const VkDebugUtilsMessengerCallbackDataEXT* callback_data, void* user_data);
 
 class RenderEngine {
-  friend class RenderResourceBase;
+  friend class RenderResourceDataBase;
   friend class RenderResourceTexture;
   friend class RenderResourceBuffer;
   friend class RenderResourceMesh;

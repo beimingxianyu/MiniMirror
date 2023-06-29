@@ -16,184 +16,7 @@
 namespace MM {
 namespace RenderSystem {
 class RenderEngine;
-
-class RenderResourceBase : public ManagedObjectBase {
-  friend class RenderResourceTexture;
-  friend class RenderResourceBuffer;
-  friend class RenderResourceMesh;
-  friend class RenderResourceFrameBuffer;
-  template <typename ConstantType>
-  friend class RenderResourceConstants;
-
- public:
-  RenderResourceBase();
-  ~RenderResourceBase() override = default;
-  RenderResourceBase(const RenderResourceBase& other) = default;
-  RenderResourceBase(RenderResourceBase&& other) noexcept;
-  RenderResourceBase& operator=(const RenderResourceBase& other);
-  RenderResourceBase& operator=(RenderResourceBase&& other) noexcept;
-
- public:
-  const std::string& GetResourceName() const;
-
-  RenderResuorceID GetRenderResourceDataID() const;
-
-  virtual bool IsValid() const;
-  ;
-
-  /**
-   * \brief Release ownership of the resources held.
-   */
-  void Release() override;
-
-  /**
-   * \brief replaces the managed object
-   * \param other The resource to be taken ownership.
-   */
-  virtual void Reset(MM::RenderSystem::RenderResourceBase* other);
-
-  /**
-   * \brief Returns the number of  \ref RenderResourceBase objects referring to
-   * the same managed resource. \return The number of  \ref RenderResourceBase
-   * objects referring to the same managed resource.
-   */
-  virtual uint32_t UseCount() const;
-  ;
-
-  virtual ResourceType GetResourceType() const;
-
-  /**
-   * \brief Gets the memory size occupied by the resource.
-   * \return The size of the resource.
-   * \remark If this object held is a resource array, the sum of the memory
-   * occupied by all resources in the array is returned.
-   */
-  virtual VkDeviceSize GetSize() const;
-  ;
-
-  /**
-   * \brief Determine whether the resource is a array.
-   * \return Returns true if resource is a array, otherwise returns false.
-   */
-  virtual bool IsArray() const;
-
-  virtual bool CanWrite() const;
-
-  virtual std::unique_ptr<RenderResourceBase> GetLightCopy(
-      const std::string& new_name_of_copy_resource) const;
-
-  virtual std::unique_ptr<RenderResourceBase> GetDeepCopy(
-      const std::string& new_name_of_copy_resource) const;
-
- protected:
-  explicit RenderResourceBase(const std::string& resource_name);
-
-  RenderResourceBase(const std::string& resource_name,
-                     const std::uint32_t& resource_ID);
-
-  void SetResourceName(const std::string& new_resource_name);
-
-  void SetResourceID(const std::uint32_t& new_resource_ID);
-};
-
-// TODO RenderSystem memory collection
-class RenderResourceManager : public RenderManageBase<RenderResourceBase> {
- public:
-  RenderResourceManager(const RenderResourceManager& other) = delete;
-  RenderResourceManager(RenderResourceManager&& other) = delete;
-  RenderResourceManager& operator=(const RenderResourceManager& other) = delete;
-  RenderResourceManager& operator=(RenderResourceManager&& other) = delete;
-
- public:
-  static RenderResourceManager* GetInstance();
-
-  bool IsUseToWrite(const std::string& resource_name, bool& result) const;
-
-  bool IsUseToWrite(const std::uint32_t& resource_ID) const;
-
-  bool IsShared(const std::string& resource_name, bool& result) const;
-
-  bool IsShared(const std::uint32_t& resource_ID) const;
-
-  bool HaveResource(const std::uint32_t& resource_ID) const;
-
-  uint64_t GetAssetIDFromResourceID(const uint32_t& resource_id) const;
-
-  bool GetAssetIDFromResourceID(const uint32_t& resource_id,
-                                std::uint64_t& output_asset_ID) const;
-
-  bool HaveAsset(const std::uint64_t& asset_ID) const;
-
-  uint32_t GetResourceIDFromName(const std::string& resource_name) const;
-
-  const std::string& GetResourceNameFromID(
-      const std::uint32_t& resource_ID) const;
-
-  bool GetResourceIDsFromAssetID(
-      const uint64_t& asset_ID,
-      std::vector<uint32_t>& output_resource_IDs) const;
-
-  std::uint32_t GetDeepCopy(const std::string& new_name_of_resource,
-                            const std::string& resource_name) override;
-
-  std::uint32_t GetDeepCopy(const std::string& new_name_of_resource,
-                            const std::uint32_t& resource_ID) override;
-
-  std::uint32_t GetLightCopy(const std::string& new_name_of_resource,
-                             const std::string& resource_name) override;
-
-  std::uint32_t GetLightCopy(const std::string& new_name_of_resource,
-                             const std::uint32_t& resource_ID) override;
-
-  // TODO Add function that create default type render resource
-
-  std::uint32_t SaveData(
-      std::unique_ptr<RenderResourceBase>&& resource) override;
-
-  std::uint32_t SaveData(std::unique_ptr<RenderResourceBase>&& resource,
-                         const RenderResourceManageInfo& manage_info,
-                         const uint64_t& asset_ID = 0);
-
-  // Only when build the render graph will UseWrite be called.
-  std::uint32_t AddUseToWrite(const std::string& new_name_of_resource,
-                              const std::string& resource_name,
-                              const bool& is_shared = false);
-
-  std::uint32_t AddUseToWrite(const std::string& new_name_of_resource,
-                              const std::uint32_t& resource_ID,
-                              const bool& is_shared = false);
-
-  bool AddUse(const std::uint32_t& resource_ID) override;
-
-  bool AddUse(const std::string& resource_name) override;
-
-  // TODO Add multiple frame in flight support
-  void ReleaseUse(const std::uint32_t& object_id) override;
-
-  void ReleaseUse(const std::string& resource_name) override;
-
- protected:
-  RenderResourceManager();
-  ~RenderResourceManager() = default;
-  static RenderResourceManager* render_resource_manager_;
-
- private:
-  static bool Destroy();
-
- private:
-  static std::mutex sync_flag_;
-
-  mutable std::shared_mutex resource_lock_{};
-  std::unordered_map<uint64_t, std::vector<uint32_t>>
-      asset_ID_to_resource_IDs_{};
-  // TODO Merge resource_ID_to_asset_ID_ and resource_ID_to_manage_info
-  std::unordered_map<uint32_t, uint64_t> resource_ID_to_asset_ID_{};
-  std::unordered_map<uint32_t, RenderResourceManageInfo>
-      resource_ID_to_manage_info{};
-  // TODO Add vertex buffer and stage buffer
-};
-
-class RenderResourceTexture final : public RenderResourceBase {
+class RenderResourceTexture final : public RenderResourceDataBase {
  public:
   RenderResourceTexture() = default;
   ~RenderResourceTexture() override = default;
@@ -260,10 +83,10 @@ class RenderResourceTexture final : public RenderResourceBase {
 
   bool IsValid() const override;
 
-  std::unique_ptr<RenderResourceBase> GetLightCopy(
+  std::unique_ptr<RenderResourceDataBase> GetLightCopy(
       const std::string& new_name_of_copy_resource) const override;
 
-  std::unique_ptr<RenderResourceBase> GetDeepCopy(
+  std::unique_ptr<RenderResourceDataBase> GetDeepCopy(
       const std::string& new_name_of_copy_resource) const override;
 
   /**
@@ -275,7 +98,7 @@ class RenderResourceTexture final : public RenderResourceBase {
    * \brief replaces the managed object
    * \param other The resource to be taken ownership.
    */
-  void Reset(MM::RenderSystem::RenderResourceBase* other) override;
+  void Reset(MM::RenderSystem::RenderResourceDataBase* other) override;
 
   /**
    * \brief Returns the number of  \ref RenderResourceBase objects referring to
@@ -321,7 +144,7 @@ class RenderResourceTexture final : public RenderResourceBase {
   ImageBindInfo image_bind_info_{};
 };
 
-class RenderResourceBuffer final : public RenderResourceBase {
+class RenderResourceBuffer final : public RenderResourceDataBase {
   // TODO add friend class RenderResourceManage
  public:
   RenderResourceBuffer() = delete;
@@ -442,7 +265,7 @@ class RenderResourceBuffer final : public RenderResourceBase {
 
   void Release() override;
 
-  void Reset(MM::RenderSystem::RenderResourceBase* other) override;
+  void Reset(MM::RenderSystem::RenderResourceDataBase* other) override;
 
   uint32_t UseCount() const override;
 
@@ -454,10 +277,10 @@ class RenderResourceBuffer final : public RenderResourceBase {
 
   bool CanWrite() const override;
 
-  std::unique_ptr<RenderResourceBase> GetLightCopy(
+  std::unique_ptr<RenderResourceDataBase> GetLightCopy(
       const std::string& new_name_of_copy_resource) const override;
 
-  std::unique_ptr<RenderResourceBase> GetDeepCopy(
+  std::unique_ptr<RenderResourceDataBase> GetDeepCopy(
       const std::string& new_name_of_copy_resource) const override;
 
  private:
@@ -496,7 +319,7 @@ class RenderResourceBuffer final : public RenderResourceBase {
   // std::shared_ptr<VkSemaphore> semaphore_{nullptr};
 };
 
-class RenderResourceMesh final : public RenderResourceBase {
+class RenderResourceMesh final : public RenderResourceDataBase {
  public:
   RenderResourceMesh() = default;
   ~RenderResourceMesh() override = default;
@@ -508,7 +331,7 @@ class RenderResourceMesh final : public RenderResourceBase {
  public:
   bool IsValid() const override;
   void Release() override;
-  void Reset(MM::RenderSystem::RenderResourceBase* other) override;
+  void Reset(MM::RenderSystem::RenderResourceDataBase* other) override;
   uint32_t UseCount() const override;
   ResourceType GetResourceType() const override;
   VkDeviceSize GetSize() const override;
@@ -530,15 +353,15 @@ class RenderResourceMesh final : public RenderResourceBase {
   std::vector<BufferBindInfo> instance_buffers_info{};
 };
 
-class RenderResourceStageBuffer final : public RenderResourceBase {};
+class RenderResourceStageBuffer final : public RenderResourceDataBase {};
 
-class RenderResourceFrameBuffer final : public RenderResourceBase {
+class RenderResourceFrameBuffer final : public RenderResourceDataBase {
  public:
  private:
 };
 
 template <typename ConstantType>
-class RenderResourceConstants final : public RenderResourceBase {
+class RenderResourceConstants final : public RenderResourceDataBase {
  public:
   RenderResourceConstants() = default;
   ~RenderResourceConstants() override = default;
@@ -584,7 +407,7 @@ class RenderResourceConstants final : public RenderResourceBase {
    * will only release the ownership of the resource and will
    * not obtain the ownership of the \ref other resource.
    */
-  void Reset(MM::RenderSystem::RenderResourceBase* other) override;
+  void Reset(MM::RenderSystem::RenderResourceDataBase* other) override;
 
   /**
    * \brief Returns the number of  \ref RenderResourceBase objects referring to
@@ -608,7 +431,7 @@ template <typename ConstantType>
 RenderResourceConstants<ConstantType>::RenderResourceConstants(
     const std::string& resource_name, const uint32_t& offset,
     const uint32_t& size, const std::shared_ptr<ConstantType>& value)
-    : RenderResourceBase(resource_name),
+    : RenderResourceDataBase(resource_name),
       offset_(offset),
       size_(size),
       value_(value) {
@@ -637,7 +460,7 @@ RenderResourceConstants<ConstantType>::operator=(
   if (&other == this) {
     return *this;
   }
-  RenderResourceBase::operator=(other);
+  RenderResourceDataBase::operator=(other);
 
   offset_ = other.offset_;
   size_ = other.size_;
@@ -653,7 +476,7 @@ RenderResourceConstants<ConstantType>::operator=(
   if (&other == this) {
     return *this;
   }
-  RenderResourceBase::operator=(std::move(value_));
+  RenderResourceDataBase::operator=(std::move(value_));
 
   offset_ = other.offset_;
   size_ = other.size_;
@@ -712,7 +535,7 @@ void RenderResourceConstants<ConstantType>::Release() {
     return;
   }
 
-  RenderResourceBase::Release();
+  RenderResourceDataBase::Release();
 
   offset_ = 0;
   size_ = 0;
@@ -721,13 +544,13 @@ void RenderResourceConstants<ConstantType>::Release() {
 
 template <typename ConstantType>
 void RenderResourceConstants<ConstantType>::Reset(
-    MM::RenderSystem::RenderResourceBase* other) {
+    MM::RenderSystem::RenderResourceDataBase* other) {
   if (other == nullptr) {
     Release();
     return;
   }
 
-  RenderResourceBase::Reset(other);
+  RenderResourceDataBase::Reset(other);
 
   if (other->GetResourceType() != ResourceType::CONSTANTS) {
     LOG_WARN(
