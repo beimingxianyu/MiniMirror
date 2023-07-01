@@ -4,62 +4,6 @@
 
 #include "runtime/function/render/vk_engine.h"
 
-MM::RenderSystem::BufferBindInfo::BufferBindInfo(
-    const VkDescriptorSetLayoutBinding& bind, VkDeviceSize range_size,
-    VkDeviceSize offset, VkDeviceSize dynamic_offset)
-    : bind_(bind),
-      range_size_(range_size),
-      offset_(offset),
-      dynamic_offset_(dynamic_offset) {}
-
-MM::RenderSystem::BufferBindInfo::BufferBindInfo(
-    BufferBindInfo&& other) noexcept
-    : bind_(other.bind_),
-      range_size_(other.range_size_),
-      offset_(other.offset_),
-      dynamic_offset_(other.dynamic_offset_) {
-  other.Reset();
-}
-
-MM::RenderSystem::BufferBindInfo& MM::RenderSystem::BufferBindInfo::operator=(
-    const BufferBindInfo& other) {
-  if (&other == this) {
-    return *this;
-  }
-  bind_ = other.bind_;
-  range_size_ = other.range_size_;
-  offset_ = other.offset_;
-  dynamic_offset_ = other.dynamic_offset_;
-
-  return *this;
-}
-
-MM::RenderSystem::BufferBindInfo& MM::RenderSystem::BufferBindInfo::operator=(
-    BufferBindInfo&& other) noexcept {
-  if (&other == this) {
-    return *this;
-  }
-  bind_ = other.bind_;
-  range_size_ = other.range_size_;
-  offset_ = other.offset_;
-  dynamic_offset_ = other.dynamic_offset_;
-
-  other.Reset();
-
-  return *this;
-}
-
-void MM::RenderSystem::BufferBindInfo::Reset() {
-  range_size_ = 0;
-  offset_ = 0;
-  dynamic_offset_ = 0;
-}
-
-bool MM::RenderSystem::BufferBindInfo::IsValid() const {
-  return range_size_ != 0 && dynamic_offset_ < range_size_ &&
-         bind_.descriptorCount != 0;
-}
-
 void MM::RenderSystem::BufferInfo::Reset() {
   buffer_size_ = 0;
   can_mapped_ = false;

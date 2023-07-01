@@ -84,7 +84,7 @@ MM::RenderSystem::RenderResourceTexture::RenderResourceTexture(
 
 MM::RenderSystem::RenderResourceTexture::RenderResourceTexture(
     const std::string& resource_name, RenderEngine* engine,
-    const AllocatedImage& image, const ImageBindInfo& image_bind_info)
+    const AllocatedImage& image, const ImageBindData& image_bind_info)
     : RenderResourceDataBase(resource_name),
       render_engine_(engine),
       image_(image),
@@ -164,7 +164,7 @@ MM::RenderSystem::RenderResourceTexture::GetImageInfo() const {
   return image_.GetImageInfo();
 }
 
-const MM::RenderSystem::ImageBindInfo&
+const MM::RenderSystem::ImageBindData&
 MM::RenderSystem::RenderResourceTexture::GetImageBindInfo() const {
   return image_bind_info_;
 }

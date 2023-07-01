@@ -2,7 +2,7 @@
 
 #include <optional>
 
-#include "runtime/function/render/RenderResourceDataAttributeID.h"
+#include "runtime/function/render/RenderDataAttributeID.h"
 #include "runtime/resource/asset_system/AssetSystem.h"
 #include "runtime/resource/asset_system/asset_type/base/asset_type_define.h"
 

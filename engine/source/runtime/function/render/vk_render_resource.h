@@ -16,7 +16,7 @@
 namespace MM {
 namespace RenderSystem {
 class RenderEngine;
-class RenderResourceTexture final : public RenderResourceDataBase {
+class RendrResourceTexture final : public RenderResourceDataBase {
  public:
   RenderResourceTexture() = default;
   ~RenderResourceTexture() override = default;
@@ -38,7 +38,7 @@ class RenderResourceTexture final : public RenderResourceDataBase {
    */
   RenderResourceTexture(const std::string& resource_name, RenderEngine* engine,
                         const AllocatedImage& image,
-                        const ImageBindInfo& image_bind_info);
+                        const ImageBindData& image_bind_info);
   RenderResourceTexture(const RenderResourceTexture& other);
   RenderResourceTexture(RenderResourceTexture&& other) noexcept;
   RenderResourceTexture& operator=(const RenderResourceTexture& other);
@@ -57,7 +57,7 @@ class RenderResourceTexture final : public RenderResourceDataBase {
 
   const ImageInfo& GetImageInfo() const;
 
-  const ImageBindInfo& GetImageBindInfo() const;
+  const ImageBindData& GetImageBindInfo() const;
 
   RenderResourceTexture GetCopy() const;
 
@@ -141,7 +141,7 @@ class RenderResourceTexture final : public RenderResourceDataBase {
  private:
   RenderEngine* render_engine_{nullptr};
   AllocatedImage image_{};
-  ImageBindInfo image_bind_info_{};
+  ImageBindData image_bind_info_{};
 };
 
 class RenderResourceBuffer final : public RenderResourceDataBase {

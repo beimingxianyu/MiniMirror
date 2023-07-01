@@ -4,6 +4,8 @@
 
 #include "runtime/function/render/AllocatedImage.h"
 
+#include "vk_utils.h"
+
 MM::RenderSystem::AllocatedImage::AllocatedImage(
     const std::string& name,
     const RenderResourceDataID& render_resource_data_ID,
@@ -16,7 +18,7 @@ MM::RenderSystem::AllocatedImage::AllocatedImage(
 MM::RenderSystem::AllocatedImage::AllocatedImage(
     AllocatedImage&& other) noexcept
     : RenderResourceDataBase(std::move(other)),
-      image_data_info_(other.image_data_info_),
+      image_data_info_(std::move(other.image_data_info_)),
       wrapper_(std::move(other.wrapper_)) {
   image_data_info_.Reset();
 }
@@ -28,7 +30,7 @@ MM::RenderSystem::AllocatedImage& MM::RenderSystem::AllocatedImage::operator=(
   }
 
   RenderResourceDataBase::operator=(std::move(other));
-  image_data_info_ = other.image_data_info_;
+  image_data_info_ = std::move(other.image_data_info_);
   wrapper_ = std::move(other.wrapper_);
 
   other.image_data_info_.Reset();
@@ -60,16 +62,18 @@ const uint32_t& MM::RenderSystem::AllocatedImage::GetArrayLayers() const {
   return image_data_info_.image_create_info_.array_levels_;
 }
 
-const bool& MM::RenderSystem::AllocatedImage::CanMapped() const {
-  return image_data_info_.can_mapped_;
+bool MM::RenderSystem::AllocatedImage::CanMapped() const {
+  return Utils::CanBeMapped(image_data_info_.allocation_create_info_.usage_,
+                            image_data_info_.allocation_create_info_.flags_);
 }
 
-const bool& MM::RenderSystem::AllocatedImage::IsTransformSrc() const {
-  return image_data_info_.is_transform_src_;
+bool MM::RenderSystem::AllocatedImage::IsTransformSrc() const {
+  return Utils::IsTransformSrcImage(image_data_info_.image_create_info_.usage_);
 }
 
-const bool& MM::RenderSystem::AllocatedImage::IsTransformDest() const {
-  return image_data_info_.is_transform_dest_;
+bool MM::RenderSystem::AllocatedImage::IsTransformDest() const {
+  return Utils::IsTransformDestImage(
+      image_data_info_.image_create_info_.usage_);
 }
 
 const MM::RenderSystem::ImageCreateInfo&
@@ -99,11 +103,9 @@ VmaAllocation MM::RenderSystem::AllocatedImage::GetAllocation() const {
   return wrapper_.GetAllocation();
 }
 
-std::pair<const std::uint32_t*, std::uint32_t>
+const std::vector<std::uint32_t>&
 MM::RenderSystem::AllocatedImage::GetQueueIndexes() const {
-  return std::make_pair(
-      image_data_info_.image_create_info_.queue_family_indices_,
-      image_data_info_.image_create_info_.queue_family_index_count_);
+  return image_data_info_.image_create_info_.queue_family_indices_;
 }
 
 void MM::RenderSystem::AllocatedImage::Release() { wrapper_.Release(); }

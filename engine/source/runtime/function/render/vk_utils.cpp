@@ -1,11 +1,11 @@
 #include "runtime/function/render/vk_utils.h"
 
+#include <cstdint>
 #include <string>
+#include <vector>
 
 #include "runtime/function/render/AllocatedImage.h"
-#include "runtime/function/render/import_other_system.h"
 #include "runtime/function/render/vk_engine.h"
-#include "runtime/function/render/vk_type.h"
 #include "utils/marco.h"
 
 MM::ExecuteResult MM::RenderSystem::Utils::VkResultToMMResult(
@@ -171,7 +171,7 @@ VkCommandBufferBeginInfo MM::RenderSystem::Utils::GetCommandBufferBeginInfo(
   VkCommandBufferBeginInfo command_buffer_begin_info{};
   command_buffer_begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
   command_buffer_begin_info.pNext = nullptr;
-  command_buffer_begin_info.flags = 0;
+  command_buffer_begin_info.flags = flags;
   command_buffer_begin_info.pInheritanceInfo = nullptr;
 
   return command_buffer_begin_info;
@@ -731,7 +731,7 @@ VkSemaphoreCreateInfo MM::RenderSystem::Utils::GetSemaphoreCreateInfo(
   VkSemaphoreCreateInfo semaphore_create_info{};
   semaphore_create_info.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
   semaphore_create_info.pNext = nullptr;
-  semaphore_create_info.flags = 0;
+  semaphore_create_info.flags = flags;
 
   return semaphore_create_info;
 }
@@ -778,7 +778,6 @@ bool MM::RenderSystem::Utils::CanBeMapped(
         return true;
       }
       return false;
-      break;
     default:
       return false;
   }
@@ -1130,4 +1129,141 @@ MM::ExecuteResult MM::RenderSystem::Utils::EndCommandBuffer(
     AllocatedCommandBuffer& command_buffer) {
   return VkResultToMMResult(
       vkEndCommandBuffer(command_buffer.GetCommandBuffer()));
+}
+
+std::uint64_t MM::RenderSystem::Utils::ConvertVkFormatToContinuousValue(
+    VkFormat vk_format) {
+  if (vk_format < 1000156000) {
+    return static_cast<std::uint64_t>(vk_format);
+  }
+
+  switch (vk_format) {
+    case VK_FORMAT_G8B8G8R8_422_UNORM:
+      return 185;
+    case VK_FORMAT_B8G8R8G8_422_UNORM:
+      return 186;
+    case VK_FORMAT_G8_B8_R8_3PLANE_420_UNORM:
+      return 187;
+    case VK_FORMAT_G8_B8R8_2PLANE_420_UNORM:
+      return 188;
+    case VK_FORMAT_G8_B8_R8_3PLANE_422_UNORM:
+      return 189;
+    case VK_FORMAT_G8_B8R8_2PLANE_422_UNORM:
+      return 190;
+    case VK_FORMAT_G8_B8_R8_3PLANE_444_UNORM:
+      return 191;
+    case VK_FORMAT_R10X6_UNORM_PACK16:
+      return 192;
+    case VK_FORMAT_R10X6G10X6_UNORM_2PACK16:
+      return 193;
+    case VK_FORMAT_R10X6G10X6B10X6A10X6_UNORM_4PACK16:
+      return 194;
+    case VK_FORMAT_G10X6B10X6G10X6R10X6_422_UNORM_4PACK16:
+      return 195;
+    case VK_FORMAT_B10X6G10X6R10X6G10X6_422_UNORM_4PACK16:
+      return 196;
+    case VK_FORMAT_G10X6_B10X6_R10X6_3PLANE_420_UNORM_3PACK16:
+      return 197;
+    case VK_FORMAT_G10X6_B10X6R10X6_2PLANE_420_UNORM_3PACK16:
+      return 198;
+    case VK_FORMAT_G10X6_B10X6_R10X6_3PLANE_422_UNORM_3PACK16:
+      return 199;
+    case VK_FORMAT_G10X6_B10X6R10X6_2PLANE_422_UNORM_3PACK16:
+      return 200;
+    case VK_FORMAT_G10X6_B10X6_R10X6_3PLANE_444_UNORM_3PACK16:
+      return 201;
+    case VK_FORMAT_R12X4_UNORM_PACK16:
+      return 202;
+    case VK_FORMAT_R12X4G12X4_UNORM_2PACK16:
+      return 203;
+    case VK_FORMAT_R12X4G12X4B12X4A12X4_UNORM_4PACK16:
+      return 204;
+    case VK_FORMAT_G12X4B12X4G12X4R12X4_422_UNORM_4PACK16:
+      return 205;
+    case VK_FORMAT_B12X4G12X4R12X4G12X4_422_UNORM_4PACK16:
+      return 206;
+    case VK_FORMAT_G12X4_B12X4_R12X4_3PLANE_420_UNORM_3PACK16:
+      return 207;
+    case VK_FORMAT_G12X4_B12X4R12X4_2PLANE_420_UNORM_3PACK16:
+      return 208;
+    case VK_FORMAT_G12X4_B12X4_R12X4_3PLANE_422_UNORM_3PACK16:
+      return 209;
+    case VK_FORMAT_G12X4_B12X4R12X4_2PLANE_422_UNORM_3PACK16:
+      return 210;
+    case VK_FORMAT_G12X4_B12X4_R12X4_3PLANE_444_UNORM_3PACK16:
+      return 211;
+    case VK_FORMAT_G16B16G16R16_422_UNORM:
+      return 212;
+    case VK_FORMAT_B16G16R16G16_422_UNORM:
+      return 213;
+    case VK_FORMAT_G16_B16_R16_3PLANE_420_UNORM:
+      return 214;
+    case VK_FORMAT_G16_B16R16_2PLANE_420_UNORM:
+      return 215;
+    case VK_FORMAT_G16_B16_R16_3PLANE_422_UNORM:
+      return 216;
+    case VK_FORMAT_G16_B16R16_2PLANE_422_UNORM:
+      return 217;
+    case VK_FORMAT_G16_B16_R16_3PLANE_444_UNORM:
+      return 218;
+    case VK_FORMAT_G8_B8R8_2PLANE_444_UNORM:
+      return 219;
+    case VK_FORMAT_G10X6_B10X6R10X6_2PLANE_444_UNORM_3PACK16:
+      return 220;
+    case VK_FORMAT_G12X4_B12X4R12X4_2PLANE_444_UNORM_3PACK16:
+      return 221;
+    case VK_FORMAT_G16_B16R16_2PLANE_444_UNORM:
+      return 222;
+    case VK_FORMAT_A4R4G4B4_UNORM_PACK16:
+      return 223;
+    case VK_FORMAT_A4B4G4R4_UNORM_PACK16:
+      return 224;
+    case VK_FORMAT_ASTC_4x4_SFLOAT_BLOCK:
+      return 225;
+    case VK_FORMAT_ASTC_5x4_SFLOAT_BLOCK:
+      return 226;
+    case VK_FORMAT_ASTC_5x5_SFLOAT_BLOCK:
+      return 227;
+    case VK_FORMAT_ASTC_6x5_SFLOAT_BLOCK:
+      return 228;
+    case VK_FORMAT_ASTC_6x6_SFLOAT_BLOCK:
+      return 229;
+    case VK_FORMAT_ASTC_8x5_SFLOAT_BLOCK:
+      return 230;
+    case VK_FORMAT_ASTC_8x6_SFLOAT_BLOCK:
+      return 231;
+    case VK_FORMAT_ASTC_8x8_SFLOAT_BLOCK:
+      return 232;
+    case VK_FORMAT_ASTC_10x5_SFLOAT_BLOCK:
+      return 233;
+    case VK_FORMAT_ASTC_10x6_SFLOAT_BLOCK:
+      return 234;
+    case VK_FORMAT_ASTC_10x8_SFLOAT_BLOCK:
+      return 235;
+    case VK_FORMAT_ASTC_10x10_SFLOAT_BLOCK:
+      return 236;
+    case VK_FORMAT_ASTC_12x10_SFLOAT_BLOCK:
+      return 237;
+    case VK_FORMAT_ASTC_12x12_SFLOAT_BLOCK:
+      return 238;
+    case VK_FORMAT_PVRTC1_2BPP_UNORM_BLOCK_IMG:
+      return 239;
+    case VK_FORMAT_PVRTC1_4BPP_UNORM_BLOCK_IMG:
+      return 240;
+    case VK_FORMAT_PVRTC2_2BPP_UNORM_BLOCK_IMG:
+      return 241;
+    case VK_FORMAT_PVRTC2_4BPP_UNORM_BLOCK_IMG:
+      return 242;
+    case VK_FORMAT_PVRTC1_2BPP_SRGB_BLOCK_IMG:
+      return 243;
+    case VK_FORMAT_PVRTC1_4BPP_SRGB_BLOCK_IMG:
+      return 244;
+    case VK_FORMAT_PVRTC2_2BPP_SRGB_BLOCK_IMG:
+      return 245;
+    case VK_FORMAT_PVRTC2_4BPP_SRGB_BLOCK_IMG:
+      return 246;
+  }
+
+  assert(false);
+  return 0;
 }

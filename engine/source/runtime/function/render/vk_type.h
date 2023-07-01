@@ -16,27 +16,6 @@
 namespace MM {
 namespace RenderSystem {
 
-struct BufferBindInfo {
-  BufferBindInfo() = default;
-  ~BufferBindInfo() = default;
-  BufferBindInfo(const VkDescriptorSetLayoutBinding& bind,
-                 VkDeviceSize range_size, VkDeviceSize offset,
-                 VkDeviceSize dynamic_offset);
-  BufferBindInfo(const BufferBindInfo& other) = default;
-  BufferBindInfo(BufferBindInfo&& other) noexcept;
-  BufferBindInfo& operator=(const BufferBindInfo& other);
-  BufferBindInfo& operator=(BufferBindInfo&& other) noexcept;
-
-  VkDescriptorSetLayoutBinding bind_{};
-  VkDeviceSize range_size_{0};
-  VkDeviceSize offset_{0};
-  VkDeviceSize dynamic_offset_{0};
-
-  void Reset();
-
-  bool IsValid() const;
-};
-
 struct BufferInfo {
   VkDeviceSize buffer_size_{0};
   bool can_mapped_{false};

@@ -2,7 +2,9 @@
 
 #include <vk_mem_alloc.h>
 #include <vulkan/vulkan.h>
+#include <vulkan/vulkan_core.h>
 
+#include <cstdint>
 #include <vector>
 
 #include "runtime/function/render/import_other_system.h"
@@ -332,6 +334,9 @@ ExecuteResult BeginCommandBuffer(
     const VkCommandBufferInheritanceInfo* inheritance_info = nullptr);
 
 ExecuteResult EndCommandBuffer(AllocatedCommandBuffer& command_buffer);
+
+std::uint64_t ConvertVkFormatToContinuousValue(VkFormat vk_format);
+
 }  // namespace Utils
 }  // namespace RenderSystem
 }  // namespace MM

@@ -1,9 +1,11 @@
+#include <vector>
+
 #include "runtime/function/render/RenderResourceDataBase.h"
 #include "runtime/function/render/vk_type_define.h"
 
 namespace MM {
 namespace RenderSystem {
-class AllocatedImage : public RenderResourceDataBase {
+class AllocatedImage final : public RenderResourceDataBase {
   friend class RenderResourceTexture;
 
  public:
@@ -32,11 +34,11 @@ class AllocatedImage : public RenderResourceDataBase {
 
   const uint32_t& GetArrayLayers() const;
 
-  const bool& CanMapped() const;
+  bool CanMapped() const;
 
-  const bool& IsTransformSrc() const;
+  bool IsTransformSrc() const;
 
-  const bool& IsTransformDest() const;
+  bool IsTransformDest() const;
 
   const ImageCreateInfo& GetImageCreateInfo() const;
 
@@ -50,7 +52,7 @@ class AllocatedImage : public RenderResourceDataBase {
 
   VmaAllocation GetAllocation() const;
 
-  std::pair<const std::uint32_t*, std::uint32_t> GetQueueIndexes() const;
+  const std::vector<std::uint32_t>& GetQueueIndexes() const;
 
   void Release();
 
