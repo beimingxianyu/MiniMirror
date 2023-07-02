@@ -257,6 +257,68 @@ void MM::RenderSystem::ImageDataInfo::Reset() {
   allocation_create_info_.Reset();
 }
 
+MM::ExecuteResult MM::RenderSystem::ImageDataInfo::GetRenderDataAttributeID(
+    MM::RenderSystem::RenderImageDataAttributeID render_image_data_attribute_ID)
+    const {
+  if (!IsValid()) {
+    return ExecuteResult ::OBJECT_IS_INVALID;
+  }
+
+  std::uint64_t attribute1 = 0, attribute2 = 0, attribute3 = 0;
+
+  // attribute1
+  attribute1 |= image_create_info_.sharing_mode_;
+  if (image_create_info_.tiling_ < 1000158000) {
+    attribute1 |= image_create_info_.tiling_ << 2;
+  } else {
+    attribute1 |= 2;
+  }
+  attribute1 |= image_create_info_.samples_ << 4;
+  attribute1 |= image_create_info_.array_levels_ << 7;
+  attribute1 |= image_create_info_.miplevels_ << 13;
+  attribute1 |=
+      Utils::ConvertVkFormatToContinuousValue(image_create_info_.format_) << 19;
+  attribute1 |= image_create_info_.image_type_ << 27;
+  if (image_create_info_.flags_ == 0x00020000) {
+    attribute1 |= static_cast<std::uint64_t>(0x00010000) << 29;
+  } else {
+    attribute1 |= image_create_info_.flags_ << 29;
+  }
+  attribute1 |= reinterpret_cast<std::uint64_t>(image_create_info_.next_) << 48;
+
+  // attribute2
+  attribute2 |= Utils::ConvertVkImageLayoutToContinuousValue(
+      image_create_info_.initial_layout_);
+  if (image_create_info_.usage_ == 0x00040000) {
+    attribute2 |= static_cast<std::uint64_t>(0x00010000) << 5;
+  } else {
+    attribute2 |= image_create_info_.usage_ << 5;
+  }
+  attribute2 |= static_cast<std::uint64_t>(image_create_info_.extent_.depth)
+                << 25;
+  attribute2 |= static_cast<std::uint64_t>(image_create_info_.extent_.height)
+                << 38;
+  attribute2 |= static_cast<std::uint64_t>(image_create_info_.extent_.width)
+                << 51;
+
+  // attribute3
+  attribute3 |= static_cast<std::uint64_t>(
+      std::floor(allocation_create_info_.priority_ * 100));
+  attribute3 |= allocation_create_info_.memory_type_bits_ << 14;
+  attribute3 |= allocation_create_info_.preferred_flags_ << 18;
+  attribute3 |= allocation_create_info_.required_flags_ << 28;
+  attribute3 |= static_cast<std::uint64_t>(allocation_create_info_.usage_)
+                << 38;
+  attribute3 |= static_cast<std::uint64_t>(allocation_create_info_.flags_)
+                << 42;
+
+  render_image_data_attribute_ID.SetAttribute1(attribute1);
+  render_image_data_attribute_ID.SetAttribute2(attribute2);
+  render_image_data_attribute_ID.SetAttribute3(attribute3);
+
+  return ExecuteResult ::SUCCESS;
+}
+
 MM::RenderSystem::BufferBindInfo::BufferBindInfo(
     const VkDescriptorSetLayoutBinding& bind, VkDeviceSize range_size,
     VkDeviceSize offset, VkDeviceSize dynamic_offset)

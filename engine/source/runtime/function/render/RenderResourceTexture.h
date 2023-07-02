@@ -1,9 +1,17 @@
 #pragma once
 
+#include "runtime/function/render/RenderResourceManager.h"
+#include "runtime/function/render/vk_type_define.h"
+#include "vk_engine.h"
+
 namespace MM {
 namespace RenderSystem {
+class RenderEngine;
 
 class RenderResourceTexture {
+ public:
+  using RenderResourceHandler = RenderResourceManager::HandlerType;
+
  public:
   RenderResourceTexture() = default;
   ~RenderResourceTexture() = default;
@@ -14,6 +22,10 @@ class RenderResourceTexture {
       default;
 
  private:
+  RenderEngine* render_engine_{nullptr};
+  RenderResourceHandler texture_handler_{};
+  AllocatedImage* image_{nullptr};
+  ImageBindData image_bind_data_{};
 };
 
 }  // namespace RenderSystem

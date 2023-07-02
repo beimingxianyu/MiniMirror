@@ -279,5 +279,8 @@ class RenderResourceManager
   static std::mutex sync_flag_;
 };
 
+using RenderImageManager = RenderResourceManager;
+
+using RenderBufferManager = RenderResourceManager;
 }  // namespace RenderSystem
 }  // namespace MM

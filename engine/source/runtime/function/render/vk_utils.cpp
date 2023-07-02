@@ -1267,3 +1267,57 @@ std::uint64_t MM::RenderSystem::Utils::ConvertVkFormatToContinuousValue(
   assert(false);
   return 0;
 }
+
+std::uint64_t MM::RenderSystem::Utils::ConvertVkImageLayoutToContinuousValue(
+    VkImageLayout vk_image_layout) {
+  if (vk_image_layout < 1000117000) {
+    return vk_image_layout;
+  }
+
+  switch (vk_image_layout) {
+    case VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_STENCIL_ATTACHMENT_OPTIMAL:
+      return 9;
+    case VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_STENCIL_READ_ONLY_OPTIMAL:
+      return 10;
+    case VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL:
+      return 11;
+    case VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_OPTIMAL:
+      return 12;
+    case VK_IMAGE_LAYOUT_STENCIL_ATTACHMENT_OPTIMAL:
+      return 13;
+    case VK_IMAGE_LAYOUT_STENCIL_READ_ONLY_OPTIMAL:
+      return 14;
+    case VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL:
+      return 15;
+    case VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL:
+      return 16;
+    case VK_IMAGE_LAYOUT_PRESENT_SRC_KHR:
+      return 17;
+#ifdef VK_ENABLE_BETA_EXTENSIONS
+    case VK_IMAGE_LAYOUT_VIDEO_DECODE_DST_KHR:
+      return 18;
+    case VK_IMAGE_LAYOUT_VIDEO_DECODE_SRC_KHR:
+      return 19;
+    case VK_IMAGE_LAYOUT_VIDEO_DECODE_DPB_KHR:
+      return 20;
+#endif
+    case VK_IMAGE_LAYOUT_SHARED_PRESENT_KHR:
+      return 21;
+    case VK_IMAGE_LAYOUT_FRAGMENT_DENSITY_MAP_OPTIMAL_EXT:
+      return 22;
+    case VK_IMAGE_LAYOUT_FRAGMENT_SHADING_RATE_ATTACHMENT_OPTIMAL_KHR:
+      return 23;
+#ifdef VK_ENABLE_BETA_EXTENSIONS
+    case VK_IMAGE_LAYOUT_VIDEO_ENCODE_DST_KHR:
+      return 24;
+    case VK_IMAGE_LAYOUT_VIDEO_ENCODE_SRC_KHR:
+      return 25;
+    case VK_IMAGE_LAYOUT_VIDEO_ENCODE_DPB_KHR:
+      return 26;
+#endif
+  }
+
+  assert(false);
+
+  return 0;
+}

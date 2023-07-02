@@ -56,14 +56,14 @@ using RenderSamplerAttributeID = Utils::DataAttributeID2;
  * | - - - - - - - - - - - - - | - - - - - - - - - - - - - | - - - - - - - - - - - - - | - - - - - - - - - - - - - - - - - - - - | - - - - - |
  *
  * resource_attribute3_
- *  | - - - - - - - | - - - - - - - - - - - - - - - | - - - - | - - - - - - - - - - | - - - - - - - - - - | - - - - | - - - - - - - - - - - - - - |
- *  |     empty     |          flags                |  usage  |    requiredFlags    |    preferredFlags   | MemType |           priority          |                                                                                       |
- *  |     empty     |          15bits               |  4bits  |       10bits        |       10bits        |  4bits  |            14bits           |
- *  |     empty     |          BitMask              |  value  |       Bitmask       |       Bitmask       |  value  |            value            |
- *  | - - - - - - - | - - - - - - - - - - - - - - - | - - - - | - - - - - - - - - - | - - - - - - - - - - | - - - - | - - - - - - - - - - - - - - |
+ *  | - - - - - | - - - - - - - - - - - - - - - - - | - - - - | - - - - - - - - - - | - - - - - - - - - - | - - - - | - - - - - - - - - - - - - - |
+ *  |   empty   |              flags                |  usage  |    requiredFlags    |    preferredFlags   | MemType |           priority          |                                                                                       |
+ *  |   empty   |              17bits               |  4bits  |       10bits        |       10bits        |  4bits  |            14bits           |
+ *  |   empty   |              BitMask              |  value  |       Bitmask       |       Bitmask       |  value  |            value            |
+ *  | - - - - - | - - - - - - - - - - - - - - - - - | - - - - | - - - - - - - - - - | - - - - - - - - - - | - - - - | - - - - - - - - - - - - - - |
 **/
 // clang-format on
-using RenderImageDataAttribute = Utils::DataAttributeID3;
+using RenderImageDataAttributeID = Utils::DataAttributeID3;
 
 // clang-format off
 /** resource_attribute1_
@@ -88,7 +88,7 @@ using RenderImageDataAttribute = Utils::DataAttributeID3;
  *  | - - - - - - - - - - - - - - - | - - - - | - - - - - - - - - - | - - - - - - - | - - - - - - - - - - | - - - - | - - - - - - - - - - - - - - |
 **/
 // clang-format on
-using RenderBufferDataAttribute = Utils::DataAttributeID3;
+using RenderBufferDataAttributeID = Utils::DataAttributeID3;
 
 using RenderResourceDataAttributeID = Utils::DataAttributeID3;
 }  // namespace RenderSystem

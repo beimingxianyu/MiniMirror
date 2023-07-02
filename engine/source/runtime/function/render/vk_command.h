@@ -297,6 +297,7 @@ class CommandTask {
   mutable std::vector<std::unique_ptr<CommandTask>> sub_tasks_{};
   bool is_sub_task_{false};
 
+  // TODO replace std::uint32_t to MM::RenderSystem::RenderResourceDataID
   std::vector<std::uint32_t> cross_task_flow_sync_render_resource_IDs_;
 };
 

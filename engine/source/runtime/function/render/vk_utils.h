@@ -337,6 +337,9 @@ ExecuteResult EndCommandBuffer(AllocatedCommandBuffer& command_buffer);
 
 std::uint64_t ConvertVkFormatToContinuousValue(VkFormat vk_format);
 
+std::uint64_t ConvertVkImageLayoutToContinuousValue(
+    VkImageLayout vk_image_layout);
+
 }  // namespace Utils
 }  // namespace RenderSystem
 }  // namespace MM

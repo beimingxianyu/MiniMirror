@@ -21,6 +21,7 @@
 #include "utils/error.h"
 #include "utils/hash_table.h"
 #include "utils/marco.h"
+#include "vk_utils.h"
 
 namespace MM {
 namespace RenderSystem {
@@ -166,6 +167,47 @@ struct ImageCreateInfo {
 struct ImageDataInfo {
   ImageCreateInfo image_create_info_;
   AllocationCreateInfo allocation_create_info_;
+
+  ExecuteResult GetRenderDataAttributeID(
+      RenderImageDataAttributeID render_image_data_attribute_ID) const;
+
+  void SetImageCreateInfo(std::uint64_t image_size,
+                          const VkImageCreateInfo& vk_image_create_info) {
+    image_create_info_.image_size_ = image_size;
+    image_create_info_.next_ = vk_image_create_info.pNext;
+    image_create_info_.flags_ = vk_image_create_info.flags;
+    image_create_info_.image_type_ = vk_image_create_info.imageType;
+    image_create_info_.format_ = vk_image_create_info.format;
+    image_create_info_.extent_ = vk_image_create_info.extent;
+    image_create_info_.miplevels_ = vk_image_create_info.mipLevels;
+    image_create_info_.array_levels_ = vk_image_create_info.arrayLayers;
+    image_create_info_.samples_ = vk_image_create_info.samples;
+    image_create_info_.tiling_ = vk_image_create_info.tiling;
+    image_create_info_.usage_ = vk_image_create_info.usage;
+    image_create_info_.sharing_mode_ = vk_image_create_info.sharingMode;
+    image_create_info_.queue_family_indices_.clear();
+    image_create_info_.queue_family_indices_.reserve(
+        vk_image_create_info.queueFamilyIndexCount);
+    for (std::uint64_t i = 0; i != vk_image_create_info.queueFamilyIndexCount;
+         ++i) {
+      image_create_info_.queue_family_indices_.emplace_back(
+          vk_image_create_info.pQueueFamilyIndices[i]);
+    }
+    image_create_info_.initial_layout_ = vk_image_create_info.initialLayout;
+  }
+
+  void SetAllocationCreateInfo(
+      const VmaAllocationCreateInfo& vma_allocation_create_info) {
+    allocation_create_info_.flags_ = vma_allocation_create_info.flags;
+    allocation_create_info_.usage_ = vma_allocation_create_info.usage;
+    allocation_create_info_.required_flags_ =
+        vma_allocation_create_info.requiredFlags;
+    allocation_create_info_.preferred_flags_ =
+        vma_allocation_create_info.preferredFlags;
+    allocation_create_info_.memory_type_bits_ =
+        vma_allocation_create_info.memoryTypeBits;
+    allocation_create_info_.priority_ = vma_allocation_create_info.priority;
+  }
 
   bool IsValid() const;
 

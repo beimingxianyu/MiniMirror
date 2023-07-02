@@ -1,13 +1,21 @@
+#include <vulkan/vulkan_core.h>
+
 #include <vector>
 
+#include "RenderResourceDataID.h"
 #include "runtime/function/render/RenderResourceDataBase.h"
 #include "runtime/function/render/vk_type_define.h"
+#include "runtime/platform/base/error.h"
+#include "runtime/resource/asset_system/AssetManager.h"
+#include "runtime/resource/asset_system/AssetSystem.h"
+#include "runtime/resource/asset_system/asset_type/base/asset_type_define.h"
+#include "utils/marco.h"
 
 namespace MM {
 namespace RenderSystem {
-class AllocatedImage final : public RenderResourceDataBase {
-  friend class RenderResourceTexture;
+class RenderEngine;
 
+class AllocatedImage final : public RenderResourceDataBase {
  public:
   AllocatedImage() = default;
   ~AllocatedImage() = default;
@@ -16,6 +24,10 @@ class AllocatedImage final : public RenderResourceDataBase {
                  const VmaAllocator& allocator, const VkImage& image,
                  const VmaAllocation& allocation,
                  const ImageDataInfo& image_data_info);
+  AllocatedImage(const std::string& name, RenderEngine* render_engine,
+                 AssetSystem::AssetManager::HandlerType image_handler,
+                 const VkImageCreateInfo* vk_image_create_info,
+                 const VmaAllocationCreateInfo* vma_allocation_create_info);
   AllocatedImage(const AllocatedImage& other) = delete;
   AllocatedImage(AllocatedImage&& other) noexcept;
   AllocatedImage& operator=(const AllocatedImage& other) = delete;
@@ -54,15 +66,35 @@ class AllocatedImage final : public RenderResourceDataBase {
 
   const std::vector<std::uint32_t>& GetQueueIndexes() const;
 
-  void Release();
+  void Release() override;
 
-  bool IsValid() const;
+  bool IsValid() const override;
+
+  ResourceType GetResourceType() const override;
+  VkDeviceSize GetSize() const override;
+  bool IsArray() const override;
+  bool CanWrite() const override;
+  std::unique_ptr<RenderResourceDataBase> GetCopy(
+      const std::string& new_name_of_copy_resource) const override;
+
+ private:
+  static ExecuteResult CheckImageHandler(
+      const AssetSystem::AssetManager::HandlerType& image_handler);
+
+  static ExecuteResult CheckVkImageCreateInfo(
+      const VkImageCreateInfo* vk_image_create_info);
+
+  static ExecuteResult CheckVmaAllocationCreateInfo(
+      const VmaAllocationCreateInfo* vma_allocation_create_info);
+
+  static ExecuteResult CheckInitParameters(
+      RenderEngine* render_engine,
+      const AssetSystem::AssetManager::HandlerType& image_handler,
+      const VkImageCreateInfo* vk_image_create_info,
+      const VmaAllocationCreateInfo* vma_allocation_create_info);
 
  private:
   class AllocatedImageWrapper {
-    friend class RenderEngine;
-    friend class RenderResourceTexture;
-
    public:
     AllocatedImageWrapper() = default;
     ~AllocatedImageWrapper();

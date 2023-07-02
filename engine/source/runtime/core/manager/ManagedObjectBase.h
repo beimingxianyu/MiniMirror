@@ -10,7 +10,7 @@ namespace Manager {
 
 using ManagedObjectID = MM::Utils::GUID;
 
-class ManagedObjectBase : virtual public MMObject {
+class ManagedObjectBase : public MMObject {
  public:
   ManagedObjectBase() = default;
   virtual ~ManagedObjectBase() = default;

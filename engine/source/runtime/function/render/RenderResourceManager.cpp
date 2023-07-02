@@ -708,3 +708,14 @@ MM::RenderSystem::RenderResourceManager::GetRenderResourceDataIDByName(
 
   return ExecuteResult ::PARENT_OBJECT_NOT_CONTAIN_SPECIFIC_CHILD_OBJECT;
 }
+
+bool MM::RenderSystem::RenderResourceManager::Destroy() {
+  std::lock_guard<std::mutex> guard(sync_flag_);
+  if (render_resource_manager_) {
+    delete render_resource_manager_;
+    render_resource_manager_ = nullptr;
+
+    return true;
+  }
+  return false;
+}

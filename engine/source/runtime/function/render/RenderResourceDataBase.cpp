@@ -100,3 +100,8 @@ bool MM::RenderSystem::RenderResourceDataBase::IsUseForWrite() const {
 void MM::RenderSystem::RenderResourceDataBase::MarkThisUseForWrite() {
   used_for_write_ = true;
 }
+
+void MM::RenderSystem::RenderResourceDataBase::SetRenderResourceDataID(
+    const MM::RenderSystem::RenderResourceDataID& render_resource_data_ID) {
+  render_resource_data_ID_ = render_resource_data_ID;
+}

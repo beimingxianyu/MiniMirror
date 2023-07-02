@@ -71,6 +71,10 @@ class RenderResourceDataBase : public Manager::ManagedObjectBase {
   virtual std::unique_ptr<RenderResourceDataBase> GetCopy(
       const std::string& new_name_of_copy_resource) const;
 
+ protected:
+  void SetRenderResourceDataID(
+      const RenderResourceDataID& render_resource_data_ID);
+
  private:
   RenderResourceDataID render_resource_data_ID_{};
 
