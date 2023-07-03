@@ -13,7 +13,7 @@
 
 namespace MM {
 namespace RenderSystem {
-class RenderResourceManager
+class RenderImageManager
     : public Manager::ManagerBase<std::unique_ptr<RenderResourceDataBase>,
                                   Manager::ManagedObjectIsSmartPoint> {
  public:
@@ -29,11 +29,10 @@ class RenderResourceManager
                                               Manager::ManagedObjectID>;
 
  public:
-  RenderResourceManager(const RenderResourceManager& other) = delete;
-  RenderResourceManager(RenderResourceManager&& other) noexcept = delete;
-  RenderResourceManager& operator=(const RenderResourceManager& other) = delete;
-  RenderResourceManager& operator=(RenderResourceManager&& other) noexcept =
-      delete;
+  RenderImageManager(const RenderImageManager& other) = delete;
+  RenderImageManager(RenderImageManager&& other) noexcept = delete;
+  RenderImageManager& operator=(const RenderImageManager& other) = delete;
+  RenderImageManager& operator=(RenderImageManager&& other) noexcept = delete;
 
  public:
   class RenderResourceHandler : public BaseHandlerType {
@@ -135,7 +134,7 @@ class RenderResourceManager
  public:
   bool IsValid() const override;
 
-  static RenderResourceManager* GetInstance();
+  static RenderImageManager* GetInstance();
 
   bool Have(const RenderResourceDataID& render_resource_data_ID);
 
@@ -261,16 +260,16 @@ class RenderResourceManager
       Policy::OnlyNotWrittenType) const;
 
  protected:
-  RenderResourceManager() = default;
-  explicit RenderResourceManager(std::uint64_t size);
+  RenderImageManager() = default;
+  explicit RenderImageManager(std::uint64_t size);
 
  private:
-  ~RenderResourceManager() = default;
+  RenderImageManager() = default;
 
   static bool Destroy();
 
  protected:
-  static RenderResourceManager* render_resource_manager_;
+  static RenderImageManager* render_resource_manager_;
 
  private:
   RenderResourceDataIDToObjectIDContainerType
@@ -278,9 +277,5 @@ class RenderResourceManager
 
   static std::mutex sync_flag_;
 };
-
-using RenderImageManager = RenderResourceManager;
-
-using RenderBufferManager = RenderResourceManager;
 }  // namespace RenderSystem
 }  // namespace MM

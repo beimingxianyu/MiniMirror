@@ -67,11 +67,11 @@ using RenderImageDataAttributeID = Utils::DataAttributeID3;
 
 // clang-format off
 /** resource_attribute1_
- * | - - - - - - - - - - - - - - - - | - - - - - - - - | - - - - - - - - - - - - - - - - - - - - - - - - - | - - - - - - - - - - - - - - - |
- * |           pNext                 |      flags      |                     usage                         |               empty           |
- * |           16bit                 |      8bits      |                     25bits                        |               empty           |
- * |  The last 16 bits of pointer.   |      Bitmask    |                     Bitmask                       |               empty           |
- * | - - - - - - - - - - - - - - - - | - - - - - - - - | - - - - - - - - - - - - - - - - - - - - - - - - - | - - - - - - - - - - - - - - - |
+ * | - - - - - - - - - - - - - | - - - - - - - - - - - - - - - - | - - | - - - - - - - - | - - - - - - - - - - - - - - - - - - - - - - - - - |
+ * |               empty       |           pNext                 |SMod |      flags      |                     usage                         |
+ * |               empty       |           16bit                 |2bits|      8bits      |                     25bits                        |
+ * |               empty       |  The last 16 bits of pointer.   |value|      Bitmask    |                     Bitmask                       |
+ * | - - - - - - - - - - - - - | - - - - - - - - - - - - - - - - | - - | - - - - - - - - | - - - - - - - - - - - - - - - - - - - - - - - - - |
  *
  * resource_attribute2_
  * | - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - |

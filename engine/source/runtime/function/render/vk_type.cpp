@@ -2,6 +2,7 @@
 
 #include <utility>
 
+#include "RenderResourceDataBase.h"
 #include "runtime/function/render/vk_engine.h"
 
 void MM::RenderSystem::BufferInfo::Reset() {
@@ -239,95 +240,6 @@ MM::RenderSystem::VertexInputState::GetInstanceAttributes() const {
   return instance_attributes_;
 }
 
-MM::RenderSystem::AllocatedBuffer::AllocatedBuffer(
-    const VmaAllocator& allocator, const VkBuffer& buffer,
-    const VmaAllocation& allocation, const BufferInfo& buffer_info)
-    : buffer_info_(buffer_info),
-      wrapper_(std::make_shared<AllocatedBufferWrapper>(allocator, buffer,
-                                                        allocation)) {}
-
-MM::RenderSystem::AllocatedBuffer::AllocatedBuffer(
-    AllocatedBuffer&& other) noexcept
-    : buffer_info_(other.buffer_info_), wrapper_(std::move(other.wrapper_)) {}
-
-MM::RenderSystem::AllocatedBuffer& MM::RenderSystem::AllocatedBuffer::operator=(
-    const AllocatedBuffer& other) {
-  if (&other == this) {
-    return *this;
-  }
-
-  buffer_info_ = other.buffer_info_;
-  wrapper_ = other.wrapper_;
-
-  return *this;
-}
-
-MM::RenderSystem::AllocatedBuffer& MM::RenderSystem::AllocatedBuffer::operator=(
-    AllocatedBuffer&& other) noexcept {
-  if (&other == this) {
-    return *this;
-  }
-  buffer_info_ = other.buffer_info_;
-  wrapper_ = std::move(other.wrapper_);
-
-  return *this;
-}
-
-const VkDeviceSize& MM::RenderSystem::AllocatedBuffer::GetBufferSize() const {
-  return buffer_info_.buffer_size_;
-}
-
-bool MM::RenderSystem::AllocatedBuffer::CanMapped() const {
-  return buffer_info_.can_mapped_;
-}
-
-bool MM::RenderSystem::AllocatedBuffer::IsTransformSrc() const {
-  return buffer_info_.is_transform_src_;
-}
-
-bool MM::RenderSystem::AllocatedBuffer::IsTransformDest() const {
-  return buffer_info_.is_transform_dest_;
-}
-
-const MM::RenderSystem::BufferInfo&
-MM::RenderSystem::AllocatedBuffer::GetBufferInfo() const {
-  return buffer_info_;
-}
-
-VmaAllocator MM::RenderSystem::AllocatedBuffer::GetAllocator() const {
-  if (wrapper_) {
-    return wrapper_->GetAllocator();
-  }
-
-  return nullptr;
-}
-
-VkBuffer MM::RenderSystem::AllocatedBuffer::GetBuffer() const {
-  if (wrapper_) {
-    return wrapper_->GetBuffer();
-  }
-
-  return nullptr;
-}
-
-VmaAllocation MM::RenderSystem::AllocatedBuffer::GetAllocation() const {
-  if (wrapper_) {
-    return wrapper_->GetAllocation();
-  }
-
-  return nullptr;
-}
-
-const std::vector<std::uint32_t>&
-MM::RenderSystem::AllocatedBuffer::GetQueueIndexes() const {
-  return buffer_info_.queue_index_;
-}
-
-void MM::RenderSystem::AllocatedBuffer::Release() {
-  buffer_info_.Reset();
-  wrapper_.reset();
-}
-
 uint32_t MM::RenderSystem::AllocatedBuffer::UseCount() const {
   if (wrapper_) {
     return wrapper_.use_count();
@@ -337,48 +249,6 @@ uint32_t MM::RenderSystem::AllocatedBuffer::UseCount() const {
 
 bool MM::RenderSystem::AllocatedBuffer::IsValid() const {
   return wrapper_ != nullptr && wrapper_->IsValid();
-}
-
-MM::RenderSystem::AllocatedBuffer::AllocatedBufferWrapper::
-    ~AllocatedBufferWrapper() {
-  if (allocator_ == nullptr) {
-    return;
-  }
-  vmaDestroyBuffer(allocator_, buffer_, allocation_);
-}
-
-MM::RenderSystem::AllocatedBuffer::AllocatedBufferWrapper::
-    AllocatedBufferWrapper(const VmaAllocator& allocator,
-                           const VkBuffer& buffer,
-                           const VmaAllocation& allocation)
-    : allocator_(allocator), buffer_(buffer), allocation_(allocation) {
-  if (allocator_ == nullptr || buffer_ == nullptr || allocation_ == nullptr) {
-    allocator_ = nullptr;
-    buffer_ = nullptr;
-    allocation_ = nullptr;
-  }
-}
-
-const VmaAllocator&
-MM::RenderSystem::AllocatedBuffer::AllocatedBufferWrapper::GetAllocator()
-    const {
-  return allocator_;
-}
-
-const VkBuffer&
-MM::RenderSystem::AllocatedBuffer::AllocatedBufferWrapper::GetBuffer() const {
-  return buffer_;
-}
-
-const VmaAllocation&
-MM::RenderSystem::AllocatedBuffer::AllocatedBufferWrapper::GetAllocation()
-    const {
-  return allocation_;
-}
-
-bool MM::RenderSystem::AllocatedBuffer::AllocatedBufferWrapper::IsValid()
-    const {
-  return allocator_ != nullptr && buffer_ != nullptr && allocation_ != nullptr;
 }
 
 MM::RenderSystem::ImageChunkInfo::ImageChunkInfo(const VkOffset3D& offset,

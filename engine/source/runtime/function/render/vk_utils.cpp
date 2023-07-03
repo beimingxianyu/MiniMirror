@@ -1,12 +1,14 @@
 #include "runtime/function/render/vk_utils.h"
 
-#include <cstdint>
+#include <vulkan/vulkan_core.h>
+
 #include <string>
 #include <vector>
 
+#include "RenderDataAttributeID.h"
+#include "RenderResourceDataID.h"
 #include "runtime/function/render/AllocatedImage.h"
 #include "runtime/function/render/vk_engine.h"
-#include "utils/marco.h"
 
 MM::ExecuteResult MM::RenderSystem::Utils::VkResultToMMResult(
     VkResult vk_result) {
@@ -57,101 +59,6 @@ MM::RenderSystem::Utils::GetCommandBufferAllocateInfo(
   info.commandBufferCount = count;
   info.level = level;
   return info;
-}
-
-VkBufferCreateInfo MM::RenderSystem::Utils::GetBufferCreateInfo(
-    const VkDeviceSize& size, const VkBufferUsageFlags& usage,
-    const VkBufferCreateFlags& flags) {
-  VkBufferCreateInfo buffer_create_info{};
-  buffer_create_info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-  buffer_create_info.pNext = nullptr;
-
-  buffer_create_info.flags = flags;
-  buffer_create_info.size = size;
-  buffer_create_info.usage = usage;
-
-  buffer_create_info.sharingMode = VK_SHARING_MODE_CONCURRENT;
-  // By default, this buffer can be accessed by multiple queue families,
-  // so the following two items can be ignored.
-  // buffer_create_info.queueFamilyIndexCount = 0;
-  // buffer_create_info.pQueueFamilyIndices = nullptr;
-
-  return buffer_create_info;
-}
-
-VkBufferCreateInfo MM::RenderSystem::Utils::GetBufferCreateInfo(
-    const VkDeviceSize& size, const VkBufferUsageFlags& usage,
-    std::vector<std::uint32_t>& queue_index, const VkBufferCreateFlags& flags) {
-  VkBufferCreateInfo buffer_create_info{};
-  buffer_create_info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-  buffer_create_info.pNext = nullptr;
-
-  buffer_create_info.flags = flags;
-  buffer_create_info.size = size;
-  buffer_create_info.usage = usage;
-
-  if (queue_index.empty()) {
-    buffer_create_info.sharingMode = VK_SHARING_MODE_CONCURRENT;
-  } else {
-    buffer_create_info.queueFamilyIndexCount = queue_index.size();
-    buffer_create_info.pQueueFamilyIndices = queue_index.data();
-  }
-
-  return buffer_create_info;
-}
-
-VkImageCreateInfo MM::RenderSystem::Utils::GetImageCreateInfo(
-    const VkFormat& image_format, const VkImageUsageFlags& usage,
-    const VkExtent3D& extent, const VkImageCreateFlags& flags) {
-  VkImageCreateInfo image_create_info{};
-  image_create_info.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
-  image_create_info.pNext = nullptr;
-
-  image_create_info.imageType = VK_IMAGE_TYPE_2D;
-
-  image_create_info.flags = flags;
-  image_create_info.format = image_format;
-  image_create_info.usage = usage;
-  image_create_info.extent = extent;
-
-  image_create_info.mipLevels = 1;
-  image_create_info.arrayLayers = 1;
-  image_create_info.samples = VK_SAMPLE_COUNT_1_BIT;
-  image_create_info.tiling = VK_IMAGE_TILING_OPTIMAL;
-
-  image_create_info.sharingMode = VK_SHARING_MODE_CONCURRENT;
-
-  return image_create_info;
-}
-
-VkImageCreateInfo MM::RenderSystem::Utils::GetImageCreateInfo(
-    const VkFormat& image_format, const VkImageUsageFlags& usage,
-    const VkExtent3D& extent, std::vector<std::uint32_t>& queue_index,
-    const VkImageCreateFlags& flags) {
-  VkImageCreateInfo image_create_info{};
-  image_create_info.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
-  image_create_info.pNext = nullptr;
-
-  image_create_info.imageType = VK_IMAGE_TYPE_2D;
-
-  image_create_info.flags = flags;
-  image_create_info.format = image_format;
-  image_create_info.usage = usage;
-  image_create_info.extent = extent;
-
-  image_create_info.mipLevels = 1;
-  image_create_info.arrayLayers = 1;
-  image_create_info.samples = VK_SAMPLE_COUNT_1_BIT;
-  image_create_info.tiling = VK_IMAGE_TILING_OPTIMAL;
-
-  if (queue_index.empty()) {
-    image_create_info.sharingMode = VK_SHARING_MODE_CONCURRENT;
-  } else {
-    image_create_info.queueFamilyIndexCount = queue_index.size();
-    image_create_info.pQueueFamilyIndices = queue_index.data();
-  }
-
-  return image_create_info;
 }
 
 VmaAllocationCreateInfo MM::RenderSystem::Utils::GetVmaAllocationCreateInfo(
@@ -266,7 +173,7 @@ MM::ExecuteResult MM::RenderSystem::Utils::SubmitCommandBuffers(
       vkQueueSubmit(queue, submit_infos.size(), submit_infos.data(), fence));
 }
 
-VkImageMemoryBarrier2 MM::RenderSystem::Utils::GetImageMemoryBarrier(
+VkImageMemoryBarrier2 MM::RenderSystem::Utils::GetVkImageMemoryBarrier2(
     MM::RenderSystem::AllocatedImage& image,
     const ImageTransferMode& transfer_mode) {
   VkImageMemoryBarrier2 image_barrier{};
@@ -372,7 +279,7 @@ VkImageMemoryBarrier2 MM::RenderSystem::Utils::GetImageMemoryBarrier(
   return image_barrier;
 }
 
-VkImageMemoryBarrier2 MM::RenderSystem::Utils::GetImageMemoryBarrier(
+VkImageMemoryBarrier2 MM::RenderSystem::Utils::GetVkImageMemoryBarrier2(
     AllocatedImage& image, const VkImageLayout& old_layout,
     const VkImageLayout& new_layout) {
   VkImageMemoryBarrier2 image_barrier{};
@@ -403,7 +310,7 @@ VkImageMemoryBarrier2 MM::RenderSystem::Utils::GetImageMemoryBarrier(
   return image_barrier;
 }
 
-VkDependencyInfo MM::RenderSystem::Utils::GetImageDependencyInfo(
+VkDependencyInfo MM::RenderSystem::Utils::GetVkImageDependencyInfo(
     VkImageMemoryBarrier2& image_barrier, const VkDependencyFlags& flags) {
   VkDependencyInfo dep_info{};
   dep_info.sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO;
@@ -417,7 +324,7 @@ VkDependencyInfo MM::RenderSystem::Utils::GetImageDependencyInfo(
   return dep_info;
 }
 
-VkMemoryBarrier2 MM::RenderSystem::Utils::GetMemoryBarrier(
+VkMemoryBarrier2 MM::RenderSystem::Utils::GetVkMemoryBarrier2(
     VkPipelineStageFlags2 src_stage, VkAccessFlags2 src_access,
     VkPipelineStageFlags2 dest_stage, VkAccessFlags2 dest_access) {
   return VkMemoryBarrier2{VK_STRUCTURE_TYPE_MEMORY_BARRIER_2,
@@ -428,7 +335,7 @@ VkMemoryBarrier2 MM::RenderSystem::Utils::GetMemoryBarrier(
                           dest_access};
 }
 
-VkBufferMemoryBarrier2 MM::RenderSystem::Utils::GetBufferMemoryBarrier(
+VkBufferMemoryBarrier2 MM::RenderSystem::Utils::GetVkBufferMemoryBarrier2(
     VkPipelineStageFlags2 src_stage, VkAccessFlags2 src_access,
     VkPipelineStageFlags2 dest_stage, VkAccessFlags2 dest_access,
     std::uint32_t src_queue_family_index, std::uint32_t dest_queue_family_index,
@@ -441,12 +348,12 @@ VkBufferMemoryBarrier2 MM::RenderSystem::Utils::GetBufferMemoryBarrier(
                                 dest_access,
                                 src_queue_family_index,
                                 dest_queue_family_index,
-                                buffer.GetBuffer(),
+                                const_cast<VkBuffer>(buffer.GetBuffer()),
                                 offset,
                                 size};
 }
 
-VkImageMemoryBarrier2 MM::RenderSystem::Utils::GetImageMemoryBarrier(
+VkImageMemoryBarrier2 MM::RenderSystem::Utils::GetVkImageMemoryBarrier2(
     VkPipelineStageFlags2 src_stage, VkAccessFlags2 src_access,
     VkPipelineStageFlags2 dest_stage, VkAccessFlags2 dest_access,
     VkImageLayout old_layout, VkImageLayout new_layout,
@@ -575,7 +482,7 @@ VkDependencyInfo MM::RenderSystem::Utils::GetImageMemoryDependencyInfo(
                           &image_barriers};
 }
 
-VkDependencyInfo MM::RenderSystem::Utils::GetDependencyInfo(
+VkDependencyInfo MM::RenderSystem::Utils::GetVkDependencyInfo(
     const std::vector<VkMemoryBarrier2>& memory_barriers,
     const std::vector<VkBufferMemoryBarrier2>& buffer_barriers,
     const std::vector<VkImageMemoryBarrier2>& image_barriers,
@@ -594,9 +501,9 @@ VkDependencyInfo MM::RenderSystem::Utils::GetDependencyInfo(
 void MM::RenderSystem::Utils::AddTransferImageCommands(
     VkCommandBuffer& command_buffer, AllocatedImage& image,
     const ImageTransferMode& transfer_mode, const VkDependencyFlags& flags) {
-  auto image_barrier = Utils::GetImageMemoryBarrier(image, transfer_mode);
+  auto image_barrier = Utils::GetVkImageMemoryBarrier2(image, transfer_mode);
   const auto image_transfer_dependency =
-      Utils::GetImageDependencyInfo(image_barrier, flags);
+      Utils::GetVkImageDependencyInfo(image_barrier, flags);
 
   vkCmdPipelineBarrier2(command_buffer, &image_transfer_dependency);
 }
@@ -606,9 +513,9 @@ void MM::RenderSystem::Utils::AddTransferImageCommands(
     const VkImageLayout& old_layout, const VkImageLayout& new_layout,
     const VkDependencyFlags& flags) {
   auto image_barrier =
-      Utils::GetImageMemoryBarrier(image, old_layout, new_layout);
+      Utils::GetVkImageMemoryBarrier2(image, old_layout, new_layout);
   auto image_transfer_dependency =
-      Utils::GetImageDependencyInfo(image_barrier, flags);
+      Utils::GetVkImageDependencyInfo(image_barrier, flags);
 
   vkCmdPipelineBarrier2(command_buffer, &image_transfer_dependency);
 }
@@ -616,9 +523,9 @@ void MM::RenderSystem::Utils::AddTransferImageCommands(
 void MM::RenderSystem::Utils::AddTransferImageCommands(
     AllocatedCommandBuffer& command_buffer, AllocatedImage& image,
     const ImageTransferMode& transfer_mode, const VkDependencyFlags& flags) {
-  auto image_barrier = Utils::GetImageMemoryBarrier(image, transfer_mode);
+  auto image_barrier = Utils::GetVkImageMemoryBarrier2(image, transfer_mode);
   const auto image_transfer_dependency =
-      Utils::GetImageDependencyInfo(image_barrier, flags);
+      Utils::GetVkImageDependencyInfo(image_barrier, flags);
 
   vkCmdPipelineBarrier2(command_buffer.GetCommandBuffer(),
                         &image_transfer_dependency);
@@ -629,9 +536,9 @@ void MM::RenderSystem::Utils::AddTransferImageCommands(
     const VkImageLayout& old_layout, const VkImageLayout& new_layout,
     const VkDependencyFlags& flags) {
   auto image_barrier =
-      Utils::GetImageMemoryBarrier(image, old_layout, new_layout);
+      Utils::GetVkImageMemoryBarrier2(image, old_layout, new_layout);
   auto image_transfer_dependency =
-      Utils::GetImageDependencyInfo(image_barrier, flags);
+      Utils::GetVkImageDependencyInfo(image_barrier, flags);
 
   vkCmdPipelineBarrier2(command_buffer.GetCommandBuffer(),
                         &image_transfer_dependency);
@@ -829,42 +736,6 @@ bool MM::RenderSystem::Utils::DescriptorTypeIsTexelBuffer(
   }
 }
 
-MM::RenderSystem::AllocatedBuffer MM::RenderSystem::Utils::CreateBuffer(
-    const RenderEngine* engine, const size_t& alloc_size,
-    const VkBufferUsageFlags& usage, const VmaMemoryUsage& memory_usage,
-    const VmaAllocationCreateFlags& allocation_flags,
-    const bool& is_BDA_buffer) {
-  VkBufferUsageFlags temp_usage = usage;
-  VmaAllocationCreateFlags temp_allocation_flags = allocation_flags;
-  if (is_BDA_buffer) {
-    temp_usage |= VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT;
-    temp_allocation_flags |= VMA_ALLOCATOR_CREATE_BUFFER_DEVICE_ADDRESS_BIT;
-  }
-
-  const auto buffer_Info =
-      MM::RenderSystem::Utils::GetBufferCreateInfo(alloc_size, temp_usage);
-
-  VmaAllocationCreateInfo vma_alloc_info = {};
-  vma_alloc_info.usage = memory_usage;
-  vma_alloc_info.flags = temp_allocation_flags;
-
-  VkBuffer temp_buffer{};
-  VmaAllocation temp_allocation{};
-
-  VK_CHECK(
-      vmaCreateBuffer(engine->GetAllocator(), &buffer_Info, &vma_alloc_info,
-                      &temp_buffer, &temp_allocation, nullptr),
-      LOG_ERROR("Failed to create buffer."))
-
-  const BufferInfo temp_buffer_info{
-      alloc_size, Utils::CanBeMapped(memory_usage, allocation_flags),
-      static_cast<bool>(usage & VK_BUFFER_USAGE_TRANSFER_SRC_BIT),
-      static_cast<bool>(usage & VK_BUFFER_USAGE_TRANSFER_DST_BIT)};
-
-  return AllocatedBuffer(engine->GetAllocator(), temp_buffer, temp_allocation,
-                         temp_buffer_info);
-}
-
 VkBufferCopy2 MM::RenderSystem::Utils::GetBufferCopy(
     const VkDeviceSize& size, const VkDeviceSize& src_offset,
     const VkDeviceSize& dest_offset) {
@@ -901,7 +772,7 @@ VkCopyBufferInfo2 MM::RenderSystem::Utils::GetCopyBufferInfo(
   copy_buffer_info.sType = VK_STRUCTURE_TYPE_COPY_BUFFER_INFO_2;
   copy_buffer_info.pNext = nullptr;
 
-  copy_buffer_info.srcBuffer = src_buffer.GetBuffer();
+  copy_buffer_info.srcBuffer = const_cast<VkBuffer>(src_buffer.GetBuffer());
   copy_buffer_info.dstBuffer = dest_buffer.GetBuffer();
   copy_buffer_info.regionCount = static_cast<uint32_t>(regions.size());
   copy_buffer_info.pRegions = regions.data();
@@ -1320,4 +1191,228 @@ std::uint64_t MM::RenderSystem::Utils::ConvertVkImageLayoutToContinuousValue(
   assert(false);
 
   return 0;
+}
+
+MM::ExecuteResult MM::RenderSystem::Utils::CheckVkImageCreateInfo(
+    const VkImageCreateInfo* vk_image_create_info) {
+  if (vk_image_create_info == nullptr) {
+    LOG_ERROR("The vk image create info is nullptr.");
+    return ExecuteResult ::OBJECT_IS_INVALID;
+  }
+
+  if (vk_image_create_info->sType != VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO) {
+    LOG_ERROR("The vk image create info sType is error.");
+    return ExecuteResult ::OBJECT_IS_INVALID;
+  }
+  if (vk_image_create_info->flags == VK_IMAGE_CREATE_FLAG_BITS_MAX_ENUM) {
+    LOG_ERROR("The vk image create info flags is error.");
+    return ExecuteResult ::OBJECT_IS_INVALID;
+  }
+  if (vk_image_create_info->imageType == VK_IMAGE_TYPE_MAX_ENUM) {
+    LOG_ERROR("The vk image create info imageType is error.");
+    return ExecuteResult ::OBJECT_IS_INVALID;
+  }
+  if (vk_image_create_info->format == VK_FORMAT_MAX_ENUM) {
+    LOG_ERROR("The vk image create info format is error.");
+    return ExecuteResult ::OBJECT_IS_INVALID;
+  }
+  if (vk_image_create_info->extent.width > 8192 ||
+      vk_image_create_info->extent.height > 8192 ||
+      vk_image_create_info->extent.depth > 8192) {
+    LOG_ERROR("The vk image create info extent is error.");
+    return ExecuteResult ::OBJECT_IS_INVALID;
+  }
+  if (vk_image_create_info->mipLevels < 128) {
+    LOG_ERROR("The vk image create info mipLevels is error.");
+    return ExecuteResult ::OBJECT_IS_INVALID;
+  }
+  if (vk_image_create_info->arrayLayers < 128) {
+    LOG_ERROR("The vk image create info arrayLayers is error.");
+    return ExecuteResult ::OBJECT_IS_INVALID;
+  }
+  if (vk_image_create_info->samples == VK_SAMPLE_COUNT_FLAG_BITS_MAX_ENUM) {
+    LOG_ERROR("The vk image create info samples is error.");
+    return ExecuteResult ::OBJECT_IS_INVALID;
+  }
+  if (vk_image_create_info->tiling == VK_IMAGE_TILING_MAX_ENUM) {
+    LOG_ERROR("The vk image create info tiling is error.");
+    return ExecuteResult ::OBJECT_IS_INVALID;
+  }
+  if (vk_image_create_info->usage == VK_IMAGE_USAGE_FLAG_BITS_MAX_ENUM) {
+    LOG_ERROR("The vk image create info usage is error.");
+    return ExecuteResult ::OBJECT_IS_INVALID;
+  }
+  if (vk_image_create_info->sharingMode != VK_SHARING_MODE_EXCLUSIVE ||
+      vk_image_create_info->queueFamilyIndexCount != 1 ||
+      vk_image_create_info->pQueueFamilyIndices == nullptr) {
+    LOG_ERROR("The vk image create info queue family is error.");
+    return ExecuteResult ::OBJECT_IS_INVALID;
+  }
+  if (vk_image_create_info->initialLayout == VK_IMAGE_LAYOUT_MAX_ENUM) {
+    LOG_ERROR("The vk image create info initialLayout is error.");
+    return ExecuteResult ::OBJECT_IS_INVALID;
+  }
+
+  return ExecuteResult ::SUCCESS;
+}
+
+MM::ExecuteResult MM::RenderSystem::Utils::CheckVmaAllocationCreateInfo(
+    const VmaAllocationCreateInfo* vma_allocation_create_info) {
+  if (vma_allocation_create_info == nullptr) {
+    LOG_ERROR("The vma allocation create info is nullptr.");
+    return ExecuteResult ::OBJECT_IS_INVALID;
+  }
+
+  if (vma_allocation_create_info->flags ==
+      VMA_ALLOCATION_CREATE_FLAG_BITS_MAX_ENUM) {
+    LOG_ERROR("The vma allocation create info flags is error.");
+    return ExecuteResult ::OBJECT_IS_INVALID;
+  }
+  if (vma_allocation_create_info->usage == VMA_MEMORY_USAGE_MAX_ENUM) {
+    LOG_ERROR("The vma allocation create info usage is error.");
+    return ExecuteResult ::OBJECT_IS_INVALID;
+  }
+  if (vma_allocation_create_info->requiredFlags ==
+          VK_MEMORY_PROPERTY_FLAG_BITS_MAX_ENUM ||
+      vma_allocation_create_info->preferredFlags ==
+          VK_MEMORY_PROPERTY_FLAG_BITS_MAX_ENUM) {
+    LOG_ERROR(
+        "The vma allocation create info requiredFlags/preferredFlags is "
+        "error.");
+    return ExecuteResult ::OBJECT_IS_INVALID;
+  }
+  if (vma_allocation_create_info->memoryTypeBits > 64) {
+    LOG_ERROR("The vma allocation create info memoryTypeBits is error.");
+    return ExecuteResult ::OBJECT_IS_INVALID;
+  }
+  if (vma_allocation_create_info->priority > 0 ||
+      vma_allocation_create_info->priority < 1) {
+    LOG_ERROR("The vma allocation create info priority is error.");
+    return ExecuteResult ::OBJECT_IS_INVALID;
+  }
+
+  return ExecuteResult ::SUCCESS;
+}
+
+MM::ExecuteResult MM::RenderSystem::Utils::CheckVkBufferCreateInfo(
+    const VkBufferCreateInfo* vk_buffer_create_info) {
+  if (vk_buffer_create_info == nullptr) {
+    LOG_ERROR("The vk buffer create info is nullptr.");
+    return ExecuteResult ::OBJECT_IS_INVALID;
+  }
+
+  if (vk_buffer_create_info->flags == VK_BUFFER_CREATE_FLAG_BITS_MAX_ENUM) {
+    LOG_ERROR("The vk buffer create info flags is error.");
+    return ExecuteResult ::OBJECT_IS_INVALID;
+  }
+  if (vk_buffer_create_info->size == 0) {
+    LOG_ERROR("The vk buffer create info size is error.");
+    return ExecuteResult ::OBJECT_IS_INVALID;
+  }
+  if (vk_buffer_create_info->usage == VK_BUFFER_USAGE_FLAG_BITS_MAX_ENUM) {
+    LOG_ERROR("The vk buffer create info usage is error.");
+    return ExecuteResult ::OBJECT_IS_INVALID;
+  }
+  if (vk_buffer_create_info->sharingMode == VK_SHARING_MODE_EXCLUSIVE ||
+      vk_buffer_create_info->queueFamilyIndexCount != 1 ||
+      vk_buffer_create_info->pQueueFamilyIndices == nullptr) {
+    LOG_ERROR("The vk buffer create info queue family index mode is error.");
+    return ExecuteResult ::OBJECT_IS_INVALID;
+  }
+
+  return ExecuteResult ::SUCCESS;
+}
+
+VkBufferCreateInfo MM::RenderSystem::Utils::GetBufferCreateInfo(
+    const void* next, VkBufferCreateFlags flags, VkDeviceSize size,
+    VkBufferUsageFlags usage, VkSharingMode sharing_mode,
+    std::uint32_t queue_family_index_count,
+    const std::uint32_t* queue_family_indices) {
+  return VkBufferCreateInfo{VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
+                            next,
+                            flags,
+                            size,
+                            usage,
+                            sharing_mode,
+                            queue_family_index_count,
+                            queue_family_indices};
+}
+
+VmaAllocationCreateInfo MM::RenderSystem::Utils::GetVmaAllocationCreateInfo(
+    VmaAllocatorCreateFlags flags, VmaMemoryUsage usage,
+    VkMemoryPropertyFlags required_flags, VkMemoryPropertyFlags preferred_flags,
+    std::uint32_t memory_type_bits, VmaPool pool, void* user_data,
+    float priority) {
+  return VmaAllocationCreateInfo{
+      flags, usage,     required_flags, preferred_flags, memory_type_bits,
+      pool,  user_data, priority};
+}
+
+MM::ExecuteResult MM::RenderSystem::Utils::CreateBuffer(
+    MM::RenderSystem::RenderEngine* render_engine,
+    const VkBufferCreateInfo& vk_buffer_create_info,
+    const VmaAllocationCreateInfo& vma_allocation_create_info,
+    VmaAllocationInfo* vma_allocation_info,
+    MM::RenderSystem::AllocatedBuffer& allocated_buffer) {
+  VkBuffer temp_buffer{};
+  VmaAllocation temp_allocation{};
+
+  VK_CHECK(vmaCreateBuffer(render_engine->GetAllocator(),
+                           &vk_buffer_create_info, &vma_allocation_create_info,
+                           &temp_buffer, &temp_allocation, vma_allocation_info),
+           LOG_ERROR("Failed to create buffer.");
+           return ExecuteResult::CREATE_OBJECT_FAILED;)
+
+  BufferDataInfo buffer_data_info{
+      BufferCreateInfo(vk_buffer_create_info),
+      AllocationCreateInfo(vma_allocation_create_info)};
+  RenderResourceDataAttributeID render_resource_data_attribute_ID;
+  buffer_data_info.GetRenderDataAttributeID(render_resource_data_attribute_ID);
+
+  allocated_buffer = AllocatedBuffer(
+      allocated_buffer.GetObjectName(),
+      RenderResourceDataID{0, render_resource_data_attribute_ID}, render_engine,
+      buffer_data_info, render_engine->GetAllocator(), temp_buffer,
+      temp_allocation, false);
+
+  return ExecuteResult ::SUCCESS;
+}
+
+VkDependencyInfo MM::RenderSystem::Utils::GetVkDependencyInfo(
+    std::uint32_t memory_barriers_count,
+    const VkMemoryBarrier2* memory_barriers,
+    std::uint32_t buffer_barriers_count,
+    const VkBufferMemoryBarrier2* buffer_barriers,
+    std::uint32_t image_barriers_count,
+    const VkImageMemoryBarrier2* image_barriers,
+    VkDependencyFlags dependency_flags) {
+  return VkDependencyInfo{VK_STRUCTURE_TYPE_DEPENDENCY_INFO,
+                          nullptr,
+                          dependency_flags,
+                          memory_barriers_count,
+                          memory_barriers,
+                          buffer_barriers_count,
+                          buffer_barriers,
+                          image_barriers_count,
+                          image_barriers};
+}
+
+VkImageMemoryBarrier2 MM::RenderSystem::Utils::GetVkImageMemoryBarrier2(
+    VkPipelineStageFlags2 src_stage_mask, VkAccessFlags2 src_access_mask,
+    VkPipelineStageFlags2 dst_stage_mask, VkAccessFlags2 dst_access_mask,
+    VkImageLayout old_layout, VkImageLayout new_layout,
+    uint32_t src_queue_family_index, uint32_t dst_queue_family_index,
+    VkImage image, VkImageSubresourceRange subresource_range) {
+  return VkImageMemoryBarrier2{VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2,
+                               nullptr,
+                               src_stage_mask,
+                               src_access_mask,
+                               dst_stage_mask,
+                               dst_access_mask,
+                               old_layout,
+                               new_layout,
+                               src_queue_family_index,
+                               dst_queue_family_index,
+                               image,
+                               subresource_range};
 }

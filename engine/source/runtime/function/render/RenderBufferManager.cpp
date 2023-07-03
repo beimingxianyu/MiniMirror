@@ -2,25 +2,25 @@
 // Created by beimingxianyu on 23-6-27.
 //
 
-#include "runtime/function/render/RenderResourceManager.h"
+#include "runtime/function/render/RenderImageManager.h"
 
-MM::RenderSystem::RenderResourceManager*
-    MM::RenderSystem::RenderResourceManager::render_resource_manager_{nullptr};
-std::mutex MM::RenderSystem::RenderResourceManager::sync_flag_{};
+MM::RenderSystem::RenderImageManager*
+    MM::RenderSystem::RenderImageManager::render_resource_manager_{nullptr};
+std::mutex MM::RenderSystem::RenderImageManager::sync_flag_{};
 
-MM::RenderSystem::RenderResourceManager::Policy::OnlyWrittenType
-    MM::RenderSystem::RenderResourceManager::Policy::only_written_{};
-MM::RenderSystem::RenderResourceManager::Policy::OnlyNotWrittenType
-    MM::RenderSystem::RenderResourceManager::Policy::only_not_written_{};
-MM::RenderSystem::RenderResourceManager::Policy::BothType
-    MM::RenderSystem::RenderResourceManager::Policy::both_{};
+MM::RenderSystem::RenderImageManager::Policy::OnlyWrittenType
+    MM::RenderSystem::RenderImageManager::Policy::only_written_{};
+MM::RenderSystem::RenderImageManager::Policy::OnlyNotWrittenType
+    MM::RenderSystem::RenderImageManager::Policy::only_not_written_{};
+MM::RenderSystem::RenderImageManager::Policy::BothType
+    MM::RenderSystem::RenderImageManager::Policy::both_{};
 
-bool MM::RenderSystem::RenderResourceManager::IsValid() const {
+bool MM::RenderSystem::RenderImageManager::IsValid() const {
   return ManagerBaseImp::IsValid() && render_resource_manager_->IsValid();
 }
 
-MM::RenderSystem::RenderResourceManager*
-MM::RenderSystem::RenderResourceManager::GetInstance() {
+MM::RenderSystem::RenderImageManager*
+MM::RenderSystem::RenderImageManager::GetInstance() {
   if (render_resource_manager_) {
   } else {
     std::lock_guard<std::mutex> guard{sync_flag_};
@@ -35,27 +35,25 @@ MM::RenderSystem::RenderResourceManager::GetInstance() {
         }
       }
 
-      render_resource_manager_ = new RenderResourceManager{};
+      render_resource_manager_ = new RenderImageManager{};
     }
   }
   return render_resource_manager_;
 }
 
-MM::RenderSystem::RenderResourceManager::RenderResourceManager(
-    std::uint64_t size)
+MM::RenderSystem::RenderImageManager::RenderImageManager(std::uint64_t size)
     : Manager::ManagerBase<std::unique_ptr<RenderResourceDataBase>,
                            Manager::ManagedObjectIsSmartPoint>(size),
       render_resource_data_ID_to_object_ID_(size) {}
 
-bool MM::RenderSystem::RenderResourceManager::Have(
+bool MM::RenderSystem::RenderImageManager::Have(
     const MM::RenderSystem::RenderResourceDataID& render_resource_data_ID) {
   return render_resource_data_ID_to_object_ID_.Have(render_resource_data_ID);
 }
 
-MM::ExecuteResult
-MM::RenderSystem::RenderResourceManager::AddRenderResourceData(
-    MM::RenderSystem::RenderResourceManager::ManagedType&& render_resource_data,
-    MM::RenderSystem::RenderResourceManager::HandlerType& handler) {
+MM::ExecuteResult MM::RenderSystem::RenderImageManager::AddRenderResourceData(
+    MM::RenderSystem::RenderImageManager::ManagedType&& render_resource_data,
+    MM::RenderSystem::RenderImageManager::HandlerType& handler) {
   RenderResourceDataID render_resource_data_ID =
       render_resource_data->GetRenderResourceDataID();
 
@@ -78,17 +76,17 @@ MM::RenderSystem::RenderResourceManager::AddRenderResourceData(
 }
 
 MM::ExecuteResult
-MM::RenderSystem::RenderResourceManager::GetRenderResourceDataByID(
+MM::RenderSystem::RenderImageManager::GetRenderResourceDataByID(
     const MM::Manager::ManagedObjectID& object_ID,
-    MM::RenderSystem::RenderResourceManager::HandlerType& handler) const {
+    MM::RenderSystem::RenderImageManager::HandlerType& handler) const {
   return GetRenderResourceDataByID(object_ID, handler, Policy::both_);
 }
 
 MM::ExecuteResult
-MM::RenderSystem::RenderResourceManager::GetRenderResourceDataByID(
+MM::RenderSystem::RenderImageManager::GetRenderResourceDataByID(
     const MM::Manager::ManagedObjectID& object_ID,
-    MM::RenderSystem::RenderResourceManager::HandlerType& handler,
-    MM::RenderSystem::RenderResourceManager::Policy::BothType) const {
+    MM::RenderSystem::RenderImageManager::HandlerType& handler,
+    MM::RenderSystem::RenderImageManager::Policy::BothType) const {
   BaseHandlerType base_handler;
   MM_CHECK_WITHOUT_LOG(GetObjectByIDBase(object_ID, base_handler),
                        return MM_RESULT_CODE;)
@@ -108,10 +106,10 @@ MM::RenderSystem::RenderResourceManager::GetRenderResourceDataByID(
 }
 
 MM::ExecuteResult
-MM::RenderSystem::RenderResourceManager::GetRenderResourceDataByID(
+MM::RenderSystem::RenderImageManager::GetRenderResourceDataByID(
     const MM::Manager::ManagedObjectID& object_ID,
-    MM::RenderSystem::RenderResourceManager::HandlerType& handler,
-    MM::RenderSystem::RenderResourceManager::Policy::OnlyWrittenType) const {
+    MM::RenderSystem::RenderImageManager::HandlerType& handler,
+    MM::RenderSystem::RenderImageManager::Policy::OnlyWrittenType) const {
   BaseHandlerType base_handler;
   MM_CHECK_WITHOUT_LOG(GetObjectByIDBase(object_ID, base_handler),
                        return MM_RESULT_CODE;)
@@ -135,10 +133,10 @@ MM::RenderSystem::RenderResourceManager::GetRenderResourceDataByID(
 }
 
 MM::ExecuteResult
-MM::RenderSystem::RenderResourceManager::GetRenderResourceDataByID(
+MM::RenderSystem::RenderImageManager::GetRenderResourceDataByID(
     const MM::Manager::ManagedObjectID& object_ID,
-    MM::RenderSystem::RenderResourceManager::HandlerType& handler,
-    MM::RenderSystem::RenderResourceManager::Policy::OnlyNotWrittenType) const {
+    MM::RenderSystem::RenderImageManager::HandlerType& handler,
+    MM::RenderSystem::RenderImageManager::Policy::OnlyNotWrittenType) const {
   BaseHandlerType base_handler;
   MM_CHECK_WITHOUT_LOG(GetObjectByIDBase(object_ID, base_handler),
                        return MM_RESULT_CODE;)
@@ -161,7 +159,7 @@ MM::RenderSystem::RenderResourceManager::GetRenderResourceDataByID(
   return ExecuteResult ::SUCCESS;
 }
 
-MM::ExecuteResult MM::RenderSystem::RenderResourceManager::
+MM::ExecuteResult MM::RenderSystem::RenderImageManager::
     GetRenderResourceDataByRenderResourceDataID(
         const MM::RenderSystem::RenderResourceDataID& render_resource_data_ID,
         std::vector<HandlerType>& handlers) const {
@@ -169,11 +167,11 @@ MM::ExecuteResult MM::RenderSystem::RenderResourceManager::
                                                      handlers, Policy::both_);
 }
 
-MM::ExecuteResult MM::RenderSystem::RenderResourceManager::
+MM::ExecuteResult MM::RenderSystem::RenderImageManager::
     GetRenderResourceDataByRenderResourceDataID(
         const MM::RenderSystem::RenderResourceDataID& render_resource_data_ID,
         std::vector<HandlerType>& handlers,
-        MM::RenderSystem::RenderResourceManager::Policy::BothType) const {
+        MM::RenderSystem::RenderImageManager::Policy::BothType) const {
   std::vector<RenderResourceDataIDToObjectIDContainerType::HandlerType>
       render_resource_data_ID_to_object_ID_handlers;
   MM_CHECK_WITHOUT_LOG(render_resource_data_ID_to_object_ID_.GetObject(
@@ -200,12 +198,11 @@ MM::ExecuteResult MM::RenderSystem::RenderResourceManager::
   return ExecuteResult ::SUCCESS;
 }
 
-MM::ExecuteResult MM::RenderSystem::RenderResourceManager::
+MM::ExecuteResult MM::RenderSystem::RenderImageManager::
     GetRenderResourceDataByRenderResourceDataID(
         const MM::RenderSystem::RenderResourceDataID& render_resource_data_ID,
         std::vector<HandlerType>& handlers,
-        MM::RenderSystem::RenderResourceManager::Policy::OnlyWrittenType)
-        const {
+        MM::RenderSystem::RenderImageManager::Policy::OnlyWrittenType) const {
   std::vector<RenderResourceDataIDToObjectIDContainerType::HandlerType>
       render_resource_data_ID_to_object_ID_handlers;
   MM_CHECK_WITHOUT_LOG(render_resource_data_ID_to_object_ID_.GetObject(
@@ -234,11 +231,11 @@ MM::ExecuteResult MM::RenderSystem::RenderResourceManager::
   return ExecuteResult ::SUCCESS;
 }
 
-MM::ExecuteResult MM::RenderSystem::RenderResourceManager::
+MM::ExecuteResult MM::RenderSystem::RenderImageManager::
     GetRenderResourceDataByRenderResourceDataID(
         const MM::RenderSystem::RenderResourceDataID& render_resource_data_ID,
         std::vector<HandlerType>& handlers,
-        MM::RenderSystem::RenderResourceManager::Policy::OnlyNotWrittenType)
+        MM::RenderSystem::RenderImageManager::Policy::OnlyNotWrittenType)
         const {
   std::vector<RenderResourceDataIDToObjectIDContainerType::HandlerType>
       render_resource_data_ID_to_object_ID_handlers;
@@ -269,15 +266,15 @@ MM::ExecuteResult MM::RenderSystem::RenderResourceManager::
 }
 
 MM::ExecuteResult
-MM::RenderSystem::RenderResourceManager::GetRenderResourceDataByName(
+MM::RenderSystem::RenderImageManager::GetRenderResourceDataByName(
     const std::string& name, std::vector<HandlerType>& handlers) const {
   return GetRenderResourceDataByName(name, handlers, Policy::both_);
 }
 
 MM::ExecuteResult
-MM::RenderSystem::RenderResourceManager::GetRenderResourceDataByName(
+MM::RenderSystem::RenderImageManager::GetRenderResourceDataByName(
     const std::string& name, std::vector<HandlerType>& handlers,
-    MM::RenderSystem::RenderResourceManager::Policy::BothType) const {
+    MM::RenderSystem::RenderImageManager::Policy::BothType) const {
   std::vector<BaseHandlerType> base_handlers;
   MM_CHECK_WITHOUT_LOG(GetObjectByNameBase(name, base_handlers),
                        return MM_RESULT_CODE;)
@@ -306,9 +303,9 @@ MM::RenderSystem::RenderResourceManager::GetRenderResourceDataByName(
 }
 
 MM::ExecuteResult
-MM::RenderSystem::RenderResourceManager::GetRenderResourceDataByName(
+MM::RenderSystem::RenderImageManager::GetRenderResourceDataByName(
     const std::string& name, std::vector<HandlerType>& handlers,
-    MM::RenderSystem::RenderResourceManager::Policy::OnlyWrittenType) const {
+    MM::RenderSystem::RenderImageManager::Policy::OnlyWrittenType) const {
   std::vector<BaseHandlerType> base_handlers;
   MM_CHECK_WITHOUT_LOG(GetObjectByNameBase(name, base_handlers),
                        return MM_RESULT_CODE;)
@@ -339,9 +336,9 @@ MM::RenderSystem::RenderResourceManager::GetRenderResourceDataByName(
 }
 
 MM::ExecuteResult
-MM::RenderSystem::RenderResourceManager::GetRenderResourceDataByName(
+MM::RenderSystem::RenderImageManager::GetRenderResourceDataByName(
     const std::string& name, std::vector<HandlerType>& handlers,
-    MM::RenderSystem::RenderResourceManager::Policy::OnlyNotWrittenType) const {
+    MM::RenderSystem::RenderImageManager::Policy::OnlyNotWrittenType) const {
   std::vector<BaseHandlerType> base_handlers;
   MM_CHECK_WITHOUT_LOG(GetObjectByNameBase(name, base_handlers),
                        return MM_RESULT_CODE;)
@@ -372,7 +369,7 @@ MM::RenderSystem::RenderResourceManager::GetRenderResourceDataByName(
 }
 
 MM::ExecuteResult
-MM::RenderSystem::RenderResourceManager::GetIDByRenderResourceDataID(
+MM::RenderSystem::RenderImageManager::GetIDByRenderResourceDataID(
     const MM::RenderSystem::RenderResourceDataID& render_resource_data_ID,
     std::vector<Manager::ManagedObjectID>& managed_object_IDs) const {
   return GetIDByRenderResourceDataID(render_resource_data_ID,
@@ -380,10 +377,10 @@ MM::RenderSystem::RenderResourceManager::GetIDByRenderResourceDataID(
 }
 
 MM::ExecuteResult
-MM::RenderSystem::RenderResourceManager::GetIDByRenderResourceDataID(
+MM::RenderSystem::RenderImageManager::GetIDByRenderResourceDataID(
     const MM::RenderSystem::RenderResourceDataID& render_resource_data_ID,
     std::vector<Manager::ManagedObjectID>& managed_object_IDs,
-    MM::RenderSystem::RenderResourceManager::Policy::BothType) const {
+    MM::RenderSystem::RenderImageManager::Policy::BothType) const {
   std::vector<RenderResourceDataIDToObjectIDContainerType ::HandlerType>
       render_resource_data_ID_to_object_ID_handlers;
   MM_CHECK_WITHOUT_LOG(render_resource_data_ID_to_object_ID_.GetObject(
@@ -404,10 +401,10 @@ MM::RenderSystem::RenderResourceManager::GetIDByRenderResourceDataID(
 }
 
 MM::ExecuteResult
-MM::RenderSystem::RenderResourceManager::GetIDByRenderResourceDataID(
+MM::RenderSystem::RenderImageManager::GetIDByRenderResourceDataID(
     const MM::RenderSystem::RenderResourceDataID& render_resource_data_ID,
     std::vector<Manager::ManagedObjectID>& managed_object_IDs,
-    MM::RenderSystem::RenderResourceManager::Policy::OnlyWrittenType) const {
+    MM::RenderSystem::RenderImageManager::Policy::OnlyWrittenType) const {
   std::vector<RenderResourceDataIDToObjectIDContainerType ::HandlerType>
       render_resource_data_ID_to_object_ID_handlers;
   MM_CHECK_WITHOUT_LOG(render_resource_data_ID_to_object_ID_.GetObject(
@@ -440,10 +437,10 @@ MM::RenderSystem::RenderResourceManager::GetIDByRenderResourceDataID(
 }
 
 MM::ExecuteResult
-MM::RenderSystem::RenderResourceManager::GetIDByRenderResourceDataID(
+MM::RenderSystem::RenderImageManager::GetIDByRenderResourceDataID(
     const MM::RenderSystem::RenderResourceDataID& render_resource_data_ID,
     std::vector<Manager::ManagedObjectID>& managed_object_IDs,
-    MM::RenderSystem::RenderResourceManager::Policy::OnlyNotWrittenType) const {
+    MM::RenderSystem::RenderImageManager::Policy::OnlyNotWrittenType) const {
   std::vector<RenderResourceDataIDToObjectIDContainerType ::HandlerType>
       render_resource_data_ID_to_object_ID_handlers;
   MM_CHECK_WITHOUT_LOG(render_resource_data_ID_to_object_ID_.GetObject(
@@ -476,7 +473,7 @@ MM::RenderSystem::RenderResourceManager::GetIDByRenderResourceDataID(
 }
 
 MM::ExecuteResult
-MM::RenderSystem::RenderResourceManager::GetNameByRenderResourceID(
+MM::RenderSystem::RenderImageManager::GetNameByRenderResourceID(
     const MM::RenderSystem::RenderResourceDataID& render_resource_data_ID,
     std::vector<std::string>& names) const {
   return GetNameByRenderResourceID(render_resource_data_ID, names,
@@ -484,10 +481,10 @@ MM::RenderSystem::RenderResourceManager::GetNameByRenderResourceID(
 }
 
 MM::ExecuteResult
-MM::RenderSystem::RenderResourceManager::GetNameByRenderResourceID(
+MM::RenderSystem::RenderImageManager::GetNameByRenderResourceID(
     const MM::RenderSystem::RenderResourceDataID& render_resource_data_ID,
     std::vector<std::string>& names,
-    MM::RenderSystem::RenderResourceManager::Policy::BothType) const {
+    MM::RenderSystem::RenderImageManager::Policy::BothType) const {
   std::vector<RenderResourceDataIDToObjectIDContainerType ::HandlerType>
       render_resource_data_ID_to_object_ID_handlers;
   MM_CHECK_WITHOUT_LOG(render_resource_data_ID_to_object_ID_.GetObject(
@@ -511,10 +508,10 @@ MM::RenderSystem::RenderResourceManager::GetNameByRenderResourceID(
 }
 
 MM::ExecuteResult
-MM::RenderSystem::RenderResourceManager::GetNameByRenderResourceID(
+MM::RenderSystem::RenderImageManager::GetNameByRenderResourceID(
     const MM::RenderSystem::RenderResourceDataID& render_resource_data_ID,
     std::vector<std::string>& names,
-    MM::RenderSystem::RenderResourceManager::Policy::OnlyWrittenType) const {
+    MM::RenderSystem::RenderImageManager::Policy::OnlyWrittenType) const {
   std::vector<RenderResourceDataIDToObjectIDContainerType ::HandlerType>
       render_resource_data_ID_to_object_ID_handlers;
   MM_CHECK_WITHOUT_LOG(render_resource_data_ID_to_object_ID_.GetObject(
@@ -540,10 +537,10 @@ MM::RenderSystem::RenderResourceManager::GetNameByRenderResourceID(
 }
 
 MM::ExecuteResult
-MM::RenderSystem::RenderResourceManager::GetNameByRenderResourceID(
+MM::RenderSystem::RenderImageManager::GetNameByRenderResourceID(
     const MM::RenderSystem::RenderResourceDataID& render_resource_data_ID,
     std::vector<std::string>& names,
-    MM::RenderSystem::RenderResourceManager::Policy::OnlyNotWrittenType) const {
+    MM::RenderSystem::RenderImageManager::Policy::OnlyNotWrittenType) const {
   std::vector<RenderResourceDataIDToObjectIDContainerType ::HandlerType>
       render_resource_data_ID_to_object_ID_handlers;
   MM_CHECK_WITHOUT_LOG(render_resource_data_ID_to_object_ID_.GetObject(
@@ -569,7 +566,7 @@ MM::RenderSystem::RenderResourceManager::GetNameByRenderResourceID(
 }
 
 MM::ExecuteResult
-MM::RenderSystem::RenderResourceManager::GetRenderResourceDataIDByID(
+MM::RenderSystem::RenderImageManager::GetRenderResourceDataIDByID(
     const MM::Manager::ManagedObjectID& managed_object_ID,
     MM::RenderSystem::RenderResourceDataID& render_resource_data_ID) const {
   return GetRenderResourceDataIDByID(managed_object_ID, render_resource_data_ID,
@@ -577,10 +574,10 @@ MM::RenderSystem::RenderResourceManager::GetRenderResourceDataIDByID(
 }
 
 MM::ExecuteResult
-MM::RenderSystem::RenderResourceManager::GetRenderResourceDataIDByID(
+MM::RenderSystem::RenderImageManager::GetRenderResourceDataIDByID(
     const MM::Manager::ManagedObjectID& managed_object_ID,
     MM::RenderSystem::RenderResourceDataID& render_resource_data_ID,
-    MM::RenderSystem::RenderResourceManager::Policy::BothType) const {
+    MM::RenderSystem::RenderImageManager::Policy::BothType) const {
   BaseIDToObjectContainer::HandlerType ID_to_object_handler;
   MM_CHECK_WITHOUT_LOG(
       GetIDToObjectHandler(managed_object_ID, ID_to_object_handler),
@@ -593,10 +590,10 @@ MM::RenderSystem::RenderResourceManager::GetRenderResourceDataIDByID(
 }
 
 MM::ExecuteResult
-MM::RenderSystem::RenderResourceManager::GetRenderResourceDataIDByID(
+MM::RenderSystem::RenderImageManager::GetRenderResourceDataIDByID(
     const MM::Manager::ManagedObjectID& managed_object_ID,
     MM::RenderSystem::RenderResourceDataID& render_resource_data_ID,
-    MM::RenderSystem::RenderResourceManager::Policy::OnlyWrittenType) const {
+    MM::RenderSystem::RenderImageManager::Policy::OnlyWrittenType) const {
   BaseIDToObjectContainer::HandlerType ID_to_object_handler;
   MM_CHECK_WITHOUT_LOG(
       GetIDToObjectHandler(managed_object_ID, ID_to_object_handler),
@@ -613,10 +610,10 @@ MM::RenderSystem::RenderResourceManager::GetRenderResourceDataIDByID(
 }
 
 MM::ExecuteResult
-MM::RenderSystem::RenderResourceManager::GetRenderResourceDataIDByID(
+MM::RenderSystem::RenderImageManager::GetRenderResourceDataIDByID(
     const MM::Manager::ManagedObjectID& managed_object_ID,
     MM::RenderSystem::RenderResourceDataID& render_resource_data_ID,
-    MM::RenderSystem::RenderResourceManager::Policy::OnlyNotWrittenType) const {
+    MM::RenderSystem::RenderImageManager::Policy::OnlyNotWrittenType) const {
   BaseIDToObjectContainer::HandlerType ID_to_object_handler;
   MM_CHECK_WITHOUT_LOG(
       GetIDToObjectHandler(managed_object_ID, ID_to_object_handler),
@@ -633,7 +630,7 @@ MM::RenderSystem::RenderResourceManager::GetRenderResourceDataIDByID(
 }
 
 MM::ExecuteResult
-MM::RenderSystem::RenderResourceManager::GetRenderResourceDataIDByName(
+MM::RenderSystem::RenderImageManager::GetRenderResourceDataIDByName(
     const std::string& name,
     std::vector<RenderResourceDataID>& render_resource_data_IDs) const {
   return GetRenderResourceDataIDByName(name, render_resource_data_IDs,
@@ -641,10 +638,10 @@ MM::RenderSystem::RenderResourceManager::GetRenderResourceDataIDByName(
 }
 
 MM::ExecuteResult
-MM::RenderSystem::RenderResourceManager::GetRenderResourceDataIDByName(
+MM::RenderSystem::RenderImageManager::GetRenderResourceDataIDByName(
     const std::string& name,
     std::vector<RenderResourceDataID>& render_resource_data_IDs,
-    MM::RenderSystem::RenderResourceManager::Policy::BothType) const {
+    MM::RenderSystem::RenderImageManager::Policy::BothType) const {
   std::vector<BaseHandlerType> base_handlers;
   MM_CHECK_WITHOUT_LOG(GetObjectByNameBase(name, base_handlers),
                        return MM_RESULT_CODE;)
@@ -658,10 +655,10 @@ MM::RenderSystem::RenderResourceManager::GetRenderResourceDataIDByName(
 }
 
 MM::ExecuteResult
-MM::RenderSystem::RenderResourceManager::GetRenderResourceDataIDByName(
+MM::RenderSystem::RenderImageManager::GetRenderResourceDataIDByName(
     const std::string& name,
     std::vector<RenderResourceDataID>& render_resource_data_IDs,
-    MM::RenderSystem::RenderResourceManager::Policy::OnlyWrittenType) const {
+    MM::RenderSystem::RenderImageManager::Policy::OnlyWrittenType) const {
   std::vector<BaseHandlerType> base_handlers;
   MM_CHECK_WITHOUT_LOG(GetObjectByNameBase(name, base_handlers),
                        return MM_RESULT_CODE;)
@@ -684,10 +681,10 @@ MM::RenderSystem::RenderResourceManager::GetRenderResourceDataIDByName(
 }
 
 MM::ExecuteResult
-MM::RenderSystem::RenderResourceManager::GetRenderResourceDataIDByName(
+MM::RenderSystem::RenderImageManager::GetRenderResourceDataIDByName(
     const std::string& name,
     std::vector<RenderResourceDataID>& render_resource_data_IDs,
-    MM::RenderSystem::RenderResourceManager::Policy::OnlyNotWrittenType) const {
+    MM::RenderSystem::RenderImageManager::Policy::OnlyNotWrittenType) const {
   std::vector<BaseHandlerType> base_handlers;
   MM_CHECK_WITHOUT_LOG(GetObjectByNameBase(name, base_handlers),
                        return MM_RESULT_CODE;)
@@ -709,7 +706,7 @@ MM::RenderSystem::RenderResourceManager::GetRenderResourceDataIDByName(
   return ExecuteResult ::PARENT_OBJECT_NOT_CONTAIN_SPECIFIC_CHILD_OBJECT;
 }
 
-bool MM::RenderSystem::RenderResourceManager::Destroy() {
+bool MM::RenderSystem::RenderImageManager::Destroy() {
   std::lock_guard<std::mutex> guard(sync_flag_);
   if (render_resource_manager_) {
     delete render_resource_manager_;

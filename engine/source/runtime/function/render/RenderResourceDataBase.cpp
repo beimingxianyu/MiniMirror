@@ -8,7 +8,9 @@ MM::RenderSystem::RenderResourceDataBase::RenderResourceDataBase(
     const std::string& resource_name,
     const MM::RenderSystem::RenderResourceDataID& render_resource_data_ID)
     : ManagedObjectBase(resource_name),
-      render_resource_data_ID_(render_resource_data_ID) {}
+      render_resource_data_ID_(render_resource_data_ID),
+      used_for_write_(false),
+      have_data_(false) {}
 
 MM::RenderSystem::RenderResourceDataBase&
 MM::RenderSystem::RenderResourceDataBase::operator=(
@@ -18,6 +20,11 @@ MM::RenderSystem::RenderResourceDataBase::operator=(
   }
   ManagedObjectBase::operator=(std::move(other));
   render_resource_data_ID_ = std::move(other.render_resource_data_ID_);
+  used_for_write_ = other.used_for_write_;
+  have_data_ = other.have_data_;
+
+  other.used_for_write_ = false;
+  other.have_data_ = false;
 
   return *this;
 }
@@ -30,14 +37,6 @@ const std::string& MM::RenderSystem::RenderResourceDataBase::GetResourceName()
 MM::RenderSystem::ResourceType
 MM::RenderSystem::RenderResourceDataBase::GetResourceType() const {
   return ResourceType::UNDEFINED;
-}
-
-std::unique_ptr<MM::RenderSystem::RenderResourceDataBase>
-MM::RenderSystem::RenderResourceDataBase::GetCopy(
-    const std::string& new_name_of_copy_resource) const {
-  RenderResourceDataBase* new_render_resource = new RenderResourceDataBase(
-      new_name_of_copy_resource, render_resource_data_ID_);
-  return std::unique_ptr<RenderResourceDataBase>(new_render_resource);
 }
 
 void MM::RenderSystem::RenderResourceDataBase::Release() {}
@@ -75,7 +74,7 @@ bool MM::RenderSystem::RenderResourceDataBase::operator<(
   if (static_cast<const MM::Manager::ManagedObjectBase&>(rhs) <
       static_cast<const MM::Manager::ManagedObjectBase&>(*this))
     return false;
-  return false
+  return false;
 }
 
 bool MM::RenderSystem::RenderResourceDataBase::operator>(
@@ -104,4 +103,18 @@ void MM::RenderSystem::RenderResourceDataBase::MarkThisUseForWrite() {
 void MM::RenderSystem::RenderResourceDataBase::SetRenderResourceDataID(
     const MM::RenderSystem::RenderResourceDataID& render_resource_data_ID) {
   render_resource_data_ID_ = render_resource_data_ID;
+}
+
+bool MM::RenderSystem::RenderResourceDataBase::IsHaveData() const {
+  return have_data_;
+}
+
+void MM::RenderSystem::RenderResourceDataBase::MarkHaveData() {
+  have_data_ = true;
+}
+
+MM::ExecuteResult
+MM::RenderSystem::RenderResourceDataBase::TransformQueueFamily(
+    std::uint32_t new_queue_family_index) {
+  return ExecuteResult ::UNDEFINED_ERROR;
 }

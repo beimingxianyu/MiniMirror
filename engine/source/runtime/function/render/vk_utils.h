@@ -8,7 +8,7 @@
 #include <vector>
 
 #include "runtime/function/render/import_other_system.h"
-#include "runtime/function/render/vk_type_define.h"
+#include "runtime/platform/base/error.h"
 
 namespace MM {
 namespace RenderSystem {
@@ -31,23 +31,17 @@ VkCommandBufferAllocateInfo GetCommandBufferAllocateInfo(
     const VkCommandPool& command_pool, const uint32_t& count = 1,
     const VkCommandBufferLevel& level = VK_COMMAND_BUFFER_LEVEL_PRIMARY);
 
-[[deprecated]] VkBufferCreateInfo GetBufferCreateInfo(
-    const VkDeviceSize& size, const VkBufferUsageFlags& usage,
-    const VkBufferCreateFlags& flags = 0);
+VkBufferCreateInfo GetBufferCreateInfo(
+    const void* next, VkBufferCreateFlags flags, VkDeviceSize size,
+    VkBufferUsageFlags usage, VkSharingMode sharing_mode,
+    std::uint32_t queue_family_index_count,
+    const std::uint32_t* queue_family_indices);
 
-VkBufferCreateInfo GetBufferCreateInfo(const VkDeviceSize& size,
-                                       const VkBufferUsageFlags& usage,
-                                       std::vector<std::uint32_t>& queue_index,
-                                       const VkBufferCreateFlags& flags = 0);
-[[deprecated]] VkImageCreateInfo GetImageCreateInfo(
-    const VkFormat& image_format, const VkImageUsageFlags& usage,
-    const VkExtent3D& extent, const VkImageCreateFlags& flags = 0);
-
-VkImageCreateInfo GetImageCreateInfo(const VkFormat& image_format,
-                                     const VkImageUsageFlags& usage,
-                                     const VkExtent3D& extent,
-                                     std::vector<std::uint32_t>& queue_index,
-                                     const VkImageCreateFlags& flags = 0);
+VmaAllocationCreateInfo GetVmaAllocationCreateInfo(
+    VmaAllocatorCreateFlags flags, VmaMemoryUsage usage,
+    VkMemoryPropertyFlags required_flags, VkMemoryPropertyFlags preferred_flags,
+    std::uint32_t memory_type_bits, VmaPool pool, void* user_data,
+    float priority);
 
 VmaAllocationCreateInfo GetVmaAllocationCreateInfo(
     const VmaMemoryUsage& usage = VMA_MEMORY_USAGE_AUTO,
@@ -73,6 +67,17 @@ ExecuteResult SubmitCommandBuffers(
     VkQueue queue, const std::vector<VkSubmitInfo>& submit_infos,
     VkFence fence);
 
+enum class ImageTransferMode {
+  INIT_TO_ATTACHMENT,
+  INIT_TO_TRANSFER_DESTINATION,
+  TRANSFER_DESTINATION_TO_SHARED_READABLE,
+  TRANSFER_DESTINATION_TO_SHARED_PRESENT,
+  ATTACHMENT_TO_PRESENT,
+  INIT_TO_DEPTH_TEST,
+  ATTACHMENT_TO_TRANSFER_SOURCE,
+  TRANSFER_DESTINATION_TO_TRANSFER_SOURCE
+};
+
 /**
  * \brief Get \ref VkImageMemoryBarrier2, but performance is poor.
  * \param image The image that this barrier will affect.
@@ -86,8 +91,16 @@ ExecuteResult SubmitCommandBuffers(
  * sub_image.baseArrayLayer = 0; \n
  * sub_image.layerCount = 1;
  */
-VkImageMemoryBarrier2 GetImageMemoryBarrier(
-    AllocatedImage& image, const ImageTransferMode& transfer_mode);
+VkImageMemoryBarrier2 GetVkImageMemoryBarrier2(
+    MM::RenderSystem::AllocatedImage& image,
+    const ImageTransferMode& transfer_mode);
+
+VkImageMemoryBarrier2 GetVkImageMemoryBarrier2(
+    VkPipelineStageFlags2 src_stage_mask, VkAccessFlags2 src_access_mask,
+    VkPipelineStageFlags2 dst_stage_mask, VkAccessFlags2 dst_access_mask,
+    VkImageLayout old_layout, VkImageLayout new_layout,
+    uint32_t src_queue_family_index, uint32_t dst_queue_family_index,
+    VkImage image, VkImageSubresourceRange subresource_range);
 
 /**
  * \brief Get \ref VkImageMemoryBarrier2, but performance is poor.
@@ -97,19 +110,19 @@ VkImageMemoryBarrier2 GetImageMemoryBarrier(
  * \return The \ref VkImageMemoryBarrier2
  * \remark Blockage at all stages, poor performance.
  */
-[[deprecated]] VkImageMemoryBarrier2 GetImageMemoryBarrier(
+[[deprecated]] VkImageMemoryBarrier2 GetVkImageMemoryBarrier2(
     AllocatedImage& image, const VkImageLayout& old_layout,
     const VkImageLayout& new_layout);
 
-[[deprecated]] VkDependencyInfo GetImageDependencyInfo(
+[[deprecated]] VkDependencyInfo GetVkImageDependencyInfo(
     VkImageMemoryBarrier2& image_barrier, const VkDependencyFlags& flags = 0);
 
-VkMemoryBarrier2 GetMemoryBarrier(VkPipelineStageFlags2 src_stage,
-                                  VkAccessFlags2 src_access,
-                                  VkPipelineStageFlags2 dest_stage,
-                                  VkAccessFlags2 dest_access);
+VkMemoryBarrier2 GetVkMemoryBarrier2(VkPipelineStageFlags2 src_stage,
+                                     VkAccessFlags2 src_access,
+                                     VkPipelineStageFlags2 dest_stage,
+                                     VkAccessFlags2 dest_access);
 
-VkBufferMemoryBarrier2 GetBufferMemoryBarrier(
+VkBufferMemoryBarrier2 GetVkBufferMemoryBarrier2(
     VkPipelineStageFlags2 src_stage, VkAccessFlags2 src_access,
     VkPipelineStageFlags2 dest_stage, VkAccessFlags2 dest_access,
     std::uint32_t src_queue_family_index, std::uint32_t dest_queue_family_index,
@@ -122,7 +135,7 @@ VkBufferMemoryBarrier2 GetBufferMemoryBarrier(
 //    dest_queue_family_index, const AllocatedStageBuffer& allocated_buffer,
 //    VkDeviceSize offset, VkDeviceSize size);
 
-VkImageMemoryBarrier2 GetImageMemoryBarrier(
+VkImageMemoryBarrier2 GetVkImageMemoryBarrier2(
     VkPipelineStageFlags2 src_stage, VkAccessFlags2 src_access,
     VkPipelineStageFlags2 dest_stage, VkAccessFlags2 dest_access,
     VkImageLayout old_layout, VkImageLayout new_layout,
@@ -163,10 +176,19 @@ VkDependencyInfo GetImageMemoryDependencyInfo(
     const VkImageMemoryBarrier2& image_barriers,
     VkDependencyFlags dependency_flags = 0);
 
-VkDependencyInfo GetDependencyInfo(
+VkDependencyInfo GetVkDependencyInfo(
     const std::vector<VkMemoryBarrier2>& memory_barriers,
     const std::vector<VkBufferMemoryBarrier2>& buffer_barriers,
     const std::vector<VkImageMemoryBarrier2>& image_barriers,
+    VkDependencyFlags dependency_flags = 0);
+
+VkDependencyInfo GetVkDependencyInfo(
+    std::uint32_t memory_barriers_count,
+    const VkMemoryBarrier2* memory_barriers,
+    std::uint32_t buffer_barriers_count,
+    const VkBufferMemoryBarrier2* buffer_barriers,
+    std::uint32_t image_barriers_count,
+    const VkImageMemoryBarrier2* image_barriers,
     VkDependencyFlags dependency_flags = 0);
 
 VkDependencyInfo GetBufferQueueFamilyOwnershipTransformDependencyInfo(
@@ -255,11 +277,11 @@ bool DescriptorTypeIsUniformBuffer(const VkDescriptorType& descriptor_type);
 
 bool DescriptorTypeIsTexelBuffer(const VkDescriptorType& descriptor_type);
 
-AllocatedBuffer CreateBuffer(
-    const RenderEngine* engine, const size_t& alloc_size,
-    const VkBufferUsageFlags& usage, const VmaMemoryUsage& memory_usage,
-    const VmaAllocationCreateFlags& allocation_flags = 0,
-    const bool& is_BDA_buffer = true);
+ExecuteResult CreateBuffer(
+    RenderEngine* render_engine,
+    const VkBufferCreateInfo& vk_buffer_create_info,
+    const VmaAllocationCreateInfo& vma_allocation_create_info,
+    VmaAllocationInfo* vma_allocation_info, AllocatedBuffer& allocated_buffer);
 
 VkBufferCopy2 GetBufferCopy(const VkDeviceSize& size,
                             const VkDeviceSize& src_offset = 0,
@@ -340,6 +362,14 @@ std::uint64_t ConvertVkFormatToContinuousValue(VkFormat vk_format);
 std::uint64_t ConvertVkImageLayoutToContinuousValue(
     VkImageLayout vk_image_layout);
 
+ExecuteResult CheckVkImageCreateInfo(
+    const VkImageCreateInfo* vk_image_create_info);
+
+ExecuteResult CheckVmaAllocationCreateInfo(
+    const VmaAllocationCreateInfo* vma_allocation_create_info);
+
+ExecuteResult CheckVkBufferCreateInfo(
+    const VkBufferCreateInfo* vk_buffer_create_info);
 }  // namespace Utils
 }  // namespace RenderSystem
 }  // namespace MM

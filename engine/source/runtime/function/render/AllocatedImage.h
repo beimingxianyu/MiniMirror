@@ -21,9 +21,10 @@ class AllocatedImage final : public RenderResourceDataBase {
   ~AllocatedImage() = default;
   AllocatedImage(const std::string& name,
                  const RenderResourceDataID& render_resource_data_ID,
+                 RenderEngine* render_engine,
+                 const ImageDataInfo& image_data_info,
                  const VmaAllocator& allocator, const VkImage& image,
-                 const VmaAllocation& allocation,
-                 const ImageDataInfo& image_data_info);
+                 const VmaAllocation& allocation, bool have_data = false);
   AllocatedImage(const std::string& name, RenderEngine* render_engine,
                  AssetSystem::AssetManager::HandlerType image_handler,
                  const VkImageCreateInfo* vk_image_create_info,
@@ -34,6 +35,10 @@ class AllocatedImage final : public RenderResourceDataBase {
   AllocatedImage& operator=(AllocatedImage&& other) noexcept;
 
  public:
+  std::uint32_t GetQueueIndex() const;
+
+  VkImageLayout GetImageLayout() const;
+
   const VkExtent3D& GetImageExtent() const;
 
   const VkDeviceSize& GetImageSize() const;
@@ -71,21 +76,19 @@ class AllocatedImage final : public RenderResourceDataBase {
   bool IsValid() const override;
 
   ResourceType GetResourceType() const override;
+
   VkDeviceSize GetSize() const override;
+
+  ExecuteResult TransformQueueFamily(
+      std::uint32_t new_queue_family_index) override;
+
   bool IsArray() const override;
+
   bool CanWrite() const override;
-  std::unique_ptr<RenderResourceDataBase> GetCopy(
-      const std::string& new_name_of_copy_resource) const override;
 
  private:
   static ExecuteResult CheckImageHandler(
       const AssetSystem::AssetManager::HandlerType& image_handler);
-
-  static ExecuteResult CheckVkImageCreateInfo(
-      const VkImageCreateInfo* vk_image_create_info);
-
-  static ExecuteResult CheckVmaAllocationCreateInfo(
-      const VmaAllocationCreateInfo* vma_allocation_create_info);
 
   static ExecuteResult CheckInitParameters(
       RenderEngine* render_engine,
@@ -124,6 +127,7 @@ class AllocatedImage final : public RenderResourceDataBase {
   };
 
  private:
+  RenderEngine* render_engine_{nullptr};
   ImageDataInfo image_data_info_{};
   AllocatedImageWrapper wrapper_{};
 };

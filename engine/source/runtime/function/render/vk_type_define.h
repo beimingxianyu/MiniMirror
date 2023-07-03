@@ -15,7 +15,6 @@
 #include <vector>
 
 #include "runtime/function/render/RenderDataAttributeID.h"
-#include "runtime/function/render/RenderResourceDataBase.h"
 #include "runtime/function/render/import_other_system.h"
 #include "runtime/platform/base/error.h"
 #include "utils/error.h"
@@ -26,17 +25,6 @@
 namespace MM {
 namespace RenderSystem {
 class RenderEngine;
-
-enum class ImageTransferMode {
-  INIT_TO_ATTACHMENT,
-  INIT_TO_TRANSFER_DESTINATION,
-  TRANSFER_DESTINATION_TO_SHARED_READABLE,
-  TRANSFER_DESTINATION_TO_SHARED_PRESENT,
-  ATTACHMENT_TO_PRESENT,
-  INIT_TO_DEPTH_TEST,
-  ATTACHMENT_TO_TRANSFER_SOURCE,
-  TRANSFER_DESTINATION_TO_TRANSFER_SOURCE
-};
 
 enum class ResourceType {
   Texture,
@@ -165,49 +153,82 @@ struct ImageCreateInfo {
 };
 
 struct ImageDataInfo {
-  ImageCreateInfo image_create_info_;
-  AllocationCreateInfo allocation_create_info_;
+  ImageDataInfo() = default;
+  ~ImageDataInfo() = default;
+  ImageDataInfo(const ImageDataInfo& other) = default;
+  ImageDataInfo(ImageDataInfo&& other) noexcept;
+  ImageDataInfo& operator=(const ImageDataInfo& other);
+  ImageDataInfo& operator=(ImageDataInfo&& other) noexcept;
+
+  ImageCreateInfo image_create_info_{};
+  AllocationCreateInfo allocation_create_info_{};
+
+  std::uint32_t queue_index_{UINT32_MAX};
+  VkImageLayout image_layout_{VK_IMAGE_LAYOUT_MAX_ENUM};
 
   ExecuteResult GetRenderDataAttributeID(
       RenderImageDataAttributeID render_image_data_attribute_ID) const;
 
   void SetImageCreateInfo(std::uint64_t image_size,
-                          const VkImageCreateInfo& vk_image_create_info) {
-    image_create_info_.image_size_ = image_size;
-    image_create_info_.next_ = vk_image_create_info.pNext;
-    image_create_info_.flags_ = vk_image_create_info.flags;
-    image_create_info_.image_type_ = vk_image_create_info.imageType;
-    image_create_info_.format_ = vk_image_create_info.format;
-    image_create_info_.extent_ = vk_image_create_info.extent;
-    image_create_info_.miplevels_ = vk_image_create_info.mipLevels;
-    image_create_info_.array_levels_ = vk_image_create_info.arrayLayers;
-    image_create_info_.samples_ = vk_image_create_info.samples;
-    image_create_info_.tiling_ = vk_image_create_info.tiling;
-    image_create_info_.usage_ = vk_image_create_info.usage;
-    image_create_info_.sharing_mode_ = vk_image_create_info.sharingMode;
-    image_create_info_.queue_family_indices_.clear();
-    image_create_info_.queue_family_indices_.reserve(
-        vk_image_create_info.queueFamilyIndexCount);
-    for (std::uint64_t i = 0; i != vk_image_create_info.queueFamilyIndexCount;
-         ++i) {
-      image_create_info_.queue_family_indices_.emplace_back(
-          vk_image_create_info.pQueueFamilyIndices[i]);
-    }
-    image_create_info_.initial_layout_ = vk_image_create_info.initialLayout;
-  }
+                          const VkImageCreateInfo& vk_image_create_info);
 
   void SetAllocationCreateInfo(
-      const VmaAllocationCreateInfo& vma_allocation_create_info) {
-    allocation_create_info_.flags_ = vma_allocation_create_info.flags;
-    allocation_create_info_.usage_ = vma_allocation_create_info.usage;
-    allocation_create_info_.required_flags_ =
-        vma_allocation_create_info.requiredFlags;
-    allocation_create_info_.preferred_flags_ =
-        vma_allocation_create_info.preferredFlags;
-    allocation_create_info_.memory_type_bits_ =
-        vma_allocation_create_info.memoryTypeBits;
-    allocation_create_info_.priority_ = vma_allocation_create_info.priority;
-  }
+      const VmaAllocationCreateInfo& vma_allocation_create_info);
+
+  bool IsValid() const;
+
+  void Reset();
+};
+
+struct BufferCreateInfo {
+  BufferCreateInfo() = default;
+  ~BufferCreateInfo() = default;
+  BufferCreateInfo(const void* next, VkBufferCreateFlags flags,
+                   VkDeviceSize size, VkBufferUsageFlags usage,
+                   VkSharingMode sharing_mode,
+                   const std::vector<std::uint32_t>& queue_family_indices);
+  explicit BufferCreateInfo(const VkBufferCreateInfo& vk_buffer_create_info);
+  BufferCreateInfo(const BufferCreateInfo& other) = default;
+  BufferCreateInfo(BufferCreateInfo&& other) noexcept;
+  BufferCreateInfo& operator=(const BufferCreateInfo& other);
+  BufferCreateInfo& operator=(BufferCreateInfo&& other) noexcept;
+
+  const void* next_;
+  VkBufferCreateFlags flags_;
+  VkDeviceSize size_;
+  VkBufferUsageFlags usage_;
+  VkSharingMode sharing_mode_;
+  std::vector<std::uint32_t> queue_family_indices_;
+
+  bool IsValid() const;
+
+  VkBufferCreateInfo GetVkBufferCreateInfo() const;
+
+  void Reset();
+};
+
+struct BufferDataInfo {
+  BufferDataInfo() = default;
+  ~BufferDataInfo() = default;
+  BufferDataInfo(const BufferCreateInfo& buffer_create_info,
+                 const AllocationCreateInfo& allocation_create_info);
+  BufferDataInfo(const BufferDataInfo& other) = default;
+  BufferDataInfo(BufferDataInfo&& other) noexcept;
+  BufferDataInfo& operator=(const BufferDataInfo& other);
+  BufferDataInfo& operator=(BufferDataInfo&& other) noexcept;
+
+  BufferCreateInfo buffer_create_info_{};
+  AllocationCreateInfo allocation_create_info_{};
+
+  std::uint32_t queue_index_{UINT32_MAX};
+
+  ExecuteResult GetRenderDataAttributeID(
+      RenderImageDataAttributeID& render_image_data_attribute_ID) const;
+
+  void SetBufferCreateInfo(const VkBufferCreateInfo& vk_buffer_create_info);
+
+  void SetAllocationCreateInfo(
+      const VmaAllocationCreateInfo& vma_allocation_create_info);
 
   bool IsValid() const;
 

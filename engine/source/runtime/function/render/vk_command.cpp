@@ -1,5 +1,6 @@
 #include "runtime/function/render/vk_command.h"
 
+#include "RenderResourceDataID.h"
 #include "vk_engine.h"
 
 const MM::RenderSystem::CommandBufferType&
@@ -130,14 +131,15 @@ MM::RenderSystem::CommandTask::CommandTask(
       wait_semaphore_(wait_semaphore),
       signal_semaphore_(signal_semaphore),
       cross_task_flow_sync_render_resource_IDs_() {}
+
 void MM::RenderSystem::CommandTask::AddCrossTaskFLowSyncRenderResourceIDs(
-    const std::vector<std::uint32_t>& render_resource_IDs) {
+    const std::vector<RenderResourceDataID>& render_resource_IDs) {
   cross_task_flow_sync_render_resource_IDs_.insert(
       cross_task_flow_sync_render_resource_IDs_.end(),
       render_resource_IDs.begin(), render_resource_IDs.end());
 }
 void MM::RenderSystem::CommandTask::AddCrossTaskFLowSyncRenderResourceIDs(
-    std::vector<std::uint32_t>&& render_resource_IDs) {
+    std::vector<RenderResourceDataID>&& render_resource_IDs) {
   if (cross_task_flow_sync_render_resource_IDs_.empty()) {
     cross_task_flow_sync_render_resource_IDs_ = std::move(render_resource_IDs);
     return;
@@ -1892,7 +1894,7 @@ void MM::RenderSystem::CommandExecutor::ProcessCompleteTask() {
         {
           std::lock_guard<std::mutex> command_task_render_resource_states_guard{
               command_task_render_resource_states_mutex_};
-          for (std::uint32_t render_resource_ID :
+          for (const RenderResourceDataID& render_resource_ID :
                executing_command_buffer->command_task_
                    ->cross_task_flow_sync_render_resource_IDs_) {
             auto& states =
@@ -1956,7 +1958,7 @@ void MM::RenderSystem::CommandExecutor::ProcessCompleteTask() {
         {
           std::lock_guard<std::mutex> command_task_render_resource_states_guard{
               command_task_render_resource_states_mutex_};
-          for (std::uint32_t render_resource_ID :
+          for (const RenderResourceDataID& render_resource_ID :
                executing_command_buffer->command_task_
                    ->cross_task_flow_sync_render_resource_IDs_) {
             auto& states =
@@ -2021,7 +2023,7 @@ void MM::RenderSystem::CommandExecutor::ProcessCompleteTask() {
         {
           std::lock_guard<std::mutex> command_task_render_resource_states_guard{
               command_task_render_resource_states_mutex_};
-          for (std::uint32_t render_resource_ID :
+          for (const RenderResourceDataID& render_resource_ID :
                executing_command_buffer->command_task_
                    ->cross_task_flow_sync_render_resource_IDs_) {
             auto& states =
@@ -2626,8 +2628,8 @@ void MM::RenderSystem::CommandExecutor::ProcessCrossTaskFlowRenderResourceSync(
     const std::shared_ptr<ExecutingCommandTaskFlow>& command_task_flow,
     bool& command_submit_condition) {
   std::lock_guard<std::mutex> guard(command_task_render_resource_states_mutex_);
-  std::vector<uint32_t> same_command_type_sync_render_resource;
-  std::vector<uint32_t> new_use_of_render_resource;
+  std::vector<RenderResourceDataID> same_command_type_sync_render_resource;
+  std::vector<RenderResourceDataID> new_use_of_render_resource;
   bool
       have_different_command_type_sync_render_resource_or_same_command_type_but_recording =
           false;

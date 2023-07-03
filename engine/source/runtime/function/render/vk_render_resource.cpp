@@ -1,9 +1,9 @@
 #include "runtime/function/render/vk_render_resource.h"
 
-#include "RenderResourceManager.h"
+#include "RenderImageManager.h"
 #include "runtime/function/render/vk_engine.h"
 
-std::mutex MM::RenderSystem::RenderResourceManager::sync_flag_{};
+std::mutex MM::RenderSystem::RenderImageManager::sync_flag_{};
 
 MM::RenderSystem::RenderResourceTexture::RenderResourceTexture(
     const std::string& resource_name, RenderEngine* engine,
@@ -278,8 +278,7 @@ MM::RenderSystem::RenderResourceTexture::GetLightCopy(
   auto new_resource = std::make_unique<RenderResourceTexture>(*this);
   new_resource->SetResourceName(new_name_of_copy_resource);
   new_resource->SetResourceID(
-      MM::RenderSystem::RenderResourceManager::GetInstance()
-          ->GetIncreaseIndex());
+      MM::RenderSystem::RenderImageManager::GetInstance()->GetIncreaseIndex());
 
   return new_resource;
 }
@@ -1064,7 +1063,7 @@ MM::RenderSystem::RenderResourceBuffer::GetLightCopy(
     const std::string& new_name_of_copy_resource) const {
   auto new_buffer = std::make_unique<RenderResourceBuffer>(*this);
   new_buffer->SetResourceID(
-      RenderResourceManager::GetInstance()->GetIncreaseIndex());
+      RenderImageManager::GetInstance()->GetIncreaseIndex());
   new_buffer->SetResourceName(new_name_of_copy_resource);
 
   return new_buffer;

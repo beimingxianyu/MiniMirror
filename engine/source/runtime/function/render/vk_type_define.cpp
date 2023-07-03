@@ -3,8 +3,10 @@
 //
 #include "runtime/function/render/vk_type_define.h"
 
+#include <vulkan/vulkan_core.h>
+
 #include "runtime/function/render/vk_engine.h"
-#include "vk_utils.h"
+#include "runtime/function/render/vk_utils.h"
 
 bool MM::RenderSystem::QueueFamilyIndices::isComplete() const {
   return graphics_family_.has_value() && present_family_.has_value() &&
@@ -249,12 +251,16 @@ VkImageCreateInfo MM::RenderSystem::ImageCreateInfo::GetVkImageCreateInfo()
 }
 
 bool MM::RenderSystem::ImageDataInfo::IsValid() const {
-  return image_create_info_.IsValid() && allocation_create_info_.IsValid();
+  return queue_index_ != UINT32_MAX &&
+         image_layout_ != VK_IMAGE_LAYOUT_MAX_ENUM &&
+         image_create_info_.IsValid() && allocation_create_info_.IsValid();
 }
 
 void MM::RenderSystem::ImageDataInfo::Reset() {
   image_create_info_.Reset();
   allocation_create_info_.Reset();
+  queue_index_ = UINT32_MAX;
+  image_layout_ = VK_IMAGE_LAYOUT_MAX_ENUM;
 }
 
 MM::ExecuteResult MM::RenderSystem::ImageDataInfo::GetRenderDataAttributeID(
@@ -317,6 +323,85 @@ MM::ExecuteResult MM::RenderSystem::ImageDataInfo::GetRenderDataAttributeID(
   render_image_data_attribute_ID.SetAttribute3(attribute3);
 
   return ExecuteResult ::SUCCESS;
+}
+
+void MM::RenderSystem::ImageDataInfo::SetAllocationCreateInfo(
+    const VmaAllocationCreateInfo& vma_allocation_create_info) {
+  allocation_create_info_.flags_ = vma_allocation_create_info.flags;
+  allocation_create_info_.usage_ = vma_allocation_create_info.usage;
+  allocation_create_info_.required_flags_ =
+      vma_allocation_create_info.requiredFlags;
+  allocation_create_info_.preferred_flags_ =
+      vma_allocation_create_info.preferredFlags;
+  allocation_create_info_.memory_type_bits_ =
+      vma_allocation_create_info.memoryTypeBits;
+  allocation_create_info_.priority_ = vma_allocation_create_info.priority;
+}
+
+void MM::RenderSystem::ImageDataInfo::SetImageCreateInfo(
+    std::uint64_t image_size, const VkImageCreateInfo& vk_image_create_info) {
+  image_create_info_.image_size_ = image_size;
+  image_create_info_.next_ = vk_image_create_info.pNext;
+  image_create_info_.flags_ = vk_image_create_info.flags;
+  image_create_info_.image_type_ = vk_image_create_info.imageType;
+  image_create_info_.format_ = vk_image_create_info.format;
+  image_create_info_.extent_ = vk_image_create_info.extent;
+  image_create_info_.miplevels_ = vk_image_create_info.mipLevels;
+  image_create_info_.array_levels_ = vk_image_create_info.arrayLayers;
+  image_create_info_.samples_ = vk_image_create_info.samples;
+  image_create_info_.tiling_ = vk_image_create_info.tiling;
+  image_create_info_.usage_ = vk_image_create_info.usage;
+  image_create_info_.sharing_mode_ = vk_image_create_info.sharingMode;
+  image_create_info_.queue_family_indices_.clear();
+  image_create_info_.queue_family_indices_.reserve(
+      vk_image_create_info.queueFamilyIndexCount);
+  for (std::uint64_t i = 0; i != vk_image_create_info.queueFamilyIndexCount;
+       ++i) {
+    image_create_info_.queue_family_indices_.emplace_back(
+        vk_image_create_info.pQueueFamilyIndices[i]);
+  }
+  image_create_info_.initial_layout_ = vk_image_create_info.initialLayout;
+}
+
+MM::RenderSystem::ImageDataInfo::ImageDataInfo(
+    MM::RenderSystem::ImageDataInfo&& other) noexcept
+    : image_create_info_(std::move(other.image_create_info_)),
+      allocation_create_info_(std::move(other.allocation_create_info_)),
+      queue_index_(other.queue_index_),
+      image_layout_(other.image_layout_) {
+  other.queue_index_ = UINT32_MAX;
+  other.image_layout_ = VK_IMAGE_LAYOUT_MAX_ENUM;
+}
+
+MM::RenderSystem::ImageDataInfo& MM::RenderSystem::ImageDataInfo::operator=(
+    const MM::RenderSystem::ImageDataInfo& other) {
+  if (&other == this) {
+    return *this;
+  }
+
+  image_create_info_ = other.image_create_info_;
+  allocation_create_info_ = other.allocation_create_info_;
+  queue_index_ = other.queue_index_;
+  image_layout_ = other.image_layout_;
+
+  return *this;
+}
+
+MM::RenderSystem::ImageDataInfo& MM::RenderSystem::ImageDataInfo::operator=(
+    MM::RenderSystem::ImageDataInfo&& other) noexcept {
+  if (&other == this) {
+    return *this;
+  }
+
+  image_create_info_ = std::move(other.image_create_info_);
+  allocation_create_info_ = std::move(other.allocation_create_info_);
+  queue_index_ = other.queue_index_;
+  image_layout_ = other.image_layout_;
+
+  other.queue_index_ = UINT32_MAX;
+  other.image_layout_ = VK_IMAGE_LAYOUT_MAX_ENUM;
+
+  return *this;
 }
 
 MM::RenderSystem::BufferBindInfo::BufferBindInfo(
@@ -1186,3 +1271,222 @@ void MM::RenderSystem::ImageBindData::Reset() {
   image_view_.Reset();
   sampler_.Reset();
 }
+
+MM::RenderSystem::BufferCreateInfo::BufferCreateInfo(
+    MM::RenderSystem::BufferCreateInfo&& other) noexcept
+    : next_(other.next_),
+      flags_(other.flags_),
+      size_(other.size_),
+      usage_(other.usage_),
+      sharing_mode_(other.sharing_mode_),
+      queue_family_indices_(std::move(other.queue_family_indices_)) {
+  Reset();
+}
+
+MM::RenderSystem::BufferCreateInfo&
+MM::RenderSystem::BufferCreateInfo::operator=(
+    const MM::RenderSystem::BufferCreateInfo& other) {
+  if (&other == this) {
+    return *this;
+  }
+
+  next_ = other.next_;
+  flags_ = other.flags_;
+  size_ = other.size_;
+  usage_ = other.usage_;
+  sharing_mode_ = other.sharing_mode_;
+  queue_family_indices_ = queue_family_indices_;
+
+  return *this;
+}
+
+MM::RenderSystem::BufferCreateInfo&
+MM::RenderSystem::BufferCreateInfo::operator=(
+    MM::RenderSystem::BufferCreateInfo&& other) noexcept {
+  if (&other == this) {
+    return *this;
+  }
+
+  next_ = other.next_;
+  flags_ = other.flags_;
+  size_ = other.size_;
+  usage_ = other.usage_;
+  sharing_mode_ = other.sharing_mode_;
+  queue_family_indices_ = std::move(queue_family_indices_);
+
+  Reset();
+
+  return *this;
+}
+
+bool MM::RenderSystem::BufferCreateInfo::IsValid() const { return size_ != 0; }
+
+VkBufferCreateInfo MM::RenderSystem::BufferCreateInfo::GetVkBufferCreateInfo()
+    const {
+  return VkBufferCreateInfo{
+      VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
+      next_,
+      flags_,
+      size_,
+      usage_,
+      sharing_mode_,
+      static_cast<std::uint32_t>(queue_family_indices_.size()),
+      queue_family_indices_.data()};
+}
+
+void MM::RenderSystem::BufferCreateInfo::Reset() {
+  next_ = nullptr;
+  flags_ = VK_BUFFER_CREATE_FLAG_BITS_MAX_ENUM;
+  size_ = 0;
+  usage_ = VK_BUFFER_USAGE_FLAG_BITS_MAX_ENUM;
+  sharing_mode_ = VK_SHARING_MODE_MAX_ENUM;
+  queue_family_indices_.clear();
+}
+
+MM::RenderSystem::BufferCreateInfo::BufferCreateInfo(
+    const void* next, VkBufferCreateFlags flags, VkDeviceSize size,
+    VkBufferUsageFlags usage, VkSharingMode sharing_mode,
+    const std::vector<std::uint32_t>& queue_family_indices)
+    : next_(next),
+      flags_(flags),
+      size_(size),
+      usage_(usage),
+      sharing_mode_(sharing_mode),
+      queue_family_indices_(queue_family_indices) {}
+
+MM::RenderSystem::BufferCreateInfo::BufferCreateInfo(
+    const VkBufferCreateInfo& vk_buffer_create_info)
+    : next_(vk_buffer_create_info.pNext),
+      flags_(vk_buffer_create_info.flags),
+      size_(vk_buffer_create_info.size),
+      usage_(vk_buffer_create_info.usage),
+      sharing_mode_(vk_buffer_create_info.sharingMode),
+      queue_family_indices_(vk_buffer_create_info.queueFamilyIndexCount) {
+  for (std::uint64_t i = 0; i != vk_buffer_create_info.queueFamilyIndexCount;
+       ++i) {
+    queue_family_indices_.emplace_back(
+        vk_buffer_create_info.pQueueFamilyIndices[i]);
+  }
+}
+
+MM::ExecuteResult MM::RenderSystem::BufferDataInfo::GetRenderDataAttributeID(
+    MM::RenderSystem::RenderImageDataAttributeID&
+        render_image_data_attribute_ID) const {
+  if (!IsValid()) {
+    return ExecuteResult ::OBJECT_IS_INVALID;
+  }
+
+  std::uint64_t attribute1 = 0, attribute2 = 0, attribute3 = 0;
+
+  // attribute1
+  attribute1 |= buffer_create_info_.usage_;
+  attribute1 |= buffer_create_info_.flags_ << 25;
+  attribute1 |= static_cast<std::uint64_t>(buffer_create_info_.sharing_mode_)
+                << 33;
+  attribute1 |= reinterpret_cast<std::uint64_t>(buffer_create_info_.next_)
+                << 35;
+
+  // attribute2
+  attribute2 = buffer_create_info_.size_;
+
+  // attribute3
+  attribute3 |= static_cast<std::uint64_t>(
+      std::floor(allocation_create_info_.priority_ * 100));
+  attribute3 |= allocation_create_info_.memory_type_bits_ << 14;
+  attribute3 |= allocation_create_info_.preferred_flags_ << 18;
+  attribute3 |= allocation_create_info_.required_flags_ << 28;
+  attribute3 |= static_cast<std::uint64_t>(allocation_create_info_.usage_)
+                << 38;
+  attribute3 |= static_cast<std::uint64_t>(allocation_create_info_.flags_)
+                << 42;
+
+  render_image_data_attribute_ID.SetAttribute1(attribute1);
+  render_image_data_attribute_ID.SetAttribute2(attribute2);
+  render_image_data_attribute_ID.SetAttribute3(attribute3);
+
+  return ExecuteResult ::SUCCESS;
+}
+
+void MM::RenderSystem::BufferDataInfo::SetBufferCreateInfo(
+    const VkBufferCreateInfo& vk_buffer_create_info) {
+  buffer_create_info_.next_ = vk_buffer_create_info.pNext;
+  buffer_create_info_.flags_ = vk_buffer_create_info.flags;
+  buffer_create_info_.size_ = vk_buffer_create_info.size;
+  buffer_create_info_.usage_ = vk_buffer_create_info.usage;
+  buffer_create_info_.sharing_mode_ = vk_buffer_create_info.sharingMode;
+  buffer_create_info_.queue_family_indices_.clear();
+  buffer_create_info_.queue_family_indices_.reserve(
+      vk_buffer_create_info.queueFamilyIndexCount);
+  for (std::uint64_t i = 0; i != vk_buffer_create_info.queueFamilyIndexCount;
+       ++i) {
+    buffer_create_info_.queue_family_indices_.emplace_back(
+        vk_buffer_create_info.pQueueFamilyIndices[i]);
+  }
+}
+
+void MM::RenderSystem::BufferDataInfo::SetAllocationCreateInfo(
+    const VmaAllocationCreateInfo& vma_allocation_create_info) {
+  allocation_create_info_.flags_ = vma_allocation_create_info.flags;
+  allocation_create_info_.usage_ = vma_allocation_create_info.usage;
+  allocation_create_info_.required_flags_ =
+      vma_allocation_create_info.requiredFlags;
+  allocation_create_info_.preferred_flags_ =
+      vma_allocation_create_info.preferredFlags;
+  allocation_create_info_.memory_type_bits_ =
+      vma_allocation_create_info.memoryTypeBits;
+  allocation_create_info_.priority_ = vma_allocation_create_info.priority;
+}
+
+bool MM::RenderSystem::BufferDataInfo::IsValid() const {
+  return queue_index_ != UINT32_MAX && buffer_create_info_.IsValid() &&
+         allocation_create_info_.IsValid();
+}
+
+void MM::RenderSystem::BufferDataInfo::Reset() {
+  queue_index_ = UINT32_MAX;
+  buffer_create_info_.Reset();
+  allocation_create_info_.Reset();
+}
+
+MM::RenderSystem::BufferDataInfo::BufferDataInfo(
+    MM::RenderSystem::BufferDataInfo&& other) noexcept
+    : buffer_create_info_(std::move(other.buffer_create_info_)),
+      allocation_create_info_(std::move(other.allocation_create_info_)),
+      queue_index_(other.queue_index_) {
+  other.queue_index_ = UINT32_MAX;
+}
+
+MM::RenderSystem::BufferDataInfo& MM::RenderSystem::BufferDataInfo::operator=(
+    const MM::RenderSystem::BufferDataInfo& other) {
+  if (&other == this) {
+    return *this;
+  }
+
+  buffer_create_info_ = other.buffer_create_info_;
+  allocation_create_info_ = other.allocation_create_info_;
+  queue_index_ = other.queue_index_;
+
+  return *this;
+}
+
+MM::RenderSystem::BufferDataInfo& MM::RenderSystem::BufferDataInfo::operator=(
+    MM::RenderSystem::BufferDataInfo&& other) noexcept {
+  if (&other == this) {
+    return *this;
+  }
+
+  buffer_create_info_ = std::move(other.buffer_create_info_);
+  allocation_create_info_ = std::move(other.allocation_create_info_);
+  queue_index_ = other.queue_index_;
+
+  other.queue_index_ = UINT32_MAX;
+
+  return *this;
+}
+
+MM::RenderSystem::BufferDataInfo::BufferDataInfo(
+    const MM::RenderSystem::BufferCreateInfo& buffer_create_info,
+    const MM::RenderSystem::AllocationCreateInfo& allocation_create_info)
+    : buffer_create_info_(buffer_create_info),
+      allocation_create_info_(allocation_create_info),
+      queue_index_(buffer_create_info_.queue_family_indices_[0]) {}

@@ -2,6 +2,7 @@
 #pragma ide diagnostic ignored "readability-identifier-naming"
 #pragma once
 
+#include "runtime/function/render/RenderResourceDataID.h"
 #include "runtime/function/render/vk_type.h"
 #include "runtime/function/render/vk_utils.h"
 
@@ -263,10 +264,10 @@ class CommandTask {
   bool HaveSubTasks() const;
 
   void AddCrossTaskFLowSyncRenderResourceIDs(
-      const std::vector<std::uint32_t>& render_resource_IDs);
+      const std::vector<RenderResourceDataID>& render_resource_IDs);
 
   void AddCrossTaskFLowSyncRenderResourceIDs(
-      std::vector<std::uint32_t>&& render_resource_IDs);
+      std::vector<RenderResourceDataID>&& render_resource_IDs);
 
   std::uint32_t GetCommandTaskID();
   ;
@@ -298,7 +299,7 @@ class CommandTask {
   bool is_sub_task_{false};
 
   // TODO replace std::uint32_t to MM::RenderSystem::RenderResourceDataID
-  std::vector<std::uint32_t> cross_task_flow_sync_render_resource_IDs_;
+  std::vector<RenderResourceDataID> cross_task_flow_sync_render_resource_IDs_;
 };
 
 template <typename... CommandTasks>
@@ -796,7 +797,8 @@ class CommandExecutor {
 
   std::list<std::shared_ptr<ExecutingCommandTaskFlow>>
       executing_command_task_flows_{};
-  std::unordered_map<std::uint32_t, std::list<CommandTaskRenderResourceState>>
+  std::unordered_map<RenderResourceDataID,
+                     std::list<CommandTaskRenderResourceState>>
       command_task_render_resource_states_{};
   std::mutex command_task_render_resource_states_mutex_{};
 

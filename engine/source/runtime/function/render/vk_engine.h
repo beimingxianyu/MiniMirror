@@ -2,6 +2,10 @@
 
 #include <vk_mem_alloc.h>
 #include <vulkan/vulkan.h>
+#include <vulkan/vulkan_core.h>
+
+#include "runtime/function/render/RenderResourceDataID.h"
+#include "runtime/platform/base/error.h"
 #define VK_USE_PLATFORM_WIN32_KHR
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
@@ -14,9 +18,10 @@
 #include <vector>
 
 #include "runtime/core/log/log_system.h"
+#include "runtime/function/render/AllocatedBuffer.h"
+#include "runtime/function/render/AllocatedImage.h"
 #include "runtime/function/render/import_other_system.h"
 #include "runtime/function/render/vk_command.h"
-#include "runtime/function/render/vk_type.h"
 #include "runtime/function/render/vk_utils.h"
 #include "runtime/platform/config_system/config_system.h"
 #include "runtime/platform/file_system/file_system.h"
@@ -62,11 +67,11 @@ class RenderEngine {
    */
   bool IsValid() const;
 
-  AllocatedBuffer CreateBuffer(
-      const size_t& alloc_size, const VkBufferUsageFlags& usage,
-      const VmaMemoryUsage& memory_usage,
-      const VmaAllocationCreateFlags& allocation_flags = 0,
-      const bool& is_BDA_buffer = true) const;
+  ExecuteResult CreateBuffer(
+      const VkBufferCreateInfo& vk_buffer_create_info,
+      const VmaAllocationCreateInfo& vma_allocation_create_info,
+      VmaAllocationInfo* vma_allocation_info,
+      AllocatedBuffer& allocated_buffer);
 
   const VmaAllocator& GetAllocator() const;
 
@@ -116,16 +121,27 @@ class RenderEngine {
    */
   ExecuteResult RunCommandAndWait(CommandTaskFlow& command_task_flow);
 
-  // TODO cross queue family resource ownership transform
   RenderFuture RunSingleCommand(
+      CommandBufferType command_type,
+      const std::function<ExecuteResult(AllocatedCommandBuffer& cmd)>&
+          commands);
+
+  RenderFuture RunSingleCommand(
+      CommandBufferType command_type,
+      const std::function<ExecuteResult(AllocatedCommandBuffer& cmd)>& commands,
+      const std::vector<RenderResourceDataID>&
+          cross_task_flow_sync_render_resource_data_ID);
+
+  ExecuteResult RunSingleCommandAndWait(
       CommandBufferType command_type,
       const std::function<ExecuteResult(AllocatedCommandBuffer& cmd)>&
           commands);
 
   ExecuteResult RunSingleCommandAndWait(
       CommandBufferType command_type,
-      const std::function<ExecuteResult(AllocatedCommandBuffer& cmd)>&
-          commands);
+      const std::function<ExecuteResult(AllocatedCommandBuffer& cmd)>& commands,
+      const std::vector<RenderResourceDataID>&
+          cross_task_flow_sync_render_resource_data_ID);
 
   /**
    * \remark The range specified by \ref regions cannot overlap.

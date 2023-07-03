@@ -8,6 +8,7 @@
 #include "runtime/core/manager/ManagedObjectBase.h"
 #include "runtime/function/render/RenderResourceDataID.h"
 #include "runtime/function/render/vk_type_define.h"
+#include "runtime/platform/base/error.h"
 
 namespace MM {
 namespace RenderSystem {
@@ -37,6 +38,9 @@ class RenderResourceDataBase : public Manager::ManagedObjectBase {
   bool operator>=(const RenderResourceDataBase& rhs) const;
 
  public:
+  virtual ExecuteResult TransformQueueFamily(
+      std::uint32_t new_queue_family_index);
+
   const std::string& GetResourceName() const;
 
   const RenderResourceDataID& GetRenderResourceDataID() const;
@@ -44,6 +48,10 @@ class RenderResourceDataBase : public Manager::ManagedObjectBase {
   bool IsUseForWrite() const;
 
   void MarkThisUseForWrite();
+
+  bool IsHaveData() const;
+
+  void MarkHaveData();
 
   /**
    * \brief Release ownership of the resources held.
@@ -68,9 +76,6 @@ class RenderResourceDataBase : public Manager::ManagedObjectBase {
 
   virtual bool CanWrite() const;
 
-  virtual std::unique_ptr<RenderResourceDataBase> GetCopy(
-      const std::string& new_name_of_copy_resource) const;
-
  protected:
   void SetRenderResourceDataID(
       const RenderResourceDataID& render_resource_data_ID);
@@ -79,6 +84,7 @@ class RenderResourceDataBase : public Manager::ManagedObjectBase {
   RenderResourceDataID render_resource_data_ID_{};
 
   bool used_for_write_{false};
+  bool have_data_{false};
 };
 }  // namespace RenderSystem
 }  // namespace MM

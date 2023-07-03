@@ -67,15 +67,6 @@ void MM::RenderSystem::RenderEngine::CleanUp() {
 
 bool MM::RenderSystem::RenderEngine::IsValid() const { return is_initialized_; }
 
-MM::RenderSystem::AllocatedBuffer MM::RenderSystem::RenderEngine::CreateBuffer(
-    const size_t& alloc_size, const VkBufferUsageFlags& usage,
-    const VmaMemoryUsage& memory_usage,
-    const VmaAllocationCreateFlags& allocation_flags,
-    const bool& is_BDA_buffer) const {
-  return Utils::CreateBuffer(this, alloc_size, usage, memory_usage,
-                             allocation_flags, is_BDA_buffer);
-}
-
 const VmaAllocator& MM::RenderSystem::RenderEngine::GetAllocator() const {
   return allocator_;
 }
@@ -270,7 +261,7 @@ MM::ExecuteResult MM::RenderSystem::RenderEngine::CopyBuffer(
                           LOG_ERROR("Failed to begin command buffer.");
                           return MM_RESULT_CODE;);
 
-                 auto buffer_barrier = Utils::GetBufferMemoryBarrier(
+                 auto buffer_barrier = Utils::GetVkBufferMemoryBarrier2(
                      VK_PIPELINE_STAGE_2_TRANSFER_BIT,
                      VK_ACCESS_2_TRANSFER_WRITE_BIT, )
 
@@ -1784,3 +1775,43 @@ VkBool32 MM::RenderSystem::ValidationLayerDebugCall(
 }
 
 MM::RenderSystem::RenderEngine::RenderEngine() { Init(); }
+
+MM::ExecuteResult MM::RenderSystem::RenderEngine::CreateBuffer(
+    const VkBufferCreateInfo& vk_buffer_create_info,
+    const VmaAllocationCreateInfo& vma_allocation_create_info,
+    VmaAllocationInfo* vma_allocation_info,
+    MM::RenderSystem::AllocatedBuffer& allocated_buffer) {
+  return Utils::CreateBuffer(this, vk_buffer_create_info,
+                             vma_allocation_create_info, vma_allocation_info,
+                             allocated_buffer);
+}
+
+MM::RenderSystem::RenderFuture MM::RenderSystem::RenderEngine::RunSingleCommand(
+    MM::RenderSystem::CommandBufferType command_type,
+    const std::function<ExecuteResult(AllocatedCommandBuffer&)>& commands,
+    const std::vector<RenderResourceDataID>&
+        cross_task_flow_sync_render_resource_data_ID) {
+  CommandTaskFlow command_task_flow;
+  command_task_flow
+      .AddTask(command_type, commands, std::vector<WaitAllocatedSemaphore>(),
+               std::vector<AllocateSemaphore>())
+      .AddCrossTaskFLowSyncRenderResourceIDs(
+          cross_task_flow_sync_render_resource_data_ID);
+
+  return command_executor_->Run(std::move(command_task_flow));
+}
+
+MM::ExecuteResult MM::RenderSystem::RenderEngine::RunSingleCommandAndWait(
+    MM::RenderSystem::CommandBufferType command_type,
+    const std::function<ExecuteResult(AllocatedCommandBuffer&)>& commands,
+    const std::vector<RenderResourceDataID>&
+        cross_task_flow_sync_render_resource_data_ID) {
+  CommandTaskFlow command_task_flow;
+  command_task_flow
+      .AddTask(command_type, commands, std::vector<WaitAllocatedSemaphore>(),
+               std::vector<AllocateSemaphore>())
+      .AddCrossTaskFLowSyncRenderResourceIDs(
+          cross_task_flow_sync_render_resource_data_ID);
+
+  return command_executor_->RunAndWait(std::move(command_task_flow));
+}
