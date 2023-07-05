@@ -38,9 +38,6 @@ class RenderResourceDataBase : public Manager::ManagedObjectBase {
   bool operator>=(const RenderResourceDataBase& rhs) const;
 
  public:
-  virtual ExecuteResult TransformQueueFamily(
-      std::uint32_t new_queue_family_index);
-
   const std::string& GetResourceName() const;
 
   const RenderResourceDataID& GetRenderResourceDataID() const;

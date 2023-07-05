@@ -23,6 +23,355 @@ void MM::RenderSystem::SemaphoreDestructor::operator()(VkSemaphore* value) {
   value = nullptr;
 }
 
+MM::RenderSystem::AllocateSemaphore::AllocateSemaphore(
+    RenderEngine* engine, VkSemaphoreCreateFlags flags) {
+  if (engine == nullptr) {
+    return;
+  }
+
+  const VkSemaphoreCreateInfo semaphore_create_info =
+      Utils::GetSemaphoreCreateInfo(flags);
+  VkSemaphore new_semaphore{nullptr};
+  VK_CHECK(vkCreateSemaphore(engine->GetDevice(), &semaphore_create_info,
+                             nullptr, &new_semaphore),
+           LOG_ERROR("Failed to create Semaphore.");
+           return;)
+  wrapper_ = std::make_shared<AllocateSemaphoreWrapper>(engine, new_semaphore);
+}
+
+MM::RenderSystem::AllocateSemaphore&
+MM::RenderSystem::AllocateSemaphore::operator=(const AllocateSemaphore& other) {
+  if (&other == this) {
+    return *this;
+  }
+
+  wrapper_ = std::move(other.wrapper_);
+
+  return *this;
+}
+
+MM::RenderSystem::AllocateSemaphore&
+MM::RenderSystem::AllocateSemaphore::operator=(
+    AllocateSemaphore&& other) noexcept {
+  if (&other == this) {
+    return *this;
+  }
+
+  wrapper_ = std::move(other.wrapper_);
+
+  return *this;
+}
+
+VkSemaphore& MM::RenderSystem::AllocateSemaphore::GetSemaphore() {
+  return wrapper_->GetSemaphore();
+}
+
+const VkSemaphore& MM::RenderSystem::AllocateSemaphore::GetSemaphore() const {
+  return wrapper_->GetSemaphore();
+}
+
+bool MM::RenderSystem::AllocateSemaphore::IsValid() const {
+  return wrapper_ != nullptr && wrapper_->IsValid();
+}
+
+MM::RenderSystem::AllocateSemaphore::AllocateSemaphoreWrapper::
+    AllocateSemaphoreWrapper(RenderEngine* engine, VkSemaphore semaphore)
+    : render_engine_(engine), semaphore_(semaphore) {}
+
+MM::RenderSystem::AllocateSemaphore::AllocateSemaphoreWrapper::
+    ~AllocateSemaphoreWrapper() {
+  vkDestroySemaphore(render_engine_->GetDevice(), semaphore_, nullptr);
+}
+
+MM::RenderSystem::AllocateSemaphore::AllocateSemaphoreWrapper::
+    AllocateSemaphoreWrapper(AllocateSemaphoreWrapper&& other) noexcept
+    : render_engine_(other.render_engine_), semaphore_(other.semaphore_) {
+  other.render_engine_ = nullptr;
+  other.semaphore_ = nullptr;
+}
+
+MM::RenderSystem::AllocateSemaphore::AllocateSemaphoreWrapper&
+MM::RenderSystem ::AllocateSemaphore::AllocateSemaphoreWrapper::operator=(
+    AllocateSemaphoreWrapper&& other) noexcept {
+  if (&other == this) {
+    return *this;
+  }
+
+  render_engine_ = other.render_engine_;
+  semaphore_ = other.semaphore_;
+
+  other.render_engine_ = nullptr;
+  other.semaphore_ = nullptr;
+
+  return *this;
+}
+
+VkSemaphore&
+MM::RenderSystem::AllocateSemaphore::AllocateSemaphoreWrapper::GetSemaphore() {
+  return semaphore_;
+}
+
+const VkSemaphore&
+MM::RenderSystem::AllocateSemaphore::AllocateSemaphoreWrapper ::GetSemaphore()
+    const {
+  return semaphore_;
+}
+
+bool MM::RenderSystem::AllocateSemaphore::AllocateSemaphoreWrapper::IsValid()
+    const {
+  return render_engine_ != nullptr && semaphore_ != nullptr;
+}
+
+MM::RenderSystem::AllocateFence::AllocateFence(RenderEngine* engine,
+                                               VkFenceCreateFlags flags) {
+  if (engine == nullptr) {
+    return;
+  }
+
+  const VkFenceCreateInfo fence_create_info = Utils::GetFenceCreateInfo(flags);
+  VkFence new_fence{nullptr};
+  VK_CHECK(vkCreateFence(engine->GetDevice(), &fence_create_info, nullptr,
+                         &new_fence),
+           LOG_ERROR("Failed to create Fence.");
+           return;)
+  wrapper_ = std::make_shared<AllocateFenceWrapper>(engine, new_fence);
+}
+
+MM::RenderSystem::AllocateFence& MM::RenderSystem::AllocateFence::operator=(
+    const AllocateFence& other) {
+  if (&other == this) {
+    return *this;
+  }
+
+  wrapper_ = std::move(other.wrapper_);
+
+  return *this;
+}
+
+MM::RenderSystem::AllocateFence& MM::RenderSystem::AllocateFence::operator=(
+    AllocateFence&& other) noexcept {
+  if (&other == this) {
+    return *this;
+  }
+
+  wrapper_ = std::move(other.wrapper_);
+
+  return *this;
+}
+
+VkFence& MM::RenderSystem::AllocateFence::GetFence() {
+  return wrapper_->GetFence();
+}
+
+const VkFence& MM::RenderSystem::AllocateFence::GetFence() const {
+  return wrapper_->GetFence();
+}
+
+bool MM::RenderSystem::AllocateFence::IsValid() const {
+  return wrapper_ != nullptr && wrapper_->IsValid();
+}
+
+MM::RenderSystem::AllocateFence::AllocateFenceWrapper::AllocateFenceWrapper(
+    RenderEngine* engine, VkFence fence)
+    : render_engine_(engine), fence_(fence) {}
+
+MM::RenderSystem::AllocateFence::AllocateFenceWrapper::~AllocateFenceWrapper() {
+  vkDestroyFence(render_engine_->GetDevice(), fence_, nullptr);
+}
+
+MM::RenderSystem::AllocateFence::AllocateFenceWrapper::AllocateFenceWrapper(
+    AllocateFenceWrapper&& other) noexcept
+    : render_engine_(other.render_engine_), fence_(other.fence_) {
+  other.render_engine_ = nullptr;
+  other.fence_ = nullptr;
+}
+
+MM::RenderSystem::AllocateFence::AllocateFenceWrapper&
+MM::RenderSystem ::AllocateFence::AllocateFenceWrapper::operator=(
+    AllocateFenceWrapper&& other) noexcept {
+  if (&other == this) {
+    return *this;
+  }
+
+  render_engine_ = other.render_engine_;
+  fence_ = other.fence_;
+
+  other.render_engine_ = nullptr;
+  other.fence_ = nullptr;
+
+  return *this;
+}
+
+VkFence& MM::RenderSystem::AllocateFence::AllocateFenceWrapper::GetFence() {
+  return fence_;
+}
+
+const VkFence&
+MM::RenderSystem::AllocateFence::AllocateFenceWrapper ::GetFence() const {
+  return fence_;
+}
+
+bool MM::RenderSystem::AllocateFence::AllocateFenceWrapper::IsValid() const {
+  return render_engine_ != nullptr && fence_ != nullptr;
+}
+
+MM::RenderSystem::BufferChunkInfo::BufferChunkInfo(
+    const VkDeviceSize& start_offset, const VkDeviceSize& size)
+    : offset_(start_offset), size_(size) {}
+
+MM::RenderSystem::BufferChunkInfo& MM::RenderSystem::BufferChunkInfo::operator=(
+    const BufferChunkInfo& other) noexcept {
+  if (&other == this) {
+    return *this;
+  }
+  offset_ = other.offset_;
+  size_ = other.size_;
+
+  return *this;
+}
+
+MM::RenderSystem::BufferChunkInfo& MM::RenderSystem::BufferChunkInfo::operator=(
+    BufferChunkInfo&& other) noexcept {
+  if (&other == this) {
+    return *this;
+  }
+  offset_ = other.offset_;
+  size_ = other.size_;
+
+  other.offset_ = 0;
+  other.size_ = 0;
+
+  return *this;
+}
+
+VkDeviceSize MM::RenderSystem::BufferChunkInfo::GetOffset() const {
+  return offset_;
+}
+
+VkDeviceSize MM::RenderSystem::BufferChunkInfo::GetSize() const {
+  return size_;
+}
+
+void MM::RenderSystem::BufferChunkInfo::SetOffset(
+    const VkDeviceSize& new_offset) {
+  offset_ = new_offset;
+}
+
+void MM::RenderSystem::BufferChunkInfo::SetSize(const VkDeviceSize& new_size) {
+  size_ = new_size;
+}
+
+void MM::RenderSystem::BufferChunkInfo::Reset() {
+  offset_ = 0;
+  size_ = 0;
+}
+
+bool MM::RenderSystem::BufferChunkInfo::IsValid() const { return size_ != 0; }
+
+MM::RenderSystem::BufferChunkInfo::BufferChunkInfo(
+    MM::RenderSystem::BufferChunkInfo&& other) noexcept
+    : offset_(other.offset_), size_(other.size_) {
+  Reset();
+}
+
+void MM::RenderSystem::Swap(MM::RenderSystem::BufferChunkInfo& lhs,
+                            MM::RenderSystem::BufferChunkInfo& rhs) noexcept {
+  using std::swap;
+
+  if (&lhs == &rhs) {
+    return;
+  }
+
+  swap(lhs.offset_, rhs.offset_);
+  swap(lhs.size_, rhs.size_);
+}
+
+void MM::RenderSystem::swap(MM::RenderSystem::BufferChunkInfo& lhs,
+                            MM::RenderSystem::BufferChunkInfo& rhs) noexcept {
+  using std::swap;
+
+  if (&lhs == &rhs) {
+    return;
+  }
+
+  swap(lhs.offset_, rhs.offset_);
+  swap(lhs.size_, rhs.size_);
+}
+
+bool MM::RenderSystem::BufferChunkInfo::operator==(
+    const MM::RenderSystem::BufferChunkInfo& rhs) const {
+  return offset_ == rhs.offset_ && size_ == rhs.size_;
+}
+
+bool MM::RenderSystem::BufferChunkInfo::operator!=(
+    const MM::RenderSystem::BufferChunkInfo& rhs) const {
+  return !(rhs == *this);
+}
+
+MM::RenderSystem::ImageChunkInfo::ImageChunkInfo(const VkOffset3D& offset,
+                                                 const VkExtent3D& extent)
+    : offset_(offset), extent_(extent) {}
+
+MM::RenderSystem::ImageChunkInfo& MM::RenderSystem::ImageChunkInfo::operator=(
+    const ImageChunkInfo& other) {
+  if (&other == this) {
+    return *this;
+  }
+
+  offset_ = other.offset_;
+  extent_ = other.extent_;
+
+  return *this;
+}
+
+MM::RenderSystem::ImageChunkInfo& MM::RenderSystem::ImageChunkInfo::operator=(
+    ImageChunkInfo&& other) noexcept {
+  if (&other == this) {
+    return *this;
+  }
+
+  offset_ = other.offset_;
+  extent_ = other.extent_;
+
+  other.Reset();
+
+  return *this;
+}
+
+const VkOffset3D& MM::RenderSystem::ImageChunkInfo::GetOffset() const {
+  return offset_;
+}
+
+const VkExtent3D& MM::RenderSystem::ImageChunkInfo::GetExtent() const {
+  return extent_;
+}
+
+void MM::RenderSystem::ImageChunkInfo::SetOffset(const VkOffset3D& new_offset) {
+  offset_ = new_offset;
+}
+
+void MM::RenderSystem::ImageChunkInfo::SetExtent(const VkExtent3D& new_extent) {
+  extent_ = new_extent;
+}
+
+void MM::RenderSystem::ImageChunkInfo::Reset() {
+  offset_ = VkOffset3D{0, 0, 0};
+  extent_ = VkExtent3D{0, 0, 0};
+}
+
+bool MM::RenderSystem::ImageChunkInfo::IsValid() const {
+  if (extent_.width == 0 || extent_.depth == 0 || extent_.height == 0) {
+    return false;
+  }
+  return true;
+}
+
+MM::RenderSystem::ImageChunkInfo::ImageChunkInfo(
+    MM::RenderSystem::ImageChunkInfo&& other) noexcept
+    : offset_(other.offset_), extent_(other.extent_) {
+  Reset();
+}
+
 MM::RenderSystem::AllocationCreateInfo::AllocationCreateInfo(
     MM::RenderSystem::AllocationCreateInfo&& other) noexcept
     : flags_(other.flags_),
@@ -91,6 +440,23 @@ MM::RenderSystem::AllocationCreateInfo::GetVmaAllocationCreateInfo() const {
   return VmaAllocationCreateInfo{
       flags_,  usage_,  required_flags_, preferred_flags_, memory_type_bits_,
       nullptr, nullptr, priority_};
+}
+
+MM::RenderSystem::AllocationCreateInfo&
+MM::RenderSystem::AllocationCreateInfo::operator=(
+    const MM::RenderSystem::AllocationCreateInfo& other) {
+  if (std::addressof(other) == this) {
+    return *this;
+  }
+
+  flags_ = other.flags_;
+  usage_ = other.usage_;
+  required_flags_ = other.required_flags_;
+  preferred_flags_ = other.preferred_flags_;
+  memory_type_bits_ = other.memory_type_bits_;
+  priority_ = other.priority_;
+
+  return *this;
 }
 
 MM::RenderSystem::ImageCreateInfo::ImageCreateInfo(
@@ -251,16 +617,14 @@ VkImageCreateInfo MM::RenderSystem::ImageCreateInfo::GetVkImageCreateInfo()
 }
 
 bool MM::RenderSystem::ImageDataInfo::IsValid() const {
-  return queue_index_ != UINT32_MAX &&
-         image_layout_ != VK_IMAGE_LAYOUT_MAX_ENUM &&
+  return !image_sub_resource_attributes_.empty() &&
          image_create_info_.IsValid() && allocation_create_info_.IsValid();
 }
 
 void MM::RenderSystem::ImageDataInfo::Reset() {
   image_create_info_.Reset();
   allocation_create_info_.Reset();
-  queue_index_ = UINT32_MAX;
-  image_layout_ = VK_IMAGE_LAYOUT_MAX_ENUM;
+  image_sub_resource_attributes_.clear();
 }
 
 MM::ExecuteResult MM::RenderSystem::ImageDataInfo::GetRenderDataAttributeID(
@@ -363,16 +727,6 @@ void MM::RenderSystem::ImageDataInfo::SetImageCreateInfo(
   image_create_info_.initial_layout_ = vk_image_create_info.initialLayout;
 }
 
-MM::RenderSystem::ImageDataInfo::ImageDataInfo(
-    MM::RenderSystem::ImageDataInfo&& other) noexcept
-    : image_create_info_(std::move(other.image_create_info_)),
-      allocation_create_info_(std::move(other.allocation_create_info_)),
-      queue_index_(other.queue_index_),
-      image_layout_(other.image_layout_) {
-  other.queue_index_ = UINT32_MAX;
-  other.image_layout_ = VK_IMAGE_LAYOUT_MAX_ENUM;
-}
-
 MM::RenderSystem::ImageDataInfo& MM::RenderSystem::ImageDataInfo::operator=(
     const MM::RenderSystem::ImageDataInfo& other) {
   if (&other == this) {
@@ -381,8 +735,7 @@ MM::RenderSystem::ImageDataInfo& MM::RenderSystem::ImageDataInfo::operator=(
 
   image_create_info_ = other.image_create_info_;
   allocation_create_info_ = other.allocation_create_info_;
-  queue_index_ = other.queue_index_;
-  image_layout_ = other.image_layout_;
+  image_sub_resource_attributes_ = other.image_sub_resource_attributes_;
 
   return *this;
 }
@@ -395,11 +748,8 @@ MM::RenderSystem::ImageDataInfo& MM::RenderSystem::ImageDataInfo::operator=(
 
   image_create_info_ = std::move(other.image_create_info_);
   allocation_create_info_ = std::move(other.allocation_create_info_);
-  queue_index_ = other.queue_index_;
-  image_layout_ = other.image_layout_;
-
-  other.queue_index_ = UINT32_MAX;
-  other.image_layout_ = VK_IMAGE_LAYOUT_MAX_ENUM;
+  image_sub_resource_attributes_ =
+      std::move(other.image_sub_resource_attributes_);
 
   return *this;
 }
@@ -1438,23 +1788,22 @@ void MM::RenderSystem::BufferDataInfo::SetAllocationCreateInfo(
 }
 
 bool MM::RenderSystem::BufferDataInfo::IsValid() const {
-  return queue_index_ != UINT32_MAX && buffer_create_info_.IsValid() &&
-         allocation_create_info_.IsValid();
+  return buffer_create_info_.IsValid() && allocation_create_info_.IsValid() &&
+         !buffer_sub_resource_attributes_.empty();
 }
 
 void MM::RenderSystem::BufferDataInfo::Reset() {
-  queue_index_ = UINT32_MAX;
   buffer_create_info_.Reset();
   allocation_create_info_.Reset();
+  buffer_sub_resource_attributes_.clear();
 }
 
 MM::RenderSystem::BufferDataInfo::BufferDataInfo(
     MM::RenderSystem::BufferDataInfo&& other) noexcept
     : buffer_create_info_(std::move(other.buffer_create_info_)),
       allocation_create_info_(std::move(other.allocation_create_info_)),
-      queue_index_(other.queue_index_) {
-  other.queue_index_ = UINT32_MAX;
-}
+      buffer_sub_resource_attributes_(
+          std::move(other.buffer_sub_resource_attributes_)) {}
 
 MM::RenderSystem::BufferDataInfo& MM::RenderSystem::BufferDataInfo::operator=(
     const MM::RenderSystem::BufferDataInfo& other) {
@@ -1464,7 +1813,7 @@ MM::RenderSystem::BufferDataInfo& MM::RenderSystem::BufferDataInfo::operator=(
 
   buffer_create_info_ = other.buffer_create_info_;
   allocation_create_info_ = other.allocation_create_info_;
-  queue_index_ = other.queue_index_;
+  buffer_sub_resource_attributes_ = other.buffer_sub_resource_attributes_;
 
   return *this;
 }
@@ -1477,9 +1826,8 @@ MM::RenderSystem::BufferDataInfo& MM::RenderSystem::BufferDataInfo::operator=(
 
   buffer_create_info_ = std::move(other.buffer_create_info_);
   allocation_create_info_ = std::move(other.allocation_create_info_);
-  queue_index_ = other.queue_index_;
-
-  other.queue_index_ = UINT32_MAX;
+  buffer_sub_resource_attributes_ =
+      std::move(other.buffer_sub_resource_attributes_);
 
   return *this;
 }
@@ -1489,4 +1837,278 @@ MM::RenderSystem::BufferDataInfo::BufferDataInfo(
     const MM::RenderSystem::AllocationCreateInfo& allocation_create_info)
     : buffer_create_info_(buffer_create_info),
       allocation_create_info_(allocation_create_info),
-      queue_index_(buffer_create_info_.queue_family_indices_[0]) {}
+      buffer_sub_resource_attributes_{BufferSubResourceAttribute{
+          0, buffer_create_info.size_,
+          buffer_create_info.queue_family_indices_[0]}} {}
+
+std::uint32_t MM::RenderSystem::ImageSubresourceRangeInfo::GetDestMipmapsLevel()
+    const {
+  return dest_mipmaps_level_;
+}
+
+void MM::RenderSystem::ImageSubresourceRangeInfo::SetDestMipmapsLevel(
+    std::uint32_t dest_mipmaps_level) {
+  dest_mipmaps_level_ = dest_mipmaps_level;
+}
+
+std::uint32_t MM::RenderSystem::ImageSubresourceRangeInfo::GetMipmapsCount()
+    const {
+  return mipmaps_count_;
+}
+
+void MM::RenderSystem::ImageSubresourceRangeInfo::SetMipmapsCount(
+    std::uint32_t mipmaps_count) {
+  mipmaps_count_ = mipmaps_count;
+}
+
+std::uint32_t MM::RenderSystem::ImageSubresourceRangeInfo::GetDestArrayLevel()
+    const {
+  return dest_array_level_;
+}
+
+void MM::RenderSystem::ImageSubresourceRangeInfo::SetDestArrayLevel(
+    std::uint32_t dest_array_level) {
+  dest_array_level_ = dest_array_level;
+}
+
+std::uint32_t MM::RenderSystem::ImageSubresourceRangeInfo::GetArrayCount()
+    const {
+  return array_count_;
+}
+
+void MM::RenderSystem::ImageSubresourceRangeInfo::SetArrayCount(
+    std::uint32_t array_count) {
+  array_count_ = array_count;
+}
+
+void MM::RenderSystem::ImageSubresourceRangeInfo::Reset() {
+  dest_mipmaps_level_ = 0;
+  mipmaps_count_ = 0;
+  dest_array_level_ = 0;
+  array_count_ = 0;
+}
+
+bool MM::RenderSystem::ImageSubresourceRangeInfo::IsValid() const {
+  return mipmaps_count_ != 0 && array_count_ != 0;
+}
+
+MM::RenderSystem::ImageSubresourceRangeInfo::ImageSubresourceRangeInfo(
+    MM::RenderSystem::ImageSubresourceRangeInfo&& other) noexcept
+    : dest_mipmaps_level_(other.dest_mipmaps_level_),
+      mipmaps_count_(other.mipmaps_count_),
+      dest_array_level_(other.array_count_),
+      array_count_(other.array_count_) {
+  Reset();
+}
+
+MM::RenderSystem::ImageSubresourceRangeInfo&
+MM::RenderSystem::ImageSubresourceRangeInfo::operator=(
+    const MM::RenderSystem::ImageSubresourceRangeInfo& other) {
+  if (&other == this) {
+    return *this;
+  }
+
+  dest_mipmaps_level_ = other.dest_mipmaps_level_;
+  mipmaps_count_ = other.mipmaps_count_;
+  dest_array_level_ = other.dest_array_level_;
+  array_count_ = other.array_count_;
+
+  return *this;
+}
+
+MM::RenderSystem::ImageSubresourceRangeInfo&
+MM::RenderSystem::ImageSubresourceRangeInfo::operator=(
+    MM::RenderSystem::ImageSubresourceRangeInfo&& other) noexcept {
+  if (&other == this) {
+    return *this;
+  }
+
+  dest_mipmaps_level_ = other.dest_mipmaps_level_;
+  mipmaps_count_ = other.mipmaps_count_;
+  dest_array_level_ = other.dest_array_level_;
+  array_count_ = other.array_count_;
+
+  Reset();
+
+  return *this;
+}
+
+MM::RenderSystem::ImageSubresourceRangeInfo::ImageSubresourceRangeInfo(
+    uint32_t dest_mipmaps_level, uint32_t mipmaps_count,
+    uint32_t dest_array_level, uint32_t array_count)
+    : dest_mipmaps_level_(dest_mipmaps_level),
+      mipmaps_count_(mipmaps_count),
+      dest_array_level_(dest_array_level),
+      array_count_(array_count) {}
+
+MM::RenderSystem::ImageSubresourceRangeInfo::ImageSubresourceRangeInfo(
+    const VkImageSubresourceRange& vk_image_subresource_range)
+    : dest_mipmaps_level_(vk_image_subresource_range.baseMipLevel),
+      mipmaps_count_(vk_image_subresource_range.levelCount),
+      dest_array_level_(vk_image_subresource_range.baseArrayLayer),
+      array_count_(vk_image_subresource_range.layerCount) {}
+
+const MM::RenderSystem::ImageSubresourceRangeInfo&
+MM::RenderSystem::ImageSubResourceAttribute::GetImageSubresourceRangeInfo()
+    const {
+  return image_subresource_range_info_;
+}
+
+void MM::RenderSystem::ImageSubResourceAttribute::SetImageSubresourceRangeInfo(
+    const MM::RenderSystem::ImageSubresourceRangeInfo&
+        image_subresource_range_info) {
+  image_subresource_range_info_ = image_subresource_range_info;
+}
+
+uint32_t MM::RenderSystem::ImageSubResourceAttribute::GetQueueIndex() const {
+  return queue_index_;
+}
+
+void MM::RenderSystem::ImageSubResourceAttribute::SetQueueIndex(
+    uint32_t queue_index) {
+  queue_index_ = queue_index;
+}
+
+VkImageLayout MM::RenderSystem::ImageSubResourceAttribute::GetImageLayout()
+    const {
+  return image_layout_;
+}
+
+void MM::RenderSystem::ImageSubResourceAttribute::SetImageLayout(
+    VkImageLayout image_layout) {
+  image_layout_ = image_layout;
+}
+
+bool MM::RenderSystem::ImageSubResourceAttribute::IsValid() const {
+  return queue_index_ != UINT32_MAX &&
+         image_layout_ != VK_IMAGE_LAYOUT_MAX_ENUM &&
+         image_subresource_range_info_.IsValid();
+}
+
+void MM::RenderSystem::ImageSubResourceAttribute::Reset() {
+  queue_index_ = UINT32_MAX;
+  image_layout_ = VK_IMAGE_LAYOUT_MAX_ENUM;
+  image_subresource_range_info_.Reset();
+}
+
+MM::RenderSystem::ImageSubResourceAttribute::ImageSubResourceAttribute(
+    const MM::RenderSystem::ImageSubresourceRangeInfo&
+        image_subresource_range_info,
+    uint32_t queue_index, VkImageLayout image_layout)
+    : image_subresource_range_info_(image_subresource_range_info),
+      queue_index_(queue_index),
+      image_layout_(image_layout) {}
+
+MM::RenderSystem::ImageSubResourceAttribute::ImageSubResourceAttribute(
+    const VkImageSubresourceRange& vk_image_subresource_range,
+    uint32_t queue_index, VkImageLayout image_layout)
+    : image_subresource_range_info_(vk_image_subresource_range),
+      queue_index_(queue_index),
+      image_layout_(image_layout) {}
+
+MM::RenderSystem::ImageSubResourceAttribute::ImageSubResourceAttribute(
+    MM::RenderSystem::ImageSubResourceAttribute&& other) noexcept
+
+    : image_subresource_range_info_(
+          std::move(other.image_subresource_range_info_)),
+      queue_index_(other.queue_index_),
+      image_layout_(other.image_layout_) {
+  other.Reset();
+}
+
+MM::RenderSystem::ImageSubResourceAttribute&
+MM::RenderSystem::ImageSubResourceAttribute::operator=(
+    const MM::RenderSystem::ImageSubResourceAttribute& other) {
+  if (std::addressof(other) == this) {
+    return *this;
+  }
+
+  image_subresource_range_info_ = other.image_subresource_range_info_;
+  queue_index_ = other.queue_index_;
+  image_layout_ = other.image_layout_;
+
+  return *this;
+}
+
+MM::RenderSystem::ImageSubResourceAttribute&
+MM::RenderSystem::ImageSubResourceAttribute::operator=(
+    MM::RenderSystem::ImageSubResourceAttribute&& other) noexcept {
+  if (std::addressof(other) == this) {
+    return *this;
+  }
+
+  image_subresource_range_info_ =
+      std::move(other.image_subresource_range_info_);
+  queue_index_ = other.queue_index_;
+  image_layout_ = other.image_layout_;
+
+  queue_index_ = UINT32_MAX;
+  image_layout_ = VK_IMAGE_LAYOUT_MAX_ENUM;
+
+  return *this;
+}
+
+MM::RenderSystem::BufferSubResourceAttribute::BufferSubResourceAttribute(
+    MM::RenderSystem::BufferSubResourceAttribute&& other) noexcept
+    : chunk_info_(std::move(other.chunk_info_)),
+      queue_index_(other.queue_index_) {
+  other.queue_index_ = UINT32_MAX;
+}
+
+MM::RenderSystem::BufferSubResourceAttribute&
+MM::RenderSystem::BufferSubResourceAttribute::operator=(
+    const MM::RenderSystem::BufferSubResourceAttribute& other) {
+  if (std::addressof(other) == this) {
+    return *this;
+  }
+
+  chunk_info_ = other.chunk_info_;
+  queue_index_ = other.queue_index_;
+
+  return *this;
+}
+
+MM::RenderSystem::BufferSubResourceAttribute&
+MM::RenderSystem::BufferSubResourceAttribute::operator=(
+    MM::RenderSystem::BufferSubResourceAttribute&& other) noexcept {
+  if (std::addressof(other) == this) {
+    return *this;
+  }
+
+  chunk_info_ = std::move(other.chunk_info_);
+  queue_index_ = other.queue_index_;
+
+  queue_index_ = UINT32_MAX;
+
+  return *this;
+}
+
+const MM::RenderSystem::BufferChunkInfo&
+MM::RenderSystem::BufferSubResourceAttribute::GetChunkInfo() const {
+  return chunk_info_;
+}
+
+void MM::RenderSystem::BufferSubResourceAttribute::SetChunkInfo(
+    const MM::RenderSystem::BufferChunkInfo& chunk_info) {
+  chunk_info_ = chunk_info;
+}
+
+std::uint32_t MM::RenderSystem::BufferSubResourceAttribute::GetQueueIndex()
+    const {
+  return queue_index_;
+}
+
+void MM::RenderSystem::BufferSubResourceAttribute::SetQueueIndex(
+    uint32_t queue_index) {
+  queue_index_ = queue_index;
+}
+
+bool MM::RenderSystem::BufferSubResourceAttribute::operator==(
+    const MM::RenderSystem::BufferSubResourceAttribute& rhs) const {
+  return chunk_info_ == rhs.chunk_info_ && queue_index_ == rhs.queue_index_;
+}
+
+bool MM::RenderSystem::BufferSubResourceAttribute::operator!=(
+    const MM::RenderSystem::BufferSubResourceAttribute& rhs) const {
+  return !(rhs == *this);
+}

@@ -112,9 +112,3 @@ bool MM::RenderSystem::RenderResourceDataBase::IsHaveData() const {
 void MM::RenderSystem::RenderResourceDataBase::MarkHaveData() {
   have_data_ = true;
 }
-
-MM::ExecuteResult
-MM::RenderSystem::RenderResourceDataBase::TransformQueueFamily(
-    std::uint32_t new_queue_family_index) {
-  return ExecuteResult ::UNDEFINED_ERROR;
-}

@@ -37,19 +37,17 @@ class AllocatedImage final : public RenderResourceDataBase {
  public:
   std::uint32_t GetQueueIndex() const;
 
-  VkImageLayout GetImageLayout() const;
-
   const VkExtent3D& GetImageExtent() const;
 
-  const VkDeviceSize& GetImageSize() const;
+  VkDeviceSize GetImageSize() const;
 
-  const VkFormat& GetImageFormat() const;
+  VkFormat GetImageFormat() const;
 
-  const VkImageLayout& GetImageLayout() const;
+  VkImageLayout GetImageLayout() const;
 
-  const uint32_t& GetMipmapLevels() const;
+  std::uint32_t GetMipmapLevels() const;
 
-  const uint32_t& GetArrayLayers() const;
+  std::uint32_t GetArrayLayers() const;
 
   bool CanMapped() const;
 
@@ -69,7 +67,7 @@ class AllocatedImage final : public RenderResourceDataBase {
 
   VmaAllocation GetAllocation() const;
 
-  const std::vector<std::uint32_t>& GetQueueIndexes() const;
+  const std::vector<ImageSubResourceAttribute>& GetQueueIndexes() const;
 
   void Release() override;
 
@@ -79,8 +77,7 @@ class AllocatedImage final : public RenderResourceDataBase {
 
   VkDeviceSize GetSize() const override;
 
-  ExecuteResult TransformQueueFamily(
-      std::uint32_t new_queue_family_index) override;
+  ExecuteResult TransformQueueFamily(std::uint32_t new_queue_family_index);
 
   bool IsArray() const override;
 

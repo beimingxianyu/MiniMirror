@@ -3,7 +3,7 @@
 #pragma once
 
 #include "runtime/function/render/RenderResourceDataID.h"
-#include "runtime/function/render/vk_type.h"
+#include "runtime/function/render/vk_type_define.h"
 #include "runtime/function/render/vk_utils.h"
 
 namespace MM {

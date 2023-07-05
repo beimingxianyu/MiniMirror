@@ -57,23 +57,23 @@ const VkExtent3D& MM::RenderSystem::AllocatedImage::GetImageExtent() const {
   return image_data_info_.image_create_info_.extent_;
 }
 
-const VkDeviceSize& MM::RenderSystem::AllocatedImage::GetImageSize() const {
+VkDeviceSize MM::RenderSystem::AllocatedImage::GetImageSize() const {
   return image_data_info_.image_create_info_.image_size_;
 }
 
-const VkFormat& MM::RenderSystem::AllocatedImage::GetImageFormat() const {
+VkFormat MM::RenderSystem::AllocatedImage::GetImageFormat() const {
   return image_data_info_.image_create_info_.format_;
 }
 
-const VkImageLayout& MM::RenderSystem::AllocatedImage::GetImageLayout() const {
+VkImageLayout MM::RenderSystem::AllocatedImage::GetImageLayout() const {
   return image_data_info_.image_create_info_.initial_layout_;
 }
 
-const uint32_t& MM::RenderSystem::AllocatedImage::GetMipmapLevels() const {
+std::uint32_t MM::RenderSystem::AllocatedImage::GetMipmapLevels() const {
   return image_data_info_.image_create_info_.miplevels_;
 }
 
-const uint32_t& MM::RenderSystem::AllocatedImage::GetArrayLayers() const {
+std::uint32_t MM::RenderSystem::AllocatedImage::GetArrayLayers() const {
   return image_data_info_.image_create_info_.array_levels_;
 }
 
@@ -118,9 +118,9 @@ VmaAllocation MM::RenderSystem::AllocatedImage::GetAllocation() const {
   return wrapper_.GetAllocation();
 }
 
-const std::vector<std::uint32_t>&
+const std::vector<MM::RenderSystem::ImageSubResourceAttribute>&
 MM::RenderSystem::AllocatedImage::GetQueueIndexes() const {
-  return image_data_info_.image_create_info_.queue_family_indices_;
+  return image_data_info_.image_sub_resource_attributes_;
 }
 
 void MM::RenderSystem::AllocatedImage::Release() {
@@ -295,10 +295,6 @@ MM::ExecuteResult MM::RenderSystem::AllocatedImage::TransformQueueFamily(
   buffer_data_info_.queue_index_ = new_queue_family_index;
 
   return ExecuteResult::SUCCESS;
-}
-
-VkImageLayout MM::RenderSystem::AllocatedImage::GetImageLayout() const {
-  return image_data_info_.image_layout_;
 }
 
 MM::RenderSystem::AllocatedImage::AllocatedImageWrapper::AllocatedImageWrapper(

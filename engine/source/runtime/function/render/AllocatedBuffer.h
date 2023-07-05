@@ -40,8 +40,6 @@ class AllocatedBuffer : public RenderResourceDataBase {
  public:
   const VkDeviceSize& GetBufferSize() const;
 
-  std::uint32_t GetQueueIndex() const;
-
   bool CanMapped() const;
 
   bool IsTransformSrc() const;
@@ -62,7 +60,7 @@ class AllocatedBuffer : public RenderResourceDataBase {
 
   const VmaAllocation_T* GetAllocation() const;
 
-  const std::vector<std::uint32_t>& GetQueueIndexes() const;
+  const std::vector<BufferSubResourceAttribute>& GetQueueIndexes() const;
 
   ResourceType GetResourceType() const override;
 
@@ -72,8 +70,8 @@ class AllocatedBuffer : public RenderResourceDataBase {
 
   bool CanWrite() const override;
 
-  ExecuteResult TransformQueueFamily(
-      std::uint32_t new_queue_family_index) override;
+  ExecuteResult TransformQueueFamily(const BufferChunkInfo& buffer_chunk_info,
+                                     std::uint32_t new_queue_family_index);
 
   ExecuteResult CopyDataToBuffer(std::uint64_t dest_offset, void* data,
                                  std::uint64_t src_offset, std::uint64_t size);

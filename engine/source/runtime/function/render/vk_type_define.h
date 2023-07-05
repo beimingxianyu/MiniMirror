@@ -16,11 +16,11 @@
 
 #include "runtime/function/render/RenderDataAttributeID.h"
 #include "runtime/function/render/import_other_system.h"
+#include "runtime/function/render/vk_utils.h"
 #include "runtime/platform/base/error.h"
 #include "utils/error.h"
 #include "utils/hash_table.h"
 #include "utils/marco.h"
-#include "vk_utils.h"
 
 namespace MM {
 namespace RenderSystem {
@@ -69,11 +69,196 @@ struct RenderResourceManageInfo {
   bool is_shared_{true};
 };
 
-struct DataToBufferInfo {
-  void* data_ = nullptr;
-  VkDeviceSize copy_offset_ = 0;
-  VkDeviceSize copy_size_ = 0;
-  bool used_{false};
+class AllocateSemaphore {
+ public:
+  explicit AllocateSemaphore(RenderEngine* engine,
+                             VkSemaphoreCreateFlags flags = 0);
+  ~AllocateSemaphore() = default;
+  AllocateSemaphore(const AllocateSemaphore& other) = default;
+  AllocateSemaphore(AllocateSemaphore&& other) noexcept = default;
+  AllocateSemaphore& operator=(const AllocateSemaphore& other);
+  AllocateSemaphore& operator=(AllocateSemaphore&& other) noexcept;
+
+ public:
+  VkSemaphore& GetSemaphore();
+  const VkSemaphore& GetSemaphore() const;
+
+  bool IsValid() const;
+
+ private:
+  class AllocateSemaphoreWrapper {
+   public:
+    AllocateSemaphoreWrapper() = default;
+    AllocateSemaphoreWrapper(RenderEngine* engine, VkSemaphore semaphore);
+    ~AllocateSemaphoreWrapper();
+    AllocateSemaphoreWrapper(const AllocateSemaphoreWrapper& other) = delete;
+    AllocateSemaphoreWrapper(AllocateSemaphoreWrapper&& other) noexcept;
+    AllocateSemaphoreWrapper& operator=(const AllocateSemaphoreWrapper& other) =
+        delete;
+    AllocateSemaphoreWrapper& operator=(
+        AllocateSemaphoreWrapper&& other) noexcept;
+
+   public:
+    VkSemaphore& GetSemaphore();
+    const VkSemaphore& GetSemaphore() const;
+
+    bool IsValid() const;
+
+   private:
+    RenderEngine* render_engine_{nullptr};
+    VkSemaphore semaphore_{nullptr};
+  };
+
+ private:
+  std::shared_ptr<AllocateSemaphoreWrapper> wrapper_{nullptr};
+};
+
+class AllocateFence {
+ public:
+  explicit AllocateFence(RenderEngine* engine, VkFenceCreateFlags flags = 0);
+  ~AllocateFence() = default;
+  AllocateFence(const AllocateFence& other) = default;
+  AllocateFence(AllocateFence&& other) noexcept = default;
+  AllocateFence& operator=(const AllocateFence& other);
+  AllocateFence& operator=(AllocateFence&& other) noexcept;
+
+ public:
+  VkFence& GetFence();
+  const VkFence& GetFence() const;
+
+  bool IsValid() const;
+
+ private:
+  class AllocateFenceWrapper {
+   public:
+    AllocateFenceWrapper() = default;
+    AllocateFenceWrapper(RenderEngine* engine, VkFence fence);
+    ~AllocateFenceWrapper();
+    AllocateFenceWrapper(const AllocateFenceWrapper& other) = delete;
+    AllocateFenceWrapper(AllocateFenceWrapper&& other) noexcept;
+    AllocateFenceWrapper& operator=(const AllocateFenceWrapper& other) = delete;
+    AllocateFenceWrapper& operator=(AllocateFenceWrapper&& other) noexcept;
+
+   public:
+    VkFence& GetFence();
+    const VkFence& GetFence() const;
+
+    bool IsValid() const;
+
+   private:
+    RenderEngine* render_engine_{nullptr};
+    VkFence fence_{nullptr};
+  };
+
+ private:
+  std::shared_ptr<AllocateFenceWrapper> wrapper_{nullptr};
+};
+
+class BufferChunkInfo {
+ public:
+  BufferChunkInfo() = default;
+  ~BufferChunkInfo() = default;
+  BufferChunkInfo(const VkDeviceSize& start_offset, const VkDeviceSize& size);
+  BufferChunkInfo(const BufferChunkInfo& other) = default;
+  BufferChunkInfo(BufferChunkInfo&& other) noexcept;
+  BufferChunkInfo& operator=(const BufferChunkInfo& other) noexcept;
+  BufferChunkInfo& operator=(BufferChunkInfo&& other) noexcept;
+
+ public:
+  bool operator==(const BufferChunkInfo& rhs) const;
+
+  bool operator!=(const BufferChunkInfo& rhs) const;
+
+ public:
+  VkDeviceSize GetOffset() const;
+
+  VkDeviceSize GetSize() const;
+
+  void SetOffset(const VkDeviceSize& new_offset);
+
+  void SetSize(const VkDeviceSize& new_size);
+
+  void Reset();
+
+  bool IsValid() const;
+
+  friend void Swap(BufferChunkInfo& lhs, BufferChunkInfo& rhs) noexcept;
+
+  friend void swap(BufferChunkInfo& lhs, BufferChunkInfo& rhs) noexcept;
+
+ private:
+  VkDeviceSize offset_{0};
+  VkDeviceSize size_{0};
+};
+
+class ImageChunkInfo {
+ public:
+  ImageChunkInfo() = default;
+  ~ImageChunkInfo() = default;
+  ImageChunkInfo(const VkOffset3D& offset, const VkExtent3D& extent);
+  ImageChunkInfo(const ImageChunkInfo& other) = default;
+  ImageChunkInfo(ImageChunkInfo&& other) noexcept;
+  ImageChunkInfo& operator=(const ImageChunkInfo& other);
+  ImageChunkInfo& operator=(ImageChunkInfo&& other) noexcept;
+
+ public:
+  const VkOffset3D& GetOffset() const;
+
+  const VkExtent3D& GetExtent() const;
+
+  void SetOffset(const VkOffset3D& new_offset);
+
+  void SetExtent(const VkExtent3D& new_extent);
+
+  void Reset();
+
+  bool IsValid() const;
+
+ private:
+  VkOffset3D offset_{0, 0, 0};
+  VkExtent3D extent_{0, 0, 0};
+};
+
+class ImageSubresourceRangeInfo {
+ public:
+  ImageSubresourceRangeInfo() = default;
+  ~ImageSubresourceRangeInfo() = default;
+  ImageSubresourceRangeInfo(uint32_t dest_mipmaps_level, uint32_t mipmaps_count,
+                            uint32_t dest_array_level, uint32_t array_count);
+  explicit ImageSubresourceRangeInfo(
+      const VkImageSubresourceRange& vk_image_subresource_range);
+  ImageSubresourceRangeInfo(const ImageSubresourceRangeInfo& other) = default;
+  ImageSubresourceRangeInfo(ImageSubresourceRangeInfo&& other) noexcept;
+  ImageSubresourceRangeInfo& operator=(const ImageSubresourceRangeInfo& other);
+  ImageSubresourceRangeInfo& operator=(
+      ImageSubresourceRangeInfo&& other) noexcept;
+
+ public:
+  std::uint32_t GetDestMipmapsLevel() const;
+
+  void SetDestMipmapsLevel(std::uint32_t dest_mipmaps_level);
+
+  std::uint32_t GetMipmapsCount() const;
+
+  void SetMipmapsCount(std::uint32_t mipmaps_count);
+
+  std::uint32_t GetDestArrayLevel() const;
+
+  void SetDestArrayLevel(std::uint32_t dest_array_level);
+
+  std::uint32_t GetArrayCount() const;
+
+  void SetArrayCount(std::uint32_t array_count);
+
+  void Reset();
+
+  bool IsValid() const;
+
+ private:
+  std::uint32_t dest_mipmaps_level_{0};
+  std::uint32_t mipmaps_count_{0};
+  std::uint32_t dest_array_level_{0};
+  std::uint32_t array_count_{0};
 };
 
 struct RenderEngineInfo {
@@ -95,7 +280,7 @@ struct AllocationCreateInfo {
       const VmaAllocationCreateInfo& vma_allocation_create_info);
   AllocationCreateInfo(const AllocationCreateInfo& other) = default;
   AllocationCreateInfo(AllocationCreateInfo&& other) noexcept;
-  AllocationCreateInfo& operator=(const AllocationCreateInfo& other) = default;
+  AllocationCreateInfo& operator=(const AllocationCreateInfo& other);
   AllocationCreateInfo& operator=(AllocationCreateInfo&& other) noexcept;
 
   VmaAllocationCreateFlags flags_{VMA_ALLOCATION_CREATE_FLAG_BITS_MAX_ENUM};
@@ -152,19 +337,78 @@ struct ImageCreateInfo {
   void Reset();
 };
 
+class ImageSubResourceAttribute {
+ public:
+  ImageSubResourceAttribute() = default;
+  ~ImageSubResourceAttribute() = default;
+  ImageSubResourceAttribute(
+      const ImageSubresourceRangeInfo& image_subresource_range_info,
+      uint32_t queue_index, VkImageLayout image_layout);
+  ImageSubResourceAttribute(
+      const VkImageSubresourceRange& vk_image_subresource_range,
+      uint32_t queue_index, VkImageLayout image_layout);
+  ImageSubResourceAttribute(const ImageSubResourceAttribute& other) = default;
+  ImageSubResourceAttribute(ImageSubResourceAttribute&& other) noexcept;
+  ImageSubResourceAttribute& operator=(const ImageSubResourceAttribute& other);
+  ImageSubResourceAttribute& operator=(
+      ImageSubResourceAttribute&& other) noexcept;
+  ;
+
+ public:
+  const ImageSubresourceRangeInfo& GetImageSubresourceRangeInfo() const;
+
+  void SetImageSubresourceRangeInfo(
+      const ImageSubresourceRangeInfo& image_subresource_range_info);
+
+  std::uint32_t GetQueueIndex() const;
+
+  void SetQueueIndex(std::uint32_t queue_index);
+
+  VkImageLayout GetImageLayout() const;
+
+  void SetImageLayout(VkImageLayout image_layout);
+
+  bool IsValid() const;
+
+  void Reset();
+
+ private:
+  ImageSubresourceRangeInfo image_subresource_range_info_;
+  std::uint32_t queue_index_{UINT32_MAX};
+  VkImageLayout image_layout_{VK_IMAGE_LAYOUT_MAX_ENUM};
+};
+
 struct ImageDataInfo {
   ImageDataInfo() = default;
   ~ImageDataInfo() = default;
+  ImageDataInfo(const ImageCreateInfo& image_create_info,
+                const AllocationCreateInfo& allocation_create_info)
+      : image_create_info_(image_create_info),
+        allocation_create_info_(allocation_create_info),
+        image_sub_resource_attributes_{ImageSubResourceAttribute{
+            ImageSubresourceRangeInfo{0, image_create_info.miplevels_, 0,
+                                      image_create_info.array_levels_},
+            image_create_info.queue_family_indices_[0],
+            image_create_info.initial_layout_}} {}
+  ImageDataInfo(VkDeviceSize size,
+                const VkImageCreateInfo& vk_image_create_info,
+                const VmaAllocationCreateInfo& vma_allocation_create_info)
+      : image_create_info_(size, vk_image_create_info),
+        allocation_create_info_(vma_allocation_create_info),
+        image_sub_resource_attributes_{ImageSubResourceAttribute{
+            ImageSubresourceRangeInfo{0, vk_image_create_info.mipLevels, 0,
+                                      vk_image_create_info.arrayLayers},
+            *vk_image_create_info.pQueueFamilyIndices,
+            vk_image_create_info.initialLayout}} {}
   ImageDataInfo(const ImageDataInfo& other) = default;
-  ImageDataInfo(ImageDataInfo&& other) noexcept;
+  ImageDataInfo(ImageDataInfo&& other) noexcept = default;
   ImageDataInfo& operator=(const ImageDataInfo& other);
   ImageDataInfo& operator=(ImageDataInfo&& other) noexcept;
 
   ImageCreateInfo image_create_info_{};
   AllocationCreateInfo allocation_create_info_{};
 
-  std::uint32_t queue_index_{UINT32_MAX};
-  VkImageLayout image_layout_{VK_IMAGE_LAYOUT_MAX_ENUM};
+  std::vector<ImageSubResourceAttribute> image_sub_resource_attributes_{};
 
   ExecuteResult GetRenderDataAttributeID(
       RenderImageDataAttributeID render_image_data_attribute_ID) const;
@@ -207,6 +451,43 @@ struct BufferCreateInfo {
   void Reset();
 };
 
+class BufferSubResourceAttribute {
+ public:
+  BufferSubResourceAttribute() = default;
+  ~BufferSubResourceAttribute() = default;
+  BufferSubResourceAttribute(const BufferChunkInfo& buffer_chunk_info,
+                             std::uint32_t queue_index)
+      : chunk_info_(buffer_chunk_info), queue_index_(queue_index) {}
+  BufferSubResourceAttribute(VkDeviceSize offset, VkDeviceSize size,
+                             std::uint32_t queue_index)
+      : chunk_info_(offset, size), queue_index_(queue_index) {}
+  BufferSubResourceAttribute(const BufferSubResourceAttribute& other) = default;
+  BufferSubResourceAttribute(BufferSubResourceAttribute&& other) noexcept;
+  BufferSubResourceAttribute& operator=(
+      const BufferSubResourceAttribute& other);
+  BufferSubResourceAttribute& operator=(
+      BufferSubResourceAttribute&& other) noexcept;
+
+ public:
+  bool operator==(const BufferSubResourceAttribute& rhs) const;
+
+  bool operator!=(const BufferSubResourceAttribute& rhs) const;
+
+ public:
+  const BufferChunkInfo& GetChunkInfo() const;
+
+  void SetChunkInfo(const BufferChunkInfo& chunk_info);
+
+  std::uint32_t GetQueueIndex() const;
+
+  void SetQueueIndex(uint32_t queue_index);
+
+ private:
+  BufferChunkInfo chunk_info_{};
+
+  std::uint32_t queue_index_{UINT32_MAX};
+};
+
 struct BufferDataInfo {
   BufferDataInfo() = default;
   ~BufferDataInfo() = default;
@@ -220,7 +501,7 @@ struct BufferDataInfo {
   BufferCreateInfo buffer_create_info_{};
   AllocationCreateInfo allocation_create_info_{};
 
-  std::uint32_t queue_index_{UINT32_MAX};
+  std::vector<BufferSubResourceAttribute> buffer_sub_resource_attributes_{};
 
   ExecuteResult GetRenderDataAttributeID(
       RenderImageDataAttributeID& render_image_data_attribute_ID) const;

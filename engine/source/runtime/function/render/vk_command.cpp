@@ -317,7 +317,7 @@ MM::RenderSystem::AllocatedCommandBuffer::AllocatedCommandBufferWrapper::
   vkWaitForFences(engine_->GetDevice(), 1, &command_fence_, VK_TRUE, 100000000);
 
   vkDestroyCommandPool(engine_->GetDevice(), command_pool_, nullptr);
-  vkDestroyFence(engine_->device_, command_fence_, nullptr);
+  vkDestroyFence(engine_->GetDevice(), command_fence_, nullptr);
   command_pool_ = nullptr;
   command_buffer_ = nullptr;
   command_fence_ = nullptr;
@@ -343,7 +343,7 @@ MM::RenderSystem::AllocatedCommandBuffer::AllocatedCommandBufferWrapper::
     return;
   }
 
-  command_fence_ = MM::RenderSystem::Utils::GetVkFence(engine_->device_);
+  command_fence_ = MM::RenderSystem::Utils::GetVkFence(engine_->GetDevice());
   if (!command_fence_) {
     engine_ = nullptr;
     queue_ = nullptr;
@@ -387,7 +387,7 @@ bool MM::RenderSystem::AllocatedCommandBuffer::AllocatedCommandBufferWrapper::
 
 bool MM::RenderSystem::AllocatedCommandBuffer::AllocatedCommandBufferWrapper::
     ResetCommandBuffer() {
-  VK_CHECK(vkResetCommandPool(engine_->device_, command_pool_, 0),
+  VK_CHECK(vkResetCommandPool(engine_->GetDevice(), command_pool_, 0),
            LOG_ERROR("Failed to reset command buffer!");
            return false;)
 
