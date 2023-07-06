@@ -118,7 +118,8 @@ class AllocatedBuffer {
 
   VmaAllocation GetAllocation() const;
 
-  const std::vector<BufferSubResourceAttribute>& GetQueueIndexes() const;
+  const std::vector<BufferSubResourceAttribute>& GetSubResourceAttributes()
+      const;
 
   void Release();
 

@@ -1,9 +1,9 @@
 #include "runtime/function/render/vk_render_resource.h"
 
-#include "RenderImageManager.h"
+#include "RenderResourceDataManager.h"
 #include "runtime/function/render/vk_engine.h"
 
-std::mutex MM::RenderSystem::RenderImageManager::sync_flag_{};
+std::mutex MM::RenderSystem::RenderResourceDataManagerImp::sync_flag_{};
 
 MM::RenderSystem::RenderResourceTexture::RenderResourceTexture(
     const std::string& resource_name, RenderEngine* engine,
@@ -278,7 +278,8 @@ MM::RenderSystem::RenderResourceTexture::GetLightCopy(
   auto new_resource = std::make_unique<RenderResourceTexture>(*this);
   new_resource->SetResourceName(new_name_of_copy_resource);
   new_resource->SetResourceID(
-      MM::RenderSystem::RenderImageManager::GetInstance()->GetIncreaseIndex());
+      MM::RenderSystem::RenderResourceDataManagerImp::GetInstance()
+          ->GetIncreaseIndex());
 
   return new_resource;
 }
@@ -293,7 +294,8 @@ MM::RenderSystem::RenderResourceTexture::GetDeepCopy(
     new_image_usage |= VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
   }
 
-  std::vector<std::uint32_t> temp_queue_index = image_.GetQueueIndexes();
+  std::vector<std::uint32_t> temp_queue_index =
+      image_.GetSubResourceAttributes();
   const VkImageCreateInfo new_image_create_info = Utils::GetImageCreateInfo(
       image_.GetImageFormat(),
       new_image_usage | VK_IMAGE_USAGE_TRANSFER_DST_BIT,
@@ -1063,7 +1065,7 @@ MM::RenderSystem::RenderResourceBuffer::GetLightCopy(
     const std::string& new_name_of_copy_resource) const {
   auto new_buffer = std::make_unique<RenderResourceBuffer>(*this);
   new_buffer->SetResourceID(
-      RenderImageManager::GetInstance()->GetIncreaseIndex());
+      RenderResourceDataManagerImp::GetInstance()->GetIncreaseIndex());
   new_buffer->SetResourceName(new_name_of_copy_resource);
 
   return new_buffer;
@@ -1081,9 +1083,11 @@ MM::RenderSystem::RenderResourceBuffer::GetDeepCopy(
   }
   new_buffer_usage |= VK_BUFFER_USAGE_TRANSFER_DST_BIT;
 
-  std::vector<std::uint32_t> temp_queue_index = buffer_.GetQueueIndexes();
-  const VkBufferCreateInfo new_buffer_create_info = Utils::GetBufferCreateInfo(
-      GetBufferSize(), new_buffer_usage, temp_queue_index, 0);
+  std::vector<std::uint32_t> temp_queue_index =
+      buffer_.GetSubResourceAttributes();
+  const VkBufferCreateInfo new_buffer_create_info =
+      Utils::GetVkBufferCreateInfo(GetBufferSize(), new_buffer_usage,
+                                   temp_queue_index, 0);
 
   const VmaAllocationCreateInfo new_allocation_create_info =
       Utils::GetVmaAllocationCreateInfo(
@@ -1229,7 +1233,7 @@ bool MM::RenderSystem::RenderResourceBuffer::InitBuffer(
     const std::vector<std::uint32_t>& queue_index,
     const VkSharingMode& sharing_mode) {
   std::vector<std::uint32_t> temp_queue_index = queue_index;
-  const auto buffer_create_info = Utils::GetBufferCreateInfo(
+  const auto buffer_create_info = Utils::GetVkBufferCreateInfo(
       size, buffer_usage, temp_queue_index, buffer_flags);
   const auto allocation_create_info =
       Utils::GetVmaAllocationCreateInfo(memory_usage, allocation_flags);

@@ -18,6 +18,7 @@ namespace RenderSystem {
 class RenderEngine;
 class RendrResourceTexture final : public RenderResourceDataBase {
  public:
+  RendrResourceTexture() {}
   RenderResourceTexture() = default;
   ~RenderResourceTexture() override = default;
   RenderResourceTexture(

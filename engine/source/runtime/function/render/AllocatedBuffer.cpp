@@ -242,7 +242,7 @@ void MM::RenderSystem::AllocatedBuffer::Release() {
 }
 
 const std::vector<MM::RenderSystem::BufferSubResourceAttribute>&
-MM::RenderSystem::AllocatedBuffer::GetQueueIndexes() const {
+MM::RenderSystem::AllocatedBuffer::GetSubResourceAttributes() const {
   return buffer_data_info_.buffer_sub_resource_attributes_;
 }
 
@@ -288,27 +288,17 @@ MM::RenderSystem::AllocatedBuffer::AllocatedBuffer(
     const MM::RenderSystem::RenderResourceDataID& render_resource_data_ID,
     RenderEngine* render_engine,
     const MM::RenderSystem::BufferDataInfo& buffer_data_info,
-    VmaAllocator vma_allocator, VkBuffer vk_buffer, VmaAllocation vk_allocation,
-    bool have_data)
+    VmaAllocator vma_allocator, VkBuffer vk_buffer, VmaAllocation vk_allocation)
     : RenderResourceDataBase(name, render_resource_data_ID),
       render_engine_(render_engine),
       buffer_data_info_(buffer_data_info),
-      wrapper_(vma_allocator, vk_buffer, vk_allocation) {
-  if (have_data) {
-    MarkHaveData();
-  }
-}
+      wrapper_(vma_allocator, vk_buffer, vk_allocation) {}
 
 MM::ExecuteResult MM::RenderSystem::AllocatedBuffer::CopyDataToBuffer(
     std::uint64_t dest_offset, void* data, std::uint64_t src_offset,
     std::uint64_t size) {
   if (data == nullptr) {
     return ExecuteResult::INPUT_PARAMETERS_ARE_NOT_SUITABLE;
-  }
-
-  // Data can only be written once.
-  if (IsHaveData()) {
-    return ExecuteResult ::OPERATION_NOT_SUPPORTED;
   }
 
   // The copied data cannot exceed the buffer range.
@@ -331,11 +321,10 @@ MM::ExecuteResult MM::RenderSystem::AllocatedBuffer::CopyDataToBuffer(
 
     vmaUnmapMemory(GetAllocator(), GetAllocation());
 
-    MarkHaveData();
     return ExecuteResult::SUCCESS;
   }
 
-  VkBufferCreateInfo stage_buffer_create_info = Utils::GetBufferCreateInfo(
+  VkBufferCreateInfo stage_buffer_create_info = Utils::GetVkBufferCreateInfo(
       nullptr, 0, size,
       VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
       VK_SHARING_MODE_EXCLUSIVE, 1, &render_engine_->GetTransformQueueIndex());
@@ -382,7 +371,7 @@ MM::ExecuteResult MM::RenderSystem::AllocatedBuffer::CopyDataToBuffer(
                     VK_ACCESS_2_TRANSFER_READ_BIT,
                     VK_PIPELINE_STAGE_2_TRANSFER_BIT,
                     VK_ACCESS_2_TRANSFER_READ_BIT,
-                    this_buffer->GetQueueIndexes()[0].GetQueueIndex(),
+                    this_buffer->GetSubResourceAttributes()[0].GetQueueIndex(),
                     render_engine->GetTransformQueueIndex(), *this_buffer, 0,
                     size),
                 buffer_memory_barrier2 = Utils::GetVkBufferMemoryBarrier2(
@@ -391,7 +380,7 @@ MM::ExecuteResult MM::RenderSystem::AllocatedBuffer::CopyDataToBuffer(
                     VK_PIPELINE_STAGE_2_TRANSFER_BIT,
                     VK_ACCESS_2_TRANSFER_WRITE_BIT,
                     render_engine->GetTransformQueueIndex(),
-                    this_buffer->GetQueueIndexes()[0].GetQueueIndex(),
+                    this_buffer->GetSubResourceAttributes()[0].GetQueueIndex(),
                     *this_buffer, 0, size);
             VkDependencyInfo dependency_info1 = Utils::GetVkDependencyInfo(
                                  0, nullptr, 0, &buffer_memory_barrier1, 0,
@@ -415,8 +404,6 @@ MM::ExecuteResult MM::RenderSystem::AllocatedBuffer::CopyDataToBuffer(
           std::vector<RenderResourceDataID>{
               stage_buffer.GetRenderResourceDataID()}),
       return MM_RESULT_CODE;)
-
-  MarkHaveData();
 
   return ExecuteResult::SUCCESS;
 }

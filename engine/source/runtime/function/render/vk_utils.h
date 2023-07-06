@@ -31,7 +31,7 @@ VkCommandBufferAllocateInfo GetCommandBufferAllocateInfo(
     const VkCommandPool& command_pool, const uint32_t& count = 1,
     const VkCommandBufferLevel& level = VK_COMMAND_BUFFER_LEVEL_PRIMARY);
 
-VkBufferCreateInfo GetBufferCreateInfo(
+VkBufferCreateInfo GetVkBufferCreateInfo(
     const void* next, VkBufferCreateFlags flags, VkDeviceSize size,
     VkBufferUsageFlags usage, VkSharingMode sharing_mode,
     std::uint32_t queue_family_index_count,
@@ -224,6 +224,11 @@ VkBufferImageCopy GetBufferToImageCopyRegion(
     const VkDeviceSize& buffer_offset = 0,
     const VkOffset3D& image_offset = VkOffset3D{0, 0, 0});
 
+VkBufferImageCopy2 GetVkBufferImageCopy2(
+    const void* next, VkDeviceSize buffer_offset, uint32_t buffer_row_length,
+    uint32_t buffer_image_height, VkImageSubresourceLayers image_sub_resource,
+    VkOffset3D image_offset, VkExtent3D image_extent);
+
 bool DescriptorTypeIsImage(const VkDescriptorType& descriptor_type);
 
 bool DescriptorTypeIsImageSampler(const VkDescriptorType& descriptor_type);
@@ -321,7 +326,7 @@ bool ImageRegionAreaLessThanImageExtent(const VkOffset3D& offset,
                                         const VkExtent3D& extent,
                                         const AllocatedImage& image);
 
-VkImageSubresourceLayers GetImageSubResourceLayers(
+VkImageSubresourceLayers GetVkImageSubResourceLayers(
     const VkImageAspectFlags& aspect, const std::uint32_t& mipmap_level,
     const std::uint32_t& base_array_layer,
     const std::uint32_t& array_layer_count);
@@ -370,6 +375,23 @@ ExecuteResult CheckVmaAllocationCreateInfo(
 
 ExecuteResult CheckVkBufferCreateInfo(
     const VkBufferCreateInfo* vk_buffer_create_info);
+
+bool ImageLayoutSupportDepthTest(VkImageLayout vk_image_layout);
+
+bool ImageLayoutSupportStencilTest(VkImageLayout vk_image_layout);
+
+VkImageAspectFlags ChooseImageAspectFlags(VkImageLayout vk_image_layout);
+
+VkImageSubresourceRange GetVkImageSubresourceRange(
+    VkImageAspectFlags vk_image_aspect_flags, std::uint32_t base_mipmap_level,
+    std::uint32_t mipmap_level_count, std::uint32_t base_array_level,
+    std::uint32_t array_count);
+
+VkCopyBufferToImageInfo2 GetVkCopyBufferToImageInfo2(
+    const void* next, const MM::RenderSystem::AllocatedBuffer& src_buffer,
+    MM::RenderSystem::AllocatedImage& dest_image,
+    VkImageLayout dest_image_layout, uint32_t region_count,
+    const VkBufferImageCopy2* regions);
 }  // namespace Utils
 }  // namespace RenderSystem
 }  // namespace MM

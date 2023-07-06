@@ -300,15 +300,16 @@ struct AllocationCreateInfo {
 struct ImageCreateInfo {
   ImageCreateInfo() = default;
   ~ImageCreateInfo() = default;
-  ImageCreateInfo(uint64_t image_size, const void* next,
-                  VkImageCreateFlags flags, VkImageType image_type,
-                  VkFormat format, const VkExtent3D& extent, uint32_t miplevels,
+  ImageCreateInfo(uint64_t image_size, VkImageLayout image_layout,
+                  const void* next, VkImageCreateFlags flags,
+                  VkImageType image_type, VkFormat format,
+                  const VkExtent3D& extent, uint32_t miplevels,
                   uint32_t array_levels, VkSampleCountFlags samples,
                   VkImageTiling tiling, VkImageUsageFlags usage,
                   VkSharingMode sharing_mode,
                   const std::vector<std::uint32_t>& queue_family_indices,
                   VkImageLayout initial_layout);
-  ImageCreateInfo(std::uint64_t image_size,
+  ImageCreateInfo(std::uint64_t image_size, VkImageLayout image_layout,
                   const VkImageCreateInfo& vk_image_create_info);
   ImageCreateInfo(const ImageCreateInfo& other) = default;
   ImageCreateInfo(ImageCreateInfo&& other) noexcept;
@@ -316,6 +317,7 @@ struct ImageCreateInfo {
   ImageCreateInfo& operator=(ImageCreateInfo&& other) noexcept;
 
   std::uint64_t image_size_{0};
+  VkImageLayout image_layout_{VK_IMAGE_LAYOUT_MAX_ENUM};
   const void* next_{nullptr};
   VkImageCreateFlags flags_{VK_IMAGE_CREATE_FLAG_BITS_MAX_ENUM};
   VkImageType image_type_{VK_IMAGE_TYPE_MAX_ENUM};
@@ -382,24 +384,10 @@ struct ImageDataInfo {
   ImageDataInfo() = default;
   ~ImageDataInfo() = default;
   ImageDataInfo(const ImageCreateInfo& image_create_info,
-                const AllocationCreateInfo& allocation_create_info)
-      : image_create_info_(image_create_info),
-        allocation_create_info_(allocation_create_info),
-        image_sub_resource_attributes_{ImageSubResourceAttribute{
-            ImageSubresourceRangeInfo{0, image_create_info.miplevels_, 0,
-                                      image_create_info.array_levels_},
-            image_create_info.queue_family_indices_[0],
-            image_create_info.initial_layout_}} {}
-  ImageDataInfo(VkDeviceSize size,
+                const AllocationCreateInfo& allocation_create_info);
+  ImageDataInfo(VkDeviceSize size, VkImageLayout image_layout,
                 const VkImageCreateInfo& vk_image_create_info,
-                const VmaAllocationCreateInfo& vma_allocation_create_info)
-      : image_create_info_(size, vk_image_create_info),
-        allocation_create_info_(vma_allocation_create_info),
-        image_sub_resource_attributes_{ImageSubResourceAttribute{
-            ImageSubresourceRangeInfo{0, vk_image_create_info.mipLevels, 0,
-                                      vk_image_create_info.arrayLayers},
-            *vk_image_create_info.pQueueFamilyIndices,
-            vk_image_create_info.initialLayout}} {}
+                const VmaAllocationCreateInfo& vma_allocation_create_info);
   ImageDataInfo(const ImageDataInfo& other) = default;
   ImageDataInfo(ImageDataInfo&& other) noexcept = default;
   ImageDataInfo& operator=(const ImageDataInfo& other);
@@ -407,13 +395,12 @@ struct ImageDataInfo {
 
   ImageCreateInfo image_create_info_{};
   AllocationCreateInfo allocation_create_info_{};
-
   std::vector<ImageSubResourceAttribute> image_sub_resource_attributes_{};
 
   ExecuteResult GetRenderDataAttributeID(
       RenderImageDataAttributeID render_image_data_attribute_ID) const;
 
-  void SetImageCreateInfo(std::uint64_t image_size,
+  void SetImageCreateInfo(std::uint64_t image_size, VkImageLayout image_layout,
                           const VkImageCreateInfo& vk_image_create_info);
 
   void SetAllocationCreateInfo(

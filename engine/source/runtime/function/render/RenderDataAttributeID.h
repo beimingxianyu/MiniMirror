@@ -49,11 +49,11 @@ using RenderSamplerAttributeID = Utils::DataAttributeID2;
  * | - - - - - - - - - - - - - - - - | - - - - - - - - - - - - - - - - - - - | - - | - - - - - - - - | - - - - - - | - - - - - - | - - - | - -  | - - |
  *
  * resource_attribute2_
- * | - - - - - - - - - - - - - | - - - - - - - - - - - - - | - - - - - - - - - - - - - | - - - - - - - - - - - - - - - - - - - - | - - - - - |
- * |        ext.width          |         ext.height        |          ext.depth        |                 usage                   | initLayout|
- * |         13bits            |           13bits          |           13bits          |                 20bits                  |    5bits  |
- * |         value             |           value           |           value           |                 Bitmask                 |    value  |
- * | - - - - - - - - - - - - - | - - - - - - - - - - - - - | - - - - - - - - - - - - - | - - - - - - - - - - - - - - - - - - - - | - - - - - |
+ * | - - - - - - - - - - - - - | - - - - - - - - - - - - - | - - - - - - - - - - - - - | - - - - - - - - - - - - - - - - - - - - | - - - - -  |
+ * |        ext.width          |         ext.height        |          ext.depth        |                 usage                   |image_layout|
+ * |         13bits            |           13bits          |           13bits          |                 20bits                  |    5bits   |
+ * |         value             |           value           |           value           |                 Bitmask                 |    value   |
+ * | - - - - - - - - - - - - - | - - - - - - - - - - - - - | - - - - - - - - - - - - - | - - - - - - - - - - - - - - - - - - - - | - - - - -  |
  *
  * resource_attribute3_
  *  | - - - - - | - - - - - - - - - - - - - - - - - | - - - - | - - - - - - - - - - | - - - - - - - - - - | - - - - | - - - - - - - - - - - - - - |

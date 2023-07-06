@@ -1,6 +1,6 @@
 #pragma once
 
-#include "runtime/function/render/RenderImageManager.h"
+#include "runtime/function/render/RenderResourceDataManager.h"
 #include "runtime/function/render/vk_type_define.h"
 #include "vk_engine.h"
 
@@ -10,7 +10,7 @@ class RenderEngine;
 
 class RenderResourceTexture {
  public:
-  using RenderResourceHandler = RenderImageManager::HandlerType;
+  using RenderResourceHandler = RenderResourceDataManagerImp::HandlerType;
 
  public:
   RenderResourceTexture() = default;

@@ -104,11 +104,3 @@ void MM::RenderSystem::RenderResourceDataBase::SetRenderResourceDataID(
     const MM::RenderSystem::RenderResourceDataID& render_resource_data_ID) {
   render_resource_data_ID_ = render_resource_data_ID;
 }
-
-bool MM::RenderSystem::RenderResourceDataBase::IsHaveData() const {
-  return have_data_;
-}
-
-void MM::RenderSystem::RenderResourceDataBase::MarkHaveData() {
-  have_data_ = true;
-}

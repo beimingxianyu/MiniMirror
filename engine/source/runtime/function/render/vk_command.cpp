@@ -1846,6 +1846,7 @@ void MM::RenderSystem::CommandExecutor::ProcessCompleteTask() {
   std::uint32_t compute_buffer_number = 0;
   std::uint32_t transform_buffer_number = 0;
   for (auto& command_buffer : submit_failed_to_be_recycled_command_buffer_) {
+    command_buffer->ResetCommandBuffer();
     if (command_buffer->GetCommandBufferType() == CommandBufferType::GRAPH) {
       free_graph_command_buffers_.push(std::move(command_buffer));
       ++graph_buffer_number;

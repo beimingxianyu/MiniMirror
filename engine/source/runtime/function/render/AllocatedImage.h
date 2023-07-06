@@ -25,8 +25,10 @@ class AllocatedImage final : public RenderResourceDataBase {
                  const ImageDataInfo& image_data_info,
                  const VmaAllocator& allocator, const VkImage& image,
                  const VmaAllocation& allocation, bool have_data = false);
-  AllocatedImage(const std::string& name, RenderEngine* render_engine,
-                 AssetSystem::AssetManager::HandlerType image_handler,
+  AllocatedImage(const std::string& name,
+                 MM::RenderSystem::RenderEngine* render_engine,
+                 MM::AssetSystem::AssetManager::HandlerType image_handler,
+                 VkImageLayout image_layout,
                  const VkImageCreateInfo* vk_image_create_info,
                  const VmaAllocationCreateInfo* vma_allocation_create_info);
   AllocatedImage(const AllocatedImage& other) = delete;
@@ -35,7 +37,8 @@ class AllocatedImage final : public RenderResourceDataBase {
   AllocatedImage& operator=(AllocatedImage&& other) noexcept;
 
  public:
-  std::uint32_t GetQueueIndex() const;
+  const std::vector<ImageSubResourceAttribute>& GetImageSubResourceAttributes()
+      const;
 
   const VkExtent3D& GetImageExtent() const;
 
@@ -90,6 +93,15 @@ class AllocatedImage final : public RenderResourceDataBase {
   static ExecuteResult CheckInitParameters(
       RenderEngine* render_engine,
       const AssetSystem::AssetManager::HandlerType& image_handler,
+      VkImageLayout image_layout, const VkImageCreateInfo* vk_image_create_info,
+      const VmaAllocationCreateInfo* vma_allocation_create_info);
+
+  ExecuteResult LoadImageDataToStageBuffer(
+      AssetSystem::AssetType::Image* image_data,
+      AllocatedBuffer& stage_allocated_buffer);
+
+  MM::ExecuteResult InitImage(
+      const MM::RenderSystem::AllocatedBuffer& stage_allocated_buffer,
       const VkImageCreateInfo* vk_image_create_info,
       const VmaAllocationCreateInfo* vma_allocation_create_info);
 

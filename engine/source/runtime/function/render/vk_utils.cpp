@@ -888,7 +888,7 @@ bool MM::RenderSystem::Utils::ImageRegionAreaLessThanImageExtent(
   return false;
 }
 
-VkImageSubresourceLayers MM::RenderSystem::Utils::GetImageSubResourceLayers(
+VkImageSubresourceLayers MM::RenderSystem::Utils::GetVkImageSubResourceLayers(
     const VkImageAspectFlags& aspect, const std::uint32_t& mipmap_level,
     const std::uint32_t& base_array_layer,
     const std::uint32_t& array_layer_count) {
@@ -1226,7 +1226,8 @@ MM::ExecuteResult MM::RenderSystem::Utils::CheckVkImageCreateInfo(
     LOG_ERROR("The vk image create info mipLevels is error.");
     return ExecuteResult ::OBJECT_IS_INVALID;
   }
-  if (vk_image_create_info->arrayLayers < 128) {
+  // Currently, only 1 layer of images are supported.
+  if (vk_image_create_info->arrayLayers != 1) {
     LOG_ERROR("The vk image create info arrayLayers is error.");
     return ExecuteResult ::OBJECT_IS_INVALID;
   }
@@ -1248,7 +1249,8 @@ MM::ExecuteResult MM::RenderSystem::Utils::CheckVkImageCreateInfo(
     LOG_ERROR("The vk image create info queue family is error.");
     return ExecuteResult ::OBJECT_IS_INVALID;
   }
-  if (vk_image_create_info->initialLayout == VK_IMAGE_LAYOUT_MAX_ENUM) {
+  if (vk_image_create_info->initialLayout != VK_IMAGE_LAYOUT_UNDEFINED &&
+      vk_image_create_info->initialLayout != VK_IMAGE_LAYOUT_PREINITIALIZED) {
     LOG_ERROR("The vk image create info initialLayout is error.");
     return ExecuteResult ::OBJECT_IS_INVALID;
   }
@@ -1323,7 +1325,7 @@ MM::ExecuteResult MM::RenderSystem::Utils::CheckVkBufferCreateInfo(
   return ExecuteResult ::SUCCESS;
 }
 
-VkBufferCreateInfo MM::RenderSystem::Utils::GetBufferCreateInfo(
+VkBufferCreateInfo MM::RenderSystem::Utils::GetVkBufferCreateInfo(
     const void* next, VkBufferCreateFlags flags, VkDeviceSize size,
     VkBufferUsageFlags usage, VkSharingMode sharing_mode,
     std::uint32_t queue_family_index_count,
@@ -1373,7 +1375,7 @@ MM::ExecuteResult MM::RenderSystem::Utils::CreateBuffer(
       allocated_buffer.GetObjectName(),
       RenderResourceDataID{0, render_resource_data_attribute_ID}, render_engine,
       buffer_data_info, render_engine->GetAllocator(), temp_buffer,
-      temp_allocation, false);
+      temp_allocation);
 
   return ExecuteResult ::SUCCESS;
 }
@@ -1415,4 +1417,90 @@ VkImageMemoryBarrier2 MM::RenderSystem::Utils::GetVkImageMemoryBarrier2(
                                dst_queue_family_index,
                                image,
                                subresource_range};
+}
+
+bool MM::RenderSystem::Utils::ImageLayoutSupportDepthTest(
+    VkImageLayout vk_image_layout) {
+  switch (vk_image_layout) {
+    case VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL:
+    case VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL:
+    case VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_STENCIL_ATTACHMENT_OPTIMAL:
+    case VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_STENCIL_READ_ONLY_OPTIMAL:
+    case VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL:
+    case VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_OPTIMAL:
+      return true;
+    default:
+      return false;
+  }
+}
+
+bool MM::RenderSystem::Utils::ImageLayoutSupportStencilTest(
+    VkImageLayout vk_image_layout) {
+  switch (vk_image_layout) {
+    case VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL:
+    case VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL:
+    case VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_STENCIL_ATTACHMENT_OPTIMAL:
+    case VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_STENCIL_READ_ONLY_OPTIMAL:
+    case VK_IMAGE_LAYOUT_STENCIL_ATTACHMENT_OPTIMAL:
+    case VK_IMAGE_LAYOUT_STENCIL_READ_ONLY_OPTIMAL:
+      return true;
+    default:
+      return false;
+  }
+}
+
+VkImageAspectFlags MM::RenderSystem::Utils::ChooseImageAspectFlags(
+    VkImageLayout vk_image_layout) {
+  switch (vk_image_layout) {
+    case VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL:
+    case VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL:
+    case VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_STENCIL_ATTACHMENT_OPTIMAL:
+    case VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_STENCIL_READ_ONLY_OPTIMAL:
+      return VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT;
+    case VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL:
+    case VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_OPTIMAL:
+      return VK_IMAGE_ASPECT_DEPTH_BIT;
+    case VK_IMAGE_LAYOUT_STENCIL_ATTACHMENT_OPTIMAL:
+    case VK_IMAGE_LAYOUT_STENCIL_READ_ONLY_OPTIMAL:
+      return VK_IMAGE_ASPECT_STENCIL_BIT;
+    default:
+      return VK_IMAGE_ASPECT_COLOR_BIT;
+  }
+}
+
+VkImageSubresourceRange MM::RenderSystem::Utils::GetVkImageSubresourceRange(
+    VkImageAspectFlags vk_image_aspect_flags, std::uint32_t base_mipmap_level,
+    std::uint32_t mipmap_level_count, std::uint32_t base_array_level,
+    std::uint32_t array_count) {
+  return VkImageSubresourceRange{vk_image_aspect_flags, base_mipmap_level,
+                                 mipmap_level_count, base_array_level,
+                                 array_count};
+}
+
+VkBufferImageCopy2 MM::RenderSystem::Utils::GetVkBufferImageCopy2(
+    const void* next, VkDeviceSize buffer_offset, uint32_t buffer_row_length,
+    uint32_t buffer_image_height, VkImageSubresourceLayers image_sub_resource,
+    VkOffset3D image_offset, VkExtent3D image_extent) {
+  return VkBufferImageCopy2{VK_STRUCTURE_TYPE_BUFFER_IMAGE_COPY_2,
+                            next,
+                            buffer_offset,
+                            buffer_row_length,
+                            buffer_image_height,
+                            image_sub_resource,
+                            image_offset,
+                            image_extent};
+}
+
+VkCopyBufferToImageInfo2 MM::RenderSystem::Utils::GetVkCopyBufferToImageInfo2(
+    const void* next, const MM::RenderSystem::AllocatedBuffer& src_buffer,
+    MM::RenderSystem::AllocatedImage& dest_image,
+    VkImageLayout dest_image_layout, uint32_t region_count,
+    const VkBufferImageCopy2* regions) {
+  return VkCopyBufferToImageInfo2{VK_STRUCTURE_TYPE_COPY_BUFFER_TO_IMAGE_INFO_2,
+                                  next,
+                                  src_buffer.GetBuffer(),
+                                  dest_image.GetImage(),
+                                  dest_image_layout,
+                                  region_count,
+                                  regions};
 }

@@ -46,10 +46,6 @@ class RenderResourceDataBase : public Manager::ManagedObjectBase {
 
   void MarkThisUseForWrite();
 
-  bool IsHaveData() const;
-
-  void MarkHaveData();
-
   /**
    * \brief Release ownership of the resources held.
    */

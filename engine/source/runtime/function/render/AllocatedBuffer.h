@@ -23,12 +23,13 @@ class AllocatedBuffer : public RenderResourceDataBase {
  public:
   AllocatedBuffer() = default;
   ~AllocatedBuffer() = default;
-  AllocatedBuffer(const std::string& name,
-                  const RenderResourceDataID& render_resource_data_ID,
-                  RenderEngine* render_engine,
-                  const BufferDataInfo& buffer_data_info,
-                  VmaAllocator vma_allocator, VkBuffer vk_buffer,
-                  VmaAllocation vk_allocation, bool have_data = false);
+  AllocatedBuffer(
+      const std::string& name,
+      const MM::RenderSystem::RenderResourceDataID& render_resource_data_ID,
+      RenderEngine* render_engine,
+      const MM::RenderSystem::BufferDataInfo& buffer_data_info,
+      VmaAllocator vma_allocator, VkBuffer vk_buffer,
+      VmaAllocation vk_allocation);
   AllocatedBuffer(const std::string& name, RenderEngine* render_engine,
                   const VkBufferCreateInfo* vk_buffer_create_info,
                   const VmaAllocationCreateInfo* vma_allocation_create_info);
@@ -60,7 +61,8 @@ class AllocatedBuffer : public RenderResourceDataBase {
 
   const VmaAllocation_T* GetAllocation() const;
 
-  const std::vector<BufferSubResourceAttribute>& GetQueueIndexes() const;
+  const std::vector<BufferSubResourceAttribute>& GetSubResourceAttributes()
+      const;
 
   ResourceType GetResourceType() const override;
 

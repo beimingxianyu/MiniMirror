@@ -460,13 +460,15 @@ MM::RenderSystem::AllocationCreateInfo::operator=(
 }
 
 MM::RenderSystem::ImageCreateInfo::ImageCreateInfo(
-    uint64_t image_size, const void* next, VkImageCreateFlags flags,
-    VkImageType image_type, VkFormat format, const VkExtent3D& extent,
-    uint32_t miplevels, uint32_t array_levels, VkSampleCountFlags samples,
-    VkImageTiling tiling, VkImageUsageFlags usage, VkSharingMode sharing_mode,
+    uint64_t image_size, VkImageLayout image_layout, const void* next,
+    VkImageCreateFlags flags, VkImageType image_type, VkFormat format,
+    const VkExtent3D& extent, uint32_t miplevels, uint32_t array_levels,
+    VkSampleCountFlags samples, VkImageTiling tiling, VkImageUsageFlags usage,
+    VkSharingMode sharing_mode,
     const std::vector<std::uint32_t>& queue_family_indices,
     VkImageLayout initial_layout)
     : image_size_(image_size),
+      image_layout_(image_layout),
       next_(next),
       flags_(flags),
       image_type_(image_type),
@@ -482,8 +484,10 @@ MM::RenderSystem::ImageCreateInfo::ImageCreateInfo(
       initial_layout_(initial_layout) {}
 
 MM::RenderSystem::ImageCreateInfo::ImageCreateInfo(
-    std::uint64_t image_size, const VkImageCreateInfo& vk_image_create_info)
+    std::uint64_t image_size, VkImageLayout image_layout,
+    const VkImageCreateInfo& vk_image_create_info)
     : image_size_(image_size),
+      image_layout_(image_layout),
       next_(vk_image_create_info.pNext),
       flags_(vk_image_create_info.flags),
       image_type_(vk_image_create_info.imageType),
@@ -510,6 +514,7 @@ bool MM::RenderSystem::ImageCreateInfo::IsValid() const {
 
 void MM::RenderSystem::ImageCreateInfo::Reset() {
   image_size_ = 0;
+  image_layout_ = VK_IMAGE_LAYOUT_MAX_ENUM;
   next_ = nullptr;
   flags_ = VK_IMAGE_CREATE_FLAG_BITS_MAX_ENUM;
   image_type_ = VK_IMAGE_TYPE_MAX_ENUM;
@@ -530,6 +535,7 @@ void MM::RenderSystem::ImageCreateInfo::Reset() {
 MM::RenderSystem::ImageCreateInfo::ImageCreateInfo(
     ImageCreateInfo&& other) noexcept
     : image_size_(other.image_size_),
+      image_layout_(other.image_layout_),
       next_(other.next_),
       flags_(other.flags_),
       image_type_(other.image_type_),
@@ -553,6 +559,7 @@ MM::RenderSystem::ImageCreateInfo& MM::RenderSystem::ImageCreateInfo::operator=(
   }
 
   image_size_ = other.image_size_;
+  image_layout_ = other.image_layout_;
   next_ = other.next_;
   flags_ = other.flags_;
   image_type_ = other.image_type_;
@@ -577,6 +584,7 @@ MM::RenderSystem::ImageCreateInfo& MM::RenderSystem::ImageCreateInfo::operator=(
   }
 
   image_size_ = other.image_size_;
+  image_layout_ = other.image_layout_;
   next_ = other.next_;
   flags_ = other.flags_;
   image_type_ = other.image_type_;
@@ -658,7 +666,7 @@ MM::ExecuteResult MM::RenderSystem::ImageDataInfo::GetRenderDataAttributeID(
 
   // attribute2
   attribute2 |= Utils::ConvertVkImageLayoutToContinuousValue(
-      image_create_info_.initial_layout_);
+      image_create_info_.image_layout_);
   if (image_create_info_.usage_ == 0x00040000) {
     attribute2 |= static_cast<std::uint64_t>(0x00010000) << 5;
   } else {
@@ -703,8 +711,10 @@ void MM::RenderSystem::ImageDataInfo::SetAllocationCreateInfo(
 }
 
 void MM::RenderSystem::ImageDataInfo::SetImageCreateInfo(
-    std::uint64_t image_size, const VkImageCreateInfo& vk_image_create_info) {
+    std::uint64_t image_size, VkImageLayout image_layout,
+    const VkImageCreateInfo& vk_image_create_info) {
   image_create_info_.image_size_ = image_size;
+  image_create_info_.image_layout_ = image_layout;
   image_create_info_.next_ = vk_image_create_info.pNext;
   image_create_info_.flags_ = vk_image_create_info.flags;
   image_create_info_.image_type_ = vk_image_create_info.imageType;
@@ -753,6 +763,29 @@ MM::RenderSystem::ImageDataInfo& MM::RenderSystem::ImageDataInfo::operator=(
 
   return *this;
 }
+
+MM::RenderSystem::ImageDataInfo::ImageDataInfo(
+    const MM::RenderSystem::ImageCreateInfo& image_create_info,
+    const MM::RenderSystem::AllocationCreateInfo& allocation_create_info)
+    : image_create_info_(image_create_info),
+      allocation_create_info_(allocation_create_info),
+      image_sub_resource_attributes_{ImageSubResourceAttribute{
+          ImageSubresourceRangeInfo{0, image_create_info.miplevels_, 0,
+                                    image_create_info.array_levels_},
+          image_create_info.queue_family_indices_[0],
+          image_create_info.initial_layout_}} {}
+
+MM::RenderSystem::ImageDataInfo::ImageDataInfo(
+    VkDeviceSize size, VkImageLayout image_layout,
+    const VkImageCreateInfo& vk_image_create_info,
+    const VmaAllocationCreateInfo& vma_allocation_create_info)
+    : image_create_info_(size, image_layout, vk_image_create_info),
+      allocation_create_info_(vma_allocation_create_info),
+      image_sub_resource_attributes_{ImageSubResourceAttribute{
+          ImageSubresourceRangeInfo{0, vk_image_create_info.mipLevels, 0,
+                                    vk_image_create_info.arrayLayers},
+          *vk_image_create_info.pQueueFamilyIndices,
+          vk_image_create_info.initialLayout}} {}
 
 MM::RenderSystem::BufferBindInfo::BufferBindInfo(
     const VkDescriptorSetLayoutBinding& bind, VkDeviceSize range_size,
