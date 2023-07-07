@@ -1226,6 +1226,11 @@ MM::ExecuteResult MM::RenderSystem::Utils::CheckVkImageCreateInfo(
     LOG_ERROR("The vk image create info mipLevels is error.");
     return ExecuteResult ::OBJECT_IS_INVALID;
   }
+  if (vk_image_create_info->mipLevels != 1 &&
+      (vk_image_create_info->usage & VK_IMAGE_USAGE_SAMPLED_BIT)) {
+    LOG_ERROR("The vk image create info mipLevels is error.");
+    return ExecuteResult ::OBJECT_IS_INVALID;
+  }
   // Currently, only 1 layer of images are supported.
   if (vk_image_create_info->arrayLayers != 1) {
     LOG_ERROR("The vk image create info arrayLayers is error.");
@@ -1492,7 +1497,7 @@ VkBufferImageCopy2 MM::RenderSystem::Utils::GetVkBufferImageCopy2(
 }
 
 VkCopyBufferToImageInfo2 MM::RenderSystem::Utils::GetVkCopyBufferToImageInfo2(
-    const void* next, const MM::RenderSystem::AllocatedBuffer& src_buffer,
+    const void* next, MM::RenderSystem::AllocatedBuffer& src_buffer,
     MM::RenderSystem::AllocatedImage& dest_image,
     VkImageLayout dest_image_layout, uint32_t region_count,
     const VkBufferImageCopy2* regions) {
@@ -1503,4 +1508,21 @@ VkCopyBufferToImageInfo2 MM::RenderSystem::Utils::GetVkCopyBufferToImageInfo2(
                                   dest_image_layout,
                                   region_count,
                                   regions};
+}
+
+bool MM::RenderSystem::Utils::ImageUseToSampler(
+    VkImageUsageFlags vk_image_usage_flags) {
+  return vk_image_usage_flags & VK_IMAGE_USAGE_SAMPLED_BIT;
+}
+
+VkImageBlit2 MM::RenderSystem::Utils::GetImageBlit2(
+    const void* next, VkImageSubresourceLayers src_sub_resource,
+    VkOffset3D* src_offsets, VkImageSubresourceLayers dest_sub_resource,
+    VkOffset3D* dest_offsets) {
+  return VkImageBlit2{VK_STRUCTURE_TYPE_IMAGE_BLIT_2,
+                      next,
+                      src_sub_resource,
+                      {src_offsets[0], src_offsets[1]},
+                      dest_sub_resource,
+                      {dest_offsets[0], dest_offsets[1]}};
 }

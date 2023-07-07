@@ -10,7 +10,7 @@
 #include "runtime/platform/base/MMObject.h"
 #include "runtime/platform/base/error.h"
 #include "utils/marco.h"
-#include "utils/type_trait.h"
+#include "utils/type_utils.h"
 
 namespace MM {
 namespace Manager {

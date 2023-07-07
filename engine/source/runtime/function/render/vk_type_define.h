@@ -397,7 +397,7 @@ struct ImageDataInfo {
   AllocationCreateInfo allocation_create_info_{};
   std::vector<ImageSubResourceAttribute> image_sub_resource_attributes_{};
 
-  ExecuteResult GetRenderDataAttributeID(
+  ExecuteResult GetRenderResourceDataAttributeID(
       RenderImageDataAttributeID render_image_data_attribute_ID) const;
 
   void SetImageCreateInfo(std::uint64_t image_size, VkImageLayout image_layout,

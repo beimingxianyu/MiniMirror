@@ -9,7 +9,7 @@
 
 #include "utils.h"
 #include "utils/error.h"
-#include "utils/type_trait.h"
+#include "utils/type_utils.h"
 
 namespace MM {
 namespace Utils {

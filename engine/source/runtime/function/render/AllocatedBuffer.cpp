@@ -325,13 +325,13 @@ MM::ExecuteResult MM::RenderSystem::AllocatedBuffer::CopyDataToBuffer(
   }
 
   VkBufferCreateInfo stage_buffer_create_info = Utils::GetVkBufferCreateInfo(
-      nullptr, 0, size,
-      VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+      nullptr, 0, size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
       VK_SHARING_MODE_EXCLUSIVE, 1, &render_engine_->GetTransformQueueIndex());
   VmaAllocationCreateInfo stage_allocation_create_info =
       Utils::GetVmaAllocationCreateInfo(
           VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT,
-          VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE, 0, 0, 0, nullptr, nullptr, 1);
+          VMA_MEMORY_USAGE_AUTO, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
+          VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, 0, nullptr, nullptr, 1);
   AllocatedBuffer stage_buffer{};
   MM_CHECK_WITHOUT_LOG(render_engine_->CreateBuffer(
                            stage_buffer_create_info,
@@ -433,174 +433,184 @@ MM::RenderSystem::AllocatedBuffer& MM::RenderSystem::AllocatedBuffer::operator=(
   return *this;
 }
 
-// "The ownership of resources within the scope of a ownership conversion
-// operation must be the same."
-MM::ExecuteResult MM::RenderSystem::AllocatedBuffer::TransformQueueFamily(
-    const BufferChunkInfo& buffer_chunk_info,
-    std::uint32_t new_queue_family_index) {
-  CommandBufferType command_buffer_type;
-  if (new_queue_family_index == render_engine_->GetGraphQueueIndex()) {
-    command_buffer_type = CommandBufferType::GRAPH;
-  } else if (new_queue_family_index ==
-             render_engine_->GetTransformQueueIndex()) {
-    command_buffer_type = CommandBufferType::TRANSFORM;
-  } else if (new_queue_family_index == render_engine_->GetComputeQueueIndex()) {
-    command_buffer_type = CommandBufferType::COMPUTE;
-  } else {
-    return ExecuteResult::INPUT_PARAMETERS_ARE_NOT_SUITABLE;
-  }
-
-  std::vector<BufferSubResourceAttribute> new_buffer_sub_resource_attribute{};
-
-  MM_CHECK(
-      render_engine_->RunSingleCommandAndWait(
-          command_buffer_type,
-          [this_buffer = this, &new_buffer_sub_resource_attribute,
-           &buffer_chunk_info, new_queue_family_index,
-           command_buffer_type](AllocatedCommandBuffer& cmd) mutable {
-            if (buffer_chunk_info.GetOffset() + buffer_chunk_info.GetSize() >
-                this_buffer->buffer_data_info_.buffer_create_info_.size_) {
-              return ExecuteResult::INPUT_PARAMETERS_ARE_NOT_SUITABLE;
-            }
-
-            new_buffer_sub_resource_attribute.reserve(
-                this_buffer->buffer_data_info_.buffer_sub_resource_attributes_
-                    .size());
-
-            bool change_flag = false;
-            std::uint64_t old_queue_index;
-            for (std::uint64_t i = 0;
-                 i < this_buffer->buffer_data_info_
-                         .buffer_sub_resource_attributes_.size();
-                 ++i) {
-              std::vector<BufferSubResourceAttribute>&
-                  buffer_sub_resource_attributes =
-                      this_buffer->buffer_data_info_
-                          .buffer_sub_resource_attributes_;
-              std::vector<VkBufferMemoryBarrier2> vk_buffer_memory_barrier2s;
-
-              if (!change_flag) {
-                if (buffer_chunk_info.GetOffset() >=
-                    buffer_sub_resource_attributes[i]
-                        .GetChunkInfo()
-                        .GetOffset()) {
-                  old_queue_index =
-                      buffer_sub_resource_attributes[i].GetQueueIndex();
-
-                  if (buffer_chunk_info.GetOffset() !=
-                      buffer_sub_resource_attributes[i]
-                          .GetChunkInfo()
-                          .GetOffset()) {
-                    new_buffer_sub_resource_attribute.emplace_back(
-                        buffer_sub_resource_attributes[i]
-                            .GetChunkInfo()
-                            .GetOffset(),
-                        buffer_chunk_info.GetOffset() -
-                            buffer_sub_resource_attributes[i]
-                                .GetChunkInfo()
-                                .GetOffset(),
-                        buffer_sub_resource_attributes[i].GetQueueIndex());
-                  }
-
-                  new_buffer_sub_resource_attribute.emplace_back(
-                      buffer_chunk_info.GetOffset(),
-                      buffer_chunk_info.GetSize(), new_queue_family_index);
-
-                  BufferChunkInfo change_chunk{buffer_chunk_info.GetOffset(),
-                                               0};
-                  std::uint32_t current_queue_index =
-                      buffer_sub_resource_attributes[i].GetQueueIndex();
-
-                  std::uint64_t end_offset = buffer_chunk_info.GetOffset() +
-                                             buffer_chunk_info.GetSize();
-
-                  for (; i != buffer_sub_resource_attributes.size(); ++i) {
-                    if (buffer_sub_resource_attributes[i].GetQueueIndex() !=
-                        old_queue_index) {
-                      LOG_ERROR(
-                          "The ownership of resources within the scope of a "
-                          "ownership conversion operation must be the same.");
-                      return ExecuteResult::INPUT_PARAMETERS_ARE_NOT_SUITABLE;
-                    }
-
-                    if (buffer_sub_resource_attributes[i]
-                                .GetChunkInfo()
-                                .GetOffset() +
-                            buffer_sub_resource_attributes[i]
-                                .GetChunkInfo()
-                                .GetSize() <=
-                        end_offset) {
-                      continue;
-                    }
-
-                    new_buffer_sub_resource_attribute.emplace_back(
-                        end_offset,
-                        buffer_sub_resource_attributes[i]
-                                .GetChunkInfo()
-                                .GetSize() -
-                            (end_offset - buffer_sub_resource_attributes[i]
-                                              .GetChunkInfo()
-                                              .GetOffset()),
-                        buffer_sub_resource_attributes[i].GetQueueIndex());
-
-                    break;
-                  }
-
-                  continue;
-                }
-              }
-
-              new_buffer_sub_resource_attribute.emplace_back(
-                  buffer_sub_resource_attributes[i].GetChunkInfo().GetOffset(),
-                  buffer_sub_resource_attributes[i].GetChunkInfo().GetSize(),
-                  buffer_sub_resource_attributes[i].GetQueueIndex());
-            }
-
-            MM_CHECK(Utils::BeginCommandBuffer(cmd),
-                     LOG_ERROR("Failed to begin command buffer.");
-                     return MM_RESULT_CODE;)
-
-            VkBufferMemoryBarrier2 buffer_memory_barrier;
-            if (command_buffer_type == CommandBufferType::TRANSFORM) {
-              buffer_memory_barrier = Utils::GetVkBufferMemoryBarrier2(
-                  VK_PIPELINE_STAGE_2_TRANSFER_BIT,
-                  VK_ACCESS_2_TRANSFER_READ_BIT,
-                  VK_PIPELINE_STAGE_2_TRANSFER_BIT,
-                  VK_ACCESS_2_TRANSFER_READ_BIT, old_queue_index,
-                  new_queue_family_index, *this_buffer,
-                  buffer_chunk_info.GetOffset(), buffer_chunk_info.GetSize());
-            } else if (command_buffer_type == CommandBufferType::GRAPH) {
-              buffer_memory_barrier = Utils::GetVkBufferMemoryBarrier2(
-                  VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT, 0,
-                  VK_PIPELINE_STAGE_2_BOTTOM_OF_PIPE_BIT, 0, old_queue_index,
-                  new_queue_family_index, *this_buffer,
-                  buffer_chunk_info.GetOffset(), buffer_chunk_info.GetSize());
-            } else if (command_buffer_type == CommandBufferType::COMPUTE) {
-              buffer_memory_barrier = Utils::GetVkBufferMemoryBarrier2(
-                  VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT, 0,
-                  VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT, 0, old_queue_index,
-                  new_queue_family_index, *this_buffer,
-                  buffer_chunk_info.GetOffset(), buffer_chunk_info.GetSize());
-            } else {
-              return ExecuteResult ::UNDEFINED_ERROR;
-            }
-
-            VkDependencyInfo dependency_info = Utils::GetVkDependencyInfo(
-                0, nullptr, 0, &buffer_memory_barrier, 0, nullptr, 0);
-
-            vkCmdPipelineBarrier2(cmd.GetCommandBuffer(), &dependency_info);
-
-            MM_CHECK(Utils::EndCommandBuffer(cmd),
-                     LOG_ERROR("Failed to end command buffer.");
-                     return MM_RESULT_CODE;)
-
-            return ExecuteResult::SUCCESS;
-          },
-          std::vector<RenderResourceDataID>{GetRenderResourceDataID()}),
-      return MM_RESULT_CODE;)
-
-  buffer_data_info_.buffer_sub_resource_attributes_ =
-      std::move(new_buffer_sub_resource_attribute);
-
-  return ExecuteResult::SUCCESS;
-}
+// MM::ExecuteResult MM::RenderSystem::AllocatedBuffer::TransformQueueFamily(
+//     const BufferChunkInfo& buffer_chunk_info,
+//     std::uint32_t new_queue_family_index) {
+//   if (buffer_chunk_info.GetOffset() + buffer_chunk_info.GetSize() >
+//       buffer_data_info_.buffer_create_info_.size_) {
+//     return ExecuteResult::INPUT_PARAMETERS_ARE_NOT_SUITABLE;
+//   }
+//
+//   CommandBufferType command_buffer_type;
+//   if (new_queue_family_index == render_engine_->GetGraphQueueIndex()) {
+//     command_buffer_type = CommandBufferType::GRAPH;
+//   } else if (new_queue_family_index ==
+//              render_engine_->GetTransformQueueIndex()) {
+//     command_buffer_type = CommandBufferType::TRANSFORM;
+//   } else if (new_queue_family_index ==
+//   render_engine_->GetComputeQueueIndex()) {
+//     command_buffer_type = CommandBufferType::COMPUTE;
+//   } else {
+//     return ExecuteResult::INPUT_PARAMETERS_ARE_NOT_SUITABLE;
+//   }
+//
+//   std::vector<BufferSubResourceAttribute>
+//   new_buffer_sub_resource_attribute{};
+//
+//   MM_CHECK(
+//       render_engine_->RunSingleCommandAndWait(
+//           command_buffer_type,
+//           [this_buffer = this, &new_buffer_sub_resource_attribute,
+//            &buffer_chunk_info, new_queue_family_index,
+//            command_buffer_type](AllocatedCommandBuffer& cmd) mutable {
+//             if (buffer_chunk_info.GetOffset() + buffer_chunk_info.GetSize() >
+//                 this_buffer->buffer_data_info_.buffer_create_info_.size_) {
+//               return ExecuteResult::INPUT_PARAMETERS_ARE_NOT_SUITABLE;
+//             }
+//
+//             new_buffer_sub_resource_attribute.reserve(
+//                 this_buffer->buffer_data_info_.buffer_sub_resource_attributes_
+//                     .size());
+//
+//             bool change_flag = false;
+//             std::uint64_t old_queue_index;
+//             for (std::uint64_t i = 0;
+//                  i < this_buffer->buffer_data_info_
+//                          .buffer_sub_resource_attributes_.size();
+//                  ++i) {
+//               std::vector<BufferSubResourceAttribute>&
+//                   buffer_sub_resource_attributes =
+//                       this_buffer->buffer_data_info_
+//                           .buffer_sub_resource_attributes_;
+//               std::vector<VkBufferMemoryBarrier2> vk_buffer_memory_barrier2s;
+//
+//               if (!change_flag) {
+//                 if (buffer_chunk_info.GetOffset() >=
+//                     buffer_sub_resource_attributes[i]
+//                         .GetChunkInfo()
+//                         .GetOffset()) {
+//                   old_queue_index =
+//                       buffer_sub_resource_attributes[i].GetQueueIndex();
+//
+//                   if (buffer_chunk_info.GetOffset() !=
+//                       buffer_sub_resource_attributes[i]
+//                           .GetChunkInfo()
+//                           .GetOffset()) {
+//                     new_buffer_sub_resource_attribute.emplace_back(
+//                         buffer_sub_resource_attributes[i]
+//                             .GetChunkInfo()
+//                             .GetOffset(),
+//                         buffer_chunk_info.GetOffset() -
+//                             buffer_sub_resource_attributes[i]
+//                                 .GetChunkInfo()
+//                                 .GetOffset(),
+//                         buffer_sub_resource_attributes[i].GetQueueIndex());
+//                   }
+//
+//                   new_buffer_sub_resource_attribute.emplace_back(
+//                       buffer_chunk_info.GetOffset(),
+//                       buffer_chunk_info.GetSize(), new_queue_family_index);
+//
+//                   BufferChunkInfo change_chunk{buffer_chunk_info.GetOffset(),
+//                                                0};
+//                   std::uint32_t current_queue_index =
+//                       buffer_sub_resource_attributes[i].GetQueueIndex();
+//
+//                   std::uint64_t end_offset = buffer_chunk_info.GetOffset() +
+//                                              buffer_chunk_info.GetSize();
+//
+//                   for (; i != buffer_sub_resource_attributes.size(); ++i) {
+//                     if (buffer_sub_resource_attributes[i].GetQueueIndex() !=
+//                         old_queue_index) {
+//                       LOG_ERROR(
+//                           "The ownership of resources within the scope of a "
+//                           "ownership conversion operation must be the
+//                           same.");
+//                       return
+//                       ExecuteResult::INPUT_PARAMETERS_ARE_NOT_SUITABLE;
+//                     }
+//
+//                     if (buffer_sub_resource_attributes[i]
+//                                 .GetChunkInfo()
+//                                 .GetOffset() +
+//                             buffer_sub_resource_attributes[i]
+//                                 .GetChunkInfo()
+//                                 .GetSize() <=
+//                         end_offset) {
+//                       continue;
+//                     }
+//
+//                     new_buffer_sub_resource_attribute.emplace_back(
+//                         end_offset,
+//                         buffer_sub_resource_attributes[i]
+//                                 .GetChunkInfo()
+//                                 .GetSize() -
+//                             (end_offset - buffer_sub_resource_attributes[i]
+//                                               .GetChunkInfo()
+//                                               .GetOffset()),
+//                         buffer_sub_resource_attributes[i].GetQueueIndex());
+//
+//                     break;
+//                   }
+//
+//                   continue;
+//                 }
+//               }
+//
+//               new_buffer_sub_resource_attribute.emplace_back(
+//                   buffer_sub_resource_attributes[i].GetChunkInfo().GetOffset(),
+//                   buffer_sub_resource_attributes[i].GetChunkInfo().GetSize(),
+//                   buffer_sub_resource_attributes[i].GetQueueIndex());
+//             }
+//
+//             MM_CHECK(Utils::BeginCommandBuffer(cmd),
+//                      LOG_ERROR("Failed to begin command buffer.");
+//                      return MM_RESULT_CODE;)
+//
+//             VkBufferMemoryBarrier2 buffer_memory_barrier;
+//             if (command_buffer_type == CommandBufferType::TRANSFORM) {
+//               buffer_memory_barrier = Utils::GetVkBufferMemoryBarrier2(
+//                   VK_PIPELINE_STAGE_2_TRANSFER_BIT,
+//                   VK_ACCESS_2_TRANSFER_READ_BIT,
+//                   VK_PIPELINE_STAGE_2_TRANSFER_BIT,
+//                   VK_ACCESS_2_TRANSFER_READ_BIT, old_queue_index,
+//                   new_queue_family_index, *this_buffer,
+//                   buffer_chunk_info.GetOffset(),
+//                   buffer_chunk_info.GetSize());
+//             } else if (command_buffer_type == CommandBufferType::GRAPH) {
+//               buffer_memory_barrier = Utils::GetVkBufferMemoryBarrier2(
+//                   VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT, 0,
+//                   VK_PIPELINE_STAGE_2_BOTTOM_OF_PIPE_BIT, 0, old_queue_index,
+//                   new_queue_family_index, *this_buffer,
+//                   buffer_chunk_info.GetOffset(),
+//                   buffer_chunk_info.GetSize());
+//             } else if (command_buffer_type == CommandBufferType::COMPUTE) {
+//               buffer_memory_barrier = Utils::GetVkBufferMemoryBarrier2(
+//                   VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT, 0,
+//                   VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT, 0, old_queue_index,
+//                   new_queue_family_index, *this_buffer,
+//                   buffer_chunk_info.GetOffset(),
+//                   buffer_chunk_info.GetSize());
+//             } else {
+//               return ExecuteResult ::UNDEFINED_ERROR;
+//             }
+//
+//             VkDependencyInfo dependency_info = Utils::GetVkDependencyInfo(
+//                 0, nullptr, 0, &buffer_memory_barrier, 0, nullptr, 0);
+//
+//             vkCmdPipelineBarrier2(cmd.GetCommandBuffer(), &dependency_info);
+//
+//             MM_CHECK(Utils::EndCommandBuffer(cmd),
+//                      LOG_ERROR("Failed to end command buffer.");
+//                      return MM_RESULT_CODE;)
+//
+//             return ExecuteResult::SUCCESS;
+//           },
+//           std::vector<RenderResourceDataID>{GetRenderResourceDataID()}),
+//       return MM_RESULT_CODE;)
+//
+//   buffer_data_info_.buffer_sub_resource_attributes_ =
+//       std::move(new_buffer_sub_resource_attribute);
+//
+//   return ExecuteResult::SUCCESS;
+// }

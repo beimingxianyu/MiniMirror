@@ -388,10 +388,18 @@ VkImageSubresourceRange GetVkImageSubresourceRange(
     std::uint32_t array_count);
 
 VkCopyBufferToImageInfo2 GetVkCopyBufferToImageInfo2(
-    const void* next, const MM::RenderSystem::AllocatedBuffer& src_buffer,
+    const void* next, MM::RenderSystem::AllocatedBuffer& src_buffer,
     MM::RenderSystem::AllocatedImage& dest_image,
     VkImageLayout dest_image_layout, uint32_t region_count,
     const VkBufferImageCopy2* regions);
+
+bool ImageUseToSampler(VkImageUsageFlags vk_image_usage_flags);
+
+VkImageBlit2 GetImageBlit2(const void* next,
+                           VkImageSubresourceLayers src_sub_resource,
+                           VkOffset3D src_offsets[2],
+                           VkImageSubresourceLayers dest_sub_resource,
+                           VkOffset3D dest_offsets[2]);
 }  // namespace Utils
 }  // namespace RenderSystem
 }  // namespace MM

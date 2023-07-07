@@ -2,7 +2,7 @@
 
 #include "runtime/core/reflection/type.h"
 #include "runtime/core/reflection/variable.h"
-#include "utils/type_trait.h"
+#include "utils/type_utils.h"
 #include "utils/utils.h"
 
 namespace MM {

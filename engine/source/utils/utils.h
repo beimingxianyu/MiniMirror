@@ -6,6 +6,8 @@
 #include <string>
 #include <thread>
 
+#include "utils/type_utils.h"
+
 namespace MM {
 namespace Utils {
 template <typename ElementType, typename Destructor, typename... Args>
@@ -109,6 +111,46 @@ template <typename T>
 std::uint64_t Hash(T&& value) {
   std::hash<typename std::decay<T>::type> hash;
   return hash(std::forward<T>(value));
+}
+
+template <typename T>
+const T& Max(const T& lhs, const T& rhs) {
+  if (lhs < rhs) {
+    return rhs;
+  }
+
+  return lhs;
+}
+
+template <typename T1, typename... T2>
+const T1& Max(const T1& lhs, const T2&... rhs) {
+  static_assert(IsAllSameV<T1, T2...>);
+  const T1& rhs_max = Max(rhs...);
+  if (lhs < rhs_max) {
+    return rhs_max;
+  }
+
+  return lhs;
+}
+
+template <typename T>
+const T& Min(const T& lhs, const T& rhs) {
+  if (lhs < rhs) {
+    return lhs;
+  }
+
+  return rhs;
+}
+
+template <typename T1, typename... T2>
+const T1& Min(const T1& lhs, const T2&... rhs) {
+  static_assert(IsAllSameV<T1, T2...>);
+  const T1& rhs_min = Min(rhs...);
+  if (lhs < rhs_min) {
+    return lhs;
+  }
+
+  return rhs_min;
 }
 }  // namespace Utils
 }  // namespace MM

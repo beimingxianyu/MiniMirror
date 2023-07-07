@@ -635,9 +635,9 @@ void MM::RenderSystem::ImageDataInfo::Reset() {
   image_sub_resource_attributes_.clear();
 }
 
-MM::ExecuteResult MM::RenderSystem::ImageDataInfo::GetRenderDataAttributeID(
-    MM::RenderSystem::RenderImageDataAttributeID render_image_data_attribute_ID)
-    const {
+MM::ExecuteResult
+MM::RenderSystem::ImageDataInfo::GetRenderResourceDataAttributeID(
+    RenderImageDataAttributeID render_image_data_attribute_ID) const {
   if (!IsValid()) {
     return ExecuteResult ::OBJECT_IS_INVALID;
   }

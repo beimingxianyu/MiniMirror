@@ -40,6 +40,13 @@ class AllocatedImage final : public RenderResourceDataBase {
   const std::vector<ImageSubResourceAttribute>& GetImageSubResourceAttributes()
       const;
 
+  // TODO complete this
+  // The ownership of resources within the scope of a
+  // ownership conversion operation must be the same.
+  //  ExecuteResult TransformSubResourceAttribute(
+  //      const std::vector<ImageSubResourceAttribute>&
+  //          new_image_sub_resource_attribute);
+
   const VkExtent3D& GetImageExtent() const;
 
   VkDeviceSize GetImageSize() const;
@@ -96,12 +103,31 @@ class AllocatedImage final : public RenderResourceDataBase {
       VkImageLayout image_layout, const VkImageCreateInfo* vk_image_create_info,
       const VmaAllocationCreateInfo* vma_allocation_create_info);
 
+  static ExecuteResult CheckInitParametersWhenInitFromAnAsset(
+      RenderEngine* render_engine,
+      const AssetSystem::AssetManager::HandlerType& image_handler,
+      VkImageLayout image_layout, const VkImageCreateInfo* vk_image_create_info,
+      const VmaAllocationCreateInfo* vma_allocation_create_info);
+
   ExecuteResult LoadImageDataToStageBuffer(
       AssetSystem::AssetType::Image* image_data,
       AllocatedBuffer& stage_allocated_buffer);
 
+  void AddInitLayoutAndQueueIndexTransformCommands(
+      MM::RenderSystem::AllocatedCommandBuffer& cmd, VkImage created_image);
+
+  void AddCopyStageBufferDataToImageCommands(
+      MM::RenderSystem::AllocatedCommandBuffer& cmd,
+      AllocatedBuffer& stage_allocated_buffer, VkImage created_image);
+
+  void AddGenerateMipmapsCommandsAndAddQueueIndexAndLayoutTransformCommands(
+      MM::RenderSystem::AllocatedCommandBuffer& cmd, VkImage created_image);
+
+  void AddQueueIndexAndLayoutTransformCommands(
+      MM::RenderSystem::AllocatedCommandBuffer& cmd, VkImage created_image);
+
   MM::ExecuteResult InitImage(
-      const MM::RenderSystem::AllocatedBuffer& stage_allocated_buffer,
+      MM::RenderSystem::AllocatedBuffer& stage_allocated_buffer,
       const VkImageCreateInfo* vk_image_create_info,
       const VmaAllocationCreateInfo* vma_allocation_create_info);
 

@@ -72,8 +72,11 @@ class AllocatedBuffer : public RenderResourceDataBase {
 
   bool CanWrite() const override;
 
-  ExecuteResult TransformQueueFamily(const BufferChunkInfo& buffer_chunk_info,
-                                     std::uint32_t new_queue_family_index);
+  //  // The ownership of resources within the scope of a ownership conversion
+  //  // operation must be the same.
+  //  ExecuteResult TransformQueueFamily(const BufferChunkInfo&
+  //  buffer_chunk_info,
+  //                                     std::uint32_t new_queue_family_index);
 
   ExecuteResult CopyDataToBuffer(std::uint64_t dest_offset, void* data,
                                  std::uint64_t src_offset, std::uint64_t size);

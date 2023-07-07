@@ -1,5 +1,7 @@
 #pragma once
+
 #include <cstdint>
+#include <type_traits>
 
 namespace MM {
 namespace Utils {
@@ -82,8 +84,10 @@ using NumType62 = NumType<62>;
 using NumType63 = NumType<63>;
 using NumType64 = NumType<64>;
 
+bool CheckAllTrue(bool arg) { return arg; }
+
 template <typename... BoolArgs>
-static bool CheckAllTrue(bool arg1, BoolArgs... args) {
+bool CheckAllTrue(bool arg1, BoolArgs... args) {
   return arg1 & CheckAllTrue(args...);
 }
 
@@ -165,5 +169,28 @@ using IsAndT = typename IsAnd<Condition1, Condition2, void>::Type;
 
 template <bool Condition1, bool Condition2>
 using IsXorT = typename IsXor<Condition1, Condition2, void>::Type;
+
+template <typename T1, typename T2, typename... Args>
+struct IsAllSame;
+
+template <typename T>
+struct IsAllSame<T, T> {
+  static constexpr bool Value = true;
+};
+
+template <typename T1, typename T2>
+struct IsAllSame<T1, T2> {
+  static constexpr bool Value = false;
+};
+
+template <typename T1, typename T2, typename... Args>
+struct IsAllSame {
+  static constexpr bool Value =
+      IsAllSame<T1, T2>::Value && IsAllSame<T2, Args...>::Value;
+  ;
+};
+
+template <typename T1, typename T2, typename... Args>
+constexpr bool IsAllSameV = IsAllSame<T1, T2, Args...>::Value;
 }  // namespace Utils
 }  // namespace MM
