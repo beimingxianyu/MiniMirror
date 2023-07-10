@@ -483,19 +483,25 @@ VkDependencyInfo MM::RenderSystem::Utils::GetImageMemoryDependencyInfo(
 }
 
 VkDependencyInfo MM::RenderSystem::Utils::GetVkDependencyInfo(
-    const std::vector<VkMemoryBarrier2>& memory_barriers,
-    const std::vector<VkBufferMemoryBarrier2>& buffer_barriers,
-    const std::vector<VkImageMemoryBarrier2>& image_barriers,
+    const std::vector<VkMemoryBarrier2>* memory_barriers,
+    const std::vector<VkBufferMemoryBarrier2>* buffer_barriers,
+    const std::vector<VkImageMemoryBarrier2>* image_barriers,
     VkDependencyFlags dependency_flags) {
-  return VkDependencyInfo{VK_STRUCTURE_TYPE_DEPENDENCY_INFO,
-                          nullptr,
-                          dependency_flags,
-                          static_cast<uint32_t>(memory_barriers.size()),
-                          memory_barriers.data(),
-                          static_cast<uint32_t>(buffer_barriers.size()),
-                          buffer_barriers.data(),
-                          static_cast<uint32_t>(image_barriers.size()),
-                          image_barriers.data()};
+  VkDependencyInfo dependency_info{VK_STRUCTURE_TYPE_DEPENDENCY_INFO, nullptr};
+  if (memory_barriers && !memory_barriers->empty()) {
+    dependency_info.memoryBarrierCount = memory_barriers->size();
+    dependency_info.pMemoryBarriers = memory_barriers->data();
+  }
+  if (buffer_barriers && !memory_barriers->empty()) {
+    dependency_info.bufferMemoryBarrierCount = buffer_barriers->size();
+    dependency_info.pBufferMemoryBarriers = buffer_barriers->data();
+  }
+  if (image_barriers && !image_barriers->empty()) {
+    dependency_info.imageMemoryBarrierCount = image_barriers->size();
+    dependency_info.pImageMemoryBarriers = image_barriers->data();
+  }
+  dependency_info.dependencyFlags = dependency_flags;
+  return dependency_info;
 }
 
 void MM::RenderSystem::Utils::AddTransferImageCommands(
@@ -1374,7 +1380,8 @@ MM::ExecuteResult MM::RenderSystem::Utils::CreateBuffer(
       BufferCreateInfo(vk_buffer_create_info),
       AllocationCreateInfo(vma_allocation_create_info)};
   RenderResourceDataAttributeID render_resource_data_attribute_ID;
-  buffer_data_info.GetRenderDataAttributeID(render_resource_data_attribute_ID);
+  buffer_data_info.GetRenderResourceDataAttributeID(
+      render_resource_data_attribute_ID);
 
   allocated_buffer = AllocatedBuffer(
       allocated_buffer.GetObjectName(),
@@ -1525,4 +1532,74 @@ VkImageBlit2 MM::RenderSystem::Utils::GetImageBlit2(
                       {src_offsets[0], src_offsets[1]},
                       dest_sub_resource,
                       {dest_offsets[0], dest_offsets[1]}};
+}
+
+MM::RenderSystem::CommandBufferType
+MM::RenderSystem::Utils::ChooseCommandBufferType(
+    MM::RenderSystem::RenderEngine* render_engine, std::uint32_t queue_index) {
+  assert(render_engine != nullptr);
+
+  if (queue_index == render_engine->GetGraphQueueIndex()) {
+    return CommandBufferType ::GRAPH;
+  }
+  if (queue_index == render_engine->GetTransformQueueIndex()) {
+    return CommandBufferType ::TRANSFORM;
+  }
+  if (queue_index == render_engine->GetComputeQueueIndex()) {
+    return CommandBufferType ::COMPUTE;
+  }
+  return CommandBufferType ::UNDEFINED;
+}
+
+VkBufferMemoryBarrier2 MM::RenderSystem::Utils::GetVkBufferMemoryBarrier2(
+    VkPipelineStageFlags2 src_stage, VkAccessFlags2 src_access,
+    VkPipelineStageFlags2 dest_stage, VkAccessFlags2 dest_access,
+    std::uint32_t src_queue_family_index, std::uint32_t dest_queue_family_index,
+    VkBuffer buffer, VkDeviceSize offset, VkDeviceSize size) {
+  return VkBufferMemoryBarrier2{VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER_2,
+                                nullptr,
+                                src_stage,
+                                src_access,
+                                dest_stage,
+                                dest_access,
+                                src_queue_family_index,
+                                dest_queue_family_index,
+                                buffer,
+                                offset,
+                                size};
+}
+
+VkCopyBufferInfo2 MM::RenderSystem::Utils::GetCopyBufferInfo(
+    const MM::RenderSystem::AllocatedBuffer& src_buffer,
+    MM::RenderSystem::AllocatedBuffer& dest_buffer, std::uint32_t regions_count,
+    VkBufferCopy2* regions) {
+  return VkCopyBufferInfo2{VK_STRUCTURE_TYPE_COPY_BUFFER_INFO_2,
+                           nullptr,
+                           const_cast<VkBuffer>(src_buffer.GetBuffer()),
+                           dest_buffer.GetBuffer(),
+                           regions_count,
+                           regions};
+}
+
+VkCopyBufferInfo2 MM::RenderSystem::Utils::GetCopyBufferInfo(
+    MM::RenderSystem::AllocatedBuffer& src_buffer,
+    MM::RenderSystem::AllocatedBuffer& dest_buffer, std::uint32_t regions_count,
+    VkBufferCopy2* regions) {
+  return VkCopyBufferInfo2{VK_STRUCTURE_TYPE_COPY_BUFFER_INFO_2,
+                           nullptr,
+                           src_buffer.GetBuffer(),
+                           dest_buffer.GetBuffer(),
+                           regions_count,
+                           regions};
+}
+
+VkCopyBufferInfo2 MM::RenderSystem::Utils::GetCopyBufferInfo(
+    VkBuffer src_buffer, VkBuffer dest_buffer, void* next,
+    std::uint32_t regions_count, VkBufferCopy2* regions) {
+  return VkCopyBufferInfo2{VK_STRUCTURE_TYPE_COPY_BUFFER_INFO_2,
+                           next,
+                           src_buffer,
+                           dest_buffer,
+                           regions_count,
+                           regions};
 }

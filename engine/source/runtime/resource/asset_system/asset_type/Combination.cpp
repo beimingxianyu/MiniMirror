@@ -344,6 +344,40 @@ Combination::Combination(
     std::vector<AssetManager::AssetHandler>&& asset_handlers)
     : asset_handlers_(std::move(asset_handlers)) {}
 
+std::vector<std::pair<void*, std::uint64_t>> Combination::GetDatas() {
+  std::vector<std::pair<void*, std::uint64_t>> datas;
+  datas.reserve(asset_handlers_.size());
+  for (auto& asset_handler : asset_handlers_) {
+    for (auto sub_datas : asset_handler.GetAsset().GetDatas()) {
+      datas.emplace_back(sub_datas);
+    }
+  }
+
+  return datas;
+}
+
+std::vector<std::pair<const void*, std::uint64_t>> Combination::GetDatas()
+    const {
+  std::vector<std::pair<const void*, std::uint64_t>> datas;
+  datas.reserve(asset_handlers_.size());
+  for (const auto& asset_handler : asset_handlers_) {
+    for (auto sub_datas : asset_handler.GetAsset().GetDatas()) {
+      datas.emplace_back(sub_datas);
+    }
+  }
+
+  return datas;
+}
+
+std::uint64_t Combination::GetSize() const {
+  std::uint64_t size;
+  for (const auto& handler : asset_handlers_) {
+    size += handler.GetAsset().GetSize();
+  }
+
+  return size;
+}
+
 template <std::uint64_t index>
 const AssetManager::AssetHandler& Combination::Get() const {
   assert(index < asset_handlers_.size());

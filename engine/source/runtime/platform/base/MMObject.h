@@ -27,6 +27,9 @@ class MMObject {
 
   MM::Utils::GUID GetGuid() const;
 
+ protected:
+  virtual void Reset();
+
  private:
   MM::Utils::GUID guid_{};
 };

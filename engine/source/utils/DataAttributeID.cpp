@@ -80,6 +80,11 @@ std::uint64_t MM::Utils::DataAttributeID2::GetHashCode() const {
   return resource_attribute1_ ^ resource_attribute2_;
 }
 
+void MM::Utils::DataAttributeID2::Reset() {
+  resource_attribute1_ = 0;
+  resource_attribute2_ = 0;
+}
+
 MM::Utils::DataAttributeID3::DataAttributeID3(std::uint64_t resource_attribute1,
                                               std::uint64_t resource_attribute2,
                                               std::uint64_t resource_attribute3)
@@ -178,4 +183,10 @@ void MM::Utils::Swap(MM::Utils::DataAttributeID3& lhs,
 
 std::uint64_t MM::Utils::DataAttributeID3::GetHashCode() const {
   return resource_attribute1_ ^ resource_attribute2_ ^ resoutce_attribute3_;
+}
+
+void MM::Utils::DataAttributeID3::Reset() {
+  resource_attribute1_ = 0;
+  resource_attribute2_ = 0;
+  resoutce_attribute3_ = 0;
 }

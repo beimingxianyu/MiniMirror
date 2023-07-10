@@ -19,7 +19,7 @@ class RenderResourceDataBase : public Manager::ManagedObjectBase {
   RenderResourceDataBase() = default;
   ~RenderResourceDataBase() override = default;
   RenderResourceDataBase(const RenderResourceDataBase& other) = delete;
-  RenderResourceDataBase(RenderResourceDataBase&& other) noexcept = default;
+  RenderResourceDataBase(RenderResourceDataBase&& other) noexcept;
   RenderResourceDataBase& operator=(const RenderResourceDataBase& other) =
       delete;
   RenderResourceDataBase& operator=(RenderResourceDataBase&& other) noexcept;
@@ -44,7 +44,15 @@ class RenderResourceDataBase : public Manager::ManagedObjectBase {
 
   bool IsUseForWrite() const;
 
+  bool IsManaged() const;
+
+  bool IsAssetResource() const;
+
   void MarkThisUseForWrite();
+
+  void MarkThisIsManaged();
+
+  void MarkThisIsAssetResource();
 
   /**
    * \brief Release ownership of the resources held.
@@ -77,7 +85,8 @@ class RenderResourceDataBase : public Manager::ManagedObjectBase {
   RenderResourceDataID render_resource_data_ID_{};
 
   bool used_for_write_{false};
-  bool have_data_{false};
+  bool is_managed_{false};
+  bool is_asset_resource_{false};
 };
 }  // namespace RenderSystem
 }  // namespace MM

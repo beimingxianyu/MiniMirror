@@ -19,6 +19,47 @@ namespace MM {
 namespace RenderSystem {
 class RenderEngine;
 
+class AllocatedBufferWrapper {
+ public:
+  AllocatedBufferWrapper() = default;
+  ~AllocatedBufferWrapper();
+  AllocatedBufferWrapper(const VmaAllocator& allocator, const VkBuffer& buffer,
+                         const VmaAllocation& allocation);
+  AllocatedBufferWrapper(const AllocatedBufferWrapper& other) = delete;
+  AllocatedBufferWrapper(AllocatedBufferWrapper&& other) noexcept;
+  AllocatedBufferWrapper& operator=(const AllocatedBufferWrapper& other) =
+      delete;
+  AllocatedBufferWrapper& operator=(AllocatedBufferWrapper&& other) noexcept;
+
+ public:
+  VmaAllocator GetAllocator();
+
+  VkBuffer GetBuffer();
+
+  VmaAllocation GetAllocation();
+
+  const VmaAllocator_T* GetAllocator() const;
+
+  const VkBuffer_T* GetBuffer() const;
+
+  const VmaAllocation_T* GetAllocation() const;
+
+  void SetAllocator(VmaAllocator allocator);
+
+  void SetBuffer(VkBuffer buffer);
+
+  void SetAllocation(VmaAllocation allocation);
+
+  void Release();
+
+  bool IsValid() const;
+
+ private:
+  VmaAllocator allocator_{nullptr};
+  VkBuffer buffer_{nullptr};
+  VmaAllocation allocation_{nullptr};
+};
+
 class AllocatedBuffer : public RenderResourceDataBase {
  public:
   AllocatedBuffer() = default;
@@ -33,6 +74,10 @@ class AllocatedBuffer : public RenderResourceDataBase {
   AllocatedBuffer(const std::string& name, RenderEngine* render_engine,
                   const VkBufferCreateInfo* vk_buffer_create_info,
                   const VmaAllocationCreateInfo* vma_allocation_create_info);
+  AllocatedBuffer(const std::string& name, RenderEngine* render_engine,
+                  MM::AssetSystem::AssetManager::HandlerType asset_handler,
+                  const VkBufferCreateInfo* vk_buffer_create_info,
+                  const VmaAllocationCreateInfo* vma_allocation_create_info);
   AllocatedBuffer(const AllocatedBuffer& other) = delete;
   AllocatedBuffer(AllocatedBuffer&& other) noexcept;
   AllocatedBuffer& operator=(const AllocatedBuffer& other) = delete;
@@ -40,6 +85,10 @@ class AllocatedBuffer : public RenderResourceDataBase {
 
  public:
   const VkDeviceSize& GetBufferSize() const;
+
+  RenderEngine* GetRenderEnginePtr();
+
+  const RenderEngine* GetRenderEnginePtr() const;
 
   bool CanMapped() const;
 
@@ -64,6 +113,12 @@ class AllocatedBuffer : public RenderResourceDataBase {
   const std::vector<BufferSubResourceAttribute>& GetSubResourceAttributes()
       const;
 
+  const BufferDataInfo& GetBufferDataInfo() const;
+
+  const BufferCreateInfo& GetBufferCreateInfo() const;
+
+  const AllocationCreateInfo& GetAllocationCreateInfo() const;
+
   ResourceType GetResourceType() const override;
 
   VkDeviceSize GetSize() const override;
@@ -81,6 +136,10 @@ class AllocatedBuffer : public RenderResourceDataBase {
   ExecuteResult CopyDataToBuffer(std::uint64_t dest_offset, void* data,
                                  std::uint64_t src_offset, std::uint64_t size);
 
+  MM::ExecuteResult CopyAssetDataToBuffer(
+      MM::AssetSystem::AssetManager::HandlerType asset_handler,
+      std::uint32_t queue_index);
+
   void Release() override;
 
   bool IsValid() const override;
@@ -91,53 +150,36 @@ class AllocatedBuffer : public RenderResourceDataBase {
       const VkBufferCreateInfo* vk_buffer_create_info,
       const VmaAllocationCreateInfo* vma_allocation_create_info);
 
+  static ExecuteResult CheckInitParametersWhenInitFromAnAsset(
+      RenderEngine* render_engine,
+      const AssetSystem::AssetManager::HandlerType asset_handler,
+      const VkBufferCreateInfo* vk_buffer_create_info,
+      const VmaAllocationCreateInfo* vma_allocation_create_info) {
+    MM_CHECK_WITHOUT_LOG(
+        CheckInitParameters(render_engine, vk_buffer_create_info,
+                            vma_allocation_create_info),
+        return MM_RESULT_CODE;)
+
+    if (!asset_handler.IsValid()) {
+      LOG_ERROR("The asset handler is invalid.");
+      return MM::Utils::ExecuteResult ::INITIALIZATION_FAILED;
+    }
+    if (!Utils::CanBeMapped(vma_allocation_create_info->usage,
+                            vma_allocation_create_info->flags) &&
+        !(vk_buffer_create_info->usage & VK_BUFFER_USAGE_TRANSFER_DST_BIT)) {
+      LOG_ERROR(
+          "Load data from asset must can be mapped or specify transform "
+          "destination.");
+      return MM::Utils::ExecuteResult ::INITIALIZATION_FAILED;
+    }
+
+    return MM::Utils::ExecuteResult ::SUCCESS;
+  }
+
   ExecuteResult InitBuffer(
       RenderEngine* render_engine,
       const VkBufferCreateInfo& vk_buffer_create_info,
       const VmaAllocationCreateInfo& vma_allocation_create_info);
-
- private:
-  class AllocatedBufferWrapper {
-   public:
-    AllocatedBufferWrapper() = default;
-    ~AllocatedBufferWrapper();
-    AllocatedBufferWrapper(const VmaAllocator& allocator,
-                           const VkBuffer& buffer,
-                           const VmaAllocation& allocation);
-    AllocatedBufferWrapper(const AllocatedBufferWrapper& other) = delete;
-    AllocatedBufferWrapper(AllocatedBufferWrapper&& other) noexcept;
-    AllocatedBufferWrapper& operator=(const AllocatedBufferWrapper& other) =
-        delete;
-    AllocatedBufferWrapper& operator=(AllocatedBufferWrapper&& other) noexcept;
-
-   public:
-    VmaAllocator GetAllocator();
-
-    VkBuffer GetBuffer();
-
-    VmaAllocation GetAllocation();
-
-    const VmaAllocator_T* GetAllocator() const;
-
-    const VkBuffer_T* GetBuffer() const;
-
-    const VmaAllocation_T* GetAllocation() const;
-
-    void SetAllocator(VmaAllocator allocator);
-
-    void SetBuffer(VkBuffer buffer);
-
-    void SetAllocation(VmaAllocation allocation);
-
-    void Release();
-
-    bool IsValid() const;
-
-   private:
-    VmaAllocator allocator_{nullptr};
-    VkBuffer buffer_{nullptr};
-    VmaAllocation allocation_{nullptr};
-  };
 
  private:
   RenderEngine* render_engine_{nullptr};

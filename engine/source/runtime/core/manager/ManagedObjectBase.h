@@ -41,6 +41,9 @@ class ManagedObjectBase : public MMObject {
   //      std::unique_ptr<ManagedObjectBase>& output_new_deep_copy_object)
   //      const;
 
+ protected:
+  void Reset() override;
+
  private:
   std::string object_name_{};
 };

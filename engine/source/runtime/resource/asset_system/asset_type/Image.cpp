@@ -208,3 +208,21 @@ MM::ExecuteResult MM::AssetSystem::AssetType::Image::CalculateAssetID(
              desired_channels;
   return ExecuteResult ::SUCCESS;
 }
+
+std::vector<std::pair<void*, std::uint64_t>>
+MM::AssetSystem::AssetType::Image::GetDatas() {
+  return std::vector<std::pair<void*, std::uint64_t>>{
+      std::pair<void*, std::uint64_t>(image_pixels_.get(),
+                                      image_info_.image_size_)};
+}
+
+std::vector<std::pair<const void*, std::uint64_t>>
+MM::AssetSystem::AssetType::Image::GetDatas() const {
+  return std::vector<std::pair<const void*, std::uint64_t>>{
+      std::pair<const void*, std::uint64_t>(image_pixels_.get(),
+                                            image_info_.image_size_)};
+}
+
+std::uint64_t MM::AssetSystem::AssetType::Image::GetSize() const {
+  return GetImageSize();
+}

@@ -84,13 +84,6 @@ using NumType62 = NumType<62>;
 using NumType63 = NumType<63>;
 using NumType64 = NumType<64>;
 
-bool CheckAllTrue(bool arg) { return arg; }
-
-template <typename... BoolArgs>
-bool CheckAllTrue(bool arg1, BoolArgs... args) {
-  return arg1 & CheckAllTrue(args...);
-}
-
 template <typename... Args>
 class LastArg;
 
@@ -192,5 +185,11 @@ struct IsAllSame {
 
 template <typename T1, typename T2, typename... Args>
 constexpr bool IsAllSameV = IsAllSame<T1, T2, Args...>::Value;
+
+template <typename... BoolTypes>
+bool CheckAllTrue(bool arg1, BoolTypes... args) {
+  static_assert(IsAllSameV<bool, BoolTypes...>);
+  return arg1 && (args && ...);
+}
 }  // namespace Utils
 }  // namespace MM

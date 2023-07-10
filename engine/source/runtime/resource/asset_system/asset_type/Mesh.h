@@ -44,6 +44,12 @@ class Mesh : public AssetBase {
 
   const std::vector<Vertex>& GetVertices() const;
 
+  std::uint64_t GetSize() const override;
+
+  std::vector<std::pair<void*, std::uint64_t>> GetDatas() override;
+
+  std::vector<std::pair<const void*, std::uint64_t>> GetDatas() const override;
+
   bool IsValid() const override;
 
   std::string GetAssetTypeString() const override;

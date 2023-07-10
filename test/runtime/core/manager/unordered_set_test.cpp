@@ -84,10 +84,10 @@ void InsertString2(
     handlers.emplace_back();
     set_data.AddObject(std::to_string(i), handlers.back());
     ASSERT_EQ(set_data.Have(std::to_string(i)), true);
-    if (set_data.Count(std::to_string(i)) == 2) {
+    if (set_data.GetSize(std::to_string(i)) == 2) {
       handlers.size();
     }
-    ASSERT_EQ(set_data.Count(std::to_string(i)), 1);
+    ASSERT_EQ(set_data.GetSize(std::to_string(i)), 1);
   }
 }
 
@@ -175,9 +175,9 @@ TEST(manager, unorderd_multiset) {
   ASSERT_EQ(multi_set_data1.Have(std::string("1")), true);
   ASSERT_EQ(multi_set_data1.Have(std::string("2")), true);
   ASSERT_EQ(multi_set_data1.Have(std::string("3")), false);
-  ASSERT_EQ(multi_set_data1.Count(std::string("1")), 2);
-  ASSERT_EQ(multi_set_data1.Count(std::string("2")), 1);
-  ASSERT_EQ(multi_set_data1.Count(std::string("3")), 0);
+  ASSERT_EQ(multi_set_data1.GetSize(std::string("1")), 2);
+  ASSERT_EQ(multi_set_data1.GetSize(std::string("2")), 1);
+  ASSERT_EQ(multi_set_data1.GetSize(std::string("3")), 0);
   ASSERT_EQ(multi_set_data1.GetUseCount(std::string("1")), 4);
   ASSERT_EQ(multi_set_data1.GetObject(std::string("1"), handler6),
             MM::ExecuteResult::SUCCESS);
@@ -192,9 +192,9 @@ TEST(manager, unorderd_multiset) {
   ASSERT_EQ(multi_set_data2.Have(std::string("1")), true);
   ASSERT_EQ(multi_set_data2.Have(std::string("2")), true);
   ASSERT_EQ(multi_set_data2.Have(std::string("3")), false);
-  ASSERT_EQ(multi_set_data2.Count(std::string("1")), 2);
-  ASSERT_EQ(multi_set_data2.Count(std::string("2")), 1);
-  ASSERT_EQ(multi_set_data2.Count(std::string("3")), 0);
+  ASSERT_EQ(multi_set_data2.GetSize(std::string("1")), 2);
+  ASSERT_EQ(multi_set_data2.GetSize(std::string("2")), 1);
+  ASSERT_EQ(multi_set_data2.GetSize(std::string("3")), 0);
   ASSERT_EQ(multi_set_data2.GetUseCount(std::string("1")), 5);
   ASSERT_EQ(multi_set_data2.GetObject(std::string("1"), handler6),
             MM::ExecuteResult::SUCCESS);

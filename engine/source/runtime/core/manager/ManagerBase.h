@@ -135,7 +135,7 @@ class ManagerBaseImp {
   }
 
   std::uint32_t Count(ManagedObjectID object_ID) const {
-    return ID_to_object_container_.Count(object_ID);
+    return ID_to_object_container_.GetSize(object_ID);
   }
 
   ExecuteResult GetNameByID(ManagedObjectID managed_object_ID,

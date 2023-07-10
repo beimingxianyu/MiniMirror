@@ -299,7 +299,7 @@ class ManagedObjectTableBase : virtual public MM::MMObject {
 
   virtual bool Have(const KeyType& key) const;
 
-  virtual std::uint32_t Count(const KeyType& key) const;
+  virtual std::uint32_t GetSize(const KeyType& key) const;
 
   virtual bool IsMultiContainer() const;
 
@@ -513,7 +513,7 @@ ManagedObjectTableBase<KeyType, ValueType, RelationshipContainerTrait>::
 template <typename KeyType, typename ValueType,
           typename RelationshipContainerTrait>
 std::uint32_t
-ManagedObjectTableBase<KeyType, ValueType, RelationshipContainerTrait>::Count(
+ManagedObjectTableBase<KeyType, ValueType, RelationshipContainerTrait>::GetSize(
     const KeyType&) const {
   LOG_FATAL("This function should not be called.");
 

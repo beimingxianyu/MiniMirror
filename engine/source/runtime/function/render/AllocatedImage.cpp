@@ -89,16 +89,16 @@ bool MM::RenderSystem::AllocatedImage::IsTransformDest() const {
 
 const MM::RenderSystem::ImageCreateInfo&
 MM::RenderSystem::AllocatedImage::GetImageCreateInfo() const {
-  return GetImageInfo().image_create_info_;
+  return GetImageDataInfo().image_create_info_;
 }
 
 const MM::RenderSystem::AllocationCreateInfo&
 MM::RenderSystem::AllocatedImage::GetAllocationCreateInfo() const {
-  return GetImageInfo().allocation_create_info_;
+  return GetImageDataInfo().allocation_create_info_;
 }
 
 const MM::RenderSystem::ImageDataInfo&
-MM::RenderSystem::AllocatedImage::GetImageInfo() const {
+MM::RenderSystem::AllocatedImage::GetImageDataInfo() const {
   return image_data_info_;
 }
 
@@ -120,6 +120,7 @@ MM::RenderSystem::AllocatedImage::GetQueueIndexes() const {
 }
 
 void MM::RenderSystem::AllocatedImage::Release() {
+  RenderResourceDataBase::Release();
   render_engine_ = nullptr;
   image_data_info_.Reset();
   wrapper_.Release();
@@ -186,24 +187,26 @@ MM::RenderSystem::AllocatedImage::AllocatedImage(
       image_data_info_.image_create_info_.queue_family_indices_[0],
       image_data_info_.image_create_info_.image_layout_);
 
+  AllocatedBuffer stage_allocated_buffer;
+  MM_CHECK(LoadImageDataToStageBuffer(image, stage_allocated_buffer),
+           RenderResourceDataBase::Release();
+           render_engine_ = nullptr; image_data_info_.Reset(); return;)
+
   RenderResourceDataAttributeID render_resource_data_attribute_ID;
   MM_CHECK(image_data_info_.GetRenderResourceDataAttributeID(
                render_resource_data_attribute_ID),
-           LOG_ERROR("Failed to ger RenderResourceDataAttributeID.");
-           render_engine_ = nullptr; image_data_info_.Reset(); return;)
+           LOG_ERROR("Failed to get RenderResourceDataAttributeID.");
+           RenderResourceDataBase::Release(); render_engine_ = nullptr;
+           image_data_info_.Reset(); return;)
   SetRenderResourceDataID(RenderResourceDataID{
       image->GetAssetID(), render_resource_data_attribute_ID});
 
-  AllocatedBuffer stage_allocated_buffer;
-  MM_CHECK_WITHOUT_LOG(
-      LoadImageDataToStageBuffer(image, stage_allocated_buffer),
-      render_engine_ = nullptr;
-      image_data_info_.Reset(); return;)
+  MM_CHECK(InitImage(stage_allocated_buffer, vk_image_create_info,
+                     vma_allocation_create_info),
+           RenderResourceDataBase::Release();
+           render_engine_ = nullptr; image_data_info_.Reset(); return;)
 
-  MM_CHECK_WITHOUT_LOG(InitImage(stage_allocated_buffer, vk_image_create_info,
-                                 vma_allocation_create_info),
-                       render_engine_ = nullptr;
-                       image_data_info_.Reset(); return;)
+  MarkThisIsManaged();
 }
 
 MM::ExecuteResult MM::RenderSystem::AllocatedImage::CheckImageHandler(
@@ -226,9 +229,13 @@ MM::RenderSystem::AllocatedImage::CheckInitParametersWhenInitFromAnAsset(
     VkImageLayout image_layout, const VkImageCreateInfo* vk_image_create_info,
     const VmaAllocationCreateInfo* vma_allocation_create_info) {
   MM_CHECK_WITHOUT_LOG(
-      CheckInitParameters(render_engine, image_handler, image_layout,
-                          vk_image_create_info, vma_allocation_create_info),
+      CheckInitParameters(render_engine, image_layout, vk_image_create_info,
+                          vma_allocation_create_info),
       return MM_RESULT_CODE;)
+
+  MM_CHECK_WITHOUT_LOG(CheckImageHandler(image_handler),
+                       LOG_ERROR("Image asset handler is invalid.");
+                       return MM_RESULT_CODE;)
 
   if (!(vk_image_create_info->usage & VK_IMAGE_USAGE_TRANSFER_DST_BIT)) {
     LOG_ERROR("This image can not initialization from a image asset.");
@@ -241,77 +248,6 @@ MM::RenderSystem::AllocatedImage::CheckInitParametersWhenInitFromAnAsset(
 const std::vector<MM::RenderSystem::ImageSubResourceAttribute>&
 MM::RenderSystem::AllocatedImage::GetImageSubResourceAttributes() const {
   return image_data_info_.image_sub_resource_attributes_;
-}
-
-MM::ExecuteResult MM::RenderSystem::AllocatedImage::TransformQueueFamily(
-    std::uint32_t new_queue_family_index) {
-  if (new_queue_family_index == GetImageSubResourceAttributes()) {
-    return ExecuteResult ::SUCCESS;
-  }
-
-  CommandBufferType command_buffer_type;
-  std::uint32_t current_queue_index = GetImageSubResourceAttributes();
-  if (current_queue_index == render_engine_->GetGraphQueueIndex()) {
-    command_buffer_type = CommandBufferType::GRAPH;
-  } else if (current_queue_index == render_engine_->GetTransformQueueIndex()) {
-    command_buffer_type = CommandBufferType::TRANSFORM;
-  } else if (current_queue_index == render_engine_->GetComputeQueueIndex()) {
-    command_buffer_type = CommandBufferType::COMPUTE;
-  }
-
-  MM_CHECK(render_engine_->RunSingleCommandAndWait(
-               command_buffer_type,
-               [this_image = this, new_queue_family_index,
-                command_buffer_type](AllocatedCommandBuffer& cmd) {
-                 MM_CHECK(Utils::BeginCommandBuffer(cmd),
-                          LOG_ERROR("Failed to begin command buffer.");
-                          return MM_RESULT_CODE;)
-
-                 VkBufferMemoryBarrier2 buffer_memory_barrier;
-                 if (command_buffer_type == CommandBufferType::TRANSFORM) {
-                   buffer_memory_barrier = Utils::GetVkImageMemoryBarrier2(
-                       VK_PIPELINE_STAGE_2_TRANSFER_BIT,
-                       VK_ACCESS_2_TRANSFER_READ_BIT,
-                       VK_PIPELINE_STAGE_2_TRANSFER_BIT,
-                       VK_ACCESS_2_TRANSFER_READ_BIT,
-                       this_image->GetImageSubResourceAttributes(),
-                       new_queue_family_index, *this_image, 0,
-                       this_image->GetSize());
-                 } else if (command_buffer_type == CommandBufferType::GRAPH) {
-                   buffer_memory_barrier = Utils::GetVkBufferMemoryBarrier2(
-                       VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT, 0,
-                       VK_PIPELINE_STAGE_2_BOTTOM_OF_PIPE_BIT, 0,
-                       this_image->GetImageSubResourceAttributes(),
-                       new_queue_family_index, *this_image, 0,
-                       this_image->GetSize());
-                 } else if (command_buffer_type == CommandBufferType::COMPUTE) {
-                   buffer_memory_barrier = Utils::GetVkBufferMemoryBarrier2(
-                       VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT, 0,
-                       VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT, 0,
-                       this_image->GetImageSubResourceAttributes(),
-                       new_queue_family_index, *this_image, 0,
-                       this_image->GetSize());
-                 } else {
-                   return ExecuteResult ::UNDEFINED_ERROR;
-                 }
-
-                 VkDependencyInfo dependency_info = Utils::GetVkDependencyInfo(
-                     0, nullptr, 0, &buffer_memory_barrier, 0, nullptr, 0);
-
-                 vkCmdPipelineBarrier2(cmd.GetCommandBuffer(),
-                                       &dependency_info);
-
-                 MM_CHECK(Utils::EndCommandBuffer(cmd),
-                          LOG_ERROR("Failed to end command buffer.");
-                          return MM_RESULT_CODE;)
-
-                 return ExecuteResult::SUCCESS;
-               }),
-           return MM_RESULT_CODE;)
-
-  buffer_data_info_.queue_index_ = new_queue_family_index;
-
-  return ExecuteResult::SUCCESS;
 }
 
 MM::ExecuteResult MM::RenderSystem::AllocatedImage::LoadImageDataToStageBuffer(
@@ -372,9 +308,9 @@ MM::ExecuteResult MM::RenderSystem::AllocatedImage::InitImage(
 
   MM_CHECK(
       render_engine_->RunSingleCommandAndWait(
-          CommandBufferType ::GRAPH,
-          [render_engine = render_engine_, this_image = this, &created_image,
-           &stage_allocated_buffer](AllocatedCommandBuffer cmd) mutable {
+          CommandBufferType::GRAPH, 1,
+          [this_image = this, &created_image,
+           &stage_allocated_buffer](AllocatedCommandBuffer& cmd) mutable {
             MM_CHECK(Utils::BeginCommandBuffer(cmd),
                      LOG_ERROR("Failed to begin VkCommandBuffer.");
                      return MM_RESULT_CODE;)
@@ -405,7 +341,7 @@ MM::ExecuteResult MM::RenderSystem::AllocatedImage::InitImage(
             return MM::Utils::ExecuteResult ::SUCCESS;
           }),
       LOG_ERROR("Failed to copy stage buffer data to image.");
-      return MM_RESULT_CODE;);
+      return MM_RESULT_CODE;)
 
   wrapper_ = AllocatedImageWrapper{render_engine_->GetAllocator(),
                                    created_image, created_allocation};
@@ -457,16 +393,12 @@ void MM::RenderSystem::AllocatedImage::AddCopyStageBufferDataToImageCommands(
 }
 
 MM::ExecuteResult MM::RenderSystem::AllocatedImage::CheckInitParameters(
-    MM::RenderSystem::RenderEngine* render_engine,
-    const MM::AssetSystem::AssetManager::HandlerType& image_handler,
-    VkImageLayout image_layout, const VkImageCreateInfo* vk_image_create_info,
+    MM::RenderSystem::RenderEngine* render_engine, VkImageLayout image_layout,
+    const VkImageCreateInfo* vk_image_create_info,
     const VmaAllocationCreateInfo* vma_allocation_create_info) {
   if (render_engine == nullptr || !render_engine->IsValid()) {
     return ExecuteResult ::INITIALIZATION_FAILED;
   }
-
-  MM_CHECK_WITHOUT_LOG(CheckImageHandler(image_handler),
-                       return ExecuteResult ::INITIALIZATION_FAILED;)
 
   MM_CHECK_WITHOUT_LOG(Utils::CheckVkImageCreateInfo(vk_image_create_info),
                        return ExecuteResult ::INITIALIZATION_FAILED;)
@@ -613,6 +545,16 @@ void MM::RenderSystem::AllocatedImage::AddQueueIndexAndLayoutTransformCommands(
       0, nullptr, 0, nullptr, 1, &image_memory_barrier2);
 
   vkCmdPipelineBarrier2(cmd.GetCommandBuffer(), &dependency_info);
+}
+
+MM::RenderSystem::RenderEngine*
+MM::RenderSystem::AllocatedImage::GetRenderEnginePtr() {
+  return render_engine_;
+}
+
+const MM::RenderSystem::RenderEngine*
+MM::RenderSystem::AllocatedImage::GetRenderEnginePtr() const {
+  return render_engine_;
 }
 
 // MM::ExecuteResult

@@ -16,6 +16,7 @@
 
 #include "runtime/function/render/RenderDataAttributeID.h"
 #include "runtime/function/render/import_other_system.h"
+#include "runtime/function/render/vk_enum.h"
 #include "runtime/function/render/vk_utils.h"
 #include "runtime/platform/base/error.h"
 #include "utils/error.h"
@@ -25,23 +26,6 @@
 namespace MM {
 namespace RenderSystem {
 class RenderEngine;
-
-enum class ResourceType {
-  Texture,
-  BUFFER,
-  VERTEX_BUFFER,
-  FRAME_BUFFER,
-  CONSTANTS,
-  STAGE_BUFFER,
-  UNDEFINED
-};
-
-/**
- * \brief Memory operations allowed for rendering resources.
- */
-enum class MemoryOperate { READ, WRITE, READ_AND_WRITE, UNDEFINED };
-
-enum class CommandBufferType { GRAPH, COMPUTE, TRANSFORM, UNDEFINED };
 
 struct QueueFamilyIndices {
   std::optional<uint32_t> graphics_family_;
@@ -490,7 +474,7 @@ struct BufferDataInfo {
 
   std::vector<BufferSubResourceAttribute> buffer_sub_resource_attributes_{};
 
-  ExecuteResult GetRenderDataAttributeID(
+  ExecuteResult GetRenderResourceDataAttributeID(
       RenderImageDataAttributeID& render_image_data_attribute_ID) const;
 
   void SetBufferCreateInfo(const VkBufferCreateInfo& vk_buffer_create_info);
@@ -804,6 +788,14 @@ class ImageBindData {
   DescriptorSetLayoutBinding bind_{};
   ImageView image_view_{};
   Sampler sampler_{};
+};
+
+class MeshBufferData {
+ private:
+  float capacity_coefficient_{0.9};
+  float expansion_coefficient_{2};
+  VkDeviceSize index_buffer_remaining_capacity_{0};
+  VkDeviceSize vertex_buffer_remaining_capacity_{0};
 };
 }  // namespace RenderSystem
 }  // namespace MM

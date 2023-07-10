@@ -175,6 +175,8 @@ class RenderResourceDataManagerImp : public Manager::ManagerBase<ManagedType> {
     handler = HandlerType{std::move(base_handler),
                           std::move(render_resource_ID_to_object_ID_handler)};
 
+    handler.GetObject().MarkThisIsManaged();
+
     return ExecuteResult ::SUCCESS;
   }
 

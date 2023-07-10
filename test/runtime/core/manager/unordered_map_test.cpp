@@ -93,10 +93,10 @@ void InsertString(std::vector<MM::Manager::ManagedObjectUnorderedMap<
     handlers.emplace_back();
     map_data.AddObject(i, std::to_string(i), handlers.back());
     ASSERT_EQ(map_data.Have(i), true);
-    if (map_data.Count(i) == 2) {
+    if (map_data.GetSize(i) == 2) {
       handlers.size();
     }
-    ASSERT_EQ(map_data.Count(i), 1);
+    ASSERT_EQ(map_data.GetSize(i), 1);
   }
 }
 
@@ -185,9 +185,9 @@ TEST(manager, unordered_multimap) {
   ASSERT_EQ(multi_map_data1.Have(std::string("1")), true);
   ASSERT_EQ(multi_map_data1.Have(std::string("2")), true);
   ASSERT_EQ(multi_map_data1.Have(std::string("3")), false);
-  ASSERT_EQ(multi_map_data1.Count(std::string("1")), 2);
-  ASSERT_EQ(multi_map_data1.Count(std::string("2")), 1);
-  ASSERT_EQ(multi_map_data1.Count(std::string("3")), 0);
+  ASSERT_EQ(multi_map_data1.GetSize(std::string("1")), 2);
+  ASSERT_EQ(multi_map_data1.GetSize(std::string("2")), 1);
+  ASSERT_EQ(multi_map_data1.GetSize(std::string("3")), 0);
   ASSERT_EQ(multi_map_data1.GetUseCount(std::string("1")), 3);
   ASSERT_EQ(multi_map_data1.GetObject(std::string("1"), 1, handler6),
             MM::ExecuteResult::SUCCESS);
@@ -204,9 +204,9 @@ TEST(manager, unordered_multimap) {
   ASSERT_EQ(multi_map_data2.Have(std::string("1")), true);
   ASSERT_EQ(multi_map_data2.Have(std::string("2")), true);
   ASSERT_EQ(multi_map_data2.Have(std::string("3")), false);
-  ASSERT_EQ(multi_map_data2.Count(std::string("1")), 2);
-  ASSERT_EQ(multi_map_data2.Count(std::string("2")), 1);
-  ASSERT_EQ(multi_map_data2.Count(std::string("3")), 0);
+  ASSERT_EQ(multi_map_data2.GetSize(std::string("1")), 2);
+  ASSERT_EQ(multi_map_data2.GetSize(std::string("2")), 1);
+  ASSERT_EQ(multi_map_data2.GetSize(std::string("3")), 0);
   ASSERT_EQ(multi_map_data2.GetUseCount(std::string("1"), 1), 4);
   ASSERT_EQ(multi_map_data2.GetObject(std::string("1"), 1, handler6),
             MM::ExecuteResult::SUCCESS);

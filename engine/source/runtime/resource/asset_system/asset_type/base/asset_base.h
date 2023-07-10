@@ -41,7 +41,13 @@ class AssetBase : public Manager::ManagedObjectBase {
 
   const FileSystem::Path& GetAssetPath() const;
 
+  virtual std::uint64_t GetSize() const;
+
   virtual MM::ExecuteResult GetJson(Utils::Json::Document& document) const;
+
+  virtual std::vector<std::pair<void*, std::uint64_t>> GetDatas();
+
+  virtual std::vector<std::pair<const void*, std::uint64_t>> GetDatas() const;
 
   virtual void Release();
 

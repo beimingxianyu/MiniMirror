@@ -40,6 +40,10 @@ class AllocatedImage final : public RenderResourceDataBase {
   const std::vector<ImageSubResourceAttribute>& GetImageSubResourceAttributes()
       const;
 
+  RenderEngine* GetRenderEnginePtr();
+
+  const RenderEngine* GetRenderEnginePtr() const;
+
   // TODO complete this
   // The ownership of resources within the scope of a
   // ownership conversion operation must be the same.
@@ -69,7 +73,7 @@ class AllocatedImage final : public RenderResourceDataBase {
 
   const AllocationCreateInfo& GetAllocationCreateInfo() const;
 
-  const ImageDataInfo& GetImageInfo() const;
+  const ImageDataInfo& GetImageDataInfo() const;
 
   VmaAllocator GetAllocator() const;
 
@@ -87,8 +91,6 @@ class AllocatedImage final : public RenderResourceDataBase {
 
   VkDeviceSize GetSize() const override;
 
-  ExecuteResult TransformQueueFamily(std::uint32_t new_queue_family_index);
-
   bool IsArray() const override;
 
   bool CanWrite() const override;
@@ -97,10 +99,9 @@ class AllocatedImage final : public RenderResourceDataBase {
   static ExecuteResult CheckImageHandler(
       const AssetSystem::AssetManager::HandlerType& image_handler);
 
-  static ExecuteResult CheckInitParameters(
-      RenderEngine* render_engine,
-      const AssetSystem::AssetManager::HandlerType& image_handler,
-      VkImageLayout image_layout, const VkImageCreateInfo* vk_image_create_info,
+  static MM::ExecuteResult CheckInitParameters(
+      MM::RenderSystem::RenderEngine* render_engine, VkImageLayout image_layout,
+      const VkImageCreateInfo* vk_image_create_info,
       const VmaAllocationCreateInfo* vma_allocation_create_info);
 
   static ExecuteResult CheckInitParametersWhenInitFromAnAsset(

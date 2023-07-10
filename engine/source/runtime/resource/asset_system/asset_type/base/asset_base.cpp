@@ -122,3 +122,20 @@ void MM::AssetSystem::AssetType::AssetBase::SetAssetID(
     MM::AssetSystem::AssetType::AssetID asset_ID) {
   asset_path_and_last_editing_time_hash = asset_ID;
 }
+
+std::vector<std::pair<void*, std::uint64_t>>
+MM::AssetSystem::AssetType::AssetBase::GetDatas() {
+  LOG_FATAL("This function should not be called.");
+  return std::vector<std::pair<void*, std::uint64_t>>();
+}
+
+std::vector<std::pair<const void*, std::uint64_t>>
+MM::AssetSystem::AssetType::AssetBase::GetDatas() const {
+  LOG_FATAL("This function should not be called.");
+  return std::vector<std::pair<const void*, std::uint64_t>>();
+}
+
+std::uint64_t MM::AssetSystem::AssetType::AssetBase::GetSize() const {
+  LOG_FATAL("This function should not be called.");
+  return 0;
+}

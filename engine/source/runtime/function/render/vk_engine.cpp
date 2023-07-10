@@ -132,11 +132,10 @@ MM::ExecuteResult MM::RenderSystem::RenderEngine::RunCommandAndWait(
 }
 
 MM::RenderSystem::RenderFuture MM::RenderSystem::RenderEngine::RunSingleCommand(
-    CommandBufferType command_type,
-    const std::function<MM::ExecuteResult(
-        MM::RenderSystem::AllocatedCommandBuffer& cmd)>& commands) {
+    CommandBufferType command_type, std::uint32_t use_render_resource_count,
+    const std::function<ExecuteResult(AllocatedCommandBuffer& cmd)>& commands) {
   CommandTaskFlow command_task_flow;
-  command_task_flow.AddTask(command_type, commands,
+  command_task_flow.AddTask(command_type, commands, use_render_resource_count,
                             std::vector<WaitAllocatedSemaphore>(),
                             std::vector<AllocateSemaphore>());
 
@@ -144,11 +143,11 @@ MM::RenderSystem::RenderFuture MM::RenderSystem::RenderEngine::RunSingleCommand(
 }
 
 MM::ExecuteResult MM::RenderSystem::RenderEngine::RunSingleCommandAndWait(
-    CommandBufferType command_type,
+    CommandBufferType command_type, std::uint32_t use_render_resource_count,
     const std::function<MM::ExecuteResult(
         MM::RenderSystem::AllocatedCommandBuffer& cmd)>& commands) {
   CommandTaskFlow command_task_flow;
-  command_task_flow.AddTask(command_type, commands,
+  command_task_flow.AddTask(command_type, commands, use_render_resource_count,
                             std::vector<WaitAllocatedSemaphore>(),
                             std::vector<AllocateSemaphore>());
 
@@ -254,7 +253,7 @@ MM::ExecuteResult MM::RenderSystem::RenderEngine::CopyBuffer(
 #endif
 
   MM_CHECK(RunSingleCommandAndWait(
-               CommandBufferType::TRANSFORM,
+               CommandBufferType::TRANSFORM, 1,
                [&copy_buffer, &src_buffer,
                 &dest_buffer](AllocatedCommandBuffer& cmd) {
                  MM_CHECK(Utils::BeginCommandBuffer(cmd),
@@ -331,7 +330,7 @@ MM::ExecuteResult MM::RenderSystem::RenderEngine::CopyBuffer(
 #endif
 
   MM_CHECK(RunSingleCommandAndWait(
-               CommandBufferType::TRANSFORM,
+               CommandBufferType::TRANSFORM, 1,
                [&copy_buffer](AllocatedCommandBuffer& cmd) {
                  MM_CHECK(Utils::BeginCommandBuffer(cmd),
                           LOG_ERROR("Failed to begin command buffer.");
@@ -514,7 +513,7 @@ MM::ExecuteResult MM::RenderSystem::RenderEngine::CopyImage(
   VkCopyImageInfo2 copy_image_info = Utils::GetCopyImageInfo(
       src_image, dest_image, src_layout, dest_layout, regions);
   MM_CHECK(RunSingleCommandAndWait(
-               CommandBufferType::TRANSFORM,
+               CommandBufferType::TRANSFORM, 1,
                [&copy_image_info](AllocatedCommandBuffer& cmd) {
                  MM_CHECK(Utils::BeginCommandBuffer(cmd),
                           LOG_ERROR("Failed to begin command buffer");
@@ -653,7 +652,7 @@ MM::ExecuteResult MM::RenderSystem::RenderEngine::CopyImage(
       src_image, dest_image, src_layout, dest_layout, regions);
 
   MM_CHECK(RunSingleCommandAndWait(
-               CommandBufferType::TRANSFORM,
+               CommandBufferType::TRANSFORM, 1,
                [&copy_image_info](AllocatedCommandBuffer& cmd) {
                  MM_CHECK(Utils::BeginCommandBuffer(cmd),
                           LOG_ERROR("Failed to begin command buffer");
@@ -805,7 +804,7 @@ MM::ExecuteResult MM::RenderSystem::RenderEngine::RemoveBufferFragmentation(
 
   MM_CHECK(
       RunSingleCommandAndWait(
-          CommandBufferType::TRANSFORM,
+          CommandBufferType::TRANSFORM, 1,
           [&self_copy_info, &self_copy_to_stage_info,
            &stage_copy_to_self_info](AllocatedCommandBuffer& cmd) {
             MM_CHECK(Utils::BeginCommandBuffer(cmd),
@@ -916,7 +915,7 @@ MM::ExecuteResult MM::RenderSystem::RenderEngine::RemoveBufferFragmentation(
 
   MM_CHECK(
       RunSingleCommandAndWait(
-          CommandBufferType::TRANSFORM,
+          CommandBufferType::TRANSFORM, 1,
           [&self_copy_info, &self_copy_to_stage_info,
            &stage_copy_to_self_info](AllocatedCommandBuffer& cmd) {
             MM_CHECK(Utils::BeginCommandBuffer(cmd),
@@ -1787,13 +1786,14 @@ MM::ExecuteResult MM::RenderSystem::RenderEngine::CreateBuffer(
 }
 
 MM::RenderSystem::RenderFuture MM::RenderSystem::RenderEngine::RunSingleCommand(
-    MM::RenderSystem::CommandBufferType command_type,
-    const std::function<ExecuteResult(AllocatedCommandBuffer&)>& commands,
+    CommandBufferType command_type, std::uint32_t use_render_resource_count,
+    const std::function<ExecuteResult(AllocatedCommandBuffer& cmd)>& commands,
     const std::vector<RenderResourceDataID>&
         cross_task_flow_sync_render_resource_data_ID) {
   CommandTaskFlow command_task_flow;
   command_task_flow
-      .AddTask(command_type, commands, std::vector<WaitAllocatedSemaphore>(),
+      .AddTask(command_type, commands, use_render_resource_count,
+               std::vector<WaitAllocatedSemaphore>(),
                std::vector<AllocateSemaphore>())
       .AddCrossTaskFLowSyncRenderResourceIDs(
           cross_task_flow_sync_render_resource_data_ID);
@@ -1802,16 +1802,37 @@ MM::RenderSystem::RenderFuture MM::RenderSystem::RenderEngine::RunSingleCommand(
 }
 
 MM::ExecuteResult MM::RenderSystem::RenderEngine::RunSingleCommandAndWait(
-    MM::RenderSystem::CommandBufferType command_type,
-    const std::function<ExecuteResult(AllocatedCommandBuffer&)>& commands,
+    CommandBufferType command_type, std::uint32_t use_render_resource_count,
+    const std::function<ExecuteResult(AllocatedCommandBuffer& cmd)>& commands,
     const std::vector<RenderResourceDataID>&
         cross_task_flow_sync_render_resource_data_ID) {
   CommandTaskFlow command_task_flow;
   command_task_flow
-      .AddTask(command_type, commands, std::vector<WaitAllocatedSemaphore>(),
+      .AddTask(command_type, commands, use_render_resource_count,
+               std::vector<WaitAllocatedSemaphore>(),
                std::vector<AllocateSemaphore>())
       .AddCrossTaskFLowSyncRenderResourceIDs(
           cross_task_flow_sync_render_resource_data_ID);
 
   return command_executor_->RunAndWait(std::move(command_task_flow));
+}
+
+MM::ExecuteResult MM::RenderSystem::RenderEngine::CreateStageBuffer(
+    VkDeviceSize size, std::uint32_t queue_index,
+    AllocatedBuffer& stage_buffer) {
+  VkBufferCreateInfo stage_buffer_create_info = Utils::GetVkBufferCreateInfo(
+      nullptr, 0, size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+      VK_SHARING_MODE_EXCLUSIVE, 1, &queue_index);
+  VmaAllocationCreateInfo stage_allocation_create_info =
+      Utils::GetVmaAllocationCreateInfo(
+          VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT,
+          VMA_MEMORY_USAGE_AUTO, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
+          VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, 0, nullptr, nullptr, 1);
+  MM_CHECK_WITHOUT_LOG(
+      CreateBuffer(stage_buffer_create_info, stage_allocation_create_info,
+                   nullptr, stage_buffer),
+      LOG_ERROR("Failed to create stage buffer.");
+      return MM_RESULT_CODE;)
+
+  return MM::Utils::ExecuteResult ::SUCCESS;
 }

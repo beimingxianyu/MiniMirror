@@ -73,6 +73,10 @@ class RenderEngine {
       VmaAllocationInfo* vma_allocation_info,
       AllocatedBuffer& allocated_buffer);
 
+  MM::ExecuteResult CreateStageBuffer(VkDeviceSize size,
+                                      std::uint32_t queue_index,
+                                      AllocatedBuffer& stage_buffer);
+
   const VmaAllocator& GetAllocator() const;
 
   const VkDevice& GetDevice() const;
@@ -122,24 +126,25 @@ class RenderEngine {
   ExecuteResult RunCommandAndWait(CommandTaskFlow& command_task_flow);
 
   RenderFuture RunSingleCommand(
-      CommandBufferType command_type,
+      CommandBufferType command_type, std::uint32_t use_render_resource_count,
       const std::function<ExecuteResult(AllocatedCommandBuffer& cmd)>&
           commands);
 
   RenderFuture RunSingleCommand(
-      CommandBufferType command_type,
+      CommandBufferType command_type, std::uint32_t use_render_resource_count,
       const std::function<ExecuteResult(AllocatedCommandBuffer& cmd)>& commands,
       const std::vector<RenderResourceDataID>&
           cross_task_flow_sync_render_resource_data_ID);
 
-  ExecuteResult RunSingleCommandAndWait(
-      CommandBufferType command_type,
-      const std::function<ExecuteResult(AllocatedCommandBuffer& cmd)>&
+  MM::ExecuteResult RunSingleCommandAndWait(
+      CommandBufferType command_type, std::uint32_t use_render_resource_count,
+      const std::function<MM::ExecuteResult(AllocatedCommandBuffer& cmd)>&
           commands);
 
-  ExecuteResult RunSingleCommandAndWait(
-      CommandBufferType command_type,
-      const std::function<ExecuteResult(AllocatedCommandBuffer& cmd)>& commands,
+  MM::ExecuteResult RunSingleCommandAndWait(
+      CommandBufferType command_type, std::uint32_t use_render_resource_count,
+      const std::function<MM::ExecuteResult(AllocatedCommandBuffer& cmd)>&
+          commands,
       const std::vector<RenderResourceDataID>&
           cross_task_flow_sync_render_resource_data_ID);
 

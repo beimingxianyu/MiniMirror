@@ -34,7 +34,7 @@ class ManagedObjectList
 
   bool Have(const ObjectType& key) const override;
 
-  uint32_t Count(const ObjectType& key) const override;
+  uint32_t GetSize(const ObjectType& key) const override;
 
   bool IsMultiContainer() const override;
 
@@ -296,7 +296,7 @@ ManagedObjectList<ObjectType, Allocator>::ManagedObjectList(
 }
 
 template <typename ObjectType, typename Allocator>
-uint32_t ManagedObjectList<ObjectType, Allocator>::Count(
+uint32_t ManagedObjectList<ObjectType, Allocator>::GetSize(
     const ObjectType& key) const {
   std::shared_lock<std::shared_mutex> guard{data_mutex_};
   std::uint32_t result = 0;

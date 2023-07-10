@@ -306,3 +306,26 @@ MM::ExecuteResult MM::AssetSystem::AssetType::Mesh::CalculateAssetID(
              (index + bounding_type_offset);
   return ExecuteResult ::SUCCESS;
 }
+
+std::vector<std::pair<void*, std::uint64_t>>
+MM::AssetSystem::AssetType::Mesh::GetDatas() {
+  return std::vector<std::pair<void*, std::uint64_t>>{
+      std::pair<void*, std::uint64_t>(indexes_->data(),
+                                      sizeof(std::uint32_t) * indexes_->size()),
+      std::pair<void*, std::uint64_t>(vertices_->data(),
+                                      sizeof(Vertex) * vertices_->size())};
+}
+
+std::vector<std::pair<const void*, std::uint64_t>>
+MM::AssetSystem::AssetType::Mesh::GetDatas() const {
+  return std::vector<std::pair<const void*, std::uint64_t>>{
+      std::pair<const void*, std::uint64_t>(
+          indexes_->data(), sizeof(std::uint32_t) * indexes_->size()),
+      std::pair<const void*, std::uint64_t>(
+          vertices_->data(), sizeof(Vertex) * vertices_->size())};
+}
+
+std::uint64_t MM::AssetSystem::AssetType::Mesh::GetSize() const {
+  return indexes_->size() * sizeof(std::uint32_t) +
+         vertices_->size() * sizeof(Vertex);
+}

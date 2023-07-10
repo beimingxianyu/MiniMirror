@@ -60,9 +60,10 @@ class AllocatedCommandBuffer {
                          const VkQueue& queue,
                          const VkCommandPool& command_pool,
                          const VkCommandBuffer& command_buffer);
-  AllocatedCommandBuffer(const AllocatedCommandBuffer& other) = default;
+  AllocatedCommandBuffer(const AllocatedCommandBuffer& other) = delete;
   AllocatedCommandBuffer(AllocatedCommandBuffer&& other) noexcept;
-  AllocatedCommandBuffer& operator=(const AllocatedCommandBuffer& other);
+  AllocatedCommandBuffer& operator=(const AllocatedCommandBuffer& other) =
+      delete;
   AllocatedCommandBuffer& operator=(AllocatedCommandBuffer&& other) noexcept;
 
  public:
@@ -130,7 +131,7 @@ class AllocatedCommandBuffer {
 
  private:
   CommandBufferInfo command_buffer_info_{};
-  std::shared_ptr<AllocatedCommandBufferWrapper> wrapper_{nullptr};
+  std::unique_ptr<AllocatedCommandBufferWrapper> wrapper_{nullptr};
 };
 
 class CommandTaskFlow {
@@ -149,10 +150,11 @@ class CommandTaskFlow {
   /**
    * \remark The commands must not contain VkQueueSubmit().
    */
-  CommandTask& AddTask(
+  MM::RenderSystem::CommandTask& AddTask(
       CommandType command_type,
       const std::function<MM::ExecuteResult(
           MM::RenderSystem::AllocatedCommandBuffer&)>& commands,
+      std::uint32_t use_render_resource_count,
       const std::vector<MM::RenderSystem::WaitAllocatedSemaphore>&
           wait_semaphores,
       const std::vector<MM::RenderSystem::AllocateSemaphore>&
@@ -165,6 +167,7 @@ class CommandTaskFlow {
       CommandType command_type,
       const std::vector<
           std::function<ExecuteResult(AllocatedCommandBuffer& cmd)>>& commands,
+      std::uint32_t use_render_resource_count,
       const std::vector<WaitAllocatedSemaphore>& wait_semaphores,
       const std::vector<AllocateSemaphore>& signal_semaphores);
 
@@ -264,13 +267,19 @@ class CommandTask {
   bool HaveSubTasks() const;
 
   void AddCrossTaskFLowSyncRenderResourceIDs(
+      const RenderResourceDataID& render_resource_ID);
+
+  void AddCrossTaskFLowSyncRenderResourceIDs(
       const std::vector<RenderResourceDataID>& render_resource_IDs);
 
   void AddCrossTaskFLowSyncRenderResourceIDs(
       std::vector<RenderResourceDataID>&& render_resource_IDs);
 
   std::uint32_t GetCommandTaskID();
-  ;
+
+  std::uint32_t GetUseRenderResourceCount();
+
+  void SetUseRenderResourceCount(std::uint32_t new_use_render_resource_count);
 
   bool IsValid() const;
 
@@ -280,6 +289,7 @@ class CommandTask {
       const CommandType& command_type,
       const std::vector<
           std::function<ExecuteResult(AllocatedCommandBuffer& cmd)>>& commands,
+      std::uint32_t use_render_resource_count,
       const std::vector<WaitAllocatedSemaphore>& wait_semaphore,
       const std::vector<AllocateSemaphore>& signal_semaphore);
 
@@ -298,7 +308,7 @@ class CommandTask {
   mutable std::vector<std::unique_ptr<CommandTask>> sub_tasks_{};
   bool is_sub_task_{false};
 
-  // TODO replace std::uint32_t to MM::RenderSystem::RenderResourceDataID
+  std::uint32_t use_render_resource_count_{1};
   std::vector<RenderResourceDataID> cross_task_flow_sync_render_resource_IDs_;
 };
 

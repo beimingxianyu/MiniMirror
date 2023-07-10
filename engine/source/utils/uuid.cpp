@@ -166,3 +166,7 @@ bool MM::Utils::operator>=(const MM::Utils::UUID& lhs,
 
 MM::Utils::UUID::UUID(MM::Utils::UUID::UUIDEmptyInit)
     : first_part_(0), second_part_(0) {}
+
+std::uint64_t MM::Utils::UUID::GetHash() const {
+  return (first_part_ & 0xFFFFFFFFFFFF0000) | (second_part_ >> 48);
+}

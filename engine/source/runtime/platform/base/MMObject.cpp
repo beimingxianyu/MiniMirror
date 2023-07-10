@@ -68,3 +68,5 @@ bool MM::operator<=(const MM::MMObject& lhs, const MM::MMObject& rhs) {
 bool MM::operator>=(const MM::MMObject& lhs, const MM::MMObject& rhs) {
   return !(lhs < rhs);
 }
+
+void MM::MMObject::Reset() { guid_.Reset(); }

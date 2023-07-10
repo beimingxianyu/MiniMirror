@@ -54,6 +54,11 @@ class RenderResourceDataID {
   void SetResourceAttributeIDAttribute2(
       std::uint64_t render_resource_data_attribute_ID_attribute2);
 
+  void Reset() {
+    asset_ID_ = 0;
+    resource_attribute_ID_.Reset();
+  }
+
  private:
   AssetSystem::AssetType::AssetID asset_ID_{0};
   RenderResourceDataAttributeID resource_attribute_ID_{};

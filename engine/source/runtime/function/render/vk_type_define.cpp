@@ -1752,9 +1752,9 @@ MM::RenderSystem::BufferCreateInfo::BufferCreateInfo(
   }
 }
 
-MM::ExecuteResult MM::RenderSystem::BufferDataInfo::GetRenderDataAttributeID(
-    MM::RenderSystem::RenderImageDataAttributeID&
-        render_image_data_attribute_ID) const {
+MM::ExecuteResult
+MM::RenderSystem::BufferDataInfo::GetRenderResourceDataAttributeID(
+    RenderImageDataAttributeID& render_image_data_attribute_ID) const {
   if (!IsValid()) {
     return ExecuteResult ::OBJECT_IS_INVALID;
   }

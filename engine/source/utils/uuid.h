@@ -44,6 +44,8 @@ class UUID {
 
   std::string ToString() const;
 
+  std::uint64_t GetHash() const;
+
   void Reset();
 
  private:
@@ -62,7 +64,7 @@ namespace std {
 template <>
 struct hash<MM::Utils::UUID> {
   size_t operator()(const MM::Utils::UUID& uuid) const {
-    return (uuid.first_part_ & 0xFFFFFFFFFFFF0000) | (uuid.second_part_ >> 48);
+    return uuid.GetHash();
   }
 };
 }  // namespace std

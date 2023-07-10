@@ -39,7 +39,7 @@ class ManagedObjectSet
 
   bool Have(const ObjectType& key) const override;
 
-  uint32_t Count(const ObjectType& key) const override;
+  uint32_t GetSize(const ObjectType& key) const override;
 
   bool IsMultiContainer() const override;
 
@@ -91,7 +91,7 @@ class ManagedObjectMultiSet
     return data_.count(key) > 0;
   }
 
-  uint32_t Count(const ObjectType& key) const override {
+  uint32_t GetSize(const ObjectType& key) const override {
     return data_.count(key);
   }
 
@@ -533,7 +533,7 @@ bool ManagedObjectSet<ObjectType, Less, Allocator>::IsMultiContainer() const {
 }
 
 template <typename ObjectType, typename Less, typename Allocator>
-uint32_t ManagedObjectSet<ObjectType, Less, Allocator>::Count(
+uint32_t ManagedObjectSet<ObjectType, Less, Allocator>::GetSize(
     const ObjectType& key) const {
   if (Have(key)) {
     return 1;

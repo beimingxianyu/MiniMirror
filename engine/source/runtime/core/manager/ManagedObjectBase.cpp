@@ -73,5 +73,10 @@ void swap(ManagedObjectBase& lhs, ManagedObjectBase& rhs) noexcept {
 bool ManagedObjectBase::LowLevelEqual(const ManagedObjectBase& other) const {
   return GetObjectID() == other.GetObjectID();
 }
+
+void ManagedObjectBase::Reset() {
+  MMObject::Reset();
+  object_name_.clear();
+}
 }  // namespace Manager
 }  // namespace MM

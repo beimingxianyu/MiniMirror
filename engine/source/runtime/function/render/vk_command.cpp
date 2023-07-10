@@ -122,6 +122,7 @@ MM::RenderSystem::CommandTask::CommandTask(
     const CommandType& command_type,
     const std::vector<
         std::function<ExecuteResult(AllocatedCommandBuffer& cmd)>>& commands,
+    std::uint32_t use_render_resource_count,
     const std::vector<WaitAllocatedSemaphore>& wait_semaphore,
     const std::vector<AllocateSemaphore>& signal_semaphore)
     : task_flow_(task_flow),
@@ -130,6 +131,7 @@ MM::RenderSystem::CommandTask::CommandTask(
       commands_(commands),
       wait_semaphore_(wait_semaphore),
       signal_semaphore_(signal_semaphore),
+      use_render_resource_count_(use_render_resource_count),
       cross_task_flow_sync_render_resource_IDs_() {}
 
 void MM::RenderSystem::CommandTask::AddCrossTaskFLowSyncRenderResourceIDs(
@@ -151,6 +153,20 @@ void MM::RenderSystem::CommandTask::AddCrossTaskFLowSyncRenderResourceIDs(
 }
 std::uint32_t MM::RenderSystem::CommandTask::GetCommandTaskID() {
   return command_task_ID_;
+}
+
+void MM::RenderSystem::CommandTask::AddCrossTaskFLowSyncRenderResourceIDs(
+    const MM::RenderSystem::RenderResourceDataID& render_resource_ID) {
+  cross_task_flow_sync_render_resource_IDs_.emplace_back(render_resource_ID);
+}
+
+std::uint32_t MM::RenderSystem::CommandTask::GetUseRenderResourceCount() {
+  return use_render_resource_count_;
+}
+
+void MM::RenderSystem::CommandTask::SetUseRenderResourceCount(
+    std::uint32_t new_use_render_resource_count) {
+  new_use_render_resource_count = new_use_render_resource_count;
 }
 
 bool MM::RenderSystem::WaitSemaphore::IsValid() const {
@@ -220,7 +236,7 @@ MM::RenderSystem::AllocatedCommandBuffer::AllocatedCommandBuffer(
     const VkQueue& queue, const VkCommandPool& command_pool,
     const VkCommandBuffer& command_buffer)
     : command_buffer_info_{queue_index, CommandBufferType::UNDEFINED},
-      wrapper_(std::make_shared<AllocatedCommandBufferWrapper>(
+      wrapper_(std::make_unique<AllocatedCommandBufferWrapper>(
           engine, queue, command_pool, command_buffer)) {
   if (engine == nullptr) {
     return;
@@ -240,18 +256,6 @@ MM::RenderSystem::AllocatedCommandBuffer::AllocatedCommandBuffer(
 MM::RenderSystem::AllocatedCommandBuffer::AllocatedCommandBuffer(
     AllocatedCommandBuffer&& other) noexcept
     : wrapper_(std::move(other.wrapper_)) {}
-
-MM::RenderSystem::AllocatedCommandBuffer&
-MM::RenderSystem::AllocatedCommandBuffer::operator=(
-    const AllocatedCommandBuffer& other) {
-  if (&other == this) {
-    return *this;
-  }
-  command_buffer_info_ = other.command_buffer_info_;
-  wrapper_ = other.wrapper_;
-
-  return *this;
-}
 
 MM::RenderSystem::AllocatedCommandBuffer&
 MM::RenderSystem::AllocatedCommandBuffer::operator=(
@@ -425,6 +429,7 @@ MM::RenderSystem::CommandTask& MM::RenderSystem::CommandTaskFlow::AddTask(
     CommandType command_type,
     const std::function<
         MM::ExecuteResult(MM::RenderSystem::AllocatedCommandBuffer&)>& commands,
+    std::uint32_t use_render_resource_count,
     const std::vector<MM::RenderSystem::WaitAllocatedSemaphore>&
         wait_semaphores,
     const std::vector<MM::RenderSystem::AllocateSemaphore>& signal_semaphores) {
@@ -433,9 +438,9 @@ MM::RenderSystem::CommandTask& MM::RenderSystem::CommandTaskFlow::AddTask(
       temp{commands};
   std::unique_lock<std::shared_mutex> guard(task_sync_);
 
-  tasks_.emplace_back(std::unique_ptr<CommandTask>(
-      new CommandTask(this, ++increase_task_ID_, command_type, temp,
-                      wait_semaphores, signal_semaphores)));
+  tasks_.emplace_back(std::unique_ptr<CommandTask>(new CommandTask(
+      this, ++increase_task_ID_, command_type, temp, use_render_resource_count,
+      wait_semaphores, signal_semaphores)));
 
   root_tasks_.emplace_back(&(tasks_.back()));
   tasks_.back()->this_unique_ptr_ = &(tasks_.back());
@@ -459,15 +464,16 @@ MM::RenderSystem::CommandTask& MM::RenderSystem::CommandTaskFlow::AddTask(
     CommandType command_type,
     const std::vector<
         std::function<ExecuteResult(AllocatedCommandBuffer& cmd)>>& commands,
+    std::uint32_t use_render_resource_count,
     const std::vector<WaitAllocatedSemaphore>& wait_semaphores,
     const std::vector<AllocateSemaphore>& signal_semaphores) {
   assert(!commands.empty());
 
   std::unique_lock<std::shared_mutex> guard(task_sync_);
 
-  tasks_.emplace_back(std::unique_ptr<CommandTask>(
-      new CommandTask(this, ++increase_task_ID_, command_type, commands,
-                      wait_semaphores, signal_semaphores)));
+  tasks_.emplace_back(std::unique_ptr<CommandTask>(new CommandTask(
+      this, ++increase_task_ID_, command_type, commands,
+      use_render_resource_count, wait_semaphores, signal_semaphores)));
 
   root_tasks_.emplace_back(&(tasks_.back()));
   tasks_.back()->this_unique_ptr_ = &(tasks_.back());
@@ -2380,10 +2386,7 @@ MM::ExecuteResult MM::RenderSystem::CommandExecutor::SubmitTasks(
   }
 
   // TODO Modify the coefficients to achieve optimal performance.
-  if (input_tasks->command_task_->cross_task_flow_sync_render_resource_IDs_
-              .size() /
-          2 >
-      200) {
+  if (input_tasks->command_task_->use_render_resource_count_ / 2 > 200) {
     return SubmitTaskAsync(command_task_flow, input_tasks);
   } else {
     return SubmitTasksSync(command_task_flow, input_tasks);
@@ -2674,7 +2677,7 @@ void MM::RenderSystem::CommandExecutor::ProcessCrossTaskFlowRenderResourceSync(
       command_task_render_resource_states_.at(render_resource_ID)
           .emplace_back(CommandTaskRenderResourceState{
               command_task_flow->task_flow_ID_,
-              command_task_to_be_submit->task_flow_ID_,
+              command_task_to_be_submit->command_task_->command_task_ID_,
               command_task_to_be_submit->command_task_->command_type_,
               CommandBufferState::Recording});
     }
@@ -2686,7 +2689,7 @@ void MM::RenderSystem::CommandExecutor::ProcessCrossTaskFlowRenderResourceSync(
             std::list<CommandTaskRenderResourceState>{
                 CommandTaskRenderResourceState{
                     command_task_flow->task_flow_ID_,
-                    command_task_to_be_submit->task_flow_ID_,
+                    command_task_to_be_submit->command_task_->command_task_ID_,
                     command_task_to_be_submit->command_task_->command_type_,
                     CommandBufferState::Recording}}));
       }

@@ -131,7 +131,7 @@ class ManagedObjectUnorderedMap
     return data_.Contains(key);
   }
 
-  uint32_t Count(const KeyType& key) const override {
+  uint32_t GetSize(const KeyType& key) const override {
     std::shared_lock<std::shared_mutex> guard{ChooseMutexIn(key)};
     if constexpr (std::is_same_v<CanMovedTrait, CanMoved>) {
       std::shared_mutex* new_mutex = &ChooseMutexIn(key);
@@ -432,7 +432,7 @@ class ManagedObjectUnorderedMultiMap
     return data_.Count(key) != 0;
   }
 
-  uint32_t Count(const KeyType& key) const override {
+  uint32_t GetSize(const KeyType& key) const override {
     std::shared_lock<std::shared_mutex> guard{ChooseMutexIn(key)};
     if constexpr (std::is_same_v<CanMovedTrait, CanMoved>) {
       std::shared_mutex* new_mutex = &ChooseMutexIn(key);

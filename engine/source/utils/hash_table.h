@@ -42,7 +42,11 @@ class HashTable {
       : data_(new Node[size]{}),
         load_factor_(0.75),
         size_(0),
-        bucket_count_(size) {}
+        bucket_count_(size) {
+    for (std::uint64_t i = 0; i != bucket_count_; ++i) {
+      data_[i] = Node{};
+    }
+  }
   HashTable(const HashTable& other)
       : data_(nullptr), load_factor_(0.75), size_(0), bucket_count_(0) {
     data_ = new Node[other.bucket_count_]{};
@@ -78,9 +82,12 @@ class HashTable {
     bucket_count_ = other.bucket_count_;
 
     other.data_ = new Node[131]{};
+    other.bucket_count_ = 131;
+    for (std::uint64_t i = 0; i != other.bucket_count_; ++i) {
+      other.data_[i] = Node{};
+    }
     other.load_factor_ = 0.75;
     other.size_ = 0;
-    other.bucket_count_ = 131;
   }
   HashTable& operator=(const HashTable& other) {
     if (&other == this) {
@@ -136,9 +143,12 @@ class HashTable {
     bucket_count_ = other.bucket_count_;
 
     other.data_ = new Node[131]{};
+    other.bucket_count_ = 131;
+    for (std::uint64_t i = 0; i != other.bucket_count_; ++i) {
+      other.data_[i] = Node{};
+    }
     other.load_factor_ = 0.75;
     other.size_ = 0;
-    other.bucket_count_ = 131;
 
     return *this;
   }
@@ -377,6 +387,9 @@ class HashTable {
       new_bucket_size = MinPrime(new_bucket_size);
 
       Node* new_data = new Node[new_bucket_size]{};
+      for (std::uint64_t i = 0; i != new_bucket_size; ++i) {
+        new_data[i] = Node{};
+      }
 
       for (std::uint64_t i = 0; i != bucket_count_; ++i) {
         if (data_[i].object_) {
@@ -695,7 +708,11 @@ class ConcurrentHashTable {
       : data_(new Node[size]{}),
         load_factor_(0.75),
         size_(0),
-        bucket_count_(size) {}
+        bucket_count_(size) {
+    for (std::uint64_t i = 0; i != bucket_count_; ++i) {
+      data_[i] == Node{};
+    }
+  }
   ConcurrentHashTable(const ConcurrentHashTable& other)
       : data_(nullptr), load_factor_(0.75), size_(0), bucket_count_(0) {
     other.LockAll();
@@ -754,9 +771,12 @@ class ConcurrentHashTable {
     bucket_count_ = other.bucket_count_;
 
     other.data_ = new Node[131]{};
+    other.bucket_count_ = 131;
+    for (std::uint64_t i = 0; i != other.bucket_count_; ++i) {
+      other.data_[i] = Node{};
+    }
     other.load_factor_ = 0.75;
     other.size_.store(0, std::memory_order_release);
-    other.bucket_count_ = 131;
   }
   ConcurrentHashTable& operator=(const ConcurrentHashTable& other) {
     if (&other == this) {
@@ -856,9 +876,12 @@ class ConcurrentHashTable {
     bucket_count_ = other.bucket_count_;
 
     other.data_ = new Node[131]{};
+    other.bucket_count_ = 131;
+    for (std::uint64_t i = 0; i != other.bucket_count_; ++i) {
+      other.data_[i] = Node{};
+    }
     other.load_factor_ = 0.75;
     other.size_.store(0, std::memory_order_relaxed);
-    other.bucket_count_ = 131;
 
     return *this;
   }
@@ -1194,6 +1217,10 @@ class ConcurrentHashTable {
       new_bucket_size = MinPrime(new_bucket_size);
 
       Node* new_data = new Node[new_bucket_size]{};
+
+      for (std::uint64_t i = 0; i != new_bucket_size; ++i) {
+        new_data[i] = Node{};
+      }
 
       for (std::uint64_t i = 0; i != bucket_count_; ++i) {
         if (data_[i].object_) {

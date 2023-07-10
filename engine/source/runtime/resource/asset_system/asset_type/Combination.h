@@ -19,6 +19,12 @@ class Combination : public AssetBase {
   Combination& operator=(Combination&& other) noexcept;
 
  public:
+  std::uint64_t GetSize() const override;
+
+  std::vector<std::pair<void*, std::uint64_t>> GetDatas() override;
+
+  std::vector<std::pair<const void*, std::uint64_t>> GetDatas() const override;
+
   bool IsValid() const override;
 
   AssetType GetAssetType() const override;

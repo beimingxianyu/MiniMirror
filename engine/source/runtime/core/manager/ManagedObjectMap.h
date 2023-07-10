@@ -36,7 +36,7 @@ class ManagedObjectMap
 
   bool Have(const KeyType& key) const override;
 
-  uint32_t Count(const KeyType& key) const override;
+  uint32_t GetSize(const KeyType& key) const override;
 
   bool IsMultiContainer() const override;
 
@@ -87,7 +87,7 @@ class ManagedObjectMultiMap
 
   bool Have(const KeyType& key) const override;
 
-  uint32_t Count(const KeyType& key) const override;
+  uint32_t GetSize(const KeyType& key) const override;
 
   bool IsMultiContainer() const override;
 
@@ -197,7 +197,7 @@ bool ManagedObjectMap<KeyType, ValueType, Less, Allocator>::Have(
 
 template <typename KeyType, typename ValueType, typename Less,
           typename Allocator>
-uint32_t ManagedObjectMap<KeyType, ValueType, Less, Allocator>::Count(
+uint32_t ManagedObjectMap<KeyType, ValueType, Less, Allocator>::GetSize(
     const KeyType& key) const {
   if (Have(key)) {
     return 1;
@@ -381,7 +381,7 @@ bool ManagedObjectMultiMap<KeyType, ValueType, Less, Allocator>::Have(
 
 template <typename KeyType, typename ValueType, typename Less,
           typename Allocator>
-uint32_t ManagedObjectMultiMap<KeyType, ValueType, Less, Allocator>::Count(
+uint32_t ManagedObjectMultiMap<KeyType, ValueType, Less, Allocator>::GetSize(
     const KeyType& key) const {
   std::shared_lock<std::shared_mutex> guard{data_mutex_};
 

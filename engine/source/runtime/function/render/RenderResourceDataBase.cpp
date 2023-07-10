@@ -10,7 +10,20 @@ MM::RenderSystem::RenderResourceDataBase::RenderResourceDataBase(
     : ManagedObjectBase(resource_name),
       render_resource_data_ID_(render_resource_data_ID),
       used_for_write_(false),
-      have_data_(false) {}
+      is_managed_(false),
+      is_asset_resource_(false) {}
+
+MM::RenderSystem::RenderResourceDataBase::RenderResourceDataBase(
+    MM::RenderSystem::RenderResourceDataBase&& other) noexcept
+    : ManagedObjectBase(std::move(other)),
+      render_resource_data_ID_(std::move(other.render_resource_data_ID_)),
+      used_for_write_(other.used_for_write_),
+      is_managed_(other.is_managed_),
+      is_asset_resource_(other.is_asset_resource_) {
+  other.used_for_write_ = false;
+  other.is_managed_ = false;
+  other.is_asset_resource_ = false;
+}
 
 MM::RenderSystem::RenderResourceDataBase&
 MM::RenderSystem::RenderResourceDataBase::operator=(
@@ -21,10 +34,12 @@ MM::RenderSystem::RenderResourceDataBase::operator=(
   ManagedObjectBase::operator=(std::move(other));
   render_resource_data_ID_ = std::move(other.render_resource_data_ID_);
   used_for_write_ = other.used_for_write_;
-  have_data_ = other.have_data_;
+  is_managed_ = other.is_managed_;
+  is_asset_resource_ = other.is_asset_resource_;
 
   other.used_for_write_ = false;
-  other.have_data_ = false;
+  other.is_managed_ = false;
+  other.is_asset_resource_ = false;
 
   return *this;
 }
@@ -39,7 +54,13 @@ MM::RenderSystem::RenderResourceDataBase::GetResourceType() const {
   return ResourceType::UNDEFINED;
 }
 
-void MM::RenderSystem::RenderResourceDataBase::Release() {}
+void MM::RenderSystem::RenderResourceDataBase::Release() {
+  ManagedObjectBase::Reset();
+  render_resource_data_ID_.Reset();
+  used_for_write_ = false;
+  is_managed_ = false;
+  is_asset_resource_ = false;
+}
 
 bool MM::RenderSystem::RenderResourceDataBase::IsArray() const { return false; }
 
@@ -103,4 +124,20 @@ void MM::RenderSystem::RenderResourceDataBase::MarkThisUseForWrite() {
 void MM::RenderSystem::RenderResourceDataBase::SetRenderResourceDataID(
     const MM::RenderSystem::RenderResourceDataID& render_resource_data_ID) {
   render_resource_data_ID_ = render_resource_data_ID;
+}
+
+void MM::RenderSystem::RenderResourceDataBase::MarkThisIsManaged() {
+  is_managed_ = true;
+}
+
+bool MM::RenderSystem::RenderResourceDataBase::IsManaged() const {
+  return is_managed_;
+}
+
+bool MM::RenderSystem::RenderResourceDataBase::IsAssetResource() const {
+  return is_asset_resource_;
+}
+
+void MM::RenderSystem::RenderResourceDataBase::MarkThisIsAssetResource() {
+  is_asset_resource_ = true;
 }

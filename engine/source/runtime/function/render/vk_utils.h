@@ -8,6 +8,7 @@
 #include <vector>
 
 #include "runtime/function/render/import_other_system.h"
+#include "runtime/function/render/vk_enum.h"
 #include "runtime/platform/base/error.h"
 
 namespace MM {
@@ -127,13 +128,12 @@ VkBufferMemoryBarrier2 GetVkBufferMemoryBarrier2(
     VkPipelineStageFlags2 dest_stage, VkAccessFlags2 dest_access,
     std::uint32_t src_queue_family_index, std::uint32_t dest_queue_family_index,
     const AllocatedBuffer& buffer, VkDeviceSize offset, VkDeviceSize size);
-// TODO stage buffer memory barrier
-// VkBufferMemoryBarrier2 GetBufferMemoryBarrier(
-//    VkPipelineStageFlags2 src_stage, VkAccessFlags2 src_access,
-//    VkPipelineStageFlags2 dest_stage, VkAccessFlags2 dest_access,
-//    std::uint32_t src_queue_family_index, std::uint32_t
-//    dest_queue_family_index, const AllocatedStageBuffer& allocated_buffer,
-//    VkDeviceSize offset, VkDeviceSize size);
+
+VkBufferMemoryBarrier2 GetVkBufferMemoryBarrier2(
+    VkPipelineStageFlags2 src_stage, VkAccessFlags2 src_access,
+    VkPipelineStageFlags2 dest_stage, VkAccessFlags2 dest_access,
+    std::uint32_t src_queue_family_index, std::uint32_t dest_queue_family_index,
+    VkBuffer buffer, VkDeviceSize offset, VkDeviceSize size);
 
 VkImageMemoryBarrier2 GetVkImageMemoryBarrier2(
     VkPipelineStageFlags2 src_stage, VkAccessFlags2 src_access,
@@ -177,9 +177,9 @@ VkDependencyInfo GetImageMemoryDependencyInfo(
     VkDependencyFlags dependency_flags = 0);
 
 VkDependencyInfo GetVkDependencyInfo(
-    const std::vector<VkMemoryBarrier2>& memory_barriers,
-    const std::vector<VkBufferMemoryBarrier2>& buffer_barriers,
-    const std::vector<VkImageMemoryBarrier2>& image_barriers,
+    const std::vector<VkMemoryBarrier2>* memory_barriers,
+    const std::vector<VkBufferMemoryBarrier2>* buffer_barriers,
+    const std::vector<VkImageMemoryBarrier2>* image_barriers,
     VkDependencyFlags dependency_flags = 0);
 
 VkDependencyInfo GetVkDependencyInfo(
@@ -300,6 +300,20 @@ VkCopyBufferInfo2 GetCopyBufferInfo(const AllocatedBuffer& src_buffer,
                                     AllocatedBuffer& dest_buffer,
                                     const std::vector<VkBufferCopy2>& regions);
 
+VkCopyBufferInfo2 GetCopyBufferInfo(AllocatedBuffer& src_buffer,
+                                    AllocatedBuffer& dest_buffer,
+                                    std::uint32_t regions_count,
+                                    VkBufferCopy2* regions);
+
+VkCopyBufferInfo2 GetCopyBufferInfo(const AllocatedBuffer& src_buffer,
+                                    AllocatedBuffer& dest_buffer,
+                                    std::uint32_t regions_count,
+                                    VkBufferCopy2* regions);
+
+VkCopyBufferInfo2 GetCopyBufferInfo(VkBuffer src_buffer, VkBuffer dest_buffer,
+                                    void* next, std::uint32_t regions_count,
+                                    VkBufferCopy2* regions);
+
 bool IsTransformSrcBuffer(const VkBufferUsageFlags& flags);
 
 bool IsTransformDestBuffer(const VkBufferUsageFlags& flags);
@@ -400,6 +414,9 @@ VkImageBlit2 GetImageBlit2(const void* next,
                            VkOffset3D src_offsets[2],
                            VkImageSubresourceLayers dest_sub_resource,
                            VkOffset3D dest_offsets[2]);
+
+CommandBufferType ChooseCommandBufferType(RenderEngine* render_engine,
+                                          std::uint32_t queue_index);
 }  // namespace Utils
 }  // namespace RenderSystem
 }  // namespace MM

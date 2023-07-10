@@ -6,25 +6,21 @@
 
 #include <vulkan/vulkan_core.h>
 
-#include <cstdint>
 #include <vector>
 
 #include "RenderResourceDataBase.h"
 #include "RenderResourceDataID.h"
 #include "runtime/function/render/vk_engine.h"
-#include "runtime/platform/base/error.h"
 #include "vk_type_define.h"
 #include "vk_utils.h"
 
-MM::RenderSystem::AllocatedBuffer::AllocatedBufferWrapper::
-    ~AllocatedBufferWrapper() {
+MM::RenderSystem::AllocatedBufferWrapper::~AllocatedBufferWrapper() {
   Release();
 }
 
-MM::RenderSystem::AllocatedBuffer::AllocatedBufferWrapper::
-    AllocatedBufferWrapper(const VmaAllocator& allocator,
-                           const VkBuffer& buffer,
-                           const VmaAllocation& allocation)
+MM::RenderSystem::AllocatedBufferWrapper::AllocatedBufferWrapper(
+    const VmaAllocator& allocator, const VkBuffer& buffer,
+    const VmaAllocation& allocation)
     : allocator_(allocator), buffer_(buffer), allocation_(allocation) {
   if (allocator_ == nullptr || buffer_ == nullptr || allocation_ == nullptr) {
     allocator_ = nullptr;
@@ -33,44 +29,37 @@ MM::RenderSystem::AllocatedBuffer::AllocatedBufferWrapper::
   }
 }
 
-const VmaAllocator_T*
-MM::RenderSystem::AllocatedBuffer::AllocatedBufferWrapper::GetAllocator()
+const VmaAllocator_T* MM::RenderSystem::AllocatedBufferWrapper::GetAllocator()
     const {
   return allocator_;
 }
 
-const VkBuffer_T*
-MM::RenderSystem::AllocatedBuffer::AllocatedBufferWrapper::GetBuffer() const {
+const VkBuffer_T* MM::RenderSystem::AllocatedBufferWrapper::GetBuffer() const {
   return buffer_;
 }
 
-const VmaAllocation_T*
-MM::RenderSystem::AllocatedBuffer::AllocatedBufferWrapper::GetAllocation()
+const VmaAllocation_T* MM::RenderSystem::AllocatedBufferWrapper::GetAllocation()
     const {
   return allocation_;
 }
 
-bool MM::RenderSystem::AllocatedBuffer::AllocatedBufferWrapper::IsValid()
-    const {
+bool MM::RenderSystem::AllocatedBufferWrapper::IsValid() const {
   return allocator_ != nullptr && buffer_ != nullptr && allocation_ != nullptr;
 }
 
-VmaAllocator
-MM::RenderSystem::AllocatedBuffer::AllocatedBufferWrapper::GetAllocator() {
+VmaAllocator MM::RenderSystem::AllocatedBufferWrapper::GetAllocator() {
   return allocator_;
 }
 
-VkBuffer
-MM::RenderSystem::AllocatedBuffer::AllocatedBufferWrapper::GetBuffer() {
+VkBuffer MM::RenderSystem::AllocatedBufferWrapper::GetBuffer() {
   return buffer_;
 }
 
-VmaAllocation
-MM::RenderSystem::AllocatedBuffer::AllocatedBufferWrapper::GetAllocation() {
+VmaAllocation MM::RenderSystem::AllocatedBufferWrapper::GetAllocation() {
   return allocation_;
 }
 
-void MM::RenderSystem::AllocatedBuffer::AllocatedBufferWrapper::Release() {
+void MM::RenderSystem::AllocatedBufferWrapper::Release() {
   if (allocator_ == nullptr) {
     return;
   }
@@ -82,25 +71,22 @@ void MM::RenderSystem::AllocatedBuffer::AllocatedBufferWrapper::Release() {
   allocation_ = nullptr;
 }
 
-void MM::RenderSystem::AllocatedBuffer::AllocatedBufferWrapper::SetAllocator(
+void MM::RenderSystem::AllocatedBufferWrapper::SetAllocator(
     VmaAllocator allocator) {
   allocator_ = allocator;
 }
 
-void MM::RenderSystem::AllocatedBuffer::AllocatedBufferWrapper::SetBuffer(
-    VkBuffer buffer) {
+void MM::RenderSystem::AllocatedBufferWrapper::SetBuffer(VkBuffer buffer) {
   buffer_ = buffer;
 }
 
-void MM::RenderSystem::AllocatedBuffer::AllocatedBufferWrapper::SetAllocation(
+void MM::RenderSystem::AllocatedBufferWrapper::SetAllocation(
     VmaAllocation allocation) {
   allocation_ = allocation;
 }
 
-MM::RenderSystem::AllocatedBuffer::AllocatedBufferWrapper::
-    AllocatedBufferWrapper(
-        MM::RenderSystem::AllocatedBuffer::AllocatedBufferWrapper&&
-            other) noexcept
+MM::RenderSystem::AllocatedBufferWrapper::AllocatedBufferWrapper(
+    MM::RenderSystem::AllocatedBufferWrapper&& other) noexcept
     : allocator_(other.allocator_),
       buffer_(other.buffer_),
       allocation_(other.allocation_) {
@@ -109,10 +95,9 @@ MM::RenderSystem::AllocatedBuffer::AllocatedBufferWrapper::
   allocation_ = nullptr;
 }
 
-MM::RenderSystem::AllocatedBuffer::AllocatedBufferWrapper&
-MM::RenderSystem::AllocatedBuffer::AllocatedBufferWrapper::operator=(
-    MM::RenderSystem::AllocatedBuffer::AllocatedBufferWrapper&&
-        other) noexcept {
+MM::RenderSystem::AllocatedBufferWrapper&
+MM::RenderSystem::AllocatedBufferWrapper::operator=(
+    MM::RenderSystem::AllocatedBufferWrapper&& other) noexcept {
   if (&other == this) {
     return *this;
   }
@@ -197,10 +182,19 @@ MM::RenderSystem::AllocatedBuffer::AllocatedBuffer(
       0, buffer_data_info_.buffer_create_info_.size_,
       buffer_data_info_.buffer_create_info_.queue_family_indices_[0]);
 
+  RenderResourceDataAttributeID render_resource_data_attribute_ID;
+  MM_CHECK(buffer_data_info_.GetRenderResourceDataAttributeID(
+               render_resource_data_attribute_ID),
+           LOG_ERROR("Failed to get RenderResourceDataAttributeID.");
+           RenderResourceDataBase::Release(); render_engine_ = nullptr;
+           buffer_data_info_.Reset(); return;)
+  SetRenderResourceDataID(RenderResourceDataID{
+      GetObjectID().GetHash(), render_resource_data_attribute_ID});
+
   MM_CHECK(InitBuffer(render_engine, *vk_buffer_create_info,
                       *vma_allocation_create_info),
-           render_engine_ = render_engine;
-           buffer_data_info_.Reset(); return;)
+           RenderResourceDataBase::Release();
+           render_engine_ = render_engine; buffer_data_info_.Reset(); return;)
 }
 
 MM::ExecuteResult MM::RenderSystem::AllocatedBuffer::InitBuffer(
@@ -220,7 +214,7 @@ MM::ExecuteResult MM::RenderSystem::AllocatedBuffer::InitBuffer(
   wrapper_.SetBuffer(temp_buffer);
   wrapper_.SetAllocation(temp_allocation);
 
-  return ExecuteResult ::INITIALIZATION_FAILED;
+  return ExecuteResult ::SUCCESS;
 }
 
 VmaAllocator MM::RenderSystem::AllocatedBuffer::GetAllocator() {
@@ -236,6 +230,7 @@ VmaAllocation MM::RenderSystem::AllocatedBuffer::GetAllocation() {
 }
 
 void MM::RenderSystem::AllocatedBuffer::Release() {
+  RenderResourceDataBase::Release();
   render_engine_ = nullptr;
   wrapper_.Release();
   buffer_data_info_.Reset();
@@ -297,12 +292,16 @@ MM::RenderSystem::AllocatedBuffer::AllocatedBuffer(
 MM::ExecuteResult MM::RenderSystem::AllocatedBuffer::CopyDataToBuffer(
     std::uint64_t dest_offset, void* data, std::uint64_t src_offset,
     std::uint64_t size) {
+  if (!IsValid()) {
+    return MM::Utils::ExecuteResult ::OBJECT_IS_INVALID;
+  }
+
   if (data == nullptr) {
     return ExecuteResult::INPUT_PARAMETERS_ARE_NOT_SUITABLE;
   }
 
   // The copied data cannot exceed the buffer range.
-  if (size > buffer_data_info_.buffer_create_info_.size_ + dest_offset) {
+  if (size > buffer_data_info_.buffer_create_info_.size_ - dest_offset) {
     return ExecuteResult ::INPUT_PARAMETERS_ARE_NOT_SUITABLE;
   }
 
@@ -317,27 +316,30 @@ MM::ExecuteResult MM::RenderSystem::AllocatedBuffer::CopyDataToBuffer(
     char* data_ptr = reinterpret_cast<char*>(data) + src_offset;
 
     buffer_ptr = buffer_ptr + src_offset;
-    memcpy(buffer_ptr, buffer_ptr, size);
+    memcpy(buffer_ptr, data_ptr, size);
 
     vmaUnmapMemory(GetAllocator(), GetAllocation());
+
+    if (IsAssetResource()) {
+      MarkThisUseForWrite();
+    }
 
     return ExecuteResult::SUCCESS;
   }
 
-  VkBufferCreateInfo stage_buffer_create_info = Utils::GetVkBufferCreateInfo(
-      nullptr, 0, size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-      VK_SHARING_MODE_EXCLUSIVE, 1, &render_engine_->GetTransformQueueIndex());
-  VmaAllocationCreateInfo stage_allocation_create_info =
-      Utils::GetVmaAllocationCreateInfo(
-          VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT,
-          VMA_MEMORY_USAGE_AUTO, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
-          VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, 0, nullptr, nullptr, 1);
+  if (!IsTransformDest()) {
+    LOG_ERROR(
+        "If you want to copy data into an unmapped AllocatedBuffer, it must be "
+        "an AllocatedBuffer that can be specified as the transform "
+        "destination.");
+    return MM::Utils::ExecuteResult ::OPERATION_NOT_SUPPORTED;
+  }
+
   AllocatedBuffer stage_buffer{};
-  MM_CHECK_WITHOUT_LOG(render_engine_->CreateBuffer(
-                           stage_buffer_create_info,
-                           stage_allocation_create_info, nullptr, stage_buffer),
-                       LOG_ERROR("Failed to create stage buffer.");
-                       return MM_RESULT_CODE;)
+  MM_CHECK(GetRenderEnginePtr()->CreateStageBuffer(
+               size, render_engine_->GetTransformQueueIndex(), stage_buffer),
+           LOG_ERROR("Failed to create stage buffer.");
+           return MM::Utils::ExecuteResult ::CREATE_OBJECT_FAILED;)
 
   const auto buffer_copy_region =
       Utils::GetBufferCopy(size, src_offset, dest_offset);
@@ -358,42 +360,66 @@ MM::ExecuteResult MM::RenderSystem::AllocatedBuffer::CopyDataToBuffer(
 
   MM_CHECK(
       render_engine_->RunSingleCommandAndWait(
-          CommandBufferType::TRANSFORM,
+          CommandBufferType::TRANSFORM, 1,
           [&buffer_copy_info = buffer_copy_info, render_engine = render_engine_,
            this_buffer = this, size](AllocatedCommandBuffer& cmd) {
+            if (buffer_copy_info.pRegions->size >
+                this_buffer->GetSize() - buffer_copy_info.pRegions->dstOffset) {
+              return ExecuteResult ::INPUT_PARAMETERS_ARE_NOT_SUITABLE;
+            }
+
             MM_CHECK(Utils::BeginCommandBuffer(cmd),
                      LOG_ERROR("Failed to begin command buffer.");
                      return MM_RESULT_CODE;)
 
-            VkBufferMemoryBarrier2
-                buffer_memory_barrier1 = Utils::GetVkBufferMemoryBarrier2(
-                    VK_PIPELINE_STAGE_2_TRANSFER_BIT,
-                    VK_ACCESS_2_TRANSFER_READ_BIT,
-                    VK_PIPELINE_STAGE_2_TRANSFER_BIT,
-                    VK_ACCESS_2_TRANSFER_READ_BIT,
-                    this_buffer->GetSubResourceAttributes()[0].GetQueueIndex(),
-                    render_engine->GetTransformQueueIndex(), *this_buffer, 0,
-                    size),
-                buffer_memory_barrier2 = Utils::GetVkBufferMemoryBarrier2(
-                    VK_PIPELINE_STAGE_2_TRANSFER_BIT,
-                    VK_ACCESS_2_TRANSFER_WRITE_BIT,
-                    VK_PIPELINE_STAGE_2_TRANSFER_BIT,
-                    VK_ACCESS_2_TRANSFER_WRITE_BIT,
-                    render_engine->GetTransformQueueIndex(),
-                    this_buffer->GetSubResourceAttributes()[0].GetQueueIndex(),
-                    *this_buffer, 0, size);
-            VkDependencyInfo dependency_info1 = Utils::GetVkDependencyInfo(
-                                 0, nullptr, 0, &buffer_memory_barrier1, 0,
-                                 nullptr, 0),
-                             dependency_info2 = Utils::GetVkDependencyInfo(
-                                 0, nullptr, 0, &buffer_memory_barrier2, 0,
-                                 nullptr, 0);
+            std::vector<VkBufferMemoryBarrier2> barriers;
+            std::uint64_t affected_sub_resource_index = 0;
+            std::uint64_t affected_sub_resource_count = 0;
+            auto& sub_resource_attributes =
+                this_buffer->GetSubResourceAttributes();
+            for (std::uint64_t i = 0; i < sub_resource_attributes.size(); ++i) {
+              if (sub_resource_attributes[i].GetChunkInfo().GetOffset() <
+                  buffer_copy_info.pRegions->srcOffset) {
+                affected_sub_resource_index = i;
+                for (; i < sub_resource_attributes.size(); ++i) {
+                  if (sub_resource_attributes[i].GetChunkInfo().GetOffset() <
+                      buffer_copy_info.pRegions->srcOffset +
+                          buffer_copy_info.pRegions->size) {
+                    barriers.emplace_back(Utils::GetVkBufferMemoryBarrier2(
+                        VK_PIPELINE_STAGE_2_TRANSFER_BIT, 0,
+                        VK_PIPELINE_STAGE_2_TRANSFER_BIT,
+                        VK_ACCESS_2_TRANSFER_WRITE_BIT,
+                        sub_resource_attributes[i].GetQueueIndex(),
+                        render_engine->GetTransformQueueIndex(), *this_buffer,
+                        sub_resource_attributes[i].GetChunkInfo().GetOffset(),
+                        sub_resource_attributes[i].GetChunkInfo().GetSize()));
+                    ++affected_sub_resource_count;
+                  } else {
+                    break;
+                  }
+                }
+                break;
+              }
+            }
 
-            vkCmdPipelineBarrier2(cmd.GetCommandBuffer(), &dependency_info1);
+            VkDependencyInfo dependency_info = Utils::GetVkDependencyInfo(
+                0, nullptr, barriers.size(), barriers.data(), 0, nullptr, 0);
+
+            vkCmdPipelineBarrier2(cmd.GetCommandBuffer(), &dependency_info);
 
             vkCmdCopyBuffer2(cmd.GetCommandBuffer(), &buffer_copy_info);
 
-            vkCmdPipelineBarrier2(cmd.GetCommandBuffer(), &dependency_info2);
+            for (std::uint64_t count = 0; count != affected_sub_resource_count;
+                 ++count) {
+              barriers[count].srcAccessMask = VK_ACCESS_2_TRANSFER_WRITE_BIT;
+              barriers[count].srcQueueFamilyIndex =
+                  render_engine->GetTransformQueueIndex();
+              barriers[count].dstQueueFamilyIndex =
+                  sub_resource_attributes[affected_sub_resource_index + count]
+                      .GetQueueIndex();
+            }
+
+            vkCmdPipelineBarrier2(cmd.GetCommandBuffer(), &dependency_info);
 
             MM_CHECK(Utils::EndCommandBuffer(cmd),
                      LOG_ERROR("Failed to end command buffer.");
@@ -404,6 +430,10 @@ MM::ExecuteResult MM::RenderSystem::AllocatedBuffer::CopyDataToBuffer(
           std::vector<RenderResourceDataID>{
               stage_buffer.GetRenderResourceDataID()}),
       return MM_RESULT_CODE;)
+
+  if (IsAssetResource()) {
+    MarkThisUseForWrite();
+  }
 
   return ExecuteResult::SUCCESS;
 }
@@ -433,6 +463,218 @@ MM::RenderSystem::AllocatedBuffer& MM::RenderSystem::AllocatedBuffer::operator=(
   return *this;
 }
 
+MM::ExecuteResult MM::RenderSystem::AllocatedBuffer::CopyAssetDataToBuffer(
+    MM::AssetSystem::AssetManager::HandlerType asset_handler,
+    std::uint32_t queue_index) {
+  if (!IsValid() && !asset_handler.IsValid()) {
+    return MM::Utils::ExecuteResult ::OBJECT_IS_INVALID;
+  }
+
+  if (IsAssetResource()) {
+    LOG_ERROR(
+        "It is not supported to rewrite asset data to an AllocatedBuffer that "
+        "has already written asset data.");
+    return MM::Utils::ExecuteResult::OPERATION_NOT_SUPPORTED;
+  }
+
+  auto datas = asset_handler.GetAsset().GetDatas();
+  std::uint64_t asset_datas_size = 0;
+  for (const auto& data : datas) {
+    asset_datas_size += data.second;
+  }
+  if (asset_datas_size > GetBufferSize()) {
+    LOG_ERROR("Asset size lager than buffer size.");
+    return MM::Utils::ExecuteResult ::INPUT_PARAMETERS_ARE_NOT_SUITABLE;
+  }
+
+  if (buffer_data_info_.buffer_sub_resource_attributes_.size() == 1 &&
+      buffer_data_info_.buffer_sub_resource_attributes_[0].GetQueueIndex() ==
+          queue_index &&
+      CanMapped()) {
+    char* buffer_ptr{nullptr};
+    VK_CHECK_WITHOUT_LOG(
+        vmaMapMemory(GetAllocator(), GetAllocation(),
+                     reinterpret_cast<void**>(&buffer_ptr)),
+        LOG_ERROR("Unable to obtain a pointer mapped to a buffer");
+        return ExecuteResult::UNDEFINED_ERROR;)
+
+    std::uint64_t src_offset = 0;
+    for (const auto& data : datas) {
+      char* data_ptr = reinterpret_cast<char*>(data.first);
+
+      buffer_ptr = buffer_ptr + src_offset;
+      memcpy(buffer_ptr, data_ptr, data.second);
+      src_offset += data.second;
+    }
+
+    vmaUnmapMemory(GetAllocator(), GetAllocation());
+  }
+
+  if (!IsTransformDest()) {
+    LOG_ERROR(
+        "If you want to copy data into an unmapped AllocatedBuffer, it must be "
+        "an AllocatedBuffer that can be specified as the transform "
+        "destination.");
+    return MM::Utils::ExecuteResult ::OPERATION_NOT_SUPPORTED;
+  }
+
+  CommandBufferType command_buffer_type =
+      Utils::ChooseCommandBufferType(render_engine_, queue_index);
+  if (command_buffer_type == CommandBufferType::UNDEFINED) {
+    return MM::Utils::ExecuteResult ::INPUT_PARAMETERS_ARE_NOT_SUITABLE;
+  }
+
+  AllocatedBuffer stage_buffer;
+
+  std::vector<BufferSubResourceAttribute> old_sub_resource_attribute;
+  MM_CHECK(
+      render_engine_->RunSingleCommandAndWait(
+          command_buffer_type, 1,
+          [this_buffer = this, &datas, queue_index, &asset_datas_size,
+           &stage_buffer,
+           &old_sub_resource_attribute](AllocatedCommandBuffer& cmd) mutable {
+            std::vector<VkBufferMemoryBarrier2> barrier;
+            for (const auto& sub_resource_attribute :
+                 this_buffer->GetSubResourceAttributes()) {
+              barrier.emplace_back(Utils::GetVkBufferMemoryBarrier2(
+                  VK_PIPELINE_STAGE_2_TRANSFER_BIT, 0,
+                  VK_PIPELINE_STAGE_2_TRANSFER_BIT,
+                  VK_ACCESS_2_TRANSFER_WRITE_BIT,
+                  sub_resource_attribute.GetQueueIndex(), queue_index,
+                  this_buffer->GetBuffer(),
+                  sub_resource_attribute.GetChunkInfo().GetOffset(),
+                  sub_resource_attribute.GetChunkInfo().GetSize()));
+            }
+
+            VkDependencyInfo dependency_info{
+                Utils::GetVkDependencyInfo(nullptr, &barrier, nullptr, 0)};
+
+            MM_CHECK(this_buffer->GetRenderEnginePtr()->CreateStageBuffer(
+                         asset_datas_size, queue_index, stage_buffer),
+                     LOG_ERROR("Failed to create stage buffer.");
+                     return MM::Utils::ExecuteResult ::CREATE_OBJECT_FAILED;)
+
+            void* stage_buffer_ptr{nullptr};
+            VkDeviceSize src_offset{0};
+            VK_CHECK(
+                vmaMapMemory(this_buffer->GetAllocator(),
+                             stage_buffer.GetAllocation(), &stage_buffer_ptr),
+                LOG_ERROR("Unable to obtain a pointer mapped to a buffer");
+                return Utils::VkResultToMMResult(VK_RESULT_CODE);)
+            for (const auto& asset_data : datas) {
+              memcpy(static_cast<char*>(stage_buffer_ptr) + src_offset,
+                     asset_data.first, asset_data.second);
+            }
+
+            vmaUnmapMemory(this_buffer->GetAllocator(),
+                           stage_buffer.GetAllocation());
+
+            MM_CHECK(Utils::BeginCommandBuffer(cmd),
+                     LOG_ERROR("Failed to begin command buffer.");
+                     return MM_RESULT_CODE;)
+
+            vkCmdPipelineBarrier2(cmd.GetCommandBuffer(), &dependency_info);
+
+            old_sub_resource_attribute = std::move(
+                this_buffer->buffer_data_info_.buffer_sub_resource_attributes_);
+            this_buffer->buffer_data_info_.buffer_sub_resource_attributes_ =
+                std::vector<BufferSubResourceAttribute>{
+                    BufferSubResourceAttribute{0, this_buffer->GetBufferSize(),
+                                               queue_index}};
+
+            auto buffer_copy_region =
+                Utils::GetBufferCopy(asset_datas_size, 0, 0);
+            auto buffer_copy_info = Utils::GetCopyBufferInfo(
+                stage_buffer.GetBuffer(), this_buffer->GetBuffer(), nullptr, 1,
+                &buffer_copy_region);
+
+            vkCmdCopyBuffer2(cmd.GetCommandBuffer(), &buffer_copy_info);
+
+            MM_CHECK(Utils::EndCommandBuffer(cmd),
+                     LOG_ERROR("Failed to end command buffer.");
+                     return MM_RESULT_CODE;)
+
+            return MM::Utils::ExecuteResult ::SUCCESS;
+          },
+          std::vector<RenderResourceDataID>{GetRenderResourceDataID()}),
+      LOG_ERROR("Failed to copy asset data to AllocatedBuffer.");
+      if (!old_sub_resource_attribute.empty()) {
+        buffer_data_info_.buffer_sub_resource_attributes_ =
+            std::move(old_sub_resource_attribute);
+      } return MM_RESULT_CODE;)
+
+  MarkThisIsAssetResource();
+
+  return MM::Utils::ExecuteResult ::SUCCESS;
+}
+
+MM::RenderSystem::RenderEngine*
+MM::RenderSystem::AllocatedBuffer::GetRenderEnginePtr() {
+  return render_engine_;
+}
+
+const MM::RenderSystem::RenderEngine*
+MM::RenderSystem::AllocatedBuffer::GetRenderEnginePtr() const {
+  return render_engine_;
+}
+
+MM::RenderSystem::AllocatedBuffer::AllocatedBuffer(
+    const std::string& name, MM::RenderSystem::RenderEngine* render_engine,
+    MM::AssetSystem::AssetManager::HandlerType asset_handler,
+    const VkBufferCreateInfo* vk_buffer_create_info,
+    const VmaAllocationCreateInfo* vma_allocation_create_info)
+    : RenderResourceDataBase(name, RenderResourceDataID()),
+      render_engine_(render_engine),
+      buffer_data_info_(),
+      wrapper_() {
+#ifdef CHECK_PARAMETERS
+  MM_CHECK(CheckInitParametersWhenInitFromAnAsset(render_engine, asset_handler,
+                                                  vk_buffer_create_info,
+                                                  vma_allocation_create_info),
+           return;)
+#endif
+
+  buffer_data_info_.SetBufferCreateInfo(*vk_buffer_create_info);
+  buffer_data_info_.SetAllocationCreateInfo(*vma_allocation_create_info);
+  buffer_data_info_.buffer_sub_resource_attributes_.emplace_back(
+      0, buffer_data_info_.buffer_create_info_.size_,
+      buffer_data_info_.buffer_create_info_.queue_family_indices_[0]);
+
+  RenderResourceDataAttributeID render_resource_data_attribute_ID;
+  MM_CHECK(buffer_data_info_.GetRenderResourceDataAttributeID(
+               render_resource_data_attribute_ID),
+           LOG_ERROR("Failed to get RenderResourceDataAttributeID.");
+           RenderResourceDataBase::Release(); render_engine_ = nullptr;
+           buffer_data_info_.Reset(); return;)
+  SetRenderResourceDataID(RenderResourceDataID{
+      GetObjectID().GetHash(), render_resource_data_attribute_ID});
+
+  MM_CHECK(InitBuffer(render_engine, *vk_buffer_create_info,
+                      *vma_allocation_create_info),
+           RenderResourceDataBase::Release();
+           render_engine_ = render_engine; buffer_data_info_.Reset(); return;)
+
+  MM_CHECK(CopyAssetDataToBuffer(asset_handler,
+                                 GetSubResourceAttributes()[0].GetQueueIndex()),
+           RenderResourceDataBase::Release();
+           render_engine_ = render_engine; buffer_data_info_.Reset();
+           wrapper_.Release(); return;)
+}
+
+const MM::RenderSystem::BufferCreateInfo&
+MM::RenderSystem::AllocatedBuffer::GetBufferCreateInfo() const {
+  return buffer_data_info_.buffer_create_info_;
+}
+
+const MM::RenderSystem::AllocationCreateInfo&
+MM::RenderSystem::AllocatedBuffer::GetAllocationCreateInfo() const {
+  return buffer_data_info_.allocation_create_info_;
+}
+
+const MM::RenderSystem::BufferDataInfo&
+MM::RenderSystem::AllocatedBuffer::GetBufferDataInfo() const {
+  return buffer_data_info_;
+}
 // MM::ExecuteResult MM::RenderSystem::AllocatedBuffer::TransformQueueFamily(
 //     const BufferChunkInfo& buffer_chunk_info,
 //     std::uint32_t new_queue_family_index) {

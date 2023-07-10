@@ -24,8 +24,8 @@ TEST(manager, set) {
       EXPECT_EQ(handler1.GetObject(), 10);
       EXPECT_EQ(set_manager.Have(10), true);
       EXPECT_EQ(set_manager.Have(20), false);
-      EXPECT_EQ(set_manager.Count(10), 1);
-      EXPECT_EQ(set_manager.Count(20), 0);
+      EXPECT_EQ(set_manager.GetSize(10), 1);
+      EXPECT_EQ(set_manager.GetSize(20), 0);
       EXPECT_EQ(set_manager.IsMultiContainer(), false);
       EXPECT_EQ(set_manager.IsRelationshipContainer(), false);
       EXPECT_EQ(set_manager.GetObject(10, handler2),

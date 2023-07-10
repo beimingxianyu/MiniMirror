@@ -1,7 +1,9 @@
 #include "runtime/function/render/vk_render_resource.h"
 
 #include "RenderResourceDataManager.h"
+#include "RenderResourceTexture.h"
 #include "runtime/function/render/vk_engine.h"
+#include "vk_type_define.h"
 
 std::mutex MM::RenderSystem::RenderResourceDataManagerImp::sync_flag_{};
 
@@ -161,7 +163,7 @@ const std::uint32_t& MM::RenderSystem::RenderResourceTexture::GetArrayLayers()
 
 const MM::RenderSystem::ImageInfo&
 MM::RenderSystem::RenderResourceTexture::GetImageInfo() const {
-  return image_.GetImageInfo();
+  return image_.GetImageDataInfo();
 }
 
 const MM::RenderSystem::ImageBindData&
@@ -556,7 +558,8 @@ MM::ExecuteResult MM::RenderSystem::RenderResourceTexture::InitImage(
                           return MM_RESULT_CODE;);
 
                  return ExecuteResult::SUCCESS;
-               }),
+               },
+               1),
            LOG_ERROR("Copying image data to the GPU failed.");
            return MM_RESULT_CODE;)
 
@@ -663,7 +666,8 @@ MM::ExecuteResult MM::RenderSystem::RenderResourceTexture::GenerateMipmap() {
                      LOG_ERROR("Failed to end command buffer.");
                      return MM_RESULT_CODE;)
             return ExecuteResult::SUCCESS;
-          }),
+          },
+          1),
       LOG_ERROR("Mipmap generation failed.");
       return MM_RESULT_CODE;)
 
@@ -1315,7 +1319,7 @@ MM::ExecuteResult MM::RenderSystem::RenderResourceBuffer::CopyDataToBuffer(
 
   MM_CHECK(
       render_engine_->RunSingleCommandAndWait(
-          CommandBufferType::TRANSFORM,
+          CommandBufferType::TRANSFORM, 1,
           [&buffer_copy_info = buffer_copy_info](AllocatedCommandBuffer& cmd) {
             MM_CHECK(Utils::BeginCommandBuffer(cmd),
                      LOG_ERROR("Failed to begin command buffer.");

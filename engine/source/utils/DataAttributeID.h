@@ -45,6 +45,8 @@ class DataAttributeID2 {
 
   std::uint64_t GetHashCode() const;
 
+  void Reset();
+
  private:
   std::uint64_t resource_attribute1_{0};
   std::uint64_t resource_attribute2_{0};
@@ -92,6 +94,8 @@ class DataAttributeID3 {
   void SetAttribute3(std::uint64_t new_resource_attribute3);
 
   std::uint64_t GetHashCode() const;
+
+  void Reset();
 
  private:
   std::uint64_t resource_attribute1_{0};
