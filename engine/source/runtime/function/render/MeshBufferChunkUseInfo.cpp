@@ -11,6 +11,7 @@ MM::RenderSystem::MeshBufferChunkUseInfoLowLevel::
       free_chunk_count_(chunk_count),
       unit_chunk_size_(unit_chunk_size),
       chunk_use_info_set_(new bool[64]) {
+  assert(chunk_count != UINT64_MAX);
   for (std::uint64_t i = 0; i != chunk_count_; ++i) {
     chunk_use_info_set_[i] = false;
   }
@@ -106,9 +107,71 @@ void MM::RenderSystem::MeshBufferChunkUseInfoLowLevel::MarkUnused(
   free_chunk_count_ -= size;
 }
 
+std::uint64_t
+MM::RenderSystem::MeshBufferChunkUseInfoLowLevel::GetForwardFreeChunkCount(
+    std::uint64_t start_index) const {
+  assert(start_index < chunk_count_);
+
+  std::uint64_t free_chunk_count = 0;
+  for (std::uint64_t i = start_index;
+       i != chunk_count_ && chunk_use_info_set_[i]; ++i) {
+    ++free_chunk_count;
+  }
+
+  return free_chunk_count;
+}
+
+std::uint64_t
+MM::RenderSystem::MeshBufferChunkUseInfoLowLevel::GetForwardFreeSize(
+    std::uint64_t start_index) const {
+  return GetForwardFreeChunkCount(start_index) * unit_chunk_size_;
+}
+
+std::uint64_t
+MM::RenderSystem::MeshBufferChunkUseInfoLowLevel::GetForwardFreeChunkCount()
+    const {
+  return GetForwardFreeChunkCount(0);
+}
+
+std::uint64_t
+MM::RenderSystem::MeshBufferChunkUseInfoLowLevel::GetForwardFreeSize() const {
+  return GetForwardFreeSize(0);
+}
+
+std::uint64_t
+MM::RenderSystem::MeshBufferChunkUseInfoLowLevel::GetReverseFreeChunkCount(
+    std::uint64_t end_index) const {
+  assert(end_index <= chunk_count_ && end_index != 0);
+
+  std::uint64_t chunk_count = 0;
+  for (std::uint64_t i = end_index - 1;
+       i != UINT64_MAX && chunk_use_info_set_[i]; --i) {
+    ++chunk_count;
+  }
+
+  return chunk_count;
+}
+
+std::uint64_t
+MM::RenderSystem::MeshBufferChunkUseInfoLowLevel::GetReverseFreeSize(
+    std::uint64_t end_index) const {
+  return GetReverseFreeChunkCount(end_index) * unit_chunk_size_;
+}
+
+std::uint64_t
+MM::RenderSystem::MeshBufferChunkUseInfoLowLevel::GetReverseFreeChunkCount()
+    const {
+  return GetReverseFreeChunkCount(0);
+}
+
+std::uint64_t
+MM::RenderSystem::MeshBufferChunkUseInfoLowLevel::GetReverseFreeSize() const {
+  return GetReverseFreeSize(0);
+}
+
 std::pair<std::uint64_t, std::uint64_t>
 MM::RenderSystem::MeshBufferChunkUseInfoLowLevel::FindFreeChunk(
-    std::uint64_t require_size, std::uint64_t start_index) {
+    std::uint64_t require_size, std::uint64_t start_index) const {
   assert(start_index < chunk_count_);
 
   if (free_chunk_count_ * unit_chunk_size_ < require_size &&
@@ -140,14 +203,14 @@ MM::RenderSystem::MeshBufferChunkUseInfoLowLevel::FindFreeChunk(
 
 std::pair<std::uint64_t, std::uint64_t>
 MM::RenderSystem::MeshBufferChunkUseInfoLowLevel::FindFreeChunk(
-    std::uint64_t require_size) {
+    std::uint64_t require_size) const {
   return FindFreeChunk(require_size, 0);
 }
 
 std::pair<std::uint64_t, std::uint64_t>
-MM::RenderSystem::MeshBufferChunkUseInfoLowLevel::FindFreeChunkBack(
-    std::uint64_t require_size, std::uint64_t end_index) {
-  assert(end_index <= chunk_count_);
+MM::RenderSystem::MeshBufferChunkUseInfoLowLevel::FindFreeChunkReverse(
+    std::uint64_t require_size, std::uint64_t end_index) const {
+  assert(end_index <= chunk_count_ && end_index != 0);
 
   if (free_chunk_count_ * unit_chunk_size_ < require_size &&
       end_index * unit_chunk_size_ < require_size) {
@@ -157,7 +220,7 @@ MM::RenderSystem::MeshBufferChunkUseInfoLowLevel::FindFreeChunkBack(
   std::uint64_t free_size = 0;
   std::uint64_t offset_index = 0;
   std::uint64_t free_chunk_size = 0;
-  for (std::uint64_t i = end_index; i != UINT64_MAX; --i) {
+  for (std::uint64_t i = end_index - 1; i != UINT64_MAX; --i) {
     if (chunk_use_info_set_[i]) {
       offset_index = i;
       for (; chunk_use_info_set_[i] && i != UINT64_MAX; --i) {
@@ -181,9 +244,9 @@ MM::RenderSystem::MeshBufferChunkUseInfoLowLevel::FindFreeChunkBack(
 }
 
 std::pair<std::uint64_t, std::uint64_t>
-MM::RenderSystem::MeshBufferChunkUseInfoLowLevel::FindFreeChunkBack(
-    std::uint64_t require_size) {
-  return FindFreeChunkBack(require_size, chunk_count_);
+MM::RenderSystem::MeshBufferChunkUseInfoLowLevel::FindFreeChunkReverse(
+    std::uint64_t require_size) const {
+  return FindFreeChunkReverse(require_size, chunk_count_);
 }
 
 void MM::RenderSystem::MeshBufferChunkUseInfoLowLevel::Release() {

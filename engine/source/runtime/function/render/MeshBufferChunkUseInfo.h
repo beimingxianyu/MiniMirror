@@ -60,6 +60,22 @@ class MeshBufferChunkUseInfoLowLevel {
 
   void MarkUnused(std::uint64_t offset_index, std::uint64_t size);
 
+  std::uint64_t GetForwardFreeChunkCount(std::uint64_t start_index) const;
+
+  std::uint64_t GetForwardFreeSize(std::uint64_t start_index) const;
+
+  std::uint64_t GetForwardFreeChunkCount() const;
+
+  std::uint64_t GetForwardFreeSize() const;
+
+  std::uint64_t GetReverseFreeChunkCount(std::uint64_t end_index) const;
+
+  std::uint64_t GetReverseFreeSize(std::uint64_t end_index) const;
+
+  std::uint64_t GetReverseFreeChunkCount() const;
+
+  std::uint64_t GetReverseFreeSize() const;
+
   /**
    * Find free chunks of sufficient size.
    * \param require_size The required size, in bytes.
@@ -69,7 +85,7 @@ class MeshBufferChunkUseInfoLowLevel {
    * members are 0.
    */
   std::pair<std::uint64_t, std::uint64_t> FindFreeChunk(
-      std::uint64_t require_size, std::uint64_t start_index);
+      std::uint64_t require_size, std::uint64_t start_index) const;
 
   /**
    * Find free chunks of sufficient size.
@@ -79,7 +95,7 @@ class MeshBufferChunkUseInfoLowLevel {
    * members are 0.
    */
   std::pair<std::uint64_t, std::uint64_t> FindFreeChunk(
-      std::uint64_t require_size);
+      std::uint64_t require_size) const;
 
   /**
    * Find free chunks of sufficient size.Reverse search.
@@ -89,8 +105,8 @@ class MeshBufferChunkUseInfoLowLevel {
    * member is number of free chunk.When suitable chunks cannot be found, both
    * members are 0.
    */
-  std::pair<std::uint64_t, std::uint64_t> FindFreeChunkBack(
-      std::uint64_t require_size, std::uint64_t end_index);
+  std::pair<std::uint64_t, std::uint64_t> FindFreeChunkReverse(
+      std::uint64_t require_size, std::uint64_t end_index) const;
 
   /**
    * Find free chunks of sufficient size.Reverse search.
@@ -99,8 +115,8 @@ class MeshBufferChunkUseInfoLowLevel {
    * member is number of free chunk.When suitable chunks cannot be found, both
    * members are 0.
    */
-  std::pair<std::uint64_t, std::uint64_t> FindFreeChunkBack(
-      std::uint64_t require_size);
+  std::pair<std::uint64_t, std::uint64_t> FindFreeChunkReverse(
+      std::uint64_t require_size) const;
 
   void Release();
 
@@ -184,13 +200,19 @@ class MeshBufferChunkUseInfoHighLevel {
   /**
    * Find free chunks of sufficient size.
    * \param require_size The required size, in bytes.
-   * \param start_index The index of the starting chunk for the search.
-   * \return Return a pair which first number is offset of free chunk, second
-   * member is number of free chunk.When suitable chunks cannot be found, both
-   * members are 0.
+   * \param high_level_start_index The index of the starting chunk use info for
+   * the search.
+   * \param low_level_start_index The index of the starting chunk
+   * for the search.
+   * \return Return a pair which first number is offset of free
+   * chunk, second member is number of free chunk.When suitable chunks cannot be
+   * found, both members are 0.
    */
   std::pair<std::uint64_t, std::uint64_t> FindFreeChunk(
-      std::uint64_t require_size, std::uint64_t start_index);
+      std::uint64_t require_size, std::uint64_t high_level_start_index,
+      std::uint64_t low_level_start_index) {
+    assert(high_level_start_index <= low_level_chunk_use_info_count_);
+  }
 
   /**
    * Find free chunks of sufficient size.
@@ -205,13 +227,15 @@ class MeshBufferChunkUseInfoHighLevel {
   /**
    * Find free chunks of sufficient size.Reverse search.
    * \param require_size The required size, in bytes.
-   * \param end_index The index of the ending chunk for the search.
-   * \return Return a pair which first number is offset of free chunk, second
-   * member is number of free chunk.When suitable chunks cannot be found, both
-   * members are 0.
+   * \param high_level_end_index The index of the ending chunk use info for the
+   * search. \param low_level_end_index The index of the ending chunk for the
+   * search. \return Return a pair which first number is offset of free chunk,
+   * second member is number of free chunk.When suitable chunks cannot be found,
+   * both members are 0.
    */
-  std::pair<std::uint64_t, std::uint64_t> FindFreeChunkBack(
-      std::uint64_t require_size, std::uint64_t end_index);
+  std::pair<std::uint64_t, std::uint64_t> FindFreeChunkReverse(
+      std::uint64_t require_size, std::uint64_t high_level_end_index,
+      std::uint64_t low_level_end_index);
 
   /**
    * Find free chunks of sufficient size.Reverse search.
@@ -220,7 +244,7 @@ class MeshBufferChunkUseInfoHighLevel {
    * member is number of free chunk.When suitable chunks cannot be found, both
    * members are 0.
    */
-  std::pair<std::uint64_t, std::uint64_t> FindFreeChunkBack(
+  std::pair<std::uint64_t, std::uint64_t> FindFreeChunkReverse(
       std::uint64_t require_size);
 
   void Release();
