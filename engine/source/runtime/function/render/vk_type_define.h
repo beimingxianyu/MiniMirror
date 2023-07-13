@@ -453,6 +453,10 @@ class BufferSubResourceAttribute {
 
   void SetQueueIndex(uint32_t queue_index);
 
+  bool IsValid() const;
+
+  void Reset();
+
  private:
   BufferChunkInfo chunk_info_{};
 
@@ -837,5 +841,52 @@ struct MeshBufferInfoBase {
 
 using MeshVertexInfo = MeshBufferInfoBase;
 using MeshIndexInfo = MeshBufferInfoBase;
+
+class MeshBufferSubResourceAttribute {
+ public:
+  MeshBufferSubResourceAttribute() = default;
+  ~MeshBufferSubResourceAttribute() = default;
+  MeshBufferSubResourceAttribute(
+      const BufferSubResourceAttribute& vertex_buffer_sub_resource_attribute,
+      const BufferSubResourceAttribute& index_buffer_sub_resource_attribute);
+  MeshBufferSubResourceAttribute(const MeshBufferSubResourceAttribute& other) =
+      default;
+  MeshBufferSubResourceAttribute(
+      MeshBufferSubResourceAttribute&& other) noexcept = default;
+  MeshBufferSubResourceAttribute& operator=(
+      const MeshBufferSubResourceAttribute& other);
+  MeshBufferSubResourceAttribute& operator=(
+      MeshBufferSubResourceAttribute&& other) noexcept;
+
+ public:
+  bool operator==(const MeshBufferSubResourceAttribute& rhs) const;
+
+  bool operator!=(const MeshBufferSubResourceAttribute& rhs) const;
+
+ public:
+  const BufferChunkInfo& VertexGetChunkInfo() const;
+
+  void VertexSetChunkInfo(const BufferChunkInfo& chunk_info);
+
+  std::uint32_t VertexGetQueueIndex() const;
+
+  void VertexSetQueueIndex(uint32_t queue_index);
+
+  const BufferChunkInfo& IndexGetChunkInfo() const;
+
+  void IndexSetChunkInfo(const BufferChunkInfo& chunk_info);
+
+  std::uint32_t IndexGetQueueIndex() const;
+
+  void IndexSetQueueIndex(uint32_t queue_index);
+
+  bool IsValid() const;
+
+  void Reset();
+
+ private:
+  BufferSubResourceAttribute vertex_buffer_sub_resource_attribute_{};
+  BufferSubResourceAttribute index_buffer_sub_resource_attribute_{};
+};
 }  // namespace RenderSystem
 }  // namespace MM

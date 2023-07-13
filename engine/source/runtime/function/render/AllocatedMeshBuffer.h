@@ -26,20 +26,6 @@ class AllocatedMeshBuffer : public MMObject {
 
   const RenderEngine* GetRenderEnginePtr() const;
 
-  const MeshBufferCapacityData& GetMeshBufferCapacityData() const;
-
-  float GetCapacityCoefficient() const;
-
-  float GetExpansionCoefficient() const;
-
-  VkDeviceSize GetIndexBufferRemainingCapacity() const;
-
-  VkDeviceSize GetVertexBufferRemainingCapacity() const;
-
-  void SetCapacityCoefficient(float capacity_coefficient);
-
-  void SetExpansionCoefficient(float expansion_coefficient);
-
   const MeshVertexInfo& GetMeshVertexInfo() const;
 
   const MeshIndexInfo& GetMeshIndexInfo() const;
@@ -77,8 +63,11 @@ class AllocatedMeshBuffer : public MMObject {
   void Release();
 
  private:
+  ExecuteResult InitMeshBuffer(std::uint64_t vertex_buffer_size,
+                               std::uint64_t index_buffer_size);
+
+ private:
   RenderEngine* render_engine_{nullptr};
-  MeshBufferCapacityData capacity_data_{};
   MeshVertexInfo vertex_info_{};
   MeshIndexInfo index_info_{};
   AllocatedBufferWrapper vertex_buffer_{};

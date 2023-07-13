@@ -2146,6 +2146,15 @@ bool MM::RenderSystem::BufferSubResourceAttribute::operator!=(
   return !(rhs == *this);
 }
 
+bool MM::RenderSystem::BufferSubResourceAttribute::IsValid() const {
+  return chunk_info_.IsValid() && queue_index_ != UINT32_MAX;
+}
+
+void MM::RenderSystem::BufferSubResourceAttribute::Reset() {
+  chunk_info_.Reset();
+  queue_index_ = UINT32_MAX;
+}
+
 void MM::RenderSystem::MeshBufferCapacityData::Reset() {
   capacity_coefficient_ = 0;
   expansion_coefficient_ = 0;
@@ -2281,4 +2290,107 @@ bool MM::RenderSystem::MeshBufferInfoBase::IsValid() const {
 void MM::RenderSystem::MeshBufferInfoBase::Reset() {
   buffer_create_info_.Reset();
   allocation_create_info_.Reset();
+}
+
+MM::RenderSystem::MeshBufferSubResourceAttribute::
+    MeshBufferSubResourceAttribute(
+        const MM::RenderSystem::BufferSubResourceAttribute&
+            vertex_buffer_sub_resource_attribute,
+        const MM::RenderSystem::BufferSubResourceAttribute&
+            index_buffer_sub_resource_attribute)
+    : vertex_buffer_sub_resource_attribute_(
+          vertex_buffer_sub_resource_attribute),
+      index_buffer_sub_resource_attribute_(
+          index_buffer_sub_resource_attribute) {}
+
+MM::RenderSystem::MeshBufferSubResourceAttribute&
+MM::RenderSystem::MeshBufferSubResourceAttribute::operator=(
+    const MM::RenderSystem::MeshBufferSubResourceAttribute& other) {
+  if (std::addressof(other) == this) {
+    return *this;
+  }
+
+  vertex_buffer_sub_resource_attribute_ =
+      other.vertex_buffer_sub_resource_attribute_;
+  index_buffer_sub_resource_attribute_ =
+      other.index_buffer_sub_resource_attribute_;
+
+  return *this;
+}
+
+MM::RenderSystem::MeshBufferSubResourceAttribute&
+MM::RenderSystem::MeshBufferSubResourceAttribute::operator=(
+    MM::RenderSystem::MeshBufferSubResourceAttribute&& other) noexcept {
+  if (std::addressof(other) == this) {
+    return *this;
+  }
+
+  vertex_buffer_sub_resource_attribute_ =
+      std::move(other.vertex_buffer_sub_resource_attribute_);
+  index_buffer_sub_resource_attribute_ =
+      std::move(other.index_buffer_sub_resource_attribute_);
+
+  return *this;
+}
+
+bool MM::RenderSystem::MeshBufferSubResourceAttribute::operator==(
+    const MM::RenderSystem::MeshBufferSubResourceAttribute& rhs) const {
+  return (vertex_buffer_sub_resource_attribute_ ==
+          rhs.vertex_buffer_sub_resource_attribute_) &&
+         (index_buffer_sub_resource_attribute_ ==
+          rhs.index_buffer_sub_resource_attribute_);
+}
+bool MM::RenderSystem::MeshBufferSubResourceAttribute::operator!=(
+    const MM::RenderSystem::MeshBufferSubResourceAttribute& rhs) const {
+  return !(*this == rhs);
+}
+
+const MM::RenderSystem::BufferChunkInfo&
+MM::RenderSystem::MeshBufferSubResourceAttribute::VertexGetChunkInfo() const {
+  return vertex_buffer_sub_resource_attribute_.GetChunkInfo();
+}
+
+void MM::RenderSystem::MeshBufferSubResourceAttribute::VertexSetChunkInfo(
+    const MM::RenderSystem::BufferChunkInfo& chunk_info) {
+  vertex_buffer_sub_resource_attribute_.SetChunkInfo(chunk_info);
+}
+
+std::uint32_t
+MM::RenderSystem::MeshBufferSubResourceAttribute::VertexGetQueueIndex() const {
+  return vertex_buffer_sub_resource_attribute_.GetQueueIndex();
+}
+
+void MM::RenderSystem::MeshBufferSubResourceAttribute::VertexSetQueueIndex(
+    uint32_t queue_index) {
+  vertex_buffer_sub_resource_attribute_.SetQueueIndex(queue_index);
+}
+
+const MM::RenderSystem::BufferChunkInfo&
+MM::RenderSystem::MeshBufferSubResourceAttribute::IndexGetChunkInfo() const {
+  return index_buffer_sub_resource_attribute_.GetChunkInfo();
+}
+
+void MM::RenderSystem::MeshBufferSubResourceAttribute::IndexSetChunkInfo(
+    const MM::RenderSystem::BufferChunkInfo& chunk_info) {
+  index_buffer_sub_resource_attribute_.SetChunkInfo(chunk_info);
+}
+
+std::uint32_t
+MM::RenderSystem::MeshBufferSubResourceAttribute::IndexGetQueueIndex() const {
+  return index_buffer_sub_resource_attribute_.GetQueueIndex();
+}
+
+void MM::RenderSystem::MeshBufferSubResourceAttribute::IndexSetQueueIndex(
+    uint32_t queue_index) {
+  index_buffer_sub_resource_attribute_.SetQueueIndex(queue_index);
+}
+
+bool MM::RenderSystem::MeshBufferSubResourceAttribute::IsValid() const {
+  return vertex_buffer_sub_resource_attribute_.IsValid() &&
+         index_buffer_sub_resource_attribute_.IsValid();
+}
+
+void MM::RenderSystem::MeshBufferSubResourceAttribute::Reset() {
+  vertex_buffer_sub_resource_attribute_.Reset();
+  index_buffer_sub_resource_attribute_.Reset();
 }

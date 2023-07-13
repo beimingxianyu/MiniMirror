@@ -11,56 +11,48 @@ namespace RenderSystem {
 AllocatedMeshBuffer::AllocatedMeshBuffer(RenderEngine *render_engine)
     : MMObject(),
       render_engine_(render_engine),
-      capacity_data_{0.9f, 2.0f, 0, 0},
       vertex_info_(),
       index_info_(),
       vertex_buffer_(),
       index_buffer_() {
-  if (render_engine_ == nullptr) {
+  if (render_engine_ == nullptr && render_engine_->IsValid()) {
+    render_engine_ = nullptr;
     LOG_ERROR("Failed to create allocated mesh buffer.");
     return;
   }
 
-  VkBufferCreateInfo vertex_buffer_create_info = Utils::GetVkBufferCreateInfo();
-  VkBufferCreateInfo index_buffer_create_info = Utils::GetVkBufferCreateInfo();
+  const auto vertex_buffer_size =
+      std::stoull(CONFIG_SYSTEM->GetConfig("init_vertex_buffer_size"));
 
-  VmaAllocationCreateInfo vma_allocation_create_info =
-      Utils::GetVmaAllocationCreateInfo();
+  const auto index_buffer_size =
+      std::stoull(CONFIG_SYSTEM->GetConfig("init_index_buffer_size"));
+  InitMeshBuffer(vertex_buffer_size, index_buffer_size);
+}
 
-  VkBuffer temp_vertex_buffer{nullptr}, temp_index_buffer{nullptr};
-  VmaAllocation temp_vertex_allocation{nullptr}, temp_index_allocation{nullptr};
+AllocatedMeshBuffer::AllocatedMeshBuffer(RenderEngine *render_engine,
+                                         std::uint32_t vertex_count)
+    : MMObject(),
+      render_engine_(render_engine),
+      vertex_info_(),
+      index_info_(),
+      vertex_buffer_(),
+      index_buffer_() {
+  if (render_engine_ == nullptr && render_engine_->IsValid()) {
+    render_engine_ = nullptr;
+    LOG_ERROR("Failed to create allocated mesh buffer.");
+    return;
+  }
 
-  VK_CHECK(
-      vmaCreateBuffer(render_engine_->GetAllocator(), &index_buffer_create_info,
-                      &vma_allocation_create_info, &temp_index_buffer,
-                      &temp_index_allocation, nullptr),
-      LOG_ERROR("Failed to create index buffer.");
-      return;)
-
-  VK_CHECK(
-      vmaCreateBuffer(render_engine_->GetAllocator(),
-                      &vertex_buffer_create_info, &vma_allocation_create_info,
-                      &temp_vertex_buffer, &temp_vertex_allocation, nullptr),
-      LOG_ERROR("Failed to create vertex buffer.");
-      vmaDestroyBuffer(render_engine_->GetAllocator(), temp_index_buffer,
-                       temp_index_allocation);
-      return;)
-
-  vertex_info_.SetBufferCreateInfo(vertex_buffer_create_info);
-  vertex_info_.SetAllocationCreateInfo(vma_allocation_create_info);
-  index_info_.SetBufferCreateInfo(index_buffer_create_info);
-  index_info_.SetAllocationCreateInfo(vma_allocation_create_info);
-
-  vertex_buffer_ =
-      AllocatedBufferWrapper(render_engine_->GetAllocator(), temp_vertex_buffer,
-                             temp_vertex_allocation);
-  index_buffer_ = AllocatedBufferWrapper(
-      render_engine->GetAllocator(), temp_index_buffer, temp_index_allocation);
+  std::uint64_t vertex_buffer_size =
+                    vertex_count * sizeof(AssetSystem::AssetType::Vertex),
+                index_buffer_size = vertex_buffer_size *
+                                    sizeof(AssetSystem::AssetType::Vertex) /
+                                    sizeof(std::uint32_t) * 4;
+  InitMeshBuffer(vertex_buffer_size, index_buffer_size);
 }
 
 AllocatedMeshBuffer::AllocatedMeshBuffer(AllocatedMeshBuffer &&other) noexcept
     : render_engine_(other.render_engine_),
-      capacity_data_(std::move(other.capacity_data_)),
       vertex_info_(std::move(other.vertex_info_)),
       index_info_(std::move(other.index_info_)),
       vertex_buffer_(std::move(other.vertex_buffer_)),
@@ -74,7 +66,6 @@ AllocatedMeshBuffer &AllocatedMeshBuffer::operator=(
     return *this;
   }
   render_engine_ = other.render_engine_;
-  capacity_data_ = std::move(other.capacity_data_);
   vertex_info_ = std::move(other.vertex_info_);
   index_info_ = std::move(other.index_info_);
   vertex_buffer_ = std::move(other.vertex_buffer_);
@@ -99,35 +90,6 @@ RenderEngine *AllocatedMeshBuffer::GetRenderEnginePtr() {
 
 const RenderEngine *AllocatedMeshBuffer::GetRenderEnginePtr() const {
   return render_engine_;
-}
-
-const MeshBufferCapacityData &AllocatedMeshBuffer::GetMeshBufferCapacityData()
-    const {
-  return capacity_data_;
-}
-
-float AllocatedMeshBuffer::GetCapacityCoefficient() const {
-  return GetMeshBufferCapacityData().capacity_coefficient_;
-}
-
-float AllocatedMeshBuffer::GetExpansionCoefficient() const {
-  return GetMeshBufferCapacityData().expansion_coefficient_;
-}
-
-VkDeviceSize AllocatedMeshBuffer::GetIndexBufferRemainingCapacity() const {
-  return GetMeshBufferCapacityData().index_buffer_remaining_capacity_;
-}
-
-VkDeviceSize AllocatedMeshBuffer::GetVertexBufferRemainingCapacity() const {
-  return GetMeshBufferCapacityData().vertex_buffer_remaining_capacity_;
-}
-
-void AllocatedMeshBuffer::SetCapacityCoefficient(float capacity_coefficient) {
-  capacity_data_.capacity_coefficient_ = capacity_coefficient;
-}
-
-void AllocatedMeshBuffer::SetExpansionCoefficient(float expansion_coefficient) {
-  capacity_data_.expansion_coefficient_ = expansion_coefficient;
 }
 
 const MeshVertexInfo &AllocatedMeshBuffer::GetMeshVertexInfo() const {
@@ -199,9 +161,9 @@ const VmaAllocation_T *AllocatedMeshBuffer::GetIndexAllocation() const {
 }
 
 bool AllocatedMeshBuffer::IsValid() const {
-  return render_engine_ != nullptr && capacity_data_.IsValid() &&
-         vertex_info_.IsValid() && index_info_.IsValid() &&
-         vertex_buffer_.IsValid() && index_buffer_.IsValid();
+  return render_engine_ != nullptr && vertex_info_.IsValid() &&
+         index_info_.IsValid() && vertex_buffer_.IsValid() &&
+         index_buffer_.IsValid();
 }
 
 void AllocatedMeshBuffer::Release() {
@@ -209,8 +171,62 @@ void AllocatedMeshBuffer::Release() {
   index_buffer_.Release();
   vertex_info_.Reset();
   index_info_.Reset();
-  capacity_data_.Reset();
   render_engine_ = nullptr;
+}
+
+ExecuteResult AllocatedMeshBuffer::InitMeshBuffer(
+    std::uint64_t vertex_buffer_size, std::uint64_t index_buffer_size) {
+  std::uint32_t graph_index = render_engine_->GetGraphQueueIndex();
+  VkBufferCreateInfo vertex_buffer_create_info = Utils::GetVkBufferCreateInfo(
+      nullptr, 0, vertex_buffer_size,
+      VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT |
+          VK_BUFFER_USAGE_TRANSFER_SRC_BIT |
+          VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT,
+      VK_SHARING_MODE_EXCLUSIVE, 1, &graph_index);
+  VkBufferCreateInfo index_buffer_create_info = Utils::GetVkBufferCreateInfo(
+      nullptr, 0, index_buffer_size,
+      VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT |
+          VK_BUFFER_USAGE_TRANSFER_SRC_BIT |
+          VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT,
+      VK_SHARING_MODE_EXCLUSIVE, 1, &graph_index);
+
+  VmaAllocationCreateInfo vma_allocation_create_info =
+      Utils::GetVmaAllocationCreateInfo(VK_MEMORY_ALLOCATE_DEVICE_ADDRESS_BIT,
+                                        VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE,
+                                        VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0,
+                                        0, nullptr, nullptr, 0.5);
+
+  VkBuffer temp_vertex_buffer{nullptr}, temp_index_buffer{nullptr};
+  VmaAllocation temp_vertex_allocation{nullptr}, temp_index_allocation{nullptr};
+
+  VK_CHECK(
+      vmaCreateBuffer(render_engine_->GetAllocator(), &index_buffer_create_info,
+                      &vma_allocation_create_info, &temp_index_buffer,
+                      &temp_index_allocation, nullptr),
+      LOG_ERROR("Failed to create index buffer.");
+      render_engine_ = nullptr;
+      return MM::Utils::ExecuteResult ::INITIALIZATION_FAILED;)
+
+  VK_CHECK(
+      vmaCreateBuffer(render_engine_->GetAllocator(),
+                      &vertex_buffer_create_info, &vma_allocation_create_info,
+                      &temp_vertex_buffer, &temp_vertex_allocation, nullptr),
+      LOG_ERROR("Failed to create vertex buffer.");
+      render_engine_ = nullptr;
+      vmaDestroyBuffer(render_engine_->GetAllocator(), temp_index_buffer,
+                       temp_index_allocation);
+      return MM::Utils::ExecuteResult ::INITIALIZATION_FAILED;)
+
+  vertex_info_.SetBufferCreateInfo(vertex_buffer_create_info);
+  vertex_info_.SetAllocationCreateInfo(vma_allocation_create_info);
+  index_info_.SetBufferCreateInfo(index_buffer_create_info);
+  index_info_.SetAllocationCreateInfo(vma_allocation_create_info);
+
+  vertex_buffer_ =
+      AllocatedBufferWrapper(render_engine_->GetAllocator(), temp_vertex_buffer,
+                             temp_vertex_allocation);
+  index_buffer_ = AllocatedBufferWrapper(
+      render_engine_->GetAllocator(), temp_index_buffer, temp_index_allocation);
 }
 }  // namespace RenderSystem
 }  // namespace MM
