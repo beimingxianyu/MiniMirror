@@ -7,6 +7,7 @@
 #include <memory>
 #include <mutex>
 #include <utility>
+#include <vector>
 
 #include "runtime/platform/base//cross_platform_header.h"
 #include "runtime/platform/base/error.h"

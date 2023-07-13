@@ -67,11 +67,17 @@ void MM::RenderSystem::RenderEngine::CleanUp() {
 
 bool MM::RenderSystem::RenderEngine::IsValid() const { return is_initialized_; }
 
-const VmaAllocator& MM::RenderSystem::RenderEngine::GetAllocator() const {
+VmaAllocator MM::RenderSystem::RenderEngine::GetAllocator() {
   return allocator_;
 }
 
-const VkDevice& MM::RenderSystem::RenderEngine::GetDevice() const {
+const VmaAllocator_T* MM::RenderSystem::RenderEngine::GetAllocator() const {
+  return allocator_;
+}
+
+VkDevice MM::RenderSystem::RenderEngine::GetDevice() { return device_; }
+
+const VkDevice_T* MM::RenderSystem::RenderEngine::GetDevice() const {
   return device_;
 }
 
@@ -918,7 +924,7 @@ MM::ExecuteResult MM::RenderSystem::RenderEngine::RemoveBufferFragmentation(
           CommandBufferType::TRANSFORM, 1,
           [&self_copy_info, &self_copy_to_stage_info,
            &stage_copy_to_self_info](AllocatedCommandBuffer& cmd) {
-            MM_CHECK(Utils::BeginCommandBuffer(cmd),
+            MM_CHECK(Utils::eginCommandBuffer(cmd),
                      LOG_ERROR("Failed to begin command buffer.");
                      return MM_RESULT_CODE;)
 
@@ -1166,23 +1172,19 @@ void MM::RenderSystem::RenderEngine::InitLogicalDevice() {
   }
 
   // physical device features
-  VkPhysicalDeviceFeatures physical_device_features;
-
-  physical_device_features.samplerAnisotropy = VK_TRUE;
-
+  VkPhysicalDeviceFeatures2 physical_device_features{};
+  physical_device_features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
+  physical_device_features.features.samplerAnisotropy = VK_TRUE;
   // support inefficient readback storage buffer
-  physical_device_features.fragmentStoresAndAtomics = VK_TRUE;
-
+  physical_device_features.features.fragmentStoresAndAtomics = VK_TRUE;
   // support independent blending
-  physical_device_features.independentBlend = VK_TRUE;
-
+  physical_device_features.features.independentBlend = VK_TRUE;
   // support geometry shader
   if (enable_point_light_shadow_) {
-    physical_device_features.geometryShader = VK_TRUE;
+    physical_device_features.features.geometryShader = VK_TRUE;
   }
-
   // support shader 64bit integer
-  physical_device_features.shaderInt64 = VK_TRUE;
+  physical_device_features.features.shaderInt64 = VK_TRUE;
 
   VkPhysicalDeviceVulkan12Features device_vulkan12_features{};
   device_vulkan12_features.sType =
@@ -1197,33 +1199,27 @@ void MM::RenderSystem::RenderEngine::InitLogicalDevice() {
   device_vulkan12_features.descriptorBindingStorageImageUpdateAfterBind =
       VK_TRUE;
   device_vulkan12_features.bufferDeviceAddress = VK_TRUE;
-
-  VkPhysicalDeviceDescriptorIndexingFeatures di_features{};
-  di_features.sType =
-      VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DESCRIPTOR_INDEXING_FEATURES;
-
   // Enable partially bound descriptor bindings
-  di_features.descriptorBindingPartiallyBound = true;
-
+  device_vulkan12_features.descriptorBindingPartiallyBound = true;
   // Enable non-uniform indexing and update after bind
   // binding flags for textures, uniforms, and buffers
-  di_features.shaderSampledImageArrayNonUniformIndexing = true;
-  di_features.descriptorBindingSampledImageUpdateAfterBind = true;
+  device_vulkan12_features.shaderSampledImageArrayNonUniformIndexing = true;
+  device_vulkan12_features.descriptorBindingSampledImageUpdateAfterBind = true;
+  device_vulkan12_features.shaderUniformBufferArrayNonUniformIndexing = true;
+  device_vulkan12_features.descriptorBindingUniformBufferUpdateAfterBind = true;
+  device_vulkan12_features.shaderStorageBufferArrayNonUniformIndexing = true;
+  device_vulkan12_features.descriptorBindingStorageBufferUpdateAfterBind = true;
 
-  di_features.shaderUniformBufferArrayNonUniformIndexing = true;
-  di_features.descriptorBindingUniformBufferUpdateAfterBind = true;
-
-  di_features.shaderStorageBufferArrayNonUniformIndexing = true;
-  di_features.descriptorBindingStorageBufferUpdateAfterBind = true;
+  physical_device_features.pNext = &device_vulkan12_features;
 
   // device create info
   VkDeviceCreateInfo device_create_info{};
   device_create_info.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
-  device_create_info.pNext = &di_features;
+  device_create_info.pNext = &physical_device_features;
   device_create_info.pQueueCreateInfos = queue_create_infos.data();
   device_create_info.queueCreateInfoCount =
       static_cast<uint32_t>(queue_create_infos.size());
-  device_create_info.pEnabledFeatures = &physical_device_features;
+  // device_create_info.pEnabledFeatures;
   device_create_info.enabledExtensionCount =
       static_cast<uint32_t>(enable_device_extensions_.size());
   device_create_info.ppEnabledExtensionNames = enable_device_extensions_.data();

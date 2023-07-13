@@ -4,7 +4,7 @@
 
 #include <iostream>
 
-TEST(config_system, main) {
+TEST(config_system, config_system) {
   MM::ConfigSystem::ConfigSystem* config_system(
       MM::ConfigSystem::ConfigSystem::GetInstance());
   //  EXPECT_EQ(config_system->GetConfig("config_dir") + "/init_config.ini",

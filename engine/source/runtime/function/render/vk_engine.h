@@ -77,9 +77,13 @@ class RenderEngine {
                                       std::uint32_t queue_index,
                                       AllocatedBuffer& stage_buffer);
 
-  const VmaAllocator& GetAllocator() const;
+  VmaAllocator GetAllocator();
 
-  const VkDevice& GetDevice() const;
+  const VmaAllocator_T* GetAllocator() const;
+
+  VkDevice GetDevice();
+
+  const VkDevice_T* GetDevice() const;
 
   const std::uint32_t& GetGraphQueueIndex() const;
 

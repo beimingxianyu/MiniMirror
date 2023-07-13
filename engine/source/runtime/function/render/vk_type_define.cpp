@@ -2145,3 +2145,140 @@ bool MM::RenderSystem::BufferSubResourceAttribute::operator!=(
     const MM::RenderSystem::BufferSubResourceAttribute& rhs) const {
   return !(rhs == *this);
 }
+
+void MM::RenderSystem::MeshBufferCapacityData::Reset() {
+  capacity_coefficient_ = 0;
+  expansion_coefficient_ = 0;
+  index_buffer_remaining_capacity_ = 0;
+  vertex_buffer_remaining_capacity_ = 0;
+}
+
+bool MM::RenderSystem::MeshBufferCapacityData::IsValid() const {
+  return capacity_coefficient_ > 0.0f && expansion_coefficient_ > 1.0f;
+}
+MM::RenderSystem::MeshBufferCapacityData::MeshBufferCapacityData(
+    float capacity_coefficient, float expansion_coefficient,
+    VkDeviceSize index_buffer_remaining_capacity,
+    VkDeviceSize vertex_buffer_remaining_capacity)
+    : capacity_coefficient_(capacity_coefficient),
+      expansion_coefficient_(expansion_coefficient),
+      index_buffer_remaining_capacity_(index_buffer_remaining_capacity),
+      vertex_buffer_remaining_capacity_(vertex_buffer_remaining_capacity) {}
+
+MM::RenderSystem::MeshBufferCapacityData::MeshBufferCapacityData(
+    MM::RenderSystem::MeshBufferCapacityData&& other) noexcept
+    : capacity_coefficient_(other.capacity_coefficient_),
+      expansion_coefficient_(other.expansion_coefficient_),
+      index_buffer_remaining_capacity_(other.index_buffer_remaining_capacity_),
+      vertex_buffer_remaining_capacity_(
+          other.vertex_buffer_remaining_capacity_) {
+  other.Reset();
+}
+
+MM::RenderSystem::MeshBufferCapacityData&
+MM::RenderSystem::MeshBufferCapacityData::operator=(
+    const MM::RenderSystem::MeshBufferCapacityData& other) {
+  if (std::addressof(other) == this) {
+    return *this;
+  }
+
+  capacity_coefficient_ = other.capacity_coefficient_;
+  expansion_coefficient_ = other.expansion_coefficient_;
+  index_buffer_remaining_capacity_ = other.index_buffer_remaining_capacity_;
+  vertex_buffer_remaining_capacity_ = other.vertex_buffer_remaining_capacity_;
+
+  return *this;
+}
+
+MM::RenderSystem::MeshBufferCapacityData&
+MM::RenderSystem::MeshBufferCapacityData::operator=(
+    MM::RenderSystem::MeshBufferCapacityData&& other) noexcept {
+  if (std::addressof(other) == this) {
+    return *this;
+  }
+
+  capacity_coefficient_ = other.capacity_coefficient_;
+  expansion_coefficient_ = other.expansion_coefficient_;
+  index_buffer_remaining_capacity_ = other.index_buffer_remaining_capacity_;
+  vertex_buffer_remaining_capacity_ = other.vertex_buffer_remaining_capacity_;
+
+  other.Reset();
+
+  return *this;
+}
+
+MM::RenderSystem::MeshBufferInfoBase::MeshBufferInfoBase(
+    const MM::RenderSystem::BufferCreateInfo& buffer_create_info,
+    const MM::RenderSystem::AllocationCreateInfo& allocation_create_info)
+    : buffer_create_info_(buffer_create_info),
+      allocation_create_info_(allocation_create_info) {}
+
+MM::RenderSystem::MeshBufferInfoBase::MeshBufferInfoBase(
+    MM::RenderSystem::MeshBufferInfoBase&& other) noexcept
+    : buffer_create_info_(std::move(other.buffer_create_info_)),
+      allocation_create_info_(std::move(other.allocation_create_info_)) {}
+
+MM::RenderSystem::MeshBufferInfoBase&
+MM::RenderSystem::MeshBufferInfoBase::operator=(
+    const MM::RenderSystem::MeshBufferInfoBase& other) {
+  if (std::addressof(other) == this) {
+    return *this;
+  }
+
+  buffer_create_info_ = other.buffer_create_info_;
+  allocation_create_info_ = other.allocation_create_info_;
+
+  return *this;
+}
+
+MM::RenderSystem::MeshBufferInfoBase&
+MM::RenderSystem::MeshBufferInfoBase::operator=(
+    MM::RenderSystem::MeshBufferInfoBase&& other) noexcept {
+  if (std::addressof(other) == this) {
+    return *this;
+  }
+
+  buffer_create_info_ = std::move(other.buffer_create_info_);
+  allocation_create_info_ = std::move(other.allocation_create_info_);
+
+  return *this;
+}
+
+void MM::RenderSystem::MeshBufferInfoBase::SetBufferCreateInfo(
+    const VkBufferCreateInfo& vk_buffer_create_info) {
+  buffer_create_info_.next_ = vk_buffer_create_info.pNext;
+  buffer_create_info_.flags_ = vk_buffer_create_info.flags;
+  buffer_create_info_.size_ = vk_buffer_create_info.size;
+  buffer_create_info_.usage_ = vk_buffer_create_info.usage;
+  buffer_create_info_.sharing_mode_ = vk_buffer_create_info.sharingMode;
+  buffer_create_info_.queue_family_indices_.clear();
+  buffer_create_info_.queue_family_indices_.reserve(
+      vk_buffer_create_info.queueFamilyIndexCount);
+  for (std::uint64_t i = 0; i != vk_buffer_create_info.queueFamilyIndexCount;
+       ++i) {
+    buffer_create_info_.queue_family_indices_.emplace_back(
+        vk_buffer_create_info.pQueueFamilyIndices[i]);
+  }
+}
+
+void MM::RenderSystem::MeshBufferInfoBase::SetAllocationCreateInfo(
+    const VmaAllocationCreateInfo& vma_allocation_create_info) {
+  allocation_create_info_.flags_ = vma_allocation_create_info.flags;
+  allocation_create_info_.usage_ = vma_allocation_create_info.usage;
+  allocation_create_info_.required_flags_ =
+      vma_allocation_create_info.requiredFlags;
+  allocation_create_info_.preferred_flags_ =
+      vma_allocation_create_info.preferredFlags;
+  allocation_create_info_.memory_type_bits_ =
+      vma_allocation_create_info.memoryTypeBits;
+  allocation_create_info_.priority_ = vma_allocation_create_info.priority;
+}
+
+bool MM::RenderSystem::MeshBufferInfoBase::IsValid() const {
+  return buffer_create_info_.IsValid() && allocation_create_info_.IsValid();
+}
+
+void MM::RenderSystem::MeshBufferInfoBase::Reset() {
+  buffer_create_info_.Reset();
+  allocation_create_info_.Reset();
+}

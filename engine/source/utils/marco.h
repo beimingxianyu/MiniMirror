@@ -267,9 +267,9 @@ namespace Utils {
 
 #define ADD_COUNTER_SUFFIX(name) ADD_COUNTER_SUFFIX_IMP(name, __COUNTER__)
 
-#define Print(object) std::cout << (object) << std::endl
+#define MM_Print(object) std::cout << (object) << std::endl
 
-#define HELLO_WORLD Print("hello world")
+#define HELLO_WORLD MM_Print("hello world")
 
 #define PRINT_HELLO_WORLD_FUNCTION \
   void PrintHelloWorldFunction() { HELLO_WORLD; }

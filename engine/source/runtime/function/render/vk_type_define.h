@@ -790,12 +790,52 @@ class ImageBindData {
   Sampler sampler_{};
 };
 
-class MeshBufferData {
- private:
-  float capacity_coefficient_{0.9};
-  float expansion_coefficient_{2};
+struct MeshBufferCapacityData {
+  MeshBufferCapacityData() = default;
+  ~MeshBufferCapacityData() = default;
+  MeshBufferCapacityData(float capacity_coefficient,
+                         float expansion_coefficient,
+                         VkDeviceSize index_buffer_remaining_capacity,
+                         VkDeviceSize vertex_buffer_remaining_capacity);
+  MeshBufferCapacityData(const MeshBufferCapacityData& other) = default;
+  MeshBufferCapacityData(MeshBufferCapacityData&& other) noexcept;
+  MeshBufferCapacityData& operator=(const MeshBufferCapacityData& other);
+  MeshBufferCapacityData& operator=(MeshBufferCapacityData&& other) noexcept;
+
+  float capacity_coefficient_{0.9f};
+  float expansion_coefficient_{2.0f};
   VkDeviceSize index_buffer_remaining_capacity_{0};
   VkDeviceSize vertex_buffer_remaining_capacity_{0};
+
+  void Reset();
+
+  bool IsValid() const;
 };
+
+struct MeshBufferInfoBase {
+  MeshBufferInfoBase() = default;
+  ~MeshBufferInfoBase() = default;
+  MeshBufferInfoBase(const BufferCreateInfo& buffer_create_info,
+                     const AllocationCreateInfo& allocation_create_info);
+  MeshBufferInfoBase(const MeshBufferInfoBase& other) = default;
+  MeshBufferInfoBase(MeshBufferInfoBase&& other) noexcept;
+  MeshBufferInfoBase& operator=(const MeshBufferInfoBase& other);
+  MeshBufferInfoBase& operator=(MeshBufferInfoBase&& other) noexcept;
+
+  BufferCreateInfo buffer_create_info_{};
+  AllocationCreateInfo allocation_create_info_{};
+
+  void SetBufferCreateInfo(const VkBufferCreateInfo& vk_buffer_create_info);
+
+  void SetAllocationCreateInfo(
+      const VmaAllocationCreateInfo& vma_allocation_create_info);
+
+  bool IsValid() const;
+
+  void Reset();
+};
+
+using MeshVertexInfo = MeshBufferInfoBase;
+using MeshIndexInfo = MeshBufferInfoBase;
 }  // namespace RenderSystem
 }  // namespace MM

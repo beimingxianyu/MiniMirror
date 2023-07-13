@@ -154,27 +154,7 @@ class AllocatedBuffer : public RenderResourceDataBase {
       RenderEngine* render_engine,
       const AssetSystem::AssetManager::HandlerType asset_handler,
       const VkBufferCreateInfo* vk_buffer_create_info,
-      const VmaAllocationCreateInfo* vma_allocation_create_info) {
-    MM_CHECK_WITHOUT_LOG(
-        CheckInitParameters(render_engine, vk_buffer_create_info,
-                            vma_allocation_create_info),
-        return MM_RESULT_CODE;)
-
-    if (!asset_handler.IsValid()) {
-      LOG_ERROR("The asset handler is invalid.");
-      return MM::Utils::ExecuteResult ::INITIALIZATION_FAILED;
-    }
-    if (!Utils::CanBeMapped(vma_allocation_create_info->usage,
-                            vma_allocation_create_info->flags) &&
-        !(vk_buffer_create_info->usage & VK_BUFFER_USAGE_TRANSFER_DST_BIT)) {
-      LOG_ERROR(
-          "Load data from asset must can be mapped or specify transform "
-          "destination.");
-      return MM::Utils::ExecuteResult ::INITIALIZATION_FAILED;
-    }
-
-    return MM::Utils::ExecuteResult ::SUCCESS;
-  }
+      const VmaAllocationCreateInfo* vma_allocation_create_info);
 
   ExecuteResult InitBuffer(
       RenderEngine* render_engine,

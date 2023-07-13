@@ -609,8 +609,7 @@ class HashTable {
     return Hash{}(key);
   }
 
-  template <>
-  std::uint64_t GetObjectHash<ObjectType>(const ObjectType& object) const {
+  std::uint64_t GetObjectHash(const ObjectType& object) const {
     return GetObjectHash(object, RelationshipTrait());
   }
 
@@ -619,7 +618,6 @@ class HashTable {
     return Equal{}(lhs.first, rhs);
   }
 
-  template <>
   bool KeyEqual(const ObjectType& lhs, const ObjectType& rhs, IsMap) const {
     return Equal{}(lhs.first, rhs.first);
   }
@@ -1471,7 +1469,6 @@ class ConcurrentHashTable {
     return Hash{}(key);
   }
 
-  template <>
   std::uint64_t GetObjectHash(const ObjectType& object) const {
     return GetObjectHash(object, RelationshipTrait());
   }
@@ -1481,7 +1478,6 @@ class ConcurrentHashTable {
     return Equal{}(lhs.first, rhs);
   }
 
-  template <>
   bool KeyEqual(const ObjectType& lhs, const ObjectType& rhs, IsMap) const {
     return Equal{}(lhs.first, rhs.first);
   }

@@ -25,7 +25,7 @@ class UUID {
 
   // for unit test,
   UUID(std::uint64_t clock, std::uint64_t mac_address);
-
+ 
  public:
   friend bool operator==(const UUID& lhs, const UUID& rhs);
   friend bool operator!=(const UUID& lhs, const UUID& rhs);

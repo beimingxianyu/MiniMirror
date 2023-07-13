@@ -40,6 +40,8 @@ using RenderImageViewAttributeID = Utils::DataAttributeID2;
 // clang-format on
 using RenderSamplerAttributeID = Utils::DataAttributeID2;
 
+using RenderResourceDataAttributeID = Utils::DataAttributeID3;
+
 // clang-format off
 /** resource_attribute1_
  * | - - - - - - - - - - - - - - - - | - - - - - - - - - - - - - - - - - - - | - - | - - - - - - - - | - - - - - - | - - - - - - | - - - | - -  | - - |
@@ -63,7 +65,7 @@ using RenderSamplerAttributeID = Utils::DataAttributeID2;
  *  | - - - - - | - - - - - - - - - - - - - - - - - | - - - - | - - - - - - - - - - | - - - - - - - - - - | - - - - | - - - - - - - - - - - - - - |
 **/
 // clang-format on
-using RenderImageDataAttributeID = Utils::DataAttributeID3;
+using RenderImageDataAttributeID = RenderResourceDataAttributeID;
 
 // clang-format off
 /** resource_attribute1_
@@ -88,8 +90,7 @@ using RenderImageDataAttributeID = Utils::DataAttributeID3;
  *  | - - - - - - - - - - - - - - - | - - - - | - - - - - - - - - - | - - - - - - - | - - - - - - - - - - | - - - - | - - - - - - - - - - - - - - |
 **/
 // clang-format on
-using RenderBufferDataAttributeID = Utils::DataAttributeID3;
+using RenderBufferDataAttributeID = RenderResourceDataAttributeID;
 
-using RenderResourceDataAttributeID = Utils::DataAttributeID3;
 }  // namespace RenderSystem
 }  // namespace MM
