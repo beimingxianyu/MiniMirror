@@ -53,6 +53,8 @@ class MeshBufferManager {
 
   ExecuteResult Reserve();
 
+  bool IsValid() const;
+
   ExecuteResult Release();
 
  private:

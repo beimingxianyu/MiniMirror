@@ -2,7 +2,9 @@
 // Created by beimingxianyu on 23-7-10.
 //
 
-#include "MeshBufferManager.h"
+#include "runtime/function/render/MeshBufferManager.h"
+
+#include "runtime/function/render/vk_engine.h"
 
 namespace MM {
 namespace RenderSystem {
@@ -102,6 +104,49 @@ VkDeviceSize MeshBufferManager::GetIndexBufferRemainingCapacity() const {
 
 VkDeviceSize MeshBufferManager::GetVertexBufferRemainingCapacity() const {
   return capacity_data_.vertex_buffer_remaining_capacity_;
+}
+
+void MeshBufferManager::SetCapacityCoefficient(float capacity_coefficient) {
+  capacity_data_.capacity_coefficient_ = capacity_coefficient;
+}
+
+void MeshBufferManager::SetExpansionCoefficient(float expansion_coefficient) {
+  capacity_data_.expansion_coefficient_ = expansion_coefficient;
+}
+
+ExecuteResult MeshBufferManager::MakeBufferCompact() {
+  if (!IsValid()) {
+    LOG_ERROR("MM::RenderSystem::MeshBufferManager is invalid.");
+    return MM::Utils::ExecuteResult ::OBJECT_IS_INVALID;
+  }
+  std::lock_guard guard(allocate_free_mutex_);
+
+  managed_allocated_mesh_buffer_.GetRenderEnginePtr()
+      ->RunSingleCommandAndWait();
+  std::list<BufferSubResourceAttribute>::iterator vertex_iter =
+      sub_vertex_buffer_list_.begin();
+  std::list<BufferSubResourceAttribute>::iterator index_iter =
+      sub_index_buffer_list_.begin();
+
+  BufferChunkInfo vertex_buffer_chunk_info(
+      0, vertex_iter->GetChunkInfo().GetOffset()),
+      index_buffer_chunk_info(0, index_iter->GetChunkInfo().GetOffset());
+}
+
+ExecuteResult MeshBufferManager::Reserve() {
+  // TODO
+}
+
+bool MeshBufferManager::IsValid() const {
+  return managed_allocated_mesh_buffer_.IsValid() && capacity_data_.IsValid();
+}
+
+ExecuteResult MeshBufferManager::Release() {
+  // TODO
+}
+
+void MeshBufferManager::FreeMeshBuffer() {
+  // TODO
 }
 }  // namespace RenderSystem
 }  // namespace MM

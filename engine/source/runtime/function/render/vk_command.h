@@ -476,6 +476,8 @@ class CommandExecutor {
 
   std::uint32_t GetFreeCommandNumber(CommandType command_type) const;
 
+  bool IsFree() const;
+
   /**
    * \remark \ref command_task_flow is invalid after call this function.
    */
@@ -506,6 +508,10 @@ class CommandExecutor {
   // * \remark Default wait this call.
   // */
   // RenderFuture RunOneFrame(CommandTaskFlow& command_task_flow);
+
+  void LockExecutor();
+
+  void UnlockExecutor();
 
   bool IsValid() const;
 
@@ -829,6 +835,10 @@ class CommandExecutor {
   std::list<std::unique_ptr<AllocatedCommandBuffer>>
       submit_failed_to_be_recycled_command_buffer_{};
   std::mutex submit_failed_to_be_recycled_command_buffer_mutex_{};
+
+  std::atomic_bool lock_flag_{};
+  std::mutex task_flow_submit_during_lockdown_mutex_{};
+  std::list<CommandTaskFlowToBeRun> task_flow_submit_during_lockdown_{};
 };
 }  // namespace RenderSystem
 }  // namespace MM

@@ -908,16 +908,22 @@ MM::RenderSystem::RenderFuture MM::RenderSystem::CommandExecutor::Run(
       complete_states.emplace_back(std::make_shared<bool>(false));
     }
   }
-  {
-    std::lock_guard<std::mutex> guard{task_flow_queue_mutex_};
-    task_flow_queue_.emplace_back(std::move(command_task_flow), task_id,
-                                  execute_result, complete_states);
-  }
+  if (lock_flag_.load(std::memory_order_acquire)) {
+    std::lock_guard guard{task_flow_submit_during_lockdown_mutex_};
+    task_flow_submit_during_lockdown_.emplace_back(
+        std::move(command_task_flow), task_id, execute_result, complete_states);
+  } else {
+    {
+      std::lock_guard<std::mutex> guard{task_flow_queue_mutex_};
+      task_flow_queue_.emplace_back(std::move(command_task_flow), task_id,
+                                    execute_result, complete_states);
+    }
 
-  if (!processing_task_flow_queue_) {
-    TaskSystem::Taskflow task_flow;
-    task_flow.emplace([this_object = this]() { this_object->ProcessTask(); });
-    TASK_SYSTEM->Run(TaskSystem::TaskType::Render, task_flow);
+    if (!processing_task_flow_queue_) {
+      TaskSystem::Taskflow task_flow;
+      task_flow.emplace([this_object = this]() { this_object->ProcessTask(); });
+      TASK_SYSTEM->Run(TaskSystem::TaskType::Render, task_flow);
+    }
   }
 
   return RenderFuture{this, task_id, execute_result, complete_states};
@@ -2251,6 +2257,8 @@ void MM::RenderSystem::CommandExecutor::ProcessOneCanSubmitTask(
         command_task_flow->can_be_submitted_tasks_.erase(
             command_task_to_be_submit);
 
+    // TODO  Attempt to directly call the \ref SubmitTasksSync method on tasks
+    // that use synchronous submission instead of submitting to the task system.
     TaskSystem::Taskflow task_flow;
     task_flow.emplace([command_task_flow = command_task_flow,
                        input_tasks = temp_execute_task.release(),
@@ -3077,4 +3085,22 @@ void MM::RenderSystem::CommandExecutor::PostProcessOfSubmitTask(
 
     recording_transform_command_buffer_number_ -= temp;
   }
+}
+
+void MM::RenderSystem::CommandExecutor::LockExecutor() {
+  lock_flag_.store(false, std::memory_order_release);
+}
+
+void MM::RenderSystem::CommandExecutor::UnlockExecutor() {
+  lock_flag_.store(true, std::memory_order_release);
+  std::lock(task_flow_queue_mutex_, task_flow_submit_during_lockdown_mutex_);
+  std::lock_guard guard1(task_flow_queue_mutex_, std::adopt_lock),
+      guard2(task_flow_submit_during_lockdown_mutex_, std::adopt_lock);
+
+  task_flow_queue_.splice(task_flow_queue_.end(),
+                          task_flow_submit_during_lockdown_);
+}
+
+bool MM::RenderSystem::CommandExecutor::IsFree() const {
+  return !processing_task_flow_queue_.load(std::memory_order_acquire);
 }
