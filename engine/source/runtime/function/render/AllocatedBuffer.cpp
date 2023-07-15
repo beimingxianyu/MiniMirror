@@ -345,7 +345,7 @@ MM::ExecuteResult MM::RenderSystem::AllocatedBuffer::CopyDataToBuffer(
       Utils::GetBufferCopy(size, src_offset, dest_offset);
   std::vector<VkBufferCopy2> buffer_copy_regions{buffer_copy_region};
   auto buffer_copy_info =
-      Utils::GetCopyBufferInfo(stage_buffer, *this, buffer_copy_regions);
+      Utils::GetVkCopyBufferInfo2(stage_buffer, *this, buffer_copy_regions);
 
   void* stage_buffer_ptr{nullptr};
 
@@ -584,7 +584,7 @@ MM::ExecuteResult MM::RenderSystem::AllocatedBuffer::CopyAssetDataToBuffer(
 
             auto buffer_copy_region =
                 Utils::GetBufferCopy(asset_datas_size, 0, 0);
-            auto buffer_copy_info = Utils::GetCopyBufferInfo(
+            auto buffer_copy_info = Utils::GetVkCopyBufferInfo2(
                 stage_buffer.GetBuffer(), this_buffer->GetBuffer(), nullptr, 1,
                 &buffer_copy_region);
 
@@ -697,6 +697,66 @@ MM::RenderSystem::AllocatedBuffer::CheckInitParametersWhenInitFromAnAsset(
         "Load data from asset must can be mapped or specify transform "
         "destination.");
     return MM::Utils::ExecuteResult ::INITIALIZATION_FAILED;
+  }
+
+  return MM::Utils::ExecuteResult ::SUCCESS;
+}
+MM::Utils::ExecuteResult
+MM::RenderSystem::AllocatedBuffer::GetVkBufferMemoryBarriber2(
+    VkDeviceSize offset, VkDeviceSize size,
+    VkPipelineStageFlags2 src_stage_mask, VkAccessFlags2 src_access_mask,
+    VkPipelineStageFlags2 dst_stage_mask, VkAccessFlags2 dst_access_mask,
+    MM::RenderSystem::QueueIndex new_index,
+    std::vector<VkBufferMemoryBarrier2>& barriers) const {
+  if (size == 0 || offset + size >= GetSize()) {
+    return MM::Utils::ExecuteResult ::INPUT_PARAMETERS_ARE_NOT_SUITABLE;
+  }
+
+  VkBufferMemoryBarrier2 barrier = Utils::GetVkBufferMemoryBarrier2(
+      src_stage_mask, src_access_mask, dst_stage_mask, dst_access_mask,
+      UINT32_MAX, new_index, const_cast<VkBuffer>(GetBuffer()), UINT64_MAX,
+      UINT64_MAX);
+  for (std::uint64_t i = 0;
+       i != buffer_data_info_.buffer_sub_resource_attributes_.size(); ++i) {
+    if (buffer_data_info_.buffer_sub_resource_attributes_[i]
+            .GetChunkInfo()
+            .GetOffset() <= offset) {
+      for (; i != buffer_data_info_.buffer_sub_resource_attributes_.size();
+           ++i) {
+        VkDeviceSize sub_resource_end =
+                         buffer_data_info_.buffer_sub_resource_attributes_[i]
+                             .GetChunkInfo()
+                             .GetSize() +
+                         buffer_data_info_.buffer_sub_resource_attributes_[i]
+                             .GetChunkInfo()
+                             .GetOffset(),
+                     dest_end = offset + size;
+        if (buffer_data_info_.buffer_sub_resource_attributes_[i]
+                .GetChunkInfo()
+                .GetOffset() < dest_end) {
+          barrier.srcQueueFamilyIndex =
+              buffer_data_info_.buffer_sub_resource_attributes_[i]
+                  .GetQueueIndex();
+          barrier.offset = buffer_data_info_.buffer_sub_resource_attributes_[i]
+                               .GetChunkInfo()
+                               .GetOffset();
+          if (sub_resource_end >= dest_end) {
+            barrier.size =
+                dest_end - buffer_data_info_.buffer_sub_resource_attributes_[i]
+                               .GetChunkInfo()
+                               .GetOffset();
+            barriers.emplace_back(barrier);
+            break;
+          } else {
+            barrier.size = buffer_data_info_.buffer_sub_resource_attributes_[i]
+                               .GetChunkInfo()
+                               .GetSize();
+            barriers.emplace_back(barrier);
+          }
+        }
+      }
+      break;
+    }
   }
 
   return MM::Utils::ExecuteResult ::SUCCESS;

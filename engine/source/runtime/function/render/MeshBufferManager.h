@@ -49,7 +49,7 @@ class MeshBufferManager {
 
   void SetExpansionCoefficient(float expansion_coefficient);
 
-  ExecuteResult MakeBufferCompact();
+  ExecuteResult RemoveBufferFragmentation();
 
   ExecuteResult Reserve();
 

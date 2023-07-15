@@ -20,6 +20,7 @@
 #include "runtime/core/log/log_system.h"
 #include "runtime/function/render/AllocatedBuffer.h"
 #include "runtime/function/render/AllocatedImage.h"
+#include "runtime/function/render/AllocatedMeshBuffer.h"
 #include "runtime/function/render/import_other_system.h"
 #include "runtime/function/render/vk_command.h"
 #include "runtime/function/render/vk_utils.h"
@@ -152,6 +153,8 @@ class RenderEngine {
       const std::vector<RenderResourceDataID>&
           cross_task_flow_sync_render_resource_data_ID);
 
+  CommandExecutorLockGuard GetCommandExecutorLockGuard();
+
   /**
    * \remark The range specified by \ref regions cannot overlap.
    */
@@ -189,8 +192,6 @@ class RenderEngine {
    * \remark The range specified by \ref regions cannot overlap.
    */
   ExecuteResult CopyImage(AllocatedImage& src_image, AllocatedImage& dest_image,
-                          const VkImageLayout& src_layout,
-                          const VkImageLayout& dest_layout,
                           const std::vector<VkImageCopy2>& regions);
 
   /**
@@ -199,8 +200,6 @@ class RenderEngine {
    */
   ExecuteResult CopyImage(const AllocatedImage& src_image,
                           AllocatedImage& dest_image,
-                          const VkImageLayout& src_layout,
-                          const VkImageLayout& dest_layout,
                           const std::vector<VkImageCopy2>& regions);
 
   /**
@@ -210,7 +209,6 @@ class RenderEngine {
    */
   ExecuteResult CopyImage(
       AllocatedImage& src_image, AllocatedImage& dest_image,
-      const VkImageLayout& src_layout, const VkImageLayout& dest_layout,
       const std::vector<std::vector<VkImageCopy2>>& regions_vector);
 
   /**
@@ -220,19 +218,23 @@ class RenderEngine {
    */
   ExecuteResult CopyImage(
       const AllocatedImage& src_image, AllocatedImage& dest_image,
-      const VkImageLayout& src_layout, const VkImageLayout& dest_layout,
       const std::vector<std::vector<VkImageCopy2>>& regions_vector);
 
   ExecuteResult CopyDataToBuffer(AllocatedBuffer& dest_buffer, const void* data,
                                  const VkDeviceSize& copy_offset,
                                  const VkDeviceSize& copy_size);
 
-  ExecuteResult RemoveBufferFragmentation(
-      AllocatedBuffer& buffer,
-      std::vector<BufferChunkInfo>& buffer_chunks_info);
+  //  ExecuteResult RemoveBufferFragmentation(
+  //      AllocatedBuffer& buffer,
+  //      std::vector<BufferSubResourceAttribute>& buffer_chunks_info);
+  //
+  //  ExecuteResult RemoveBufferFragmentation(
+  //      AllocatedBuffer& buffer,
+  //      std::list<BufferSubResourceAttribute>& buffer_chunks_info);
 
   ExecuteResult RemoveBufferFragmentation(
-      AllocatedBuffer& buffer, std::list<BufferChunkInfo>& buffer_chunks_info);
+      AllocatedMeshBuffer& buffer,
+      std::list<BufferSubResourceAttribute>& buffer_chunks_info);
 
   const VkPhysicalDeviceFeatures& GetPhysicalDeviceFeatures() const;
 

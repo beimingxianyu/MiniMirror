@@ -708,7 +708,7 @@ class ConcurrentHashTable {
         size_(0),
         bucket_count_(size) {
     for (std::uint64_t i = 0; i != bucket_count_; ++i) {
-      data_[i] == Node{};
+      data_[i] = Node{};
     }
   }
   ConcurrentHashTable(const ConcurrentHashTable& other)

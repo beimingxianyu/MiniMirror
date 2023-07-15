@@ -91,6 +91,5 @@ using RenderImageDataAttributeID = RenderResourceDataAttributeID;
 **/
 // clang-format on
 using RenderBufferDataAttributeID = RenderResourceDataAttributeID;
-
 }  // namespace RenderSystem
 }  // namespace MM

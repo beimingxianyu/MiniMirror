@@ -1304,7 +1304,7 @@ MM::ExecuteResult MM::RenderSystem::RenderResourceBuffer::CopyDataToBuffer(
   const auto buffer_copy_region = Utils::GetBufferCopy(size, 0, offset);
   std::vector<VkBufferCopy2> buffer_copy_regions{buffer_copy_region};
   auto buffer_copy_info =
-      Utils::GetCopyBufferInfo(stage_buffer, buffer_, buffer_copy_regions);
+      Utils::GetVkCopyBufferInfo2(stage_buffer, buffer_, buffer_copy_regions);
 
   void* stage_buffer_ptr{nullptr};
 

@@ -616,14 +616,18 @@ void MM::RenderSystem::CommandTaskFlow::RemoveTask(CommandTask& command_task) {
 
 MM::RenderSystem::CommandTask::~CommandTask() = default;
 
+std::mutex MM::RenderSystem::RenderFuture::wait_mutex_{};
+std::condition_variable
+    MM::RenderSystem::RenderFuture::wait_condition_variable_;
+
 MM::RenderSystem::RenderFuture::RenderFuture(
     CommandExecutor* command_executor, const std::uint32_t& task_flow_ID,
     const std::shared_ptr<ExecuteResult>& future_execute_result,
-    const std::vector<std::shared_ptr<bool>>& command_complete_states)
+    const std::shared_ptr<CommandCompleteState>& command_complete_state)
     : command_executor_(command_executor),
       task_flow_ID_(task_flow_ID),
       execute_result_(future_execute_result),
-      command_complete_states_(command_complete_states) {}
+      command_complete_state_(command_complete_state) {}
 
 MM::RenderSystem::RenderFuture& MM::RenderSystem::RenderFuture::operator=(
     const RenderFuture& other) {
@@ -633,7 +637,7 @@ MM::RenderSystem::RenderFuture& MM::RenderSystem::RenderFuture::operator=(
 
   task_flow_ID_ = other.task_flow_ID_;
   execute_result_ = other.execute_result_;
-  command_complete_states_ = other.command_complete_states_;
+  command_complete_state_ = other.command_complete_state_;
 
   return *this;
 }
@@ -646,7 +650,7 @@ MM::RenderSystem::RenderFuture& MM::RenderSystem::RenderFuture::operator=(
 
   task_flow_ID_ = other.task_flow_ID_;
   execute_result_ = std::move(other.execute_result_);
-  command_complete_states_ = std::move(other.command_complete_states_);
+  command_complete_state_ = std::move(other.command_complete_state_);
 
   task_flow_ID_ = 0;
 
@@ -655,25 +659,20 @@ MM::RenderSystem::RenderFuture& MM::RenderSystem::RenderFuture::operator=(
 
 MM::ExecuteResult MM::RenderSystem::RenderFuture::Get() {
   if (!IsValid()) {
-    return ExecuteResult::RENDER_COMMAND_RECORD_OR_SUBMIT_FAILED;
+    return ExecuteResult::OBJECT_IS_INVALID;
   }
+
   std::unique_lock<std::mutex> guard{command_executor_->wait_tasks_mutex_};
   command_executor_->wait_tasks_.emplace_back(task_flow_ID_);
   guard.unlock();
 
-  // TODO Change to using conditional variables for waiting.
-  while (true) {
-    if (*execute_result_ != ExecuteResult::SUCCESS) {
-      return *execute_result_;
-    }
-    bool is_complete = true;
-    for (const auto& state : command_complete_states_) {
-      is_complete &= *state;
-    }
-    if (is_complete) {
-      return *execute_result_;
-    }
-    std::this_thread::sleep_for(std::chrono::nanoseconds(5000));
+  if (command_complete_state_->load(std::memory_order_acquire)) {
+    std::unique_lock<std::mutex> wait_guard{wait_mutex_};
+    wait_condition_variable_.wait(wait_guard, [this_future = this]() {
+      return this_future->command_complete_state_->load(
+                 std::memory_order_acquire) == 0;
+    });
+    return *execute_result_;
   }
 }
 
@@ -902,21 +901,23 @@ MM::RenderSystem::RenderFuture MM::RenderSystem::CommandExecutor::Run(
   std::uint32_t task_id = Math::Random::GetRandomUint32();
   std::shared_ptr<ExecuteResult> execute_result{
       std::make_shared<ExecuteResult>(ExecuteResult::SUCCESS)};
-  std::vector<std::shared_ptr<bool>> complete_states;
+  std::uint32_t complete_state_count;
   for (const auto& command_task : command_task_flow.tasks_) {
     if (command_task->post_tasks_.empty() && !command_task->is_sub_task_) {
-      complete_states.emplace_back(std::make_shared<bool>(false));
+      ++complete_state_count;
     }
   }
+  std::shared_ptr<std::atomic_uint32_t> complete_state{
+      std::make_shared<std::atomic_uint32_t>(complete_state_count)};
   if (lock_flag_.load(std::memory_order_acquire)) {
     std::lock_guard guard{task_flow_submit_during_lockdown_mutex_};
     task_flow_submit_during_lockdown_.emplace_back(
-        std::move(command_task_flow), task_id, execute_result, complete_states);
+        std::move(command_task_flow), task_id, execute_result, complete_state);
   } else {
     {
       std::lock_guard<std::mutex> guard{task_flow_queue_mutex_};
       task_flow_queue_.emplace_back(std::move(command_task_flow), task_id,
-                                    execute_result, complete_states);
+                                    execute_result, complete_state);
     }
 
     if (!processing_task_flow_queue_) {
@@ -926,7 +927,7 @@ MM::RenderSystem::RenderFuture MM::RenderSystem::CommandExecutor::Run(
     }
   }
 
-  return RenderFuture{this, task_id, execute_result, complete_states};
+  return RenderFuture{this, task_id, execute_result, complete_state};
 }
 
 MM::ExecuteResult MM::RenderSystem::CommandExecutor::RunAndWait(
@@ -945,8 +946,9 @@ MM::ExecuteResult MM::RenderSystem::CommandExecutor::RunAndWait(
 }
 
 bool MM::RenderSystem::CommandExecutor::IsValid() const {
-  return render_engine_ != nullptr && GetGraphCommandNumber() != 0 &&
-         GetComputeCommandNumber() != 0 && GetTransformCommandNumber() != 0;
+  return render_engine_ != nullptr && render_engine_->IsValid() &&
+         GetGraphCommandNumber() != 0 && GetComputeCommandNumber() != 0 &&
+         GetTransformCommandNumber() != 0;
 }
 
 void MM::RenderSystem::CommandExecutor::ClearWhenConstructFailed(
@@ -1278,10 +1280,11 @@ MM::RenderSystem::CommandExecutor::CommandTaskFlowToBeRun::
     CommandTaskFlowToBeRun(
         CommandTaskFlow&& command_task_flow, const std::uint32_t& task_flow_ID,
         const std::shared_ptr<ExecuteResult>& execute_result,
-        const std::vector<std::shared_ptr<bool>>& is_completes)
+        const std::shared_ptr<CommandCompleteState>& complete_state)
     : command_task_flow_(std::move(command_task_flow)),
       task_flow_ID_(task_flow_ID),
       execute_result_(execute_result),
+      complete_state_(complete_state),
       the_maximum_number_of_graph_buffers_required_for_one_task_(0),
       the_maximum_number_of_compute_buffers_required_for_one_task_(0),
       the_maximum_number_of_transform_buffers_required_for_one_task_(0) {
@@ -1310,9 +1313,6 @@ MM::RenderSystem::CommandExecutor::CommandTaskFlowToBeRun::
       }
     }
   }
-  for (const auto& is_complete : is_completes) {
-    is_completes_.push(is_complete);
-  }
 }
 
 MM::RenderSystem::CommandExecutor::CommandTaskFlowToBeRun::
@@ -1320,7 +1320,7 @@ MM::RenderSystem::CommandExecutor::CommandTaskFlowToBeRun::
     : command_task_flow_(std::move(other.command_task_flow_)),
       task_flow_ID_(other.task_flow_ID_),
       execute_result_(std::move(other.execute_result_)),
-      is_completes_(std::move(other.is_completes_)),
+      complete_state_(std::move(other.complete_state_)),
       the_maximum_number_of_graph_buffers_required_for_one_task_(
           other.the_maximum_number_of_graph_buffers_required_for_one_task_),
       the_maximum_number_of_compute_buffers_required_for_one_task_(
@@ -1344,7 +1344,7 @@ MM::RenderSystem::CommandExecutor::CommandTaskFlowToBeRun::operator=(
   command_task_flow_ = std::move(other.command_task_flow_);
   task_flow_ID_ = other.task_flow_ID_;
   execute_result_ = std::move(other.execute_result_);
-  is_completes_ = std::move(other.is_completes_);
+  complete_state_ = std::move(other.complete_state_);
   the_maximum_number_of_graph_buffers_required_for_one_task_ =
       other.the_maximum_number_of_graph_buffers_required_for_one_task_;
   the_maximum_number_of_compute_buffers_required_for_one_task_ =
@@ -1369,7 +1369,7 @@ MM::RenderSystem::CommandExecutor::ExecutingCommandTaskFlow::
       initialize_or_not_(false),
       have_wait_one_task_(false),
       execute_result_(std::move(command_task_flow_to_be_run.execute_result_)),
-      is_completes_(std::move(command_task_flow_to_be_run.is_completes_)),
+      complete_state_(std::move(command_task_flow_to_be_run.complete_state_)),
       task_that_have_already_been_accessed_(),
       submitted_task_(),
       can_be_submitted_tasks_(),
@@ -1382,7 +1382,7 @@ MM::RenderSystem::CommandExecutor::ExecutingCommandTaskFlow::
       initialize_or_not_(other.initialize_or_not_),
       have_wait_one_task_(other.initialize_or_not_),
       execute_result_(std::move(other.execute_result_)),
-      is_completes_(std::move(other.is_completes_)),
+      complete_state_(std::move(other.complete_state_)),
       task_that_have_already_been_accessed_(
           std::move(other.task_that_have_already_been_accessed_)),
       can_be_submitted_tasks_(std::move(other.can_be_submitted_tasks_)),
@@ -1409,7 +1409,7 @@ MM::RenderSystem::CommandExecutor::ExecutingCommandTaskFlow::operator=(
   initialize_or_not_ = other.initialize_or_not_;
   have_wait_one_task_ = other.have_wait_one_task_;
   execute_result_ = std::move(other.execute_result_);
-  is_completes_ = std::move(other.is_completes_);
+  complete_state_ = std::move(other.complete_state_);
   task_that_have_already_been_accessed_ =
       std::move(other.task_that_have_already_been_accessed_);
   submitted_task_ = std::move(other.submitted_task_);
@@ -1657,7 +1657,7 @@ MM::RenderSystem::CommandExecutor::ExecutingTask::ExecutingTask(
     std::vector<std::unique_ptr<AllocatedCommandBuffer>>&& command_buffer,
     std::unique_ptr<CommandTask>&& command_task,
     const std::weak_ptr<ExecuteResult>& execute_result,
-    const std::optional<std::weak_ptr<bool>>& is_complete,
+    const std::weak_ptr<CommandCompleteState>& complete_state,
     std::vector<std::vector<VkSemaphore>>&& default_wait_semaphore,
     std::vector<std::vector<VkSemaphore>>&& default_signal_semaphore)
     : render_engine_(engine),
@@ -1666,7 +1666,7 @@ MM::RenderSystem::CommandExecutor::ExecutingTask::ExecutingTask(
       command_task_flow_(command_task_flow),
       command_buffers_(std::move(command_buffer)),
       command_task_(std::move(command_task)),
-      is_complete_(is_complete),
+      complete_state_(complete_state),
       wait_semaphore_(std::move(default_wait_semaphore)),
       wait_semaphore_stages_(wait_semaphore_.size()),
       signal_semaphore_(std::move(default_signal_semaphore)),
@@ -1740,7 +1740,7 @@ MM::RenderSystem::CommandExecutor::ExecutingTask::ExecutingTask(
       command_task_flow_(std::move(other.command_task_flow_)),
       command_buffers_(std::move(other.command_buffers_)),
       command_task_(std::move(other.command_task_)),
-      is_complete_(std::move(other.is_complete_)),
+      complete_state_(std::move(other.complete_state_)),
       wait_semaphore_(std::move(other.wait_semaphore_)),
       wait_semaphore_stages_(std::move(other.wait_semaphore_stages_)),
       signal_semaphore_(std::move(other.signal_semaphore_)),
@@ -1769,7 +1769,7 @@ MM::RenderSystem::CommandExecutor::ExecutingTask::operator=(
   command_task_flow_ = other.command_task_flow_;
   command_buffers_ = std::move(other.command_buffers_);
   command_task_ = std::move(other.command_task_);
-  is_complete_ = std::move(other.is_complete_);
+  complete_state_ = std::move(other.complete_state_);
   wait_semaphore_ = std::move(other.wait_semaphore_);
   wait_semaphore_stages_ = std::move(other.wait_semaphore_stages_);
   signal_semaphore_ = std::move(other.signal_semaphore_);
@@ -1885,11 +1885,13 @@ void MM::RenderSystem::CommandExecutor::ProcessCompleteTask() {
              executing_graph_command_buffers_.begin();
          executing_command_buffer != executing_graph_command_buffers_.end();) {
       if (executing_command_buffer->IsComplete()) {
-        if (executing_command_buffer->is_complete_.has_value()) {
-          if (!executing_command_buffer->is_complete_.value().expired()) {
-            *(executing_command_buffer->is_complete_.value().lock()) = true;
+        if (auto complete_state =
+                executing_command_buffer->complete_state_.lock()) {
+          if (complete_state->fetch_sub(1, std::memory_order_acq_rel) == 1) {
+            RenderFuture::wait_condition_variable_.notify_all();
           }
         }
+
         for (const auto& wait_semaphore_vector :
              executing_command_buffer->wait_semaphore_) {
           for (std::uint32_t i = 0;
@@ -1949,9 +1951,10 @@ void MM::RenderSystem::CommandExecutor::ProcessCompleteTask() {
          executing_command_buffer !=
          executing_compute_command_buffers_.end();) {
       if (executing_command_buffer->IsComplete()) {
-        if (executing_command_buffer->is_complete_.has_value()) {
-          if (!executing_command_buffer->is_complete_.value().expired()) {
-            *(executing_command_buffer->is_complete_.value().lock()) = true;
+        if (auto complete_state =
+                executing_command_buffer->complete_state_.lock()) {
+          if (complete_state->fetch_sub(1, std::memory_order_acq_rel) == 1) {
+            RenderFuture::wait_condition_variable_.notify_all();
           }
         }
         for (const auto& wait_semaphore_vector :
@@ -2014,9 +2017,10 @@ void MM::RenderSystem::CommandExecutor::ProcessCompleteTask() {
          executing_command_buffer !=
          executing_transform_command_buffers_.end();) {
       if (executing_command_buffer->IsComplete()) {
-        if (executing_command_buffer->is_complete_.has_value()) {
-          if (!executing_command_buffer->is_complete_.value().expired()) {
-            *(executing_command_buffer->is_complete_.value().lock()) = true;
+        if (auto complete_state =
+                executing_command_buffer->complete_state_.lock()) {
+          if (complete_state->fetch_sub(1, std::memory_order_acq_rel) == 1) {
+            RenderFuture::wait_condition_variable_.notify_all();
           }
         }
         for (const auto& wait_semaphore_vector :
@@ -2079,7 +2083,6 @@ void MM::RenderSystem::CommandExecutor::ProcessWaitTask() {
   std::lock_guard<std::mutex> guard1(wait_tasks_mutex_, std::adopt_lock);
   std::lock_guard<std::mutex> guard2(task_flow_queue_mutex_, std::adopt_lock);
   if (!wait_tasks_.empty()) {
-    std::list<CommandTaskFlowToBeRun> wait_task_list;
     for (const auto& wait_task : wait_tasks_) {
       for (auto iter = task_flow_queue_.begin();
            iter != task_flow_queue_.end();) {
@@ -2087,7 +2090,7 @@ void MM::RenderSystem::CommandExecutor::ProcessWaitTask() {
           executing_command_task_flows_.emplace_front(
               std::make_shared<ExecutingCommandTaskFlow>(std::move(*iter)));
           iter = task_flow_queue_.erase(iter);
-          continue;
+          break;
         }
         ++iter;
       }
@@ -2236,18 +2239,13 @@ void MM::RenderSystem::CommandExecutor::ProcessOneCanSubmitTask(
       ++(*recording_command_buffer_number);
     }
 
-    std::optional<std::weak_ptr<bool>> is_complete;
-    if (!command_task_to_be_submit->command_task_->post_tasks_.empty()) {
-      is_complete = command_task_flow->is_completes_.top();
-      command_task_flow->is_completes_.pop();
-    }
-
     std::unique_ptr<ExecutingTask> temp_execute_task =
         std::make_unique<ExecutingTask>(
             render_engine_, this, command_task_flow,
             std::move(acquired_command_buffer),
             std::move(command_task_to_be_submit->command_task_),
-            command_task_flow->execute_result_, is_complete,
+            command_task_flow->execute_result_,
+            command_task_flow->complete_state_,
             std::move(command_task_to_be_submit->default_wait_semaphore_),
             std::move(command_task_to_be_submit->default_signal_semaphore_));
 
@@ -2295,6 +2293,11 @@ void MM::RenderSystem::CommandExecutor::ProcessOneCanSubmitTask(
 
 void MM::RenderSystem::CommandExecutor::ProcessWhenOneFailedSubmit(
     const std::shared_ptr<ExecutingCommandTaskFlow>& command_task_flow) {
+  if (auto complete_state = command_task_flow->complete_state_.lock()) {
+    complete_state->store(0, std::memory_order_release);
+    RenderFuture::wait_condition_variable_.notify_all();
+  }
+
   // TODO Poor performance, awaiting optimization.
   std::unique_lock<std::mutex> guard{
       submit_failed_to_be_recycled_semaphore_mutex_};
@@ -2578,7 +2581,13 @@ void MM::RenderSystem::CommandExecutor::ProcessCommandFlowList() {
                           .the_maximum_number_of_graph_buffers_required_for_one_task_) *
                   1.5)) -
                   graph_command_number_),
-          iter = task_flow_queue_.erase(iter);
+          if (auto complete_state = iter->complete_state_.lock()) {
+            complete_state->store(0, std::memory_order_release);
+            *(iter->execute_result_) ==
+                MM::Utils::ExecuteResult ::
+                    RENDER_COMMAND_RECORD_OR_SUBMIT_FAILED;
+            RenderFuture::wait_condition_variable_.notify_all();
+          } iter = task_flow_queue_.erase(iter);
           LOG_ERROR("Failed to create new command buffer, skip this "
                     "command_task_flow.");)
       continue;
@@ -2594,7 +2603,13 @@ void MM::RenderSystem::CommandExecutor::ProcessCommandFlowList() {
                           .the_maximum_number_of_compute_buffers_required_for_one_task_) *
                   1.5)) -
                   compute_command_number_),
-          iter = task_flow_queue_.erase(iter);
+          if (auto complete_state = iter->complete_state_.lock()) {
+            complete_state->store(0, std::memory_order_release);
+            *(iter->execute_result_) ==
+                MM::Utils::ExecuteResult ::
+                    RENDER_COMMAND_RECORD_OR_SUBMIT_FAILED;
+            RenderFuture::wait_condition_variable_.notify_all();
+          } iter = task_flow_queue_.erase(iter);
           LOG_ERROR("Failed to create new command buffer, skip this "
                     "command_task_flow.");)
       continue;
@@ -2611,7 +2626,13 @@ void MM::RenderSystem::CommandExecutor::ProcessCommandFlowList() {
                           .the_maximum_number_of_transform_buffers_required_for_one_task_) *
                   1.5)) -
                   transform_command_number_),
-          iter = task_flow_queue_.erase(iter);
+          if (auto complete_state = iter->complete_state_.lock()) {
+            complete_state->store(0, std::memory_order_release);
+            *(iter->execute_result_) ==
+                MM::Utils::ExecuteResult ::
+                    RENDER_COMMAND_RECORD_OR_SUBMIT_FAILED;
+            RenderFuture::wait_condition_variable_.notify_all();
+          } iter = task_flow_queue_.erase(iter);
           LOG_ERROR("Failed to create new command buffer, skip this "
                     "command_task_flow.");)
       continue;
@@ -2945,6 +2966,11 @@ void MM::RenderSystem::CommandExecutor::PostProcessOfSubmitTask(
   *(command_task_flow->execute_result_) |= result;
 
   if (result != ExecuteResult::SUCCESS) {
+    if (auto complete_state = command_task_flow->complete_state_.lock()) {
+      complete_state->store(0, std::memory_order_release);
+      RenderFuture::wait_condition_variable_.notify_all();
+    }
+
     {
       std::lock_guard<std::mutex> command_buffer_guard{
           submit_failed_to_be_recycled_command_buffer_mutex_};
@@ -3002,6 +3028,11 @@ void MM::RenderSystem::CommandExecutor::PostProcessOfSubmitTask(
   }
 
   if (*(command_task_flow->execute_result_) != ExecuteResult::SUCCESS) {
+    if (auto complete_state = command_task_flow->complete_state_.lock()) {
+      complete_state->store(0, std::memory_order_release);
+      RenderFuture::wait_condition_variable_.notify_all();
+    }
+
     std::lock_guard<std::mutex> semaphore_guard{
         submit_failed_to_be_recycled_semaphore_mutex_};
     const std::uint32_t submit_failed_to_be_recycled_semaphore_index =
@@ -3088,19 +3119,61 @@ void MM::RenderSystem::CommandExecutor::PostProcessOfSubmitTask(
 }
 
 void MM::RenderSystem::CommandExecutor::LockExecutor() {
-  lock_flag_.store(false, std::memory_order_release);
+  lock_count_.fetch_add(1, std::memory_order_acq_rel);
 }
 
 void MM::RenderSystem::CommandExecutor::UnlockExecutor() {
-  lock_flag_.store(true, std::memory_order_release);
-  std::lock(task_flow_queue_mutex_, task_flow_submit_during_lockdown_mutex_);
-  std::lock_guard guard1(task_flow_queue_mutex_, std::adopt_lock),
-      guard2(task_flow_submit_during_lockdown_mutex_, std::adopt_lock);
+  if (lock_count_.fetch_sub(1, std::memory_order_acq_rel) == 1) {
+    std::lock(task_flow_queue_mutex_, task_flow_submit_during_lockdown_mutex_);
+    std::lock_guard guard1(task_flow_queue_mutex_, std::adopt_lock),
+        guard2(task_flow_submit_during_lockdown_mutex_, std::adopt_lock);
 
-  task_flow_queue_.splice(task_flow_queue_.end(),
-                          task_flow_submit_during_lockdown_);
+    task_flow_queue_.splice(task_flow_queue_.end(),
+                            task_flow_submit_during_lockdown_);
+  }
 }
 
 bool MM::RenderSystem::CommandExecutor::IsFree() const {
   return !processing_task_flow_queue_.load(std::memory_order_acquire);
+}
+
+MM::RenderSystem::CommandExecutorLockGuard::~CommandExecutorLockGuard() {
+  Unlock();
+}
+
+MM::RenderSystem::CommandExecutorLockGuard::CommandExecutorLockGuard(
+    MM::RenderSystem::CommandExecutor& command_executor)
+    : command_executor_(&command_executor) {
+  Lock();
+}
+
+MM::RenderSystem::CommandExecutorLockGuard::CommandExecutorLockGuard(
+    MM::RenderSystem::CommandExecutorLockGuard&& other) noexcept
+    : command_executor_(other.command_executor_) {
+  other.command_executor_ = nullptr;
+}
+
+MM::RenderSystem::CommandExecutorLockGuard&
+MM::RenderSystem::CommandExecutorLockGuard::operator=(
+    MM::RenderSystem::CommandExecutorLockGuard&& other) noexcept {
+  if (std::addressof(other) == this) {
+    return *this;
+  }
+
+  command_executor_ = other.command_executor_;
+  other.command_executor_ = nullptr;
+
+  return *this;
+}
+
+void MM::RenderSystem::CommandExecutorLockGuard::Lock() {
+  command_executor_->LockExecutor();
+}
+
+void MM::RenderSystem::CommandExecutorLockGuard::Unlock() {
+  command_executor_->UnlockExecutor();
+}
+
+bool MM::RenderSystem::CommandExecutorLockGuard::IsValid() const {
+  return command_executor_ != nullptr;
 }

@@ -114,23 +114,16 @@ void MeshBufferManager::SetExpansionCoefficient(float expansion_coefficient) {
   capacity_data_.expansion_coefficient_ = expansion_coefficient;
 }
 
-ExecuteResult MeshBufferManager::MakeBufferCompact() {
+ExecuteResult MeshBufferManager::RemoveBufferFragmentation() {
   if (!IsValid()) {
     LOG_ERROR("MM::RenderSystem::MeshBufferManager is invalid.");
     return MM::Utils::ExecuteResult ::OBJECT_IS_INVALID;
   }
   std::lock_guard guard(allocate_free_mutex_);
 
-  managed_allocated_mesh_buffer_.GetRenderEnginePtr()
-      ->RunSingleCommandAndWait();
-  std::list<BufferSubResourceAttribute>::iterator vertex_iter =
-      sub_vertex_buffer_list_.begin();
-  std::list<BufferSubResourceAttribute>::iterator index_iter =
-      sub_index_buffer_list_.begin();
-
-  BufferChunkInfo vertex_buffer_chunk_info(
-      0, vertex_iter->GetChunkInfo().GetOffset()),
-      index_buffer_chunk_info(0, index_iter->GetChunkInfo().GetOffset());
+  RenderEngine* render_engine;
+  CommandExecutorLockGuard command_executor_lock_guard =
+      render_engine->GetCommandExecutorLockGuard();
 }
 
 ExecuteResult MeshBufferManager::Reserve() {

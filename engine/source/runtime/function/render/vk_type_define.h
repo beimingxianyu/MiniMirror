@@ -26,6 +26,7 @@
 namespace MM {
 namespace RenderSystem {
 class RenderEngine;
+using QueueIndex = std::uint32_t;
 
 struct QueueFamilyIndices {
   std::optional<uint32_t> graphics_family_;
@@ -338,7 +339,6 @@ class ImageSubResourceAttribute {
   ImageSubResourceAttribute& operator=(const ImageSubResourceAttribute& other);
   ImageSubResourceAttribute& operator=(
       ImageSubResourceAttribute&& other) noexcept;
-  ;
 
  public:
   const ImageSubresourceRangeInfo& GetImageSubresourceRangeInfo() const;
@@ -452,6 +452,14 @@ class BufferSubResourceAttribute {
   std::uint32_t GetQueueIndex() const;
 
   void SetQueueIndex(uint32_t queue_index);
+
+  VkDeviceSize GetOffset() const;
+
+  VkDeviceSize GetSize() const;
+
+  VkDeviceSize SetOffset(VkDeviceSize new_offset);
+
+  VkDeviceSize SetSize(VkDeviceSize new_size);
 
   bool IsValid() const;
 

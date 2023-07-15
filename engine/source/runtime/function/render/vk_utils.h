@@ -15,6 +15,7 @@ namespace MM {
 namespace RenderSystem {
 class AllocatedImage;
 class AllocatedBuffer;
+class AllocatedMeshBuffer;
 class AllocatedCommandBuffer;
 class RenderEngine;
 class BufferChunkInfo;
@@ -292,27 +293,28 @@ VkBufferCopy2 GetBufferCopy(const VkDeviceSize& size,
                             const VkDeviceSize& src_offset = 0,
                             const VkDeviceSize& dest_offset = 0);
 
-VkCopyBufferInfo2 GetCopyBufferInfo(AllocatedBuffer& src_buffer,
-                                    AllocatedBuffer& dest_buffer,
-                                    const std::vector<VkBufferCopy2>& regions);
+VkCopyBufferInfo2 GetVkCopyBufferInfo2(
+    AllocatedBuffer& src_buffer, AllocatedBuffer& dest_buffer,
+    const std::vector<VkBufferCopy2>& regions);
 
-VkCopyBufferInfo2 GetCopyBufferInfo(const AllocatedBuffer& src_buffer,
-                                    AllocatedBuffer& dest_buffer,
-                                    const std::vector<VkBufferCopy2>& regions);
+VkCopyBufferInfo2 GetVkCopyBufferInfo2(
+    const AllocatedBuffer& src_buffer, AllocatedBuffer& dest_buffer,
+    const std::vector<VkBufferCopy2>& regions);
 
-VkCopyBufferInfo2 GetCopyBufferInfo(AllocatedBuffer& src_buffer,
-                                    AllocatedBuffer& dest_buffer,
-                                    std::uint32_t regions_count,
-                                    VkBufferCopy2* regions);
+VkCopyBufferInfo2 GetVkCopyBufferInfo2(AllocatedBuffer& src_buffer,
+                                       AllocatedBuffer& dest_buffer,
+                                       std::uint32_t regions_count,
+                                       VkBufferCopy2* regions);
 
-VkCopyBufferInfo2 GetCopyBufferInfo(const AllocatedBuffer& src_buffer,
-                                    AllocatedBuffer& dest_buffer,
-                                    std::uint32_t regions_count,
-                                    VkBufferCopy2* regions);
+VkCopyBufferInfo2 GetVkCopyBufferInfo2(const AllocatedBuffer& src_buffer,
+                                       AllocatedBuffer& dest_buffer,
+                                       std::uint32_t regions_count,
+                                       VkBufferCopy2* regions);
 
-VkCopyBufferInfo2 GetCopyBufferInfo(VkBuffer src_buffer, VkBuffer dest_buffer,
-                                    void* next, std::uint32_t regions_count,
-                                    VkBufferCopy2* regions);
+VkCopyBufferInfo2 GetVkCopyBufferInfo2(VkBuffer src_buffer,
+                                       VkBuffer dest_buffer, void* next,
+                                       std::uint32_t regions_count,
+                                       VkBufferCopy2* regions);
 
 bool IsTransformSrcBuffer(const VkBufferUsageFlags& flags);
 

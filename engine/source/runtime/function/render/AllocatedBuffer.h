@@ -140,6 +140,13 @@ class AllocatedBuffer : public RenderResourceDataBase {
       MM::AssetSystem::AssetManager::HandlerType asset_handler,
       std::uint32_t queue_index);
 
+  MM::Utils::ExecuteResult GetVkBufferMemoryBarriber2(
+      VkDeviceSize offset, VkDeviceSize size,
+      VkPipelineStageFlags2 src_stage_mask, VkAccessFlags2 src_access_mask,
+      VkPipelineStageFlags2 dst_stage_mask, VkAccessFlags2 dst_access_mask,
+      QueueIndex new_index,
+      std::vector<VkBufferMemoryBarrier2>& barriers) const;
+
   void Release() override;
 
   bool IsValid() const override;

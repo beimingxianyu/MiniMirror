@@ -2,6 +2,8 @@
 #pragma ide diagnostic ignored "readability-identifier-naming"
 #pragma once
 
+#include <condition_variable>
+
 #include "runtime/function/render/RenderResourceDataID.h"
 #include "runtime/function/render/vk_type_define.h"
 #include "runtime/function/render/vk_utils.h"
@@ -421,13 +423,14 @@ ExecuteResult CommandTask::IsPostTaskTo(CommandTasks&&... command_tasks) {
   return ExecuteResult::SUCCESS;
 }
 
+// It is convenient for future expansion.
+using CommandCompleteState = std::atomic_uint32_t;
+
 class RenderFuture {
+  friend class CommandExecutor;
+
  public:
   RenderFuture() = default;
-  RenderFuture(
-      CommandExecutor* command_executor, const std::uint32_t& task_flow_ID,
-      const std::shared_ptr<ExecuteResult>& future_execute_result,
-      const std::vector<std::shared_ptr<bool>>& command_complete_states);
   ~RenderFuture() = default;
   RenderFuture(const RenderFuture& other) = default;
   RenderFuture(RenderFuture&& other) noexcept = default;
@@ -440,10 +443,20 @@ class RenderFuture {
   bool IsValid();
 
  private:
+  RenderFuture(
+      CommandExecutor* command_executor, const std::uint32_t& task_flow_ID,
+      const std::shared_ptr<ExecuteResult>& future_execute_result,
+      const std::shared_ptr<CommandCompleteState>& command_complete_states);
+
+ private:
+  static std::mutex wait_mutex_;
+  static std::condition_variable wait_condition_variable_;
+
+ private:
   CommandExecutor* command_executor_{nullptr};
   std::uint32_t task_flow_ID_{0};
   std::shared_ptr<ExecuteResult> execute_result_{};
-  std::vector<std::shared_ptr<bool>> command_complete_states_{};
+  std::shared_ptr<CommandCompleteState> command_complete_state_{0};
 };
 
 class CommandExecutor {
@@ -557,7 +570,7 @@ class CommandExecutor {
     CommandTaskFlowToBeRun(
         CommandTaskFlow&& command_task_flow, const std::uint32_t& task_flow_ID,
         const std::shared_ptr<ExecuteResult>& execute_result,
-        const std::vector<std::shared_ptr<bool>>& is_completes);
+        const std::shared_ptr<CommandCompleteState>& complete_state);
     CommandTaskFlowToBeRun(const CommandTaskFlowToBeRun& other) = delete;
     CommandTaskFlowToBeRun(CommandTaskFlowToBeRun&& other) noexcept;
     CommandTaskFlowToBeRun& operator=(const CommandTaskFlowToBeRun& other) =
@@ -567,7 +580,7 @@ class CommandExecutor {
     CommandTaskFlow command_task_flow_{};
     std::uint32_t task_flow_ID_{0};
     std::shared_ptr<ExecuteResult> execute_result_{};
-    std::stack<std::weak_ptr<bool>> is_completes_{};
+    std::weak_ptr<CommandCompleteState> complete_state_{};
 
     std::uint32_t the_maximum_number_of_graph_buffers_required_for_one_task_{0};
     std::uint32_t the_maximum_number_of_compute_buffers_required_for_one_task_{
@@ -616,7 +629,7 @@ class CommandExecutor {
     bool initialize_or_not_{false};
     bool have_wait_one_task_{false};
     std::shared_ptr<ExecuteResult> execute_result_{};
-    std::stack<std::weak_ptr<bool>> is_completes_{};
+    std::weak_ptr<CommandCompleteState> complete_state_{};
 
     std::unordered_set<std::unique_ptr<CommandTask>*>
         task_that_have_already_been_accessed_;
@@ -684,7 +697,7 @@ class CommandExecutor {
         std::vector<std::unique_ptr<AllocatedCommandBuffer>>&& command_buffer,
         std::unique_ptr<CommandTask>&& command_task,
         const std::weak_ptr<ExecuteResult>& execute_result,
-        const std::optional<std::weak_ptr<bool>>& is_complete,
+        const std::weak_ptr<CommandCompleteState>& complete_state,
         std::vector<std::vector<VkSemaphore>>&& default_wait_semaphore,
         std::vector<std::vector<VkSemaphore>>&& default_signal_semaphore);
     ExecutingTask(const ExecutingTask& other) = delete;
@@ -698,7 +711,7 @@ class CommandExecutor {
     std::weak_ptr<ExecutingCommandTaskFlow> command_task_flow_;
     std::vector<std::unique_ptr<AllocatedCommandBuffer>> command_buffers_;
     std::unique_ptr<CommandTask> command_task_{};
-    std::optional<std::weak_ptr<bool>> is_complete_{};
+    std::weak_ptr<CommandCompleteState> complete_state_{};
 
     std::vector<std::vector<VkSemaphore>> wait_semaphore_;
     std::vector<std::vector<VkPipelineStageFlags>> wait_semaphore_stages_;
@@ -836,9 +849,33 @@ class CommandExecutor {
       submit_failed_to_be_recycled_command_buffer_{};
   std::mutex submit_failed_to_be_recycled_command_buffer_mutex_{};
 
-  std::atomic_bool lock_flag_{};
+  std::atomic_uint32_t lock_count_{};
   std::mutex task_flow_submit_during_lockdown_mutex_{};
   std::list<CommandTaskFlowToBeRun> task_flow_submit_during_lockdown_{};
+};
+
+class CommandExecutorLockGuard {
+ public:
+  CommandExecutorLockGuard() = default;
+  ~CommandExecutorLockGuard();
+  ;
+  explicit CommandExecutorLockGuard(CommandExecutor& command_executor);
+  CommandExecutorLockGuard(const CommandExecutorLockGuard& other) = delete;
+  CommandExecutorLockGuard(CommandExecutorLockGuard&& other) noexcept;
+  CommandExecutorLockGuard& operator=(const CommandExecutorLockGuard& other) =
+      delete;
+  CommandExecutorLockGuard& operator=(
+      CommandExecutorLockGuard&& other) noexcept;
+
+ public:
+  void Lock();
+
+  void Unlock();
+
+  bool IsValid() const;
+
+ private:
+  CommandExecutor* command_executor_{nullptr};
 };
 }  // namespace RenderSystem
 }  // namespace MM

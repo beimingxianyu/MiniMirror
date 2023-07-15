@@ -5,8 +5,6 @@
 #include <string>
 #include <vector>
 
-#include "RenderDataAttributeID.h"
-#include "RenderResourceDataID.h"
 #include "runtime/function/render/AllocatedImage.h"
 #include "runtime/function/render/vk_engine.h"
 
@@ -570,24 +568,18 @@ VkBufferImageCopy MM::RenderSystem::Utils::GetBufferToImageCopyRegion(
 
 bool MM::RenderSystem::Utils::DescriptorTypeIsImage(
     const VkDescriptorType& descriptor_type) {
-  if (descriptor_type == VK_DESCRIPTOR_TYPE_SAMPLER ||
-      descriptor_type == VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER ||
-      descriptor_type == VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE ||
-      descriptor_type == VK_DESCRIPTOR_TYPE_STORAGE_IMAGE ||
-      descriptor_type == VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT) {
-    return true;
-  }
-  return false;
+  return descriptor_type == VK_DESCRIPTOR_TYPE_SAMPLER ||
+         descriptor_type == VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER ||
+         descriptor_type == VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE ||
+         descriptor_type == VK_DESCRIPTOR_TYPE_STORAGE_IMAGE ||
+         descriptor_type == VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT;
 }
 
 bool MM::RenderSystem::Utils::DescriptorTypeIsImageSampler(
     const VkDescriptorType& descriptor_type) {
-  if (descriptor_type == VK_DESCRIPTOR_TYPE_SAMPLER ||
-      descriptor_type == VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER ||
-      descriptor_type == VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE) {
-    return true;
-  }
-  return false;
+  return descriptor_type == VK_DESCRIPTOR_TYPE_SAMPLER ||
+         descriptor_type == VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER ||
+         descriptor_type == VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
 }
 
 VkImageViewCreateInfo MM::RenderSystem::Utils::GetImageViewCreateInfo(
@@ -651,11 +643,8 @@ VkSemaphoreCreateInfo MM::RenderSystem::Utils::GetSemaphoreCreateInfo(
 
 bool MM::RenderSystem::Utils::DescriptorTypeIsDynamicBuffer(
     const VkDescriptorType& descriptor_type) {
-  if (descriptor_type == VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC ||
-      descriptor_type == VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC) {
-    return true;
-  }
-  return false;
+  return descriptor_type == VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC ||
+         descriptor_type == VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC;
 }
 
 bool MM::RenderSystem::Utils::DescriptorTypeIsBuffer(
@@ -681,7 +670,6 @@ bool MM::RenderSystem::Utils::CanBeMapped(
     case VMA_MEMORY_USAGE_CPU_TO_GPU:
     case VMA_MEMORY_USAGE_GPU_TO_CPU:
       return true;
-      break;
     case VMA_MEMORY_USAGE_AUTO:
     case VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE:
     case VMA_MEMORY_USAGE_AUTO_PREFER_HOST:
@@ -756,7 +744,7 @@ VkBufferCopy2 MM::RenderSystem::Utils::GetBufferCopy(
   return buffer_copy_region;
 }
 
-VkCopyBufferInfo2 MM::RenderSystem::Utils::GetCopyBufferInfo(
+VkCopyBufferInfo2 MM::RenderSystem::Utils::GetVkCopyBufferInfo2(
     AllocatedBuffer& src_buffer, AllocatedBuffer& dest_buffer,
     const std::vector<VkBufferCopy2>& regions) {
   VkCopyBufferInfo2 copy_buffer_info{};
@@ -771,7 +759,7 @@ VkCopyBufferInfo2 MM::RenderSystem::Utils::GetCopyBufferInfo(
   return copy_buffer_info;
 }
 
-VkCopyBufferInfo2 MM::RenderSystem::Utils::GetCopyBufferInfo(
+VkCopyBufferInfo2 MM::RenderSystem::Utils::GetVkCopyBufferInfo2(
     const AllocatedBuffer& src_buffer, AllocatedBuffer& dest_buffer,
     const std::vector<VkBufferCopy2>& regions) {
   VkCopyBufferInfo2 copy_buffer_info{};
@@ -784,6 +772,17 @@ VkCopyBufferInfo2 MM::RenderSystem::Utils::GetCopyBufferInfo(
   copy_buffer_info.pRegions = regions.data();
 
   return copy_buffer_info;
+}
+
+VkCopyBufferInfo2 MM::RenderSystem::Utils::GetVkCopyBufferInfo2(
+    void* next, const VkBuffer_T* src_buffer, VkBuffer dest_buffer,
+    std::uint32_t regions_count, const VkBufferCopy2* regions) {
+  return VkCopyBufferInfo2{VK_STRUCTURE_TYPE_COPY_BUFFER_INFO_2,
+                           next,
+                           const_cast<VkBuffer>(src_buffer),
+                           dest_buffer,
+                           regions_count,
+                           regions};
 }
 
 bool MM::RenderSystem::Utils::IsTransformSrcBuffer(
@@ -857,41 +856,33 @@ bool MM::RenderSystem::Utils::GetBufferUsageFromDescriptorType(
 bool MM::RenderSystem::Utils::ImageRegionIsOverlap(
     const VkOffset3D& src_offset, const VkOffset3D& dest_offset,
     const VkExtent3D& extent) {
-  if (((dest_offset.x > src_offset.x &&
-        static_cast<std::uint32_t>(dest_offset.x) <
-            src_offset.x + extent.width) ||
-       (dest_offset.x + static_cast<std::int32_t>(extent.width) >
-            src_offset.x &&
-        dest_offset.x + extent.width < src_offset.x + extent.width)) &&
-      ((dest_offset.y > src_offset.y &&
-        dest_offset.y <
-            src_offset.y + static_cast<std::int32_t>(extent.height)) ||
-       (dest_offset.y + static_cast<std::int32_t>(extent.height) >
-            src_offset.y &&
-        dest_offset.y + extent.height < src_offset.y + extent.height)) &&
-      ((dest_offset.z > src_offset.z &&
-        dest_offset.z <
-            src_offset.z + static_cast<std::int32_t>(extent.width)) ||
-       (dest_offset.z + static_cast<std::int32_t>(extent.width) >
-            src_offset.z &&
-        dest_offset.z + extent.width < src_offset.z + extent.width))) {
-    return true;
-  }
-
-  return false;
+  return ((dest_offset.x > src_offset.x &&
+           static_cast<std::uint32_t>(dest_offset.x) <
+               src_offset.x + extent.width) ||
+          (dest_offset.x + static_cast<std::int32_t>(extent.width) >
+               src_offset.x &&
+           dest_offset.x + extent.width < src_offset.x + extent.width)) &&
+         ((dest_offset.y > src_offset.y &&
+           dest_offset.y <
+               src_offset.y + static_cast<std::int32_t>(extent.height)) ||
+          (dest_offset.y + static_cast<std::int32_t>(extent.height) >
+               src_offset.y &&
+           dest_offset.y + extent.height < src_offset.y + extent.height)) &&
+         ((dest_offset.z > src_offset.z &&
+           dest_offset.z <
+               src_offset.z + static_cast<std::int32_t>(extent.width)) ||
+          (dest_offset.z + static_cast<std::int32_t>(extent.width) >
+               src_offset.z &&
+           dest_offset.z + extent.width < src_offset.z + extent.width));
 }
 
 bool MM::RenderSystem::Utils::ImageRegionAreaLessThanImageExtent(
     const VkOffset3D& offset, const VkExtent3D& extent,
     const AllocatedImage& image) {
   const VkExtent3D& image_extent = image.GetImageExtent();
-  if (offset.x + extent.width < image_extent.width &&
-      offset.y + extent.height < image_extent.height &&
-      offset.z + extent.depth < image_extent.height) {
-    return true;
-  }
-
-  return false;
+  return offset.x + extent.width < image_extent.width &&
+         offset.y + extent.height < image_extent.height &&
+         offset.z + extent.depth < image_extent.height;
 }
 
 VkImageSubresourceLayers MM::RenderSystem::Utils::GetVkImageSubResourceLayers(
@@ -1010,7 +1001,7 @@ MM::ExecuteResult MM::RenderSystem::Utils::EndCommandBuffer(
 
 std::uint64_t MM::RenderSystem::Utils::ConvertVkFormatToContinuousValue(
     VkFormat vk_format) {
-  if (vk_format < 1000156000) {
+  if (vk_format < 1000054000) {
     return static_cast<std::uint64_t>(vk_format);
   }
 
@@ -1142,12 +1133,13 @@ std::uint64_t MM::RenderSystem::Utils::ConvertVkFormatToContinuousValue(
   }
 
   assert(false);
+
   return 0;
 }
 
 std::uint64_t MM::RenderSystem::Utils::ConvertVkImageLayoutToContinuousValue(
     VkImageLayout vk_image_layout) {
-  if (vk_image_layout < 1000117000) {
+  if (vk_image_layout < 1000001002) {
     return vk_image_layout;
   }
 
@@ -1379,10 +1371,9 @@ MM::ExecuteResult MM::RenderSystem::Utils::CreateBuffer(
   BufferDataInfo buffer_data_info{
       BufferCreateInfo(vk_buffer_create_info),
       AllocationCreateInfo(vma_allocation_create_info)};
-  RenderResourceDataAttributeID render_resource_data_attribute_ID;
+  RenderResourceDataAttributeID render_resource_data_attribute_ID{};
   buffer_data_info.GetRenderResourceDataAttributeID(
       render_resource_data_attribute_ID);
-
   allocated_buffer = AllocatedBuffer(
       allocated_buffer.GetObjectName(),
       RenderResourceDataID{0, render_resource_data_attribute_ID}, render_engine,
@@ -1569,10 +1560,9 @@ VkBufferMemoryBarrier2 MM::RenderSystem::Utils::GetVkBufferMemoryBarrier2(
                                 size};
 }
 
-VkCopyBufferInfo2 MM::RenderSystem::Utils::GetCopyBufferInfo(
-    const MM::RenderSystem::AllocatedBuffer& src_buffer,
-    MM::RenderSystem::AllocatedBuffer& dest_buffer, std::uint32_t regions_count,
-    VkBufferCopy2* regions) {
+VkCopyBufferInfo2 MM::RenderSystem::Utils::GetVkCopyBufferInfo2(
+    const AllocatedBuffer& src_buffer, AllocatedBuffer& dest_buffer,
+    std::uint32_t regions_count, VkBufferCopy2* regions) {
   return VkCopyBufferInfo2{VK_STRUCTURE_TYPE_COPY_BUFFER_INFO_2,
                            nullptr,
                            const_cast<VkBuffer>(src_buffer.GetBuffer()),
@@ -1581,10 +1571,9 @@ VkCopyBufferInfo2 MM::RenderSystem::Utils::GetCopyBufferInfo(
                            regions};
 }
 
-VkCopyBufferInfo2 MM::RenderSystem::Utils::GetCopyBufferInfo(
-    MM::RenderSystem::AllocatedBuffer& src_buffer,
-    MM::RenderSystem::AllocatedBuffer& dest_buffer, std::uint32_t regions_count,
-    VkBufferCopy2* regions) {
+VkCopyBufferInfo2 MM::RenderSystem::Utils::GetVkCopyBufferInfo2(
+    AllocatedBuffer& src_buffer, AllocatedBuffer& dest_buffer,
+    std::uint32_t regions_count, VkBufferCopy2* regions) {
   return VkCopyBufferInfo2{VK_STRUCTURE_TYPE_COPY_BUFFER_INFO_2,
                            nullptr,
                            src_buffer.GetBuffer(),
@@ -1593,7 +1582,7 @@ VkCopyBufferInfo2 MM::RenderSystem::Utils::GetCopyBufferInfo(
                            regions};
 }
 
-VkCopyBufferInfo2 MM::RenderSystem::Utils::GetCopyBufferInfo(
+VkCopyBufferInfo2 MM::RenderSystem::Utils::GetVkCopyBufferInfo2(
     VkBuffer src_buffer, VkBuffer dest_buffer, void* next,
     std::uint32_t regions_count, VkBufferCopy2* regions) {
   return VkCopyBufferInfo2{VK_STRUCTURE_TYPE_COPY_BUFFER_INFO_2,

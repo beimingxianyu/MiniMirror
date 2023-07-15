@@ -6,7 +6,6 @@
 #include <vulkan/vulkan_core.h>
 
 #include "runtime/function/render/vk_engine.h"
-#include "runtime/function/render/vk_utils.h"
 
 bool MM::RenderSystem::QueueFamilyIndices::isComplete() const {
   return graphics_family_.has_value() && present_family_.has_value() &&
@@ -1233,7 +1232,7 @@ MM::RenderSystem::SamplerCreateInfo::GetRenderSamplerAttributeID(
 
 MM::Utils::ConcurrentMap<MM::RenderSystem::RenderImageViewAttributeID,
                          MM::RenderSystem::ImageView::ImageViewWrapper>
-    MM::RenderSystem::ImageView::image_view_container_{512};
+    MM::RenderSystem::ImageView::image_view_container_(512);
 
 MM::RenderSystem::ImageView::ImageView(
     VkDevice device, VkAllocationCallbacks* allocator,
@@ -1384,7 +1383,7 @@ VkImageView MM::RenderSystem::ImageView::GetVkImageView() {
 
 MM::Utils::ConcurrentMap<MM::RenderSystem::RenderSamplerAttributeID,
                          MM::RenderSystem::Sampler::SamplerWrapper>
-    MM::RenderSystem::Sampler::sampler_container_{512};
+    MM::RenderSystem::Sampler::sampler_container_(512);
 
 MM::RenderSystem::Sampler::Sampler(
     VkDevice device, VkAllocationCallbacks* allocator,
@@ -1678,7 +1677,7 @@ MM::RenderSystem::BufferCreateInfo::operator=(
   size_ = other.size_;
   usage_ = other.usage_;
   sharing_mode_ = other.sharing_mode_;
-  queue_family_indices_ = queue_family_indices_;
+  queue_family_indices_ = other.queue_family_indices_;
 
   return *this;
 }
@@ -2153,6 +2152,24 @@ bool MM::RenderSystem::BufferSubResourceAttribute::IsValid() const {
 void MM::RenderSystem::BufferSubResourceAttribute::Reset() {
   chunk_info_.Reset();
   queue_index_ = UINT32_MAX;
+}
+
+VkDeviceSize MM::RenderSystem::BufferSubResourceAttribute::GetOffset() const {
+  return GetChunkInfo().GetOffset();
+}
+
+VkDeviceSize MM::RenderSystem::BufferSubResourceAttribute::GetSize() const {
+  return GetChunkInfo().GetSize();
+}
+
+VkDeviceSize MM::RenderSystem::BufferSubResourceAttribute::SetOffset(
+    VkDeviceSize new_offset) {
+  chunk_info_.SetOffset(new_offset);
+}
+
+VkDeviceSize MM::RenderSystem::BufferSubResourceAttribute::SetSize(
+    VkDeviceSize new_size) {
+  chunk_info_.SetSize(new_size);
 }
 
 void MM::RenderSystem::MeshBufferCapacityData::Reset() {
