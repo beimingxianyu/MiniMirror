@@ -122,6 +122,9 @@ MM::ExecuteResult MM::LogSystem::LogSystem::CheckResult(
     case ExecuteResult::FILE_OPERATION_ERROR:
       Log(log_level, log_prefix + "File operation error.");
       break;
+    case ExecuteResult::SYNCHRONIZE_FAILED:
+      Log(log_level, log_prefix + "Synchronize failed.");
+      break;
     case ExecuteResult::CUSTOM_ERROR:
       Log(log_level, log_prefix + "Custom error.");
       break;
@@ -205,6 +208,10 @@ MM::ExecuteResult MM::LogSystem::LogSystem::CheckMultipleResult(
   if ((result & ExecuteResult::FILE_OPERATION_ERROR) ==
       ExecuteResult::FILE_OPERATION_ERROR) {
     Log(log_level, log_prefix + "The input parameters are not suitable.");
+  }
+  if ((result & ExecuteResult::SYNCHRONIZE_FAILED) ==
+      ExecuteResult::SYNCHRONIZE_FAILED) {
+    Log(log_level, log_prefix + "Synchronize failed.");
   }
 
   /*-----------------------------------------------------------------------*/

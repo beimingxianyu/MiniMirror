@@ -58,6 +58,7 @@ MeshBufferManager::MeshBufferManager(MeshBufferManager&& other) noexcept {
 
 ExecuteResult MeshBufferManager::AllocateMeshBuffer(
     RenderResourceMeshBuffer& render_resource_mesh_buffer) {
+  // TODO
   return ExecuteResult::SUCCESS;
 }
 
@@ -124,10 +125,50 @@ ExecuteResult MeshBufferManager::RemoveBufferFragmentation() {
   RenderEngine* render_engine;
   CommandExecutorLockGuard command_executor_lock_guard =
       render_engine->GetCommandExecutorLockGuard();
+  while (!render_engine->CommandExecutorIsFree()) {
+    render_engine->GraphQueueWaitIdle();
+    render_engine->ComputeQueueWaitIdle();
+    render_engine->TransformQueueWaitIdle();
+    render_engine->PresentQueueWaitIdle();
+  }
+
+  MM_CHECK(render_engine->RemoveBufferFragmentation(
+               managed_allocated_mesh_buffer_, sub_vertex_buffer_list_,
+               sub_index_buffer_list_),
+           LOG_ERROR("Failed to remove buffer fragmentaion.");
+           return MM_RESULT_CODE;)
 }
 
-ExecuteResult MeshBufferManager::Reserve() {
-  // TODO
+ExecuteResult MeshBufferManager::Reserve(VkDeviceSize new_vertex_buffer_size,
+                                         VkDeviceSize new_index_buffer_size) {
+  bool new_vertex_size_is_less =
+      new_vertex_buffer_size <= managed_allocated_mesh_buffer_.GetVertexSize();
+  bool new_index_size_is_less =
+      new_index_buffer_size <= managed_allocated_mesh_buffer_.GetIndexSize();
+  if (new_vertex_size_is_less && new_index_size_is_less) {
+    return ExecuteResult ::SUCCESS;
+  }
+  if (new_vertex_size_is_less & new_index_buffer_size) {
+    return ExecuteResult ::INPUT_PARAMETERS_ARE_NOT_SUITABLE;
+  }
+
+  RenderEngine* render_engine;
+
+  AllocatedMeshBuffer new_mesh_buffer(render_engine, new_vertex_buffer_size,
+                                      new_index_buffer_size);
+  if (!new_mesh_buffer.IsValid()) {
+    LOG_ERROR("Failed to create a new mesh buffer.");
+    return ExecuteResult::CREATE_OBJECT_FAILED;
+  }
+
+  CommandExecutorLockGuard command_executor_lock_guard =
+      render_engine->GetCommandExecutorLockGuard();
+  while (!render_engine->CommandExecutorIsFree()) {
+    render_engine->GraphQueueWaitIdle();
+    render_engine->ComputeQueueWaitIdle();
+    render_engine->TransformQueueWaitIdle();
+    render_engine->PresentQueueWaitIdle();
+  }
 }
 
 bool MeshBufferManager::IsValid() const {

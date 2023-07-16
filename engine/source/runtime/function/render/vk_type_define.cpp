@@ -1873,14 +1873,14 @@ MM::RenderSystem::BufferDataInfo::BufferDataInfo(
           0, buffer_create_info.size_,
           buffer_create_info.queue_family_indices_[0]}} {}
 
-std::uint32_t MM::RenderSystem::ImageSubresourceRangeInfo::GetDestMipmapsLevel()
+std::uint32_t MM::RenderSystem::ImageSubresourceRangeInfo::GetBaseMipmapsLevel()
     const {
-  return dest_mipmaps_level_;
+  return base_mipmaps_level_;
 }
 
-void MM::RenderSystem::ImageSubresourceRangeInfo::SetDestMipmapsLevel(
+void MM::RenderSystem::ImageSubresourceRangeInfo::SetBaseMipmapsLevel(
     std::uint32_t dest_mipmaps_level) {
-  dest_mipmaps_level_ = dest_mipmaps_level;
+  base_mipmaps_level_ = dest_mipmaps_level;
 }
 
 std::uint32_t MM::RenderSystem::ImageSubresourceRangeInfo::GetMipmapsCount()
@@ -1893,14 +1893,14 @@ void MM::RenderSystem::ImageSubresourceRangeInfo::SetMipmapsCount(
   mipmaps_count_ = mipmaps_count;
 }
 
-std::uint32_t MM::RenderSystem::ImageSubresourceRangeInfo::GetDestArrayLevel()
+std::uint32_t MM::RenderSystem::ImageSubresourceRangeInfo::GetBaseArrayLevel()
     const {
-  return dest_array_level_;
+  return base_array_level_;
 }
 
-void MM::RenderSystem::ImageSubresourceRangeInfo::SetDestArrayLevel(
+void MM::RenderSystem::ImageSubresourceRangeInfo::SetBaseArrayLevel(
     std::uint32_t dest_array_level) {
-  dest_array_level_ = dest_array_level;
+  base_array_level_ = dest_array_level;
 }
 
 std::uint32_t MM::RenderSystem::ImageSubresourceRangeInfo::GetArrayCount()
@@ -1914,9 +1914,9 @@ void MM::RenderSystem::ImageSubresourceRangeInfo::SetArrayCount(
 }
 
 void MM::RenderSystem::ImageSubresourceRangeInfo::Reset() {
-  dest_mipmaps_level_ = 0;
+  base_mipmaps_level_ = 0;
   mipmaps_count_ = 0;
-  dest_array_level_ = 0;
+  base_array_level_ = 0;
   array_count_ = 0;
 }
 
@@ -1926,9 +1926,9 @@ bool MM::RenderSystem::ImageSubresourceRangeInfo::IsValid() const {
 
 MM::RenderSystem::ImageSubresourceRangeInfo::ImageSubresourceRangeInfo(
     MM::RenderSystem::ImageSubresourceRangeInfo&& other) noexcept
-    : dest_mipmaps_level_(other.dest_mipmaps_level_),
+    : base_mipmaps_level_(other.base_mipmaps_level_),
       mipmaps_count_(other.mipmaps_count_),
-      dest_array_level_(other.array_count_),
+      base_array_level_(other.array_count_),
       array_count_(other.array_count_) {
   Reset();
 }
@@ -1940,9 +1940,9 @@ MM::RenderSystem::ImageSubresourceRangeInfo::operator=(
     return *this;
   }
 
-  dest_mipmaps_level_ = other.dest_mipmaps_level_;
+  base_mipmaps_level_ = other.base_mipmaps_level_;
   mipmaps_count_ = other.mipmaps_count_;
-  dest_array_level_ = other.dest_array_level_;
+  base_array_level_ = other.base_array_level_;
   array_count_ = other.array_count_;
 
   return *this;
@@ -1955,9 +1955,9 @@ MM::RenderSystem::ImageSubresourceRangeInfo::operator=(
     return *this;
   }
 
-  dest_mipmaps_level_ = other.dest_mipmaps_level_;
+  base_mipmaps_level_ = other.base_mipmaps_level_;
   mipmaps_count_ = other.mipmaps_count_;
-  dest_array_level_ = other.dest_array_level_;
+  base_array_level_ = other.base_array_level_;
   array_count_ = other.array_count_;
 
   Reset();
@@ -1968,16 +1968,16 @@ MM::RenderSystem::ImageSubresourceRangeInfo::operator=(
 MM::RenderSystem::ImageSubresourceRangeInfo::ImageSubresourceRangeInfo(
     uint32_t dest_mipmaps_level, uint32_t mipmaps_count,
     uint32_t dest_array_level, uint32_t array_count)
-    : dest_mipmaps_level_(dest_mipmaps_level),
+    : base_mipmaps_level_(dest_mipmaps_level),
       mipmaps_count_(mipmaps_count),
-      dest_array_level_(dest_array_level),
+      base_array_level_(dest_array_level),
       array_count_(array_count) {}
 
 MM::RenderSystem::ImageSubresourceRangeInfo::ImageSubresourceRangeInfo(
     const VkImageSubresourceRange& vk_image_subresource_range)
-    : dest_mipmaps_level_(vk_image_subresource_range.baseMipLevel),
+    : base_mipmaps_level_(vk_image_subresource_range.baseMipLevel),
       mipmaps_count_(vk_image_subresource_range.levelCount),
-      dest_array_level_(vk_image_subresource_range.baseArrayLayer),
+      base_array_level_(vk_image_subresource_range.baseArrayLayer),
       array_count_(vk_image_subresource_range.layerCount) {}
 
 const MM::RenderSystem::ImageSubresourceRangeInfo&
@@ -2078,6 +2078,26 @@ MM::RenderSystem::ImageSubResourceAttribute::operator=(
   image_layout_ = VK_IMAGE_LAYOUT_MAX_ENUM;
 
   return *this;
+}
+
+std::uint32_t MM::RenderSystem::ImageSubResourceAttribute::GetBaseMipmapLevel()
+    const {
+  return image_subresource_range_info_.GetBaseMipmapsLevel();
+}
+
+std::uint32_t MM::RenderSystem::ImageSubResourceAttribute::GetBaseArrayLevel()
+    const {
+  return image_subresource_range_info_.GetBaseArrayLevel();
+}
+
+std::uint32_t MM::RenderSystem::ImageSubResourceAttribute::GetMipmapCount()
+    const {
+  return image_subresource_range_info_.GetMipmapsCount();
+}
+
+std::uint32_t MM::RenderSystem::ImageSubResourceAttribute::GetArrayCount()
+    const {
+  return image_subresource_range_info_.GetArrayCount();
 }
 
 MM::RenderSystem::BufferSubResourceAttribute::BufferSubResourceAttribute(

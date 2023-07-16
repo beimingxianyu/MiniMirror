@@ -12,6 +12,9 @@ class AllocatedMeshBuffer : public MMObject {
   ~AllocatedMeshBuffer() = default;
   explicit AllocatedMeshBuffer(RenderEngine* render_engine);
   AllocatedMeshBuffer(RenderEngine* render_engine, std::uint32_t vertex_count);
+  AllocatedMeshBuffer(RenderEngine* render_engine,
+                      VkDeviceSize vertex_buffer_size,
+                      VkDeviceSize index_buffer_size);
   AllocatedMeshBuffer(const AllocatedMeshBuffer& other) = delete;
   AllocatedMeshBuffer(AllocatedMeshBuffer&& other) noexcept;
   AllocatedMeshBuffer& operator=(const AllocatedMeshBuffer& other) = delete;

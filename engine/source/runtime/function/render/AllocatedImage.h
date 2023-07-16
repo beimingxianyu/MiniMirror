@@ -57,7 +57,10 @@ class AllocatedImage final : public RenderResourceDataBase {
 
   VkFormat GetImageFormat() const;
 
-  VkImageLayout GetImageLayout() const;
+  VkImageLayout GetImageInitLayout() const;
+
+  MM::Utils::ExecuteResult GetImageLayout(
+      std::uint32_t mipmap_level, VkImageLayout& output_image_layout) const;
 
   std::uint32_t GetMipmapLevels() const;
 

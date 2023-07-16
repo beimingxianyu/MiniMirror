@@ -51,6 +51,24 @@ AllocatedMeshBuffer::AllocatedMeshBuffer(RenderEngine *render_engine,
   InitMeshBuffer(vertex_buffer_size, index_buffer_size);
 }
 
+AllocatedMeshBuffer::AllocatedMeshBuffer(RenderEngine *render_engine,
+                                         VkDeviceSize vertex_buffer_size,
+                                         VkDeviceSize index_buffer_size)
+    : MMObject(),
+      render_engine_(render_engine),
+      vertex_info_(),
+      index_info_(),
+      vertex_buffer_(),
+      index_buffer_() {
+  if (render_engine_ == nullptr && render_engine_->IsValid()) {
+    render_engine_ = nullptr;
+    LOG_ERROR("Failed to create allocated mesh buffer.");
+    return;
+  }
+
+  InitMeshBuffer(vertex_buffer_size, index_buffer_size);
+}
+
 AllocatedMeshBuffer::AllocatedMeshBuffer(AllocatedMeshBuffer &&other) noexcept
     : render_engine_(other.render_engine_),
       vertex_info_(std::move(other.vertex_info_)),
@@ -227,6 +245,8 @@ ExecuteResult AllocatedMeshBuffer::InitMeshBuffer(
                              temp_vertex_allocation);
   index_buffer_ = AllocatedBufferWrapper(
       render_engine_->GetAllocator(), temp_index_buffer, temp_index_allocation);
+
+  return ExecuteResult ::SUCCESS;
 }
 }  // namespace RenderSystem
 }  // namespace MM

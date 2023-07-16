@@ -28,6 +28,7 @@ enum class ExecuteResult : std::uint32_t {
   INPUT_PARAMETERS_ARE_NOT_SUITABLE = 1U << 15,
   // rename/delete/create/remove/etc.
   FILE_OPERATION_ERROR = 1U << 16,
+  SYNCHRONIZE_FAILED = 1U << 17,
   CUSTOM_ERROR = 1U << 31
 };
 

@@ -278,7 +278,7 @@ MM::RenderSystem::AllocatedCommandBuffer::GetRenderEngine() const {
   return wrapper_->GetRenderEngine();
 }
 
-const VkQueue& MM::RenderSystem::AllocatedCommandBuffer::GetQueue() const {
+const VkQueue_T* MM::RenderSystem::AllocatedCommandBuffer::GetQueue() const {
   return wrapper_->GetQueue();
 }
 
@@ -291,17 +291,17 @@ MM::RenderSystem::AllocatedCommandBuffer::GetCommandBufferType() const {
   return command_buffer_info_.command_buffer_type;
 }
 
-const VkCommandPool& MM::RenderSystem::AllocatedCommandBuffer::GetCommandPool()
-    const {
+const VkCommandPool_T*
+MM::RenderSystem::AllocatedCommandBuffer::GetCommandPool() const {
   return wrapper_->GetCommandPool();
 }
 
-const VkCommandBuffer&
+const VkCommandBuffer_T*
 MM::RenderSystem::AllocatedCommandBuffer::GetCommandBuffer() const {
   return wrapper_->GetCommandBuffer();
 }
 
-const VkFence& MM::RenderSystem::AllocatedCommandBuffer::GetFence() const {
+const VkFence_T* MM::RenderSystem::AllocatedCommandBuffer::GetFence() const {
   return wrapper_->GetFence();
 }
 
@@ -311,6 +311,22 @@ bool MM::RenderSystem::AllocatedCommandBuffer::ResetCommandBuffer() {
 
 bool MM::RenderSystem::AllocatedCommandBuffer::IsValid() const {
   return wrapper_ != nullptr && wrapper_->IsValid();
+}
+
+VkQueue MM::RenderSystem::AllocatedCommandBuffer::GetQueue() {
+  return wrapper_->GetQueue();
+}
+
+VkCommandPool MM::RenderSystem::AllocatedCommandBuffer::GetCommandPool() {
+  return wrapper_->GetCommandPool();
+}
+
+VkCommandBuffer MM::RenderSystem::AllocatedCommandBuffer::GetCommandBuffer() {
+  return wrapper_->GetCommandBuffer();
+}
+
+VkFence MM::RenderSystem::AllocatedCommandBuffer::GetFence() {
+  return wrapper_->GetFence();
 }
 
 MM::RenderSystem::AllocatedCommandBuffer::AllocatedCommandBufferWrapper::
@@ -686,6 +702,8 @@ MM::RenderSystem::CommandExecutor::CommandExecutor(RenderEngine* engine)
       free_graph_command_buffers_(),
       free_compute_command_buffers_(),
       free_transform_command_buffers_(),
+      general_command_buffers_(),
+      general_command_buffers_acquire_release_mutex_(),
       recoding_graph_command_buffer_number_(),
       recording_compute_command_buffer_number_(),
       recording_transform_command_buffer_number_(),
@@ -720,26 +738,33 @@ MM::RenderSystem::CommandExecutor::CommandExecutor(RenderEngine* engine)
   compute_command_number_ = 5 * render_engine_->GetFlightFrameNumber();
   transform_command_number_ = 5 * render_engine_->GetFlightFrameNumber();
 
-  std::vector<VkCommandPool> graph_command_pools(graph_command_number_,
+  std::vector<VkCommandPool> graph_command_pools(graph_command_number_ + 3,
                                                  nullptr);
-  std::vector<VkCommandPool> compute_command_pools{compute_command_number_,
+  std::vector<VkCommandPool> compute_command_pools{compute_command_number_ + 3,
                                                    nullptr};
-  std::vector<VkCommandPool> transform_command_pools{transform_command_number_,
-                                                     nullptr};
+  std::vector<VkCommandPool> transform_command_pools{
+      transform_command_number_ + 3, nullptr};
   MM_CHECK(InitCommandPolls(graph_command_pools, compute_command_pools,
                             transform_command_pools),
            return;)
 
-  std::vector<VkCommandBuffer> graph_command_buffers(graph_command_number_);
-  std::vector<VkCommandBuffer> compute_command_buffers(compute_command_number_);
+  std::vector<VkCommandBuffer> graph_command_buffers(graph_command_number_ + 1);
+  std::vector<VkCommandBuffer> compute_command_buffers(compute_command_number_ +
+                                                       1);
   std::vector<VkCommandBuffer> transform_command_buffers(
-      transform_command_number_);
+      transform_command_number_ + 1);
 
   MM_CHECK(
       InitCommandBuffers(graph_command_pools, compute_command_pools,
                          transform_command_pools, graph_command_buffers,
                          compute_command_buffers, transform_command_buffers),
       return;)
+
+  MM_CHECK(InitGeneralAllocatedCommandBuffers(
+               graph_command_pools, compute_command_pools,
+               transform_command_pools, graph_command_buffers,
+               compute_command_buffers, transform_command_buffers),
+           return;)
 
   MM_CHECK(InitAllocateCommandBuffers(
                graph_command_pools, compute_command_pools,
@@ -781,6 +806,8 @@ MM::RenderSystem::CommandExecutor::CommandExecutor(
       free_graph_command_buffers_(),
       free_compute_command_buffers_(),
       free_transform_command_buffers_(),
+      general_command_buffers_(),
+      general_command_buffers_acquire_release_mutex_(),
       recoding_graph_command_buffer_number_(),
       recording_compute_command_buffer_number_(),
       recording_transform_command_buffer_number_(),
@@ -822,20 +849,23 @@ MM::RenderSystem::CommandExecutor::CommandExecutor(
     return;
   }
 
-  std::vector<VkCommandPool> graph_command_pools(graph_command_number, nullptr);
-  std::vector<VkCommandPool> compute_command_pools{compute_command_number,
+  std::vector<VkCommandPool> graph_command_pools(graph_command_number + 3,
+                                                 nullptr);
+  std::vector<VkCommandPool> compute_command_pools{compute_command_number + 3,
                                                    nullptr};
-  std::vector<VkCommandPool> transform_command_pools{transform_command_number,
-                                                     nullptr};
+  std::vector<VkCommandPool> transform_command_pools{
+      transform_command_number + 3, nullptr};
 
   MM_CHECK(InitCommandPolls(graph_command_pools, compute_command_pools,
                             transform_command_pools),
            return;)
 
-  std::vector<VkCommandBuffer> graph_command_buffers(graph_command_number);
-  std::vector<VkCommandBuffer> compute_command_buffers(compute_command_number);
+  std::vector<VkCommandBuffer> graph_command_buffers(graph_command_number + 3,
+                                                     nullptr);
+  std::vector<VkCommandBuffer> compute_command_buffers(
+      compute_command_number + 3, nullptr);
   std::vector<VkCommandBuffer> transform_command_buffers(
-      transform_command_number);
+      transform_command_number + 3, nullptr);
 
   MM_CHECK(
       InitCommandBuffers(graph_command_pools, compute_command_pools,
@@ -843,11 +873,15 @@ MM::RenderSystem::CommandExecutor::CommandExecutor(
                          compute_command_buffers, transform_command_buffers),
       return;)
 
-  MM_CHECK(InitAllocateCommandBuffers(
-               graph_command_pools, compute_command_pools,
-               transform_command_pools, graph_command_buffers,
-               compute_command_buffers, transform_command_buffers),
-           return;)
+  InitGeneralAllocatedCommandBuffers(
+      graph_command_pools, compute_command_pools, transform_command_pools,
+      graph_command_buffers, compute_command_buffers,
+      transform_command_buffers);
+
+  InitAllocateCommandBuffers(graph_command_pools, compute_command_pools,
+                             transform_command_pools, graph_command_buffers,
+                             compute_command_buffers,
+                             transform_command_buffers);
 
   MM_CHECK(InitSemaphores(graph_command_number + compute_command_number +
                               transform_command_number,
@@ -909,7 +943,7 @@ MM::RenderSystem::RenderFuture MM::RenderSystem::CommandExecutor::Run(
   }
   std::shared_ptr<std::atomic_uint32_t> complete_state{
       std::make_shared<std::atomic_uint32_t>(complete_state_count)};
-  if (lock_flag_.load(std::memory_order_acquire)) {
+  if (lock_count_.load(std::memory_order_acquire)) {
     std::lock_guard guard{task_flow_submit_during_lockdown_mutex_};
     task_flow_submit_during_lockdown_.emplace_back(
         std::move(command_task_flow), task_id, execute_result, complete_state);
@@ -1087,6 +1121,40 @@ MM::ExecuteResult MM::RenderSystem::CommandExecutor::InitCommandBuffers(
   return ExecuteResult::SUCCESS;
 }
 
+MM::ExecuteResult
+MM::RenderSystem::CommandExecutor::InitGeneralAllocatedCommandBuffers(
+    std::vector<VkCommandPool>& graph_command_pools,
+    std::vector<VkCommandPool>& compute_command_pools,
+    std::vector<VkCommandPool>& transform_command_pools,
+    std::vector<VkCommandBuffer>& graph_command_buffers,
+    std::vector<VkCommandBuffer>& compute_command_buffers,
+    std::vector<VkCommandBuffer>& transform_command_buffers) {
+  for (std::uint64_t i = 0; i != 3; ++i) {
+    general_command_buffers_[0][i] = std::make_unique<AllocatedCommandBuffer>(
+        render_engine_, render_engine_->GetGraphQueueIndex(),
+        render_engine_->GetGraphQueue(), graph_command_pools.back(),
+        graph_command_buffers.back());
+    general_command_buffers_[1][i] = std::make_unique<AllocatedCommandBuffer>(
+        render_engine_, render_engine_->GetComputeQueueIndex(),
+        render_engine_->GetComputeQueue(), compute_command_pools.back(),
+        compute_command_buffers.back());
+
+    general_command_buffers_[3][i] = std::make_unique<AllocatedCommandBuffer>(
+        render_engine_, render_engine_->GetTransformQueueIndex(),
+        render_engine_->GetTransformQueue(), transform_command_pools.back(),
+        transform_command_buffers.back());
+
+    graph_command_pools.pop_back();
+    graph_command_buffers.pop_back();
+    compute_command_pools.pop_back();
+    compute_command_buffers.pop_back();
+    transform_command_pools.pop_back();
+    transform_command_buffers.pop_back();
+  }
+
+  return ExecuteResult ::SUCCESS;
+}
+
 MM::ExecuteResult MM::RenderSystem::CommandExecutor::InitAllocateCommandBuffers(
     std::vector<VkCommandPool>& graph_command_pools,
     std::vector<VkCommandPool>& compute_command_pools,
@@ -1100,12 +1168,12 @@ MM::ExecuteResult MM::RenderSystem::CommandExecutor::InitAllocateCommandBuffers(
         render_engine_->GetGraphQueue(), graph_command_pools[i],
         graph_command_buffers[i]));
 
-    if (!free_graph_command_buffers_.top()->IsValid()) {
-      LOG_ERROR("Failed to create graph allocate command buffer.");
-      ClearWhenConstructFailed(graph_command_pools, compute_command_pools,
-                               transform_command_pools);
-      return ExecuteResult::INITIALIZATION_FAILED;
-    }
+    //    if (!free_graph_command_buffers_.top()->IsValid()) {
+    //      LOG_ERROR("Failed to create graph allocate command buffer.");
+    //      ClearWhenConstructFailed(graph_command_pools, compute_command_pools,
+    //                               transform_command_pools);
+    //      return ExecuteResult::INITIALIZATION_FAILED;
+    //    }
 
     graph_command_pools[i] = nullptr;
   }
@@ -1116,12 +1184,12 @@ MM::ExecuteResult MM::RenderSystem::CommandExecutor::InitAllocateCommandBuffers(
         render_engine_->GetComputeQueue(), compute_command_pools[i],
         compute_command_buffers[i]));
 
-    if (!free_compute_command_buffers_.top()->IsValid()) {
-      LOG_ERROR("Failed to create compute allocate command buffer.");
-      ClearWhenConstructFailed(graph_command_pools, compute_command_pools,
-                               transform_command_pools);
-      return ExecuteResult::INITIALIZATION_FAILED;
-    }
+    //    if (!free_compute_command_buffers_.top()->IsValid()) {
+    //      LOG_ERROR("Failed to create compute allocate command buffer.");
+    //      ClearWhenConstructFailed(graph_command_pools, compute_command_pools,
+    //                               transform_command_pools);
+    //      return ExecuteResult::INITIALIZATION_FAILED;
+    //    }
 
     compute_command_pools[i] = nullptr;
   }
@@ -1133,12 +1201,12 @@ MM::ExecuteResult MM::RenderSystem::CommandExecutor::InitAllocateCommandBuffers(
             render_engine_->GetTransformQueue(), transform_command_pools[i],
             transform_command_buffers[i]));
 
-    if (!free_transform_command_buffers_.top()->IsValid()) {
-      LOG_ERROR("Failed to create transform allocate command buffer.");
-      ClearWhenConstructFailed(graph_command_pools, compute_command_pools,
-                               transform_command_pools);
-      return ExecuteResult::INITIALIZATION_FAILED;
-    }
+    //    if (!free_transform_command_buffers_.top()->IsValid()) {
+    //      LOG_ERROR("Failed to create transform allocate command buffer.");
+    //      ClearWhenConstructFailed(graph_command_pools, compute_command_pools,
+    //                               transform_command_pools);
+    //      return ExecuteResult::INITIALIZATION_FAILED;
+    //    }
 
     transform_command_pools[i] = nullptr;
   }

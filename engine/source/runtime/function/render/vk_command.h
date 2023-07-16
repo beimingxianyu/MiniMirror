@@ -3,6 +3,7 @@
 #pragma once
 
 #include <condition_variable>
+#include <utility>
 
 #include "runtime/function/render/RenderResourceDataID.h"
 #include "runtime/function/render/vk_type_define.h"
@@ -71,17 +72,25 @@ class AllocatedCommandBuffer {
  public:
   const RenderEngine& GetRenderEngine() const;
 
-  const VkQueue& GetQueue() const;
+  VkQueue GetQueue();
+
+  const VkQueue_T* GetQueue() const;
 
   std::uint32_t GetQueueIndex() const;
 
   CommandBufferType GetCommandBufferType() const;
 
-  const VkCommandPool& GetCommandPool() const;
+  VkCommandPool GetCommandPool();
 
-  const VkCommandBuffer& GetCommandBuffer() const;
+  const VkCommandPool_T* GetCommandPool() const;
 
-  const VkFence& GetFence() const;
+  VkCommandBuffer GetCommandBuffer();
+
+  const VkCommandBuffer_T* GetCommandBuffer() const;
+
+  VkFence GetFence();
+
+  const VkFence_T* GetFence() const;
 
   /**
    * \remark A command pool corresponds to a command buffer, so resetting t
@@ -491,6 +500,104 @@ class CommandExecutor {
 
   bool IsFree() const;
 
+  ExecuteResult AcquireGeneralGraphCommandBuffer(
+      std::unique_ptr<AllocatedCommandBuffer>& output) {
+    std::lock_guard guard{general_command_buffers_acquire_release_mutex_};
+    if (general_command_buffers_[0][0] != nullptr) {
+      output = std::move(general_command_buffers_[0][0]);
+      return ExecuteResult ::SUCCESS;
+    }
+    if (general_command_buffers_[0][1] != nullptr) {
+      output = std::move(general_command_buffers_[0][1]);
+      return ExecuteResult ::SUCCESS;
+    }
+    if (general_command_buffers_[0][2] != nullptr) {
+      output = std::move(general_command_buffers_[0][2]);
+      return ExecuteResult ::SUCCESS;
+    }
+
+    return ExecuteResult ::SYNCHRONIZE_FAILED;
+  }
+
+  ExecuteResult AcquireGeneralComputeCommandBuffer(
+      std::unique_ptr<AllocatedCommandBuffer>& output) {
+    std::lock_guard guard{general_command_buffers_acquire_release_mutex_};
+    if (general_command_buffers_[1][0] != nullptr) {
+      output = std::move(general_command_buffers_[1][0]);
+      return ExecuteResult ::SUCCESS;
+    }
+    if (general_command_buffers_[1][1] != nullptr) {
+      output = std::move(general_command_buffers_[1][1]);
+      return ExecuteResult ::SUCCESS;
+    }
+    if (general_command_buffers_[1][2] != nullptr) {
+      output = std::move(general_command_buffers_[1][2]);
+      return ExecuteResult ::SUCCESS;
+    }
+
+    return ExecuteResult ::SYNCHRONIZE_FAILED;
+  }
+
+  ExecuteResult AcquireGeneralTransformCommandBuffer(
+      std::unique_ptr<AllocatedCommandBuffer>& output) {
+    std::lock_guard guard{general_command_buffers_acquire_release_mutex_};
+    if (general_command_buffers_[2][0] != nullptr) {
+      output = std::move(general_command_buffers_[2][0]);
+      return ExecuteResult ::SUCCESS;
+    }
+    if (general_command_buffers_[2][1] != nullptr) {
+      output = std::move(general_command_buffers_[2][1]);
+      return ExecuteResult ::SUCCESS;
+    }
+    if (general_command_buffers_[2][2] != nullptr) {
+      output = std::move(general_command_buffers_[2][2]);
+      return ExecuteResult ::SUCCESS;
+    }
+
+    return ExecuteResult ::SYNCHRONIZE_FAILED;
+  }
+
+  void ReleaseGeneralCommandBuffer(
+      std::unique_ptr<AllocatedCommandBuffer>& output) {
+    if (output->IsValid()) {
+      return;
+    }
+    std::uint64_t general_command_type_index = UINT32_MAX;
+    switch (output->GetCommandBufferType()) {
+      case CommandBufferType::GRAPH:
+        general_command_type_index = 0;
+        break;
+      case CommandBufferType::COMPUTE:
+        general_command_type_index = 1;
+        break;
+      case CommandBufferType::TRANSFORM:
+        general_command_type_index = 2;
+        break;
+      case CommandBufferType::UNDEFINED:
+        return;
+    }
+
+    std::lock_guard guard{general_command_buffers_acquire_release_mutex_};
+    if (general_command_buffers_[general_command_type_index][0] == nullptr) {
+      output->ResetCommandBuffer();
+      general_command_buffers_[general_command_type_index][0] =
+          std::move(output);
+      return;
+    }
+    if (general_command_buffers_[general_command_type_index][1] == nullptr) {
+      output->ResetCommandBuffer();
+      general_command_buffers_[general_command_type_index][1] =
+          std::move(output);
+      return;
+    }
+    if (general_command_buffers_[general_command_type_index][2] != nullptr) {
+      output->ResetCommandBuffer();
+      general_command_buffers_[general_command_type_index][2] =
+          std::move(output);
+      return;
+    }
+  }
+
   /**
    * \remark \ref command_task_flow is invalid after call this function.
    */
@@ -540,6 +647,14 @@ class CommandExecutor {
       std::vector<VkCommandPool>& transform_command_pools);
 
   ExecuteResult InitCommandBuffers(
+      std::vector<VkCommandPool>& graph_command_pools,
+      std::vector<VkCommandPool>& compute_command_pools,
+      std::vector<VkCommandPool>& transform_command_pools,
+      std::vector<VkCommandBuffer>& graph_command_buffers,
+      std::vector<VkCommandBuffer>& compute_command_buffers,
+      std::vector<VkCommandBuffer>& transform_command_buffers);
+
+  ExecuteResult InitGeneralAllocatedCommandBuffers(
       std::vector<VkCommandPool>& graph_command_pools,
       std::vector<VkCommandPool>& compute_command_pools,
       std::vector<VkCommandPool>& transform_command_pools,
@@ -803,6 +918,10 @@ class CommandExecutor {
       free_compute_command_buffers_{};
   std::stack<std::unique_ptr<AllocatedCommandBuffer>>
       free_transform_command_buffers_{};
+
+  std::array<std::array<std::unique_ptr<AllocatedCommandBuffer>, 3>, 3>
+      general_command_buffers_{};
+  std::mutex general_command_buffers_acquire_release_mutex_{};
 
   std::atomic_uint32_t recoding_graph_command_buffer_number_{0};
   std::atomic_uint32_t recording_compute_command_buffer_number_{0};

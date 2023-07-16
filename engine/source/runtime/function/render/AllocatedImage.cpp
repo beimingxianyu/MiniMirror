@@ -61,7 +61,7 @@ VkFormat MM::RenderSystem::AllocatedImage::GetImageFormat() const {
   return image_data_info_.image_create_info_.format_;
 }
 
-VkImageLayout MM::RenderSystem::AllocatedImage::GetImageLayout() const {
+VkImageLayout MM::RenderSystem::AllocatedImage::GetImageInitLayout() const {
   return image_data_info_.image_create_info_.initial_layout_;
 }
 
@@ -385,7 +385,7 @@ void MM::RenderSystem::AllocatedImage::AddCopyStageBufferDataToImageCommands(
       nullptr,
       stage_allocated_buffer.GetBuffer(),
       created_image,
-      GetImageLayout(),
+      GetImageInitLayout(),
       1,
       &buffer_image_copy2};
 
@@ -490,7 +490,7 @@ void MM::RenderSystem::AllocatedImage::
 
     barrier.subresourceRange.baseMipLevel = i - 1;
     barrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
-    barrier.newLayout = GetImageLayout();
+    barrier.newLayout = GetImageInitLayout();
     barrier.srcStageMask = VK_PIPELINE_STAGE_2_TRANSFER_BIT;
     barrier.dstStageMask = VK_PIPELINE_STAGE_2_VERTEX_SHADER_BIT;
     barrier.srcAccessMask = VK_ACCESS_2_TRANSFER_READ_BIT;
@@ -515,7 +515,7 @@ void MM::RenderSystem::AllocatedImage::
   barrier.subresourceRange.baseMipLevel =
       image_data_info_.image_create_info_.miplevels_ - 1;
   barrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
-  barrier.newLayout = GetImageLayout();
+  barrier.newLayout = GetImageInitLayout();
   barrier.srcStageMask = VK_PIPELINE_STAGE_2_TRANSFER_BIT;
   barrier.dstStageMask = VK_PIPELINE_STAGE_2_VERTEX_SHADER_BIT;
   barrier.srcAccessMask = VK_ACCESS_2_TRANSFER_WRITE_BIT;
@@ -534,7 +534,7 @@ void MM::RenderSystem::AllocatedImage::AddQueueIndexAndLayoutTransformCommands(
   VkImageMemoryBarrier2 image_memory_barrier2 = Utils::GetVkImageMemoryBarrier2(
       VK_PIPELINE_STAGE_2_TRANSFER_BIT, VK_ACCESS_2_TRANSFER_WRITE_BIT,
       VK_PIPELINE_STAGE_2_TRANSFER_BIT, VK_ACCESS_2_TRANSFER_WRITE_BIT,
-      VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, GetImageLayout(),
+      VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, GetImageInitLayout(),
       render_engine_->GetGraphQueueIndex(),
       image_data_info_.image_create_info_.queue_family_indices_[0],
       created_image,
@@ -555,6 +555,26 @@ MM::RenderSystem::AllocatedImage::GetRenderEnginePtr() {
 const MM::RenderSystem::RenderEngine*
 MM::RenderSystem::AllocatedImage::GetRenderEnginePtr() const {
   return render_engine_;
+}
+
+MM::Utils::ExecuteResult MM::RenderSystem::AllocatedImage::GetImageLayout(
+    std::uint32_t mipmap_level, VkImageLayout& output_image_layout) const {
+  if (mipmap_level > GetMipmapLevels()) {
+    return ExecuteResult ::INPUT_PARAMETERS_ARE_NOT_SUITABLE;
+  }
+  for (const auto& sub_resource :
+       image_data_info_.image_sub_resource_attributes_) {
+    if (mipmap_level >=
+            sub_resource.GetImageSubresourceRangeInfo().GetBaseMipmapsLevel() &&
+        mipmap_level <
+            sub_resource.GetImageSubresourceRangeInfo().GetBaseMipmapsLevel() +
+                sub_resource.GetImageSubresourceRangeInfo().GetMipmapsCount()) {
+      output_image_layout = sub_resource.GetImageLayout();
+      return ExecuteResult ::SUCCESS;
+    }
+  }
+
+  return ExecuteResult ::UNDEFINED_ERROR;
 }
 
 // MM::ExecuteResult

@@ -51,7 +51,8 @@ class MeshBufferManager {
 
   ExecuteResult RemoveBufferFragmentation();
 
-  ExecuteResult Reserve();
+  ExecuteResult Reserve(VkDeviceSize new_vertex_buffer_size,
+                        VkDeviceSize new_index_buffer_size);
 
   bool IsValid() const;
 

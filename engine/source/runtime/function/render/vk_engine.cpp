@@ -2,8 +2,6 @@
 
 #include <set>
 
-#include "runtime/function/render/vk_command.h"
-
 const std::string MM::RenderSystem::RenderEngine::validation_layers_name{
     "VK_LAYER_KHRONOS_validation"};
 
@@ -521,7 +519,7 @@ MM::ExecuteResult MM::RenderSystem::RenderEngine::CopyImage(
     }
 
     if (region.srcSubresource.aspectMask & VK_IMAGE_ASPECT_COLOR_BIT &&
-        (region.srcSubresource.aspectMask & VK_IMAGE_ASPECT_COLOR_BIT ||
+        (region.srcSubresource.aspectMask & VK_IMAGE_ASPECT_DEPTH_BIT ||
          region.srcSubresource.aspectMask & VK_IMAGE_ASPECT_STENCIL_BIT)) {
       LOG_ERROR(
           "If aspectMask contains VK_IMAGE_ASPECT_COLOR_BIT, it must not "
@@ -531,7 +529,7 @@ MM::ExecuteResult MM::RenderSystem::RenderEngine::CopyImage(
     }
 
     if (region.dstSubresource.aspectMask & VK_IMAGE_ASPECT_COLOR_BIT &&
-        (region.dstSubresource.aspectMask & VK_IMAGE_ASPECT_COLOR_BIT ||
+        (region.dstSubresource.aspectMask & VK_IMAGE_ASPECT_DEPTH_BIT ||
          region.dstSubresource.aspectMask & VK_IMAGE_ASPECT_STENCIL_BIT)) {
       LOG_ERROR(
           "If aspectMask contains VK_IMAGE_ASPECT_COLOR_BIT, it must not "
@@ -547,22 +545,30 @@ MM::ExecuteResult MM::RenderSystem::RenderEngine::CopyImage(
           "mipmap level contained in the image itself.");
       return ExecuteResult::INPUT_PARAMETERS_ARE_NOT_SUITABLE;
     }
-
-    if (region.srcSubresource.layerCount != region.dstSubresource.layerCount) {
-      LOG_ERROR(
-          "The array layer number of src_image and dest_image if different.");
-      return ExecuteResult::INPUT_PARAMETERS_ARE_NOT_SUITABLE;
-    }
-
-    if (region.srcSubresource.baseArrayLayer +
-                region.srcSubresource.layerCount >
-            src_image.GetImageLayout() ||
-        region.dstSubresource.baseArrayLayer +
-                region.dstSubresource.layerCount >
-            dest_image.GetImageLayout()) {
-      LOG_ERROR(
-          "The specified number of array level is greater than the number of "
-          "array level contained in the image itself.");
+    // layer_count must == 1
+    //    if (region.srcSubresource.layerCount !=
+    //    region.dstSubresource.layerCount) {
+    //      LOG_ERROR(
+    //          "The array layer number of src_image and dest_image is
+    //          different.");
+    //      return ExecuteResult::INPUT_PARAMETERS_ARE_NOT_SUITABLE;
+    //    }
+    //    if (region.srcSubresource.baseArrayLayer +
+    //                region.srcSubresource.layerCount >
+    //            src_image.GetImageLayout() ||
+    //        region.dstSubresource.baseArrayLayer +
+    //                region.dstSubresource.layerCount >
+    //            dest_image.GetImageLayout()) {
+    //      LOG_ERROR(
+    //          "The specified number of array level is greater than the number
+    //          of " "array level contained in the image itself.");
+    //      return ExecuteResult::INPUT_PARAMETERS_ARE_NOT_SUITABLE;
+    //    }
+    if (region.srcSubresource.layerCount != 1 ||
+        region.srcSubresource.baseArrayLayer != 0 ||
+        region.dstSubresource.layerCount != 1 ||
+        region.dstSubresource.baseArrayLayer != 0) {
+      LOG_ERROR("The layerCount must 1 and baseArrayLayer must 0.");
       return ExecuteResult::INPUT_PARAMETERS_ARE_NOT_SUITABLE;
     }
 
@@ -576,10 +582,14 @@ MM::ExecuteResult MM::RenderSystem::RenderEngine::CopyImage(
     }
 
     if (src_image.GetImage() == dest_image.GetImage()) {
-      std::uint64_t hash_value =
-          MM::Utils::Hash(region.dstSubresource.mipLevel) +
-          (MM::Utils::Hash(region.dstSubresource.baseArrayLayer) << 8);
-      for (const auto& image_write_area : image_write_areas[hash_value]) {
+      image_write_areas[region.dstSubresource.mipLevel].emplace_back(
+          region.dstOffset, region.extent);
+    }
+  }
+  if (src_image.GetImage() == dest_image.GetImage()) {
+    for (const auto& region : regions) {
+      for (const auto& image_write_area :
+           image_write_areas[region.srcSubresource.mipLevel]) {
         if (Utils::ImageRegionIsOverlap(region.srcOffset,
                                         image_write_area.GetOffset(),
                                         image_write_area.GetExtent())) {
@@ -588,23 +598,6 @@ MM::ExecuteResult MM::RenderSystem::RenderEngine::CopyImage(
               "specified copy area.");
           return ExecuteResult::INPUT_PARAMETERS_ARE_NOT_SUITABLE;
         }
-      }
-      image_write_areas[hash_value].emplace_back(region.dstOffset,
-                                                 region.extent);
-    }
-  }
-  for (const auto& region : regions) {
-    std::uint64_t hash_value =
-        MM::Utils::Hash(region.dstSubresource.mipLevel) +
-        (MM::Utils::Hash(region.dstSubresource.baseArrayLayer) << 8);
-    for (const auto& image_write_area : image_write_areas[hash_value]) {
-      if (Utils::ImageRegionIsOverlap(region.srcOffset,
-                                      image_write_area.GetOffset(),
-                                      image_write_area.GetExtent())) {
-        LOG_ERROR(
-            "During the buffer copy process, there is an overlap in the "
-            "specified copy area.");
-        return ExecuteResult::INPUT_PARAMETERS_ARE_NOT_SUITABLE;
       }
     }
   }
@@ -621,25 +614,174 @@ MM::ExecuteResult MM::RenderSystem::RenderEngine::CopyImage(
     sync_render_resource_data_IDs.emplace_back(
         dest_image.GetRenderResourceDataID());
   }
-  VkCopyImageInfo2 copy_image_info =
-      Utils::GetCopyImageInfo(src_image, dest_image, regions);
-  MM_CHECK(RunSingleCommandAndWait(
-               CommandBufferType::TRANSFORM, 1,
-               [&copy_image_info](AllocatedCommandBuffer& cmd) {
-                 MM_CHECK(Utils::BeginCommandBuffer(cmd),
-                          LOG_ERROR("Failed to begin command buffer");
-                          return MM_RESULT_CODE;)
 
-                 vkCmdCopyImage2(cmd.GetCommandBuffer(), &copy_image_info);
+  MM_CHECK(
+      RunSingleCommandAndWait(
+          CommandBufferType::TRANSFORM, 1,
+          [&src_image, &dest_image, &regions,
+           this_render_engine = this](AllocatedCommandBuffer& cmd) {
+            MM_CHECK(Utils::BeginCommandBuffer(cmd),
+                     LOG_ERROR("Failed to begin command buffer");
+                     return MM_RESULT_CODE;)
 
-                 MM_CHECK(Utils::EndCommandBuffer(cmd),
-                          LOG_ERROR("Failed to end command buffer.");
-                          return MM_RESULT_CODE;)
-                 return ExecuteResult::SUCCESS;
-               },
-               sync_render_resource_data_IDs),
-           LOG_ERROR("Failed to copy image.");
-           return MM_RESULT_CODE;)
+            bool is_same = (src_image.GetImage() == dest_image.GetImage());
+            std::vector<std::pair<std::uint64_t,
+                                  std::pair<VkImageLayout, VkImageLayout>>>
+                split_infos;
+            std::set<const ImageSubResourceAttribute*> effect_src_image;
+            std::set<const ImageSubResourceAttribute*> effect_dest_image;
+            VkImageLayout src_layout, dest_layout;
+            for (const auto& src_sub_resource :
+                 src_image.GetImageSubResourceAttributes()) {
+              if (regions[0].srcSubresource.mipLevel >=
+                      src_sub_resource.GetBaseMipmapLevel() &&
+                  regions[0].srcSubresource.mipLevel <
+                      src_sub_resource.GetBaseMipmapLevel() +
+                          src_sub_resource.GetMipmapCount()) {
+                src_layout = src_sub_resource.GetImageLayout();
+                effect_src_image.insert(&src_sub_resource);
+              }
+            }
+            for (const auto& dest_sub_resource :
+                 dest_image.GetImageSubResourceAttributes()) {
+              if (regions[0].srcSubresource.mipLevel >=
+                      dest_sub_resource.GetBaseMipmapLevel() &&
+                  regions[0].srcSubresource.mipLevel <
+                      dest_sub_resource.GetBaseMipmapLevel() +
+                          dest_sub_resource.GetMipmapCount()) {
+                dest_layout = dest_sub_resource.GetImageLayout();
+                if (!is_same) {
+                  effect_dest_image.insert(&dest_sub_resource);
+                }
+              }
+            }
+            split_infos.emplace_back(0,
+                                     std::make_pair(src_layout, dest_layout));
+
+            for (std::uint64_t i = 1; i != regions.size(); ++i) {
+              VkImageLayout new_src_layout, new_dest_layout;
+              for (const auto& src_sub_resource :
+                   src_image.GetImageSubResourceAttributes()) {
+                if (regions[i].srcSubresource.mipLevel >=
+                        src_sub_resource.GetBaseMipmapLevel() &&
+                    regions[1].srcSubresource.mipLevel <
+                        src_sub_resource.GetBaseMipmapLevel() +
+                            src_sub_resource.GetMipmapCount()) {
+                  new_src_layout = src_sub_resource.GetImageLayout();
+                  effect_src_image.insert(&src_sub_resource);
+                }
+              }
+              for (const auto& dest_sub_resource :
+                   dest_image.GetImageSubResourceAttributes()) {
+                if (regions[1].srcSubresource.mipLevel >=
+                        dest_sub_resource.GetBaseMipmapLevel() &&
+                    regions[1].srcSubresource.mipLevel <
+                        dest_sub_resource.GetBaseMipmapLevel() +
+                            dest_sub_resource.GetMipmapCount()) {
+                  new_dest_layout = dest_sub_resource.GetImageLayout();
+                  if (!is_same) {
+                    effect_dest_image.insert(&dest_sub_resource);
+                  }
+                }
+              }
+              if (new_src_layout != src_layout ||
+                  new_dest_layout != dest_layout) {
+                split_infos.emplace_back(
+                    i, std::make_pair(new_src_layout, new_dest_layout));
+                src_layout = new_src_layout;
+                dest_layout = new_dest_layout;
+              }
+            }
+
+            QueueIndex transform_queue_index =
+                this_render_engine->GetTransformQueueIndex();
+            std::vector<VkImageMemoryBarrier2> barriers;
+            for (const auto& sub_resource :
+                 src_image.GetImageSubResourceAttributes()) {
+              if (effect_src_image.count(&sub_resource)) {
+                VkImageAspectFlags aspect_flag =
+                    MM::RenderSystem::Utils::ChooseImageAspectFlags(
+                        sub_resource.GetImageLayout());
+                barriers.emplace_back(
+                    MM::RenderSystem::Utils::GetVkImageMemoryBarrier2(
+                        VK_PIPELINE_STAGE_2_TRANSFER_BIT, 0,
+                        VK_PIPELINE_STAGE_2_TRANSFER_BIT,
+                        VK_ACCESS_2_TRANSFER_READ_BIT,
+                        sub_resource.GetImageLayout(),
+                        sub_resource.GetImageLayout(),
+                        sub_resource.GetQueueIndex(), transform_queue_index,
+                        src_image.GetImage(),
+                        VkImageSubresourceRange{
+                            aspect_flag, sub_resource.GetBaseMipmapLevel(),
+                            sub_resource.GetMipmapCount(),
+                            sub_resource.GetBaseArrayLevel(),
+                            sub_resource.GetArrayCount()}));
+              }
+            }
+            if (!is_same) {
+              for (const auto& dest_resource :
+                   dest_image.GetImageSubResourceAttributes()) {
+                if (effect_src_image.count(&dest_resource)) {
+                  VkImageAspectFlags aspect_flag =
+                      MM::RenderSystem::Utils::ChooseImageAspectFlags(
+                          dest_resource.GetImageLayout());
+                  barriers.emplace_back(
+                      MM::RenderSystem::Utils::GetVkImageMemoryBarrier2(
+                          VK_PIPELINE_STAGE_2_TRANSFER_BIT, 0,
+                          VK_PIPELINE_STAGE_2_TRANSFER_BIT,
+                          VK_ACCESS_2_TRANSFER_WRITE_BIT,
+                          dest_resource.GetImageLayout(),
+                          dest_resource.GetImageLayout(),
+                          dest_resource.GetQueueIndex(), transform_queue_index,
+                          dest_image.GetImage(),
+                          VkImageSubresourceRange{
+                              aspect_flag, dest_resource.GetBaseMipmapLevel(),
+                              dest_resource.GetMipmapCount(),
+                              dest_resource.GetBaseArrayLevel(),
+                              dest_resource.GetArrayCount()}));
+                }
+              }
+            }
+
+            VkDependencyInfo dependency_info =
+                MM::RenderSystem::Utils::GetVkDependencyInfo(
+                    0, nullptr, 0, nullptr, barriers.size(), barriers.data(),
+                    0);
+            vkCmdPipelineBarrier2(cmd.GetCommandBuffer(), &dependency_info);
+
+            VkCopyImageInfo2 copy_image_info{};
+            copy_image_info.srcImage = src_image.GetImage();
+            copy_image_info.dstImage = dest_image.GetImage();
+            for (std::uint64_t i = 0; i != split_infos.size(); ++i) {
+              copy_image_info.srcImageLayout = split_infos[i].second.first;
+              copy_image_info.dstImageLayout = split_infos[i].second.second;
+              if (i + 1 != split_infos.size()) {
+                copy_image_info.regionCount =
+                    split_infos[i + 1].first - split_infos[i].first;
+              } else {
+                copy_image_info.regionCount =
+                    regions.size() - split_infos[i].first;
+              }
+              copy_image_info.pRegions = regions.data() + split_infos[i].first;
+              vkCmdCopyImage2(cmd.GetCommandBuffer(), &copy_image_info);
+            }
+
+            for (VkImageMemoryBarrier2& barrier : barriers) {
+              barrier.srcAccessMask = VK_ACCESS_2_TRANSFER_WRITE_BIT;
+              barrier.dstAccessMask = VK_ACCESS_2_TRANSFER_WRITE_BIT;
+              barrier.dstQueueFamilyIndex = barrier.srcQueueFamilyIndex;
+              barrier.srcQueueFamilyIndex = transform_queue_index;
+            }
+            vkCmdPipelineBarrier2(cmd.GetCommandBuffer(), &dependency_info);
+
+            MM_CHECK(Utils::EndCommandBuffer(cmd),
+                     LOG_ERROR("Failed to end command buffer.");
+                     return MM_RESULT_CODE;)
+            return ExecuteResult::SUCCESS;
+          },
+          sync_render_resource_data_IDs),
+      LOG_ERROR("Failed to copy image.");
+      return MM_RESULT_CODE;)
 
   return ExecuteResult::SUCCESS;
 }
@@ -647,7 +789,7 @@ MM::ExecuteResult MM::RenderSystem::RenderEngine::CopyImage(
 MM::ExecuteResult MM::RenderSystem::RenderEngine::CopyImage(
     const AllocatedImage& src_image, AllocatedImage& dest_image,
     const std::vector<VkImageCopy2>& regions) {
-  return CopyImage(src_image, dest_image, regions);
+  return CopyImage(const_cast<AllocatedImage&>(src_image), dest_image, regions);
 }
 
 MM::ExecuteResult MM::RenderSystem::RenderEngine::CopyImage(
@@ -1043,105 +1185,89 @@ MM::ExecuteResult MM::RenderSystem::RenderEngine::CopyDataToBuffer(
 
 MM::ExecuteResult MM::RenderSystem::RenderEngine::RemoveBufferFragmentation(
     MM::RenderSystem::AllocatedMeshBuffer& buffer,
-    std::list<BufferSubResourceAttribute>& buffer_chunks_info) {
+    std::list<BufferSubResourceAttribute>& vertex_buffer_chunks_info,
+    std::list<BufferSubResourceAttribute>& index_buffet_chunks_info) {
   assert(IsValid());
 #ifdef CHECK_PARAMETERS
   if (!buffer.IsValid()) {
     LOG_ERROR("buffer is invalid.");
     return ExecuteResult::OBJECT_IS_INVALID;
   }
-  if (buffer_chunks_info.empty()) {
-    return ExecuteResult::SUCCESS;
+  if (vertex_buffer_chunks_info.empty() || index_buffet_chunks_info.empty()) {
+    return ExecuteResult::INPUT_PARAMETERS_ARE_NOT_SUITABLE;
   }
 #endif
 
   // Used to mark buffer chunk that will be moved to the stage buffer
-  std::vector<int> stage_flag(buffer_chunks_info.size(), 0);
-  VkDeviceSize pre_valid_size = 0;
-  VkDeviceSize stage_buffer_size = 0;
-  std::vector<VkBufferCopy2> self_copy_regions;
-  std::vector<VkBufferCopy2> self_copy_to_stage_regions;
-  std::vector<VkBufferCopy2> stage_copy_to_self_regions;
-
-  std::uint32_t index = 0;
-  for (auto buffer_chunk_info = buffer_chunks_info.begin();
-       buffer_chunk_info != buffer_chunks_info.end();
-       ++buffer_chunk_info, ++index) {
-    if (pre_valid_size + buffer_chunk_info->GetChunkInfo().GetSize() >=
-        buffer_chunk_info->GetChunkInfo().GetOffset()) {
-      stage_flag[index] = 1;
-      self_copy_to_stage_regions.push_back(Utils::GetBufferCopy(
-          buffer_chunk_info->GetChunkInfo().GetSize(),
-          buffer_chunk_info->GetChunkInfo().GetOffset(), stage_buffer_size));
-      stage_copy_to_self_regions.push_back(
-          Utils::GetBufferCopy(buffer_chunk_info->GetChunkInfo().GetSize(),
-                               stage_buffer_size, pre_valid_size));
-      pre_valid_size += buffer_chunk_info->GetChunkInfo().GetSize();
-      stage_buffer_size += buffer_chunk_info->GetChunkInfo().GetSize();
-      continue;
-    }
-
-    // TODO Optimize to binary search.
-    const VkDeviceSize new_offset =
-        buffer_chunk_info->GetChunkInfo().GetOffset() - pre_valid_size;
-    std::uint32_t index2 = 0;
-    for (auto buffer_chunk_info2 = buffer_chunks_info.begin();
-         buffer_chunk_info2 != buffer_chunk_info;
-         ++buffer_chunk_info2, ++index2) {
-      if (stage_flag[index2] != 1) {
-        if (new_offset <= buffer_chunk_info2->GetChunkInfo().GetOffset() +
-                              buffer_chunk_info2->GetChunkInfo().GetSize()) {
-          if (new_offset + buffer_chunk_info->GetChunkInfo().GetSize() >=
-              buffer_chunk_info2->GetChunkInfo().GetOffset()) {
-            stage_flag[index] = 1;
-            self_copy_to_stage_regions.push_back(Utils::GetBufferCopy(
-                buffer_chunk_info->GetChunkInfo().GetSize(),
-                buffer_chunk_info->GetChunkInfo().GetOffset(),
-                stage_buffer_size));
-            stage_copy_to_self_regions.push_back(Utils::GetBufferCopy(
-                buffer_chunk_info->GetChunkInfo().GetSize(), stage_buffer_size,
-                pre_valid_size));
-            pre_valid_size += buffer_chunk_info->GetChunkInfo().GetSize();
-            stage_buffer_size += buffer_chunk_info->GetChunkInfo().GetSize();
-            continue;
-          }
-        }
-      }
-    }
-
-    self_copy_regions.push_back(Utils::GetBufferCopy(
-        buffer_chunk_info->GetChunkInfo().GetSize(),
-        buffer_chunk_info->GetChunkInfo().GetOffset(),
-        buffer_chunk_info->GetChunkInfo().GetOffset() - pre_valid_size));
-    pre_valid_size += buffer_chunk_info->GetChunkInfo().GetSize();
-  }
+  VkDeviceSize vertex_stage_buffer_size = 0;
+  std::vector<VkBufferCopy2> vertex_self_copy_regions;
+  std::vector<VkBufferCopy2> vertex_self_copy_to_stage_regions;
+  std::vector<VkBufferCopy2> vertex_stage_copy_to_self_regions;
+  VkDeviceSize index_stage_buffer_size = 0;
+  std::vector<VkBufferCopy2> index_self_copy_regions;
+  std::vector<VkBufferCopy2> index_self_copy_to_stage_regions;
+  std::vector<VkBufferCopy2> index_stage_copy_to_self_regions;
+  GetRemoveBufferFragmentationBufferCopy(
+      vertex_buffer_chunks_info, vertex_stage_buffer_size,
+      vertex_self_copy_regions, vertex_self_copy_to_stage_regions,
+      vertex_stage_copy_to_self_regions);
+  GetRemoveBufferFragmentationBufferCopy(
+      vertex_buffer_chunks_info, index_stage_buffer_size,
+      index_self_copy_regions, index_self_copy_to_stage_regions,
+      index_stage_copy_to_self_regions);
 
   QueueIndex transform_queue_index = GetTransformQueueIndex();
   VkBufferCreateInfo buffer_create_info{
       MM::RenderSystem::Utils::GetVkBufferCreateInfo(
-          nullptr, 0, stage_buffer_size,
+          nullptr, 0, vertex_stage_buffer_size,
           VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
           VK_SHARING_MODE_EXCLUSIVE, 1, &transform_queue_index)};
   VmaAllocationCreateInfo vma_allocation_create_info{
       0, VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE, 0, 0, 0, nullptr, nullptr, 0.5};
-  AllocatedBuffer stage_buffer;
+  AllocatedBuffer vertex_stage_buffer, index_stage_buffer;
   MM_CHECK(CreateBuffer(buffer_create_info, vma_allocation_create_info, nullptr,
-                        stage_buffer),
+                        vertex_stage_buffer),
+           LOG_ERROR("Failed to create stage buffer.");
+           return MM_RESULT_CODE;)
+  buffer_create_info.size = index_stage_buffer_size;
+  MM_CHECK(CreateBuffer(buffer_create_info, vma_allocation_create_info, nullptr,
+                        index_stage_buffer),
            LOG_ERROR("Failed to create stage buffer.");
            return MM_RESULT_CODE;)
 
-  auto self_copy_info =
-      Utils::GetVkCopyBufferInfo2(buffer, buffer, self_copy_regions);
-  auto self_copy_to_stage_info = Utils::GetVkCopyBufferInfo2(
-      buffer, stage_buffer, self_copy_to_stage_regions);
-  auto stage_copy_to_self_info = Utils::GetVkCopyBufferInfo2(
-      stage_buffer, buffer, stage_copy_to_self_regions);
+  // vertex
+  auto vertex_self_copy_info = MM::RenderSystem::Utils::GetVkCopyBufferInfo2(
+      buffer.GetVertexBuffer(), buffer.GetVertexBuffer(), nullptr,
+      vertex_self_copy_regions.size(), vertex_self_copy_regions.data());
+  auto vertex_self_copy_to_stage_info = Utils::GetVkCopyBufferInfo2(
+      buffer.GetVertexBuffer(), vertex_stage_buffer.GetBuffer(), nullptr,
+      vertex_self_copy_to_stage_regions.size(),
+      vertex_self_copy_to_stage_regions.data());
+  auto vertex_stage_copy_to_self_info = Utils::GetVkCopyBufferInfo2(
+      vertex_stage_buffer.GetBuffer(), buffer.GetVertexBuffer(), nullptr,
+      vertex_stage_copy_to_self_regions.size(),
+      vertex_stage_copy_to_self_regions.data());
+
+  // vertex
+  auto index_self_copy_info = MM::RenderSystem::Utils::GetVkCopyBufferInfo2(
+      buffer.GetIndexBuffer(), buffer.GetIndexBuffer(), nullptr,
+      index_self_copy_regions.size(), index_self_copy_regions.data());
+  auto index_self_copy_to_stage_info = Utils::GetVkCopyBufferInfo2(
+      buffer.GetIndexBuffer(), index_stage_buffer.GetBuffer(), nullptr,
+      index_self_copy_to_stage_regions.size(),
+      index_self_copy_to_stage_regions.data());
+  auto index_stage_copy_to_self_info = Utils::GetVkCopyBufferInfo2(
+      index_stage_buffer.GetBuffer(), buffer.GetIndexBuffer(), nullptr,
+      index_stage_copy_to_self_regions.size(),
+      index_stage_copy_to_self_regions.data());
 
   MM_CHECK(
       RunSingleCommandAndWait(
           CommandBufferType::TRANSFORM, 1,
-          [&self_copy_info, &self_copy_to_stage_info, &stage_copy_to_self_info,
-           &buffer_chunks_info,
+          [&vertex_self_copy_info, &vertex_self_copy_to_stage_info,
+           &vertex_stage_copy_to_self_info, &index_self_copy_info,
+           &index_self_copy_to_stage_info, &index_stage_copy_to_self_info,
+           &vertex_buffer_chunks_info, &index_buffet_chunks_info,
            this_render_engine = this](AllocatedCommandBuffer& cmd) {
             MM_CHECK(Utils::BeginCommandBuffer(cmd),
                      LOG_ERROR("Failed to begin command buffer.");
@@ -1150,29 +1276,51 @@ MM::ExecuteResult MM::RenderSystem::RenderEngine::RemoveBufferFragmentation(
             QueueIndex transform_queue_index =
                 this_render_engine->GetTransformQueueIndex();
             std::vector<VkBufferMemoryBarrier2> barriers;
-            barriers.reserve(buffer_chunks_info.size());
-            for (const auto& buffer_chunk_info : buffer_chunks_info) {
+            barriers.reserve(vertex_buffer_chunks_info.size());
+            for (const auto& buffer_chunk_info : vertex_buffer_chunks_info) {
               barriers.emplace_back(
                   MM::RenderSystem::Utils::GetVkBufferMemoryBarrier2(
                       VK_PIPELINE_STAGE_2_TRANSFER_BIT, 0,
                       VK_PIPELINE_STAGE_2_TRANSFER_BIT,
                       VK_ACCESS_2_TRANSFER_READ_BIT,
                       buffer_chunk_info.GetQueueIndex(), transform_queue_index,
-                      self_copy_info.srcBuffer,
+                      vertex_self_copy_info.srcBuffer,
                       buffer_chunk_info.GetChunkInfo().GetOffset(),
                       buffer_chunk_info.GetChunkInfo().GetSize()));
             }
+            for (const auto& buffer_chunk_info : index_buffet_chunks_info) {
+              barriers.emplace_back(
+                  MM::RenderSystem::Utils::GetVkBufferMemoryBarrier2(
+                      VK_PIPELINE_STAGE_2_TRANSFER_BIT, 0,
+                      VK_PIPELINE_STAGE_2_TRANSFER_BIT,
+                      VK_ACCESS_2_TRANSFER_READ_BIT,
+                      buffer_chunk_info.GetQueueIndex(), transform_queue_index,
+                      index_self_copy_info.srcBuffer,
+                      buffer_chunk_info.GetChunkInfo().GetOffset(),
+                      buffer_chunk_info.GetChunkInfo().GetSize()));
+            }
+
             VkDependencyInfo dependency_info{
                 MM::RenderSystem::Utils::GetVkDependencyInfo(
                     0, nullptr, barriers.size(), barriers.data(), 0, nullptr,
                     0)};
             vkCmdPipelineBarrier2(cmd.GetCommandBuffer(), &dependency_info);
 
-            vkCmdCopyBuffer2(cmd.GetCommandBuffer(), &self_copy_to_stage_info);
+            vkCmdCopyBuffer2(cmd.GetCommandBuffer(),
+                             &vertex_self_copy_to_stage_info);
 
-            vkCmdCopyBuffer2(cmd.GetCommandBuffer(), &self_copy_info);
+            vkCmdCopyBuffer2(cmd.GetCommandBuffer(), &vertex_self_copy_info);
 
-            vkCmdCopyBuffer2(cmd.GetCommandBuffer(), &stage_copy_to_self_info);
+            vkCmdCopyBuffer2(cmd.GetCommandBuffer(),
+                             &vertex_stage_copy_to_self_info);
+
+            vkCmdCopyBuffer2(cmd.GetCommandBuffer(),
+                             &index_self_copy_to_stage_info);
+
+            vkCmdCopyBuffer2(cmd.GetCommandBuffer(), &index_self_copy_info);
+
+            vkCmdCopyBuffer2(cmd.GetCommandBuffer(),
+                             &index_stage_copy_to_self_info);
 
             for (auto& barrier : barriers) {
               barrier.srcAccessMask = VK_ACCESS_2_TRANSFER_WRITE_BIT;
@@ -1188,15 +1336,19 @@ MM::ExecuteResult MM::RenderSystem::RenderEngine::RemoveBufferFragmentation(
                      return MM_RESULT_CODE;)
 
             return ExecuteResult::SUCCESS;
-          },
-          std::vector<RenderResourceDataID>{buffer.GetRenderResourceDataID()}),
+          }),
       LOG_ERROR("An error occurred during buffer move while removing the "
                 "fragmentation "
                 "buffer.");
       return MM_RESULT_CODE;)
 
   VkDeviceSize new_offset = 0;
-  for (auto& buffer_chunk_info : buffer_chunks_info) {
+  for (auto& buffer_chunk_info : vertex_buffer_chunks_info) {
+    buffer_chunk_info.SetOffset(new_offset);
+    new_offset += buffer_chunk_info.GetSize();
+  }
+  new_offset = 0;
+  for (auto& buffer_chunk_info : index_buffet_chunks_info) {
     buffer_chunk_info.SetOffset(new_offset);
     new_offset += buffer_chunk_info.GetSize();
   }
@@ -1354,8 +1506,7 @@ void MM::RenderSystem::RenderEngine::InitInstance() {
   VkDebugUtilsMessengerCreateInfoEXT debug_messenger_create_info{};
   if (enable_validation_layers_) {
     PopulateDebugMessengerCreateInfo(debug_messenger_create_info);
-    instance_create_info.pNext =
-        (VkDebugUtilsMessengerCreateInfoEXT*)&debug_messenger_create_info;
+    instance_create_info.pNext = &debug_messenger_create_info;
   }
 
   if (vkCreateInstance(&instance_create_info, nullptr, &instance_) !=
@@ -2097,4 +2248,89 @@ MM::RenderSystem::CommandExecutorLockGuard
 MM::RenderSystem::RenderEngine::GetCommandExecutorLockGuard() {
   assert(IsValid());
   return CommandExecutorLockGuard{*command_executor_};
+}
+
+void MM::RenderSystem::RenderEngine::GetRemoveBufferFragmentationBufferCopy(
+    std::list<BufferSubResourceAttribute>& buffer_chunks_info,
+    VkDeviceSize& stage_buffer_size,
+    std::vector<VkBufferCopy2>& self_copy_regions,
+    std::vector<VkBufferCopy2>& self_copy_to_stage_regions,
+    std::vector<VkBufferCopy2>& stage_copy_to_self_regions) {
+  stage_buffer_size = 0;
+
+  std::vector<uint8_t> stage_flag(buffer_chunks_info.size(), 0);
+  VkDeviceSize pre_valid_size = 0;
+
+  std::uint32_t index = 0;
+  for (auto buffer_chunk_info = buffer_chunks_info.begin();
+       buffer_chunk_info != buffer_chunks_info.end();
+       ++buffer_chunk_info, ++index) {
+    if (pre_valid_size + buffer_chunk_info->GetSize() >=
+        buffer_chunk_info->GetOffset()) {
+      stage_flag[index] = 1;
+      self_copy_to_stage_regions.push_back(Utils::GetBufferCopy(
+          buffer_chunk_info->GetSize(), buffer_chunk_info->GetOffset(),
+          stage_buffer_size));
+      stage_copy_to_self_regions.push_back(Utils::GetBufferCopy(
+          buffer_chunk_info->GetSize(), stage_buffer_size, pre_valid_size));
+      pre_valid_size += buffer_chunk_info->GetSize();
+      stage_buffer_size += buffer_chunk_info->GetSize();
+      continue;
+    }
+
+    // TODO Optimize to binary search.
+    const VkDeviceSize new_offset = pre_valid_size;
+    std::uint32_t index2 = 0;
+    for (auto buffer_chunk_info2 = buffer_chunks_info.begin();
+         buffer_chunk_info2 != buffer_chunk_info;
+         ++buffer_chunk_info2, ++index2) {
+      if (stage_flag[index2] != 1) {
+        if (new_offset <
+            buffer_chunk_info2->GetOffset() + buffer_chunk_info2->GetSize()) {
+          if (new_offset + buffer_chunk_info->GetSize() >
+              buffer_chunk_info2->GetOffset()) {
+            stage_flag[index] = 1;
+            self_copy_to_stage_regions.push_back(Utils::GetBufferCopy(
+                buffer_chunk_info->GetSize(), buffer_chunk_info->GetOffset(),
+                stage_buffer_size));
+            stage_copy_to_self_regions.push_back(
+                Utils::GetBufferCopy(buffer_chunk_info->GetSize(),
+                                     stage_buffer_size, pre_valid_size));
+            pre_valid_size += buffer_chunk_info->GetSize();
+            stage_buffer_size += buffer_chunk_info->GetSize();
+            continue;
+          }
+        }
+      }
+    }
+
+    self_copy_regions.push_back(
+        Utils::GetBufferCopy(buffer_chunk_info->GetSize(),
+                             buffer_chunk_info->GetOffset(), pre_valid_size));
+    pre_valid_size += buffer_chunk_info->GetSize();
+  }
+}
+
+MM::ExecuteResult MM::RenderSystem::RenderEngine::GraphQueueWaitIdle() {
+  return MM::RenderSystem::Utils::VkResultToMMResult(
+      vkQueueWaitIdle(graphics_queue_));
+}
+
+MM::ExecuteResult MM::RenderSystem::RenderEngine::TransformQueueWaitIdle() {
+  return MM::RenderSystem::Utils::VkResultToMMResult(
+      vkQueueWaitIdle(transform_queue_));
+}
+
+MM::ExecuteResult MM::RenderSystem::RenderEngine::PresentQueueWaitIdle() {
+  return MM::RenderSystem::Utils::VkResultToMMResult(
+      vkQueueWaitIdle(present_queue_));
+}
+
+MM::ExecuteResult MM::RenderSystem::RenderEngine::ComputeQueueWaitIdle() {
+  return MM::RenderSystem::Utils::VkResultToMMResult(
+      vkQueueWaitIdle(compute_queue_));
+}
+
+bool MM::RenderSystem::RenderEngine::CommandExecutorIsFree() const {
+  return command_executor_->IsFree();
 }

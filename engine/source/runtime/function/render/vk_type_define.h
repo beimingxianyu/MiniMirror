@@ -219,17 +219,17 @@ class ImageSubresourceRangeInfo {
       ImageSubresourceRangeInfo&& other) noexcept;
 
  public:
-  std::uint32_t GetDestMipmapsLevel() const;
+  std::uint32_t GetBaseMipmapsLevel() const;
 
-  void SetDestMipmapsLevel(std::uint32_t dest_mipmaps_level);
+  void SetBaseMipmapsLevel(std::uint32_t dest_mipmaps_level);
 
   std::uint32_t GetMipmapsCount() const;
 
   void SetMipmapsCount(std::uint32_t mipmaps_count);
 
-  std::uint32_t GetDestArrayLevel() const;
+  std::uint32_t GetBaseArrayLevel() const;
 
-  void SetDestArrayLevel(std::uint32_t dest_array_level);
+  void SetBaseArrayLevel(std::uint32_t dest_array_level);
 
   std::uint32_t GetArrayCount() const;
 
@@ -240,9 +240,9 @@ class ImageSubresourceRangeInfo {
   bool IsValid() const;
 
  private:
-  std::uint32_t dest_mipmaps_level_{0};
+  std::uint32_t base_mipmaps_level_{0};
   std::uint32_t mipmaps_count_{0};
-  std::uint32_t dest_array_level_{0};
+  std::uint32_t base_array_level_{0};
   std::uint32_t array_count_{0};
 };
 
@@ -353,6 +353,14 @@ class ImageSubResourceAttribute {
   VkImageLayout GetImageLayout() const;
 
   void SetImageLayout(VkImageLayout image_layout);
+
+  std::uint32_t GetBaseMipmapLevel() const;
+
+  std::uint32_t GetBaseArrayLevel() const;
+
+  std::uint32_t GetMipmapCount() const;
+
+  std::uint32_t GetArrayCount() const;
 
   bool IsValid() const;
 

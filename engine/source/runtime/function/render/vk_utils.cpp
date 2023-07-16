@@ -146,7 +146,8 @@ VkSubmitInfo MM::RenderSystem::Utils::GetCommandSubmitInfo(
   std::vector<VkCommandBuffer> vk_command_buffers;
   vk_command_buffers.reserve(command_buffers.size());
   for (const auto& command_buffer : command_buffers) {
-    vk_command_buffers.emplace_back(command_buffer.GetCommandBuffer());
+    vk_command_buffers.emplace_back(
+        const_cast<VkCommandBuffer>(command_buffer.GetCommandBuffer()));
   }
 
   VkSubmitInfo submit_info = {};
@@ -774,17 +775,6 @@ VkCopyBufferInfo2 MM::RenderSystem::Utils::GetVkCopyBufferInfo2(
   return copy_buffer_info;
 }
 
-VkCopyBufferInfo2 MM::RenderSystem::Utils::GetVkCopyBufferInfo2(
-    void* next, const VkBuffer_T* src_buffer, VkBuffer dest_buffer,
-    std::uint32_t regions_count, const VkBufferCopy2* regions) {
-  return VkCopyBufferInfo2{VK_STRUCTURE_TYPE_COPY_BUFFER_INFO_2,
-                           next,
-                           const_cast<VkBuffer>(src_buffer),
-                           dest_buffer,
-                           regions_count,
-                           regions};
-}
-
 bool MM::RenderSystem::Utils::IsTransformSrcBuffer(
     const VkBufferUsageFlags& flags) {
   return flags & VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
@@ -907,7 +897,7 @@ VkImageCopy2 MM::RenderSystem::Utils::GetImageCopy(
                       extent};
 }
 
-VkCopyImageInfo2 MM::RenderSystem::Utils::GetCopyImageInfo(
+VkCopyImageInfo2 MM::RenderSystem::Utils::GetVkCopyImageInfo2(
     AllocatedImage& src_image, AllocatedImage& dest_image,
     const VkImageLayout& src_layout, const VkImageLayout& dest_layout,
     const std::vector<VkImageCopy2>& copy_regions) {
@@ -921,7 +911,7 @@ VkCopyImageInfo2 MM::RenderSystem::Utils::GetCopyImageInfo(
                           copy_regions.data()};
 }
 
-VkCopyImageInfo2 MM::RenderSystem::Utils::GetCopyImageInfo(
+VkCopyImageInfo2 MM::RenderSystem::Utils::GetVkCopyImageInfo2(
     const AllocatedImage& src_image, AllocatedImage& dest_image,
     const VkImageLayout& src_layout, const VkImageLayout& dest_layout,
     const std::vector<VkImageCopy2>& copy_regions) {

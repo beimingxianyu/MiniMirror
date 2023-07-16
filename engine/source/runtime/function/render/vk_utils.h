@@ -353,12 +353,12 @@ VkImageCopy2 GetImageCopy(const VkImageSubresourceLayers& src_sub_resource,
                           const VkOffset3D& dest_offset,
                           const VkExtent3D& extent);
 
-VkCopyImageInfo2 GetCopyImageInfo(
+VkCopyImageInfo2 GetVkCopyImageInfo2(
     AllocatedImage& src_image, AllocatedImage& dest_image,
     const VkImageLayout& src_layout, const VkImageLayout& dest_layout,
     const std::vector<VkImageCopy2>& copy_regions);
 
-VkCopyImageInfo2 GetCopyImageInfo(
+VkCopyImageInfo2 GetVkCopyImageInfo2(
     const AllocatedImage& src_image, AllocatedImage& dest_image,
     const VkImageLayout& src_layout, const VkImageLayout& dest_layout,
     const std::vector<VkImageCopy2>& copy_regions);
