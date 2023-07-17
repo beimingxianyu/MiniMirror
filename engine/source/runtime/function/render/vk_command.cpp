@@ -414,6 +414,15 @@ bool MM::RenderSystem::AllocatedCommandBuffer::AllocatedCommandBufferWrapper::
   return true;
 }
 
+bool MM::RenderSystem::AllocatedCommandBuffer::AllocatedCommandBufferWrapper::
+    ResetFence() {
+  VK_CHECK(vkResetFences(engine_->GetDevice(), 1, &command_fence_),
+           LOG_ERROR("Failed to reset fence.");
+           return false;)
+
+  return true;
+}
+
 MM::RenderSystem::CommandTaskFlow::CommandTaskFlow(
     CommandTaskFlow&& other) noexcept {
   std::lock(task_sync_, other.task_sync_);
@@ -704,6 +713,10 @@ MM::RenderSystem::CommandExecutor::CommandExecutor(RenderEngine* engine)
       free_transform_command_buffers_(),
       general_command_buffers_(),
       general_command_buffers_acquire_release_mutex_(),
+      general_command_buffers_acquire_release_condition_variable_(),
+      general_garph_command_wait_flag_(false),
+      general_compute_command_wait_flag_(false),
+      general_transform_command_wait_flag_(false),
       recoding_graph_command_buffer_number_(),
       recording_compute_command_buffer_number_(),
       recording_transform_command_buffer_number_(),
@@ -808,6 +821,10 @@ MM::RenderSystem::CommandExecutor::CommandExecutor(
       free_transform_command_buffers_(),
       general_command_buffers_(),
       general_command_buffers_acquire_release_mutex_(),
+      general_command_buffers_acquire_release_condition_variable_(),
+      general_garph_command_wait_flag_(false),
+      general_compute_command_wait_flag_(false),
+      general_transform_command_wait_flag_(false),
       recoding_graph_command_buffer_number_(),
       recording_compute_command_buffer_number_(),
       recording_transform_command_buffer_number_(),
@@ -1972,6 +1989,7 @@ void MM::RenderSystem::CommandExecutor::ProcessCompleteTask() {
         for (auto& complete_buffer :
              executing_command_buffer->command_buffers_) {
           complete_buffer->ResetCommandBuffer();
+          complete_buffer->ResetFence();
           free_graph_command_buffers_.push(std::move(complete_buffer));
         }
 
@@ -2037,6 +2055,7 @@ void MM::RenderSystem::CommandExecutor::ProcessCompleteTask() {
         for (auto& complete_buffer :
              executing_command_buffer->command_buffers_) {
           complete_buffer->ResetCommandBuffer();
+          complete_buffer->ResetFence();
           free_compute_command_buffers_.push(std::move(complete_buffer));
         }
 
@@ -2103,6 +2122,7 @@ void MM::RenderSystem::CommandExecutor::ProcessCompleteTask() {
         for (auto& complete_buffer :
              executing_command_buffer->command_buffers_) {
           complete_buffer->ResetCommandBuffer();
+          complete_buffer->ResetFence();
           free_transform_command_buffers_.push(std::move(complete_buffer));
         }
 
@@ -3191,6 +3211,7 @@ void MM::RenderSystem::CommandExecutor::LockExecutor() {
 }
 
 void MM::RenderSystem::CommandExecutor::UnlockExecutor() {
+  assert(lock_count_.load(std::memory_order_acquire) != 0);
   if (lock_count_.fetch_sub(1, std::memory_order_acq_rel) == 1) {
     std::lock(task_flow_queue_mutex_, task_flow_submit_during_lockdown_mutex_);
     std::lock_guard guard1(task_flow_queue_mutex_, std::adopt_lock),
@@ -3205,20 +3226,165 @@ bool MM::RenderSystem::CommandExecutor::IsFree() const {
   return !processing_task_flow_queue_.load(std::memory_order_acquire);
 }
 
+void MM::RenderSystem::CommandExecutor::AcquireGeneralGraphCommandBuffer(
+    std::unique_ptr<AllocatedCommandBuffer>& output) {
+  std::unique_lock<std::mutex> guard{
+      general_command_buffers_acquire_release_mutex_};
+  while (true) {
+    if (general_command_buffers_[0][0] != nullptr) {
+      output = std::move(general_command_buffers_[0][0]);
+      general_garph_command_wait_flag_ = false;
+      return;
+    }
+    if (general_command_buffers_[0][1] != nullptr) {
+      output = std::move(general_command_buffers_[0][1]);
+      general_garph_command_wait_flag_ = false;
+      return;
+    }
+    if (general_command_buffers_[0][2] != nullptr) {
+      output = std::move(general_command_buffers_[0][2]);
+      general_garph_command_wait_flag_ = false;
+      return;
+    }
+
+    general_garph_command_wait_flag_ = true;
+    general_command_buffers_acquire_release_condition_variable_.wait(
+        guard, [this_executor = this]() {
+          return this_executor->general_command_buffers_[0][0] != nullptr ||
+                 this_executor->general_command_buffers_[0][1] != nullptr ||
+                 this_executor->general_command_buffers_[0][2] != nullptr;
+        });
+  }
+}
+
+MM::ExecuteResult
+MM::RenderSystem::CommandExecutor::AcquireGeneralComputeCommandBuffer(
+    std::unique_ptr<AllocatedCommandBuffer>& output) {
+  std::unique_lock<std::mutex> guard{
+      general_command_buffers_acquire_release_mutex_};
+  if (general_command_buffers_[1][0] != nullptr) {
+    output = std::move(general_command_buffers_[1][0]);
+    general_compute_command_wait_flag_ = false;
+    return ExecuteResult ::SUCCESS;
+  }
+  if (general_command_buffers_[1][1] != nullptr) {
+    output = std::move(general_command_buffers_[1][1]);
+    general_compute_command_wait_flag_ = false;
+    return ExecuteResult ::SUCCESS;
+  }
+  if (general_command_buffers_[1][2] != nullptr) {
+    output = std::move(general_command_buffers_[1][2]);
+    general_compute_command_wait_flag_ = false;
+    return ExecuteResult ::SUCCESS;
+  }
+
+  general_compute_command_wait_flag_ = true;
+  general_command_buffers_acquire_release_condition_variable_.wait(
+      guard, [this_executor = this]() {
+        return this_executor->general_command_buffers_[1][0] != nullptr ||
+               this_executor->general_command_buffers_[1][1] != nullptr ||
+               this_executor->general_command_buffers_[1][2] != nullptr;
+      });
+  return ExecuteResult ::SYNCHRONIZE_FAILED;
+}
+
+MM::ExecuteResult
+MM::RenderSystem::CommandExecutor::AcquireGeneralTransformCommandBuffer(
+    std::unique_ptr<AllocatedCommandBuffer>& output) {
+  std::unique_lock<std::mutex> guard{
+      general_command_buffers_acquire_release_mutex_};
+  if (general_command_buffers_[2][0] != nullptr) {
+    output = std::move(general_command_buffers_[2][0]);
+    general_transform_command_wait_flag_ = false;
+    return ExecuteResult ::SUCCESS;
+  }
+  if (general_command_buffers_[2][1] != nullptr) {
+    output = std::move(general_command_buffers_[2][1]);
+    general_transform_command_wait_flag_ = false;
+    return ExecuteResult ::SUCCESS;
+  }
+  if (general_command_buffers_[2][2] != nullptr) {
+    output = std::move(general_command_buffers_[2][2]);
+    general_transform_command_wait_flag_ = false;
+    return ExecuteResult ::SUCCESS;
+  }
+
+  general_transform_command_wait_flag_ = true;
+  general_command_buffers_acquire_release_condition_variable_.wait(
+      guard, [this_executor = this]() {
+        return this_executor->general_command_buffers_[2][0] != nullptr ||
+               this_executor->general_command_buffers_[2][1] != nullptr ||
+               this_executor->general_command_buffers_[2][2] != nullptr;
+      });
+  return ExecuteResult ::SYNCHRONIZE_FAILED;
+}
+
+void MM::RenderSystem::CommandExecutor::ReleaseGeneralCommandBuffer(
+    std::unique_ptr<AllocatedCommandBuffer>&& output) {
+  if (output != nullptr && output->IsValid()) {
+    return;
+  }
+  std::uint64_t general_command_type_index = UINT32_MAX;
+  switch (output->GetCommandBufferType()) {
+    case CommandBufferType::GRAPH:
+      general_command_type_index = 0;
+      break;
+    case CommandBufferType::COMPUTE:
+      general_command_type_index = 1;
+      break;
+    case CommandBufferType::TRANSFORM:
+      general_command_type_index = 2;
+      break;
+    case CommandBufferType::UNDEFINED:
+      return;
+  }
+
+  std::lock_guard guard{general_command_buffers_acquire_release_mutex_};
+  if (general_command_buffers_[general_command_type_index][0] == nullptr) {
+    output->ResetCommandBuffer();
+    output->ResetFence();
+    general_command_buffers_[general_command_type_index][0] = std::move(output);
+    if (general_garph_command_wait_flag_) {
+      general_command_buffers_acquire_release_condition_variable_.notify_all();
+    }
+    return;
+  }
+  if (general_command_buffers_[general_command_type_index][1] == nullptr) {
+    output->ResetCommandBuffer();
+    output->ResetFence();
+    general_command_buffers_[general_command_type_index][1] = std::move(output);
+    if (general_transform_command_wait_flag_) {
+      general_command_buffers_acquire_release_condition_variable_.notify_all();
+    }
+    return;
+  }
+  if (general_command_buffers_[general_command_type_index][2] != nullptr) {
+    output->ResetCommandBuffer();
+    output->ResetFence();
+    general_command_buffers_[general_command_type_index][2] = std::move(output);
+    if (general_transform_command_wait_flag_) {
+      general_command_buffers_acquire_release_condition_variable_.notify_all();
+    }
+    return;
+  }
+}
+
 MM::RenderSystem::CommandExecutorLockGuard::~CommandExecutorLockGuard() {
   Unlock();
 }
 
 MM::RenderSystem::CommandExecutorLockGuard::CommandExecutorLockGuard(
     MM::RenderSystem::CommandExecutor& command_executor)
-    : command_executor_(&command_executor) {
+    : command_executor_(&command_executor), lock_flag_(false) {
   Lock();
 }
 
 MM::RenderSystem::CommandExecutorLockGuard::CommandExecutorLockGuard(
     MM::RenderSystem::CommandExecutorLockGuard&& other) noexcept
-    : command_executor_(other.command_executor_) {
+    : command_executor_(other.command_executor_),
+      lock_flag_(other.lock_flag_.load(std::memory_order_acquire)) {
   other.command_executor_ = nullptr;
+  lock_flag_.store(false, std::memory_order_relaxed);
 }
 
 MM::RenderSystem::CommandExecutorLockGuard&
@@ -3229,19 +3395,101 @@ MM::RenderSystem::CommandExecutorLockGuard::operator=(
   }
 
   command_executor_ = other.command_executor_;
+  lock_flag_ = other.lock_flag_.load(std::memory_order_acquire);
+
   other.command_executor_ = nullptr;
+  other.lock_flag_.store(false, std::memory_order_relaxed);
 
   return *this;
 }
 
 void MM::RenderSystem::CommandExecutorLockGuard::Lock() {
+  assert(lock_flag_.load(std::memory_order_acquire) != true);
+  lock_flag_.store(true, std::memory_order_release);
   command_executor_->LockExecutor();
 }
 
+bool MM::RenderSystem::CommandExecutorLockGuard::IsLocked() const {
+  return lock_flag_.load(std::memory_order_acquire);
+}
+
 void MM::RenderSystem::CommandExecutorLockGuard::Unlock() {
-  command_executor_->UnlockExecutor();
+  if (lock_flag_.load(std::memory_order_acquire)) {
+    command_executor_->UnlockExecutor();
+    lock_flag_.store(false, std::memory_order_release);
+  }
 }
 
 bool MM::RenderSystem::CommandExecutorLockGuard::IsValid() const {
   return command_executor_ != nullptr;
+}
+
+MM::RenderSystem::CommandExecutorGeneralCommandBufferGuard::
+    CommandExecutorGeneralCommandBufferGuard(
+        MM::RenderSystem::CommandExecutor& command_executor,
+        MM::RenderSystem::CommandBufferType command_buffer_type)
+    : command_executor_(&command_executor), general_command_buffer_() {
+  if (command_executor_->IsValid()) {
+    switch (command_buffer_type) {
+      case CommandBufferType::GRAPH:
+        command_executor_->AcquireGeneralGraphCommandBuffer(
+            general_command_buffer_);
+        return;
+      case CommandBufferType::COMPUTE:
+        command_executor_->AcquireGeneralComputeCommandBuffer(
+            general_command_buffer_);
+        return;
+      case CommandBufferType::TRANSFORM:
+        command_executor_->AcquireGeneralTransformCommandBuffer(
+            general_command_buffer_);
+        return;
+      case CommandBufferType::UNDEFINED:
+        assert(false);
+    }
+  }
+}
+
+MM::RenderSystem::CommandExecutorGeneralCommandBufferGuard::
+    ~CommandExecutorGeneralCommandBufferGuard() {
+  Release();
+}
+
+MM::RenderSystem::CommandExecutorGeneralCommandBufferGuard::
+    CommandExecutorGeneralCommandBufferGuard(
+        MM::RenderSystem::CommandExecutorGeneralCommandBufferGuard&&
+            other) noexcept
+    : command_executor_(other.command_executor_),
+      general_command_buffer_(std::move(other.general_command_buffer_)) {
+  other.command_executor_ = nullptr;
+}
+
+MM::RenderSystem::CommandExecutorGeneralCommandBufferGuard&
+MM::RenderSystem::CommandExecutorGeneralCommandBufferGuard::operator=(
+    MM::RenderSystem::CommandExecutorGeneralCommandBufferGuard&&
+        other) noexcept {
+  if (std::addressof(other) == this) {
+    return *this;
+  }
+
+  command_executor_ = other.command_executor_;
+  general_command_buffer_ = std::move(general_command_buffer_);
+
+  other.command_executor_ = nullptr;
+
+  return *this;
+}
+
+MM::RenderSystem::AllocatedCommandBuffer* MM::RenderSystem::
+    CommandExecutorGeneralCommandBufferGuard::GetGeneralCommandBuffer() {
+  return general_command_buffer_.get();
+}
+
+void MM::RenderSystem::CommandExecutorGeneralCommandBufferGuard::Release() {
+  command_executor_->ReleaseGeneralCommandBuffer(
+      std::move(general_command_buffer_));
+}
+
+bool MM::RenderSystem::CommandExecutorGeneralCommandBufferGuard::IsValid()
+    const {
+  return general_command_buffer_ != nullptr;
 }

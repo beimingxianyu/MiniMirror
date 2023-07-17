@@ -169,96 +169,9 @@ MM::ExecuteResult MM::RenderSystem::RenderEngine::CopyBuffer(
     const std::vector<VkBufferCopy2>& regions) {
   assert(IsValid());
 #ifdef CHECK_PARAMETERS
-  if (!src_buffer.IsValid()) {
-    LOG_ERROR("Src_buffer is invalid.");
-    return ExecuteResult::OBJECT_IS_INVALID;
-  }
-
-  if (!dest_buffer.IsValid()) {
-    LOG_ERROR("Dest_buffer is invalid.");
-    return ExecuteResult::OBJECT_IS_INVALID;
-  }
-
-  if (!src_buffer.IsTransformSrc() || !dest_buffer.IsTransformDest()) {
-    LOG_ERROR(
-        "Src_buffer or dest_buffer is not Transform src buffer or Transform "
-        "dest buffer.");
-    return ExecuteResult::OPERATION_NOT_SUPPORTED;
-  }
-
-  if (regions.empty()) {
-    return ExecuteResult::SUCCESS;
-  }
-
-  for (const auto& region : regions) {
-    if (region.size == 0) {
-      LOG_ERROR("VkBufferCopy2::size must greater than 0.");
-      return ExecuteResult::OPERATION_NOT_SUPPORTED;
-    }
-  }
-
-  if (src_buffer.GetBuffer() == dest_buffer.GetBuffer()) {
-    std::list<BufferChunkInfo> write_areas{};
-    // Check for any overlap and oversize.
-    for (const auto& region : regions) {
-      if (region.srcOffset + region.size > src_buffer.GetBufferSize() ||
-          region.dstOffset + region.size > dest_buffer.GetBufferSize()) {
-        LOG_ERROR("The sum of size and src_offset/dest_offset is too large.");
-        return ExecuteResult::INPUT_PARAMETERS_ARE_NOT_SUITABLE;
-      }
-      if (write_areas.empty()) {
-        write_areas.emplace_back(region.dstOffset, region.size);
-        continue;
-      }
-      bool have_greater_than = false;
-      for (auto write_area = write_areas.begin();
-           write_area != write_areas.end(); ++write_area) {
-        if (region.dstOffset <= write_area->GetOffset()) {
-          if (region.dstOffset + region.size >= write_area->GetOffset()) {
-            LOG_ERROR(
-                "During the buffer copy process, there is an overlap in the "
-                "specified copy area.");
-            return ExecuteResult::INPUT_PARAMETERS_ARE_NOT_SUITABLE;
-          }
-          write_areas.emplace(write_area, region.dstOffset, region.size);
-          have_greater_than = true;
-          break;
-        }
-      }
-      if (!have_greater_than) {
-        const auto last_area = --write_areas.end();
-        if (last_area->GetOffset() + last_area->GetSize() >= region.dstOffset) {
-          LOG_ERROR(
-              "During the buffer copy process, there is an overlap in the "
-              "specified copy area.");
-          return ExecuteResult::INPUT_PARAMETERS_ARE_NOT_SUITABLE;
-        }
-        write_areas.emplace_back(region.dstOffset, region.size);
-      }
-    }
-    for (const auto& region : regions) {
-      for (const auto& write_area : write_areas) {
-        if (region.srcOffset <= write_area.GetOffset()) {
-          if (region.srcOffset + region.size >= write_area.GetOffset()) {
-            LOG_ERROR(
-                "During the buffer copy process, there is an overlap in the "
-                "specified copy area.");
-            return ExecuteResult::INPUT_PARAMETERS_ARE_NOT_SUITABLE;
-          }
-          break;
-        }
-      }
-    }
-  } else {
-    for (const auto& region : regions) {
-      if (region.srcOffset + region.size > src_buffer.GetBufferSize() ||
-          region.dstOffset + region.size > dest_buffer.GetBufferSize()) {
-        LOG_ERROR("The sum of size and src_offset/dest_offset is too large.");
-        return ExecuteResult::INPUT_PARAMETERS_ARE_NOT_SUITABLE;
-      }
-    }
-  }
-
+  MM_CHECK_WITHOUT_LOG(
+      CopyBufferInputParametersCheck(src_buffer, dest_buffer, regions),
+      return MM_RESULT_CODE;)
 #endif
   VkCopyBufferInfo2 copy_buffer =
       Utils::GetVkCopyBufferInfo2(src_buffer, dest_buffer, regions);
@@ -411,7 +324,7 @@ MM::ExecuteResult MM::RenderSystem::RenderEngine::CopyBuffer(
             VkDependencyInfo dependency_info{Utils::GetVkDependencyInfo(
                 0, nullptr, barriers.size(), barriers.data(), 0, nullptr, 0)};
             MM_CHECK(Utils::BeginCommandBuffer(cmd),
-                     LOG_ERROR("Failed to begin command buffer.");
+                     LOG_FATAL("Failed to begin command buffer.");
                      return MM_RESULT_CODE;);
 
             vkCmdPipelineBarrier2(cmd.GetCommandBuffer(), &dependency_info);
@@ -428,7 +341,7 @@ MM::ExecuteResult MM::RenderSystem::RenderEngine::CopyBuffer(
             vkCmdPipelineBarrier2(cmd.GetCommandBuffer(), &dependency_info);
 
             MM_CHECK(Utils::EndCommandBuffer(cmd),
-                     LOG_ERROR("Failed to end command buffer.");
+                     LOG_FATAL("Failed to end command buffer.");
                      return MM_RESULT_CODE;);
             return ExecuteResult::SUCCESS;
           },
@@ -474,134 +387,9 @@ MM::ExecuteResult MM::RenderSystem::RenderEngine::CopyImage(
     const std::vector<VkImageCopy2>& regions) {
   assert(IsValid());
 #ifdef CHECK_PARAMETERS
-  if (!src_image.IsValid()) {
-    LOG_ERROR("Src_image is invalid.");
-    return ExecuteResult::OBJECT_IS_INVALID;
-  }
-
-  if (!dest_image.IsValid()) {
-    LOG_ERROR("Dest_image is invalid.");
-    return ExecuteResult::OBJECT_IS_INVALID;
-  }
-
-  if (!src_image.IsTransformSrc() || !dest_image.IsTransformDest()) {
-    LOG_ERROR(
-        "Src_buffer or dest_buffer is not Transform src buffer or Transform "
-        "dest buffer.");
-    return ExecuteResult::INPUT_PARAMETERS_ARE_NOT_SUITABLE;
-  }
-
-  if (regions.empty()) {
-    return ExecuteResult::SUCCESS;
-  }
-
-  std::unordered_map<std::uint64_t, std::vector<ImageChunkInfo>>
-      image_write_areas;
-  for (const auto& region : regions) {
-    if (region.extent.width == 0 || region.extent.height == 0 ||
-        region.extent.depth == 0) {
-      LOG_ERROR("VkImageCopy::extent::width/height/depth must greater than 0.");
-      return ExecuteResult::INPUT_PARAMETERS_ARE_NOT_SUITABLE;
-    }
-
-    if (region.dstSubresource.aspectMask != region.srcSubresource.aspectMask) {
-      LOG_ERROR("Src_image aspect mask not equal dest_image aspect mask.");
-      return ExecuteResult::INPUT_PARAMETERS_ARE_NOT_SUITABLE;
-    }
-
-    if (region.srcSubresource.aspectMask & VK_IMAGE_ASPECT_METADATA_BIT ||
-        region.dstSubresource.aspectMask & VK_IMAGE_ASPECT_METADATA_BIT) {
-      LOG_ERROR(
-          "Src_image or dest_image include "
-          "VK_IMAGE_ASPECT_METADATA_BIT.aspectMask must not contain "
-          "VK_IMAGE_ASPECT_METADATA_BIT.");
-      return ExecuteResult::INPUT_PARAMETERS_ARE_NOT_SUITABLE;
-    }
-
-    if (region.srcSubresource.aspectMask & VK_IMAGE_ASPECT_COLOR_BIT &&
-        (region.srcSubresource.aspectMask & VK_IMAGE_ASPECT_DEPTH_BIT ||
-         region.srcSubresource.aspectMask & VK_IMAGE_ASPECT_STENCIL_BIT)) {
-      LOG_ERROR(
-          "If aspectMask contains VK_IMAGE_ASPECT_COLOR_BIT, it must not "
-          "contain either of VK_IMAGE_ASPECT_DEPTH_BIT or "
-          "VK_IMAGE_ASPECT_STENCIL_BIT.");
-      return ExecuteResult::INPUT_PARAMETERS_ARE_NOT_SUITABLE;
-    }
-
-    if (region.dstSubresource.aspectMask & VK_IMAGE_ASPECT_COLOR_BIT &&
-        (region.dstSubresource.aspectMask & VK_IMAGE_ASPECT_DEPTH_BIT ||
-         region.dstSubresource.aspectMask & VK_IMAGE_ASPECT_STENCIL_BIT)) {
-      LOG_ERROR(
-          "If aspectMask contains VK_IMAGE_ASPECT_COLOR_BIT, it must not "
-          "contain either of VK_IMAGE_ASPECT_DEPTH_BIT or "
-          "VK_IMAGE_ASPECT_STENCIL_BIT.");
-      return ExecuteResult::INPUT_PARAMETERS_ARE_NOT_SUITABLE;
-    }
-
-    if (region.srcSubresource.mipLevel > src_image.GetMipmapLevels() ||
-        region.dstSubresource.mipLevel > dest_image.GetMipmapLevels()) {
-      LOG_ERROR(
-          "The specified number of mipmap level is greater than the number of "
-          "mipmap level contained in the image itself.");
-      return ExecuteResult::INPUT_PARAMETERS_ARE_NOT_SUITABLE;
-    }
-    // layer_count must == 1
-    //    if (region.srcSubresource.layerCount !=
-    //    region.dstSubresource.layerCount) {
-    //      LOG_ERROR(
-    //          "The array layer number of src_image and dest_image is
-    //          different.");
-    //      return ExecuteResult::INPUT_PARAMETERS_ARE_NOT_SUITABLE;
-    //    }
-    //    if (region.srcSubresource.baseArrayLayer +
-    //                region.srcSubresource.layerCount >
-    //            src_image.GetImageLayout() ||
-    //        region.dstSubresource.baseArrayLayer +
-    //                region.dstSubresource.layerCount >
-    //            dest_image.GetImageLayout()) {
-    //      LOG_ERROR(
-    //          "The specified number of array level is greater than the number
-    //          of " "array level contained in the image itself.");
-    //      return ExecuteResult::INPUT_PARAMETERS_ARE_NOT_SUITABLE;
-    //    }
-    if (region.srcSubresource.layerCount != 1 ||
-        region.srcSubresource.baseArrayLayer != 0 ||
-        region.dstSubresource.layerCount != 1 ||
-        region.dstSubresource.baseArrayLayer != 0) {
-      LOG_ERROR("The layerCount must 1 and baseArrayLayer must 0.");
-      return ExecuteResult::INPUT_PARAMETERS_ARE_NOT_SUITABLE;
-    }
-
-    if (!Utils::ImageRegionAreaLessThanImageExtent(region.srcOffset,
-                                                   region.extent, src_image) ||
-        !Utils::ImageRegionAreaLessThanImageExtent(region.dstOffset,
-                                                   region.extent, dest_image)) {
-      LOG_ERROR(
-          "The specified area is lager than src_image/dest_image extent.");
-      return ExecuteResult::INPUT_PARAMETERS_ARE_NOT_SUITABLE;
-    }
-
-    if (src_image.GetImage() == dest_image.GetImage()) {
-      image_write_areas[region.dstSubresource.mipLevel].emplace_back(
-          region.dstOffset, region.extent);
-    }
-  }
-  if (src_image.GetImage() == dest_image.GetImage()) {
-    for (const auto& region : regions) {
-      for (const auto& image_write_area :
-           image_write_areas[region.srcSubresource.mipLevel]) {
-        if (Utils::ImageRegionIsOverlap(region.srcOffset,
-                                        image_write_area.GetOffset(),
-                                        image_write_area.GetExtent())) {
-          LOG_ERROR(
-              "During the buffer copy process, there is an overlap in the "
-              "specified copy area.");
-          return ExecuteResult::INPUT_PARAMETERS_ARE_NOT_SUITABLE;
-        }
-      }
-    }
-  }
-
+  MM_CHECK_WITHOUT_LOG(
+      CopyImageInputParametersCheck(src_image, dest_image, regions),
+      return MM_RESULT_CODE;)
 #endif
 
   std::vector<RenderResourceDataID> sync_render_resource_data_IDs;
@@ -621,7 +409,7 @@ MM::ExecuteResult MM::RenderSystem::RenderEngine::CopyImage(
           [&src_image, &dest_image, &regions,
            this_render_engine = this](AllocatedCommandBuffer& cmd) {
             MM_CHECK(Utils::BeginCommandBuffer(cmd),
-                     LOG_ERROR("Failed to begin command buffer");
+                     LOG_FATAL("Failed to begin command buffer");
                      return MM_RESULT_CODE;)
 
             bool is_same = (src_image.GetImage() == dest_image.GetImage());
@@ -775,7 +563,7 @@ MM::ExecuteResult MM::RenderSystem::RenderEngine::CopyImage(
             vkCmdPipelineBarrier2(cmd.GetCommandBuffer(), &dependency_info);
 
             MM_CHECK(Utils::EndCommandBuffer(cmd),
-                     LOG_ERROR("Failed to end command buffer.");
+                     LOG_FATAL("Failed to end command buffer.");
                      return MM_RESULT_CODE;)
             return ExecuteResult::SUCCESS;
           },
@@ -1182,179 +970,6 @@ MM::ExecuteResult MM::RenderSystem::RenderEngine::CopyDataToBuffer(
 //
 //   return ExecuteResult::SUCCESS;
 // }
-
-MM::ExecuteResult MM::RenderSystem::RenderEngine::RemoveBufferFragmentation(
-    MM::RenderSystem::AllocatedMeshBuffer& buffer,
-    std::list<BufferSubResourceAttribute>& vertex_buffer_chunks_info,
-    std::list<BufferSubResourceAttribute>& index_buffet_chunks_info) {
-  assert(IsValid());
-#ifdef CHECK_PARAMETERS
-  if (!buffer.IsValid()) {
-    LOG_ERROR("buffer is invalid.");
-    return ExecuteResult::OBJECT_IS_INVALID;
-  }
-  if (vertex_buffer_chunks_info.empty() || index_buffet_chunks_info.empty()) {
-    return ExecuteResult::INPUT_PARAMETERS_ARE_NOT_SUITABLE;
-  }
-#endif
-
-  // Used to mark buffer chunk that will be moved to the stage buffer
-  VkDeviceSize vertex_stage_buffer_size = 0;
-  std::vector<VkBufferCopy2> vertex_self_copy_regions;
-  std::vector<VkBufferCopy2> vertex_self_copy_to_stage_regions;
-  std::vector<VkBufferCopy2> vertex_stage_copy_to_self_regions;
-  VkDeviceSize index_stage_buffer_size = 0;
-  std::vector<VkBufferCopy2> index_self_copy_regions;
-  std::vector<VkBufferCopy2> index_self_copy_to_stage_regions;
-  std::vector<VkBufferCopy2> index_stage_copy_to_self_regions;
-  GetRemoveBufferFragmentationBufferCopy(
-      vertex_buffer_chunks_info, vertex_stage_buffer_size,
-      vertex_self_copy_regions, vertex_self_copy_to_stage_regions,
-      vertex_stage_copy_to_self_regions);
-  GetRemoveBufferFragmentationBufferCopy(
-      vertex_buffer_chunks_info, index_stage_buffer_size,
-      index_self_copy_regions, index_self_copy_to_stage_regions,
-      index_stage_copy_to_self_regions);
-
-  QueueIndex transform_queue_index = GetTransformQueueIndex();
-  VkBufferCreateInfo buffer_create_info{
-      MM::RenderSystem::Utils::GetVkBufferCreateInfo(
-          nullptr, 0, vertex_stage_buffer_size,
-          VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
-          VK_SHARING_MODE_EXCLUSIVE, 1, &transform_queue_index)};
-  VmaAllocationCreateInfo vma_allocation_create_info{
-      0, VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE, 0, 0, 0, nullptr, nullptr, 0.5};
-  AllocatedBuffer vertex_stage_buffer, index_stage_buffer;
-  MM_CHECK(CreateBuffer(buffer_create_info, vma_allocation_create_info, nullptr,
-                        vertex_stage_buffer),
-           LOG_ERROR("Failed to create stage buffer.");
-           return MM_RESULT_CODE;)
-  buffer_create_info.size = index_stage_buffer_size;
-  MM_CHECK(CreateBuffer(buffer_create_info, vma_allocation_create_info, nullptr,
-                        index_stage_buffer),
-           LOG_ERROR("Failed to create stage buffer.");
-           return MM_RESULT_CODE;)
-
-  // vertex
-  auto vertex_self_copy_info = MM::RenderSystem::Utils::GetVkCopyBufferInfo2(
-      buffer.GetVertexBuffer(), buffer.GetVertexBuffer(), nullptr,
-      vertex_self_copy_regions.size(), vertex_self_copy_regions.data());
-  auto vertex_self_copy_to_stage_info = Utils::GetVkCopyBufferInfo2(
-      buffer.GetVertexBuffer(), vertex_stage_buffer.GetBuffer(), nullptr,
-      vertex_self_copy_to_stage_regions.size(),
-      vertex_self_copy_to_stage_regions.data());
-  auto vertex_stage_copy_to_self_info = Utils::GetVkCopyBufferInfo2(
-      vertex_stage_buffer.GetBuffer(), buffer.GetVertexBuffer(), nullptr,
-      vertex_stage_copy_to_self_regions.size(),
-      vertex_stage_copy_to_self_regions.data());
-
-  // vertex
-  auto index_self_copy_info = MM::RenderSystem::Utils::GetVkCopyBufferInfo2(
-      buffer.GetIndexBuffer(), buffer.GetIndexBuffer(), nullptr,
-      index_self_copy_regions.size(), index_self_copy_regions.data());
-  auto index_self_copy_to_stage_info = Utils::GetVkCopyBufferInfo2(
-      buffer.GetIndexBuffer(), index_stage_buffer.GetBuffer(), nullptr,
-      index_self_copy_to_stage_regions.size(),
-      index_self_copy_to_stage_regions.data());
-  auto index_stage_copy_to_self_info = Utils::GetVkCopyBufferInfo2(
-      index_stage_buffer.GetBuffer(), buffer.GetIndexBuffer(), nullptr,
-      index_stage_copy_to_self_regions.size(),
-      index_stage_copy_to_self_regions.data());
-
-  MM_CHECK(
-      RunSingleCommandAndWait(
-          CommandBufferType::TRANSFORM, 1,
-          [&vertex_self_copy_info, &vertex_self_copy_to_stage_info,
-           &vertex_stage_copy_to_self_info, &index_self_copy_info,
-           &index_self_copy_to_stage_info, &index_stage_copy_to_self_info,
-           &vertex_buffer_chunks_info, &index_buffet_chunks_info,
-           this_render_engine = this](AllocatedCommandBuffer& cmd) {
-            MM_CHECK(Utils::BeginCommandBuffer(cmd),
-                     LOG_ERROR("Failed to begin command buffer.");
-                     return MM_RESULT_CODE;)
-
-            QueueIndex transform_queue_index =
-                this_render_engine->GetTransformQueueIndex();
-            std::vector<VkBufferMemoryBarrier2> barriers;
-            barriers.reserve(vertex_buffer_chunks_info.size());
-            for (const auto& buffer_chunk_info : vertex_buffer_chunks_info) {
-              barriers.emplace_back(
-                  MM::RenderSystem::Utils::GetVkBufferMemoryBarrier2(
-                      VK_PIPELINE_STAGE_2_TRANSFER_BIT, 0,
-                      VK_PIPELINE_STAGE_2_TRANSFER_BIT,
-                      VK_ACCESS_2_TRANSFER_READ_BIT,
-                      buffer_chunk_info.GetQueueIndex(), transform_queue_index,
-                      vertex_self_copy_info.srcBuffer,
-                      buffer_chunk_info.GetChunkInfo().GetOffset(),
-                      buffer_chunk_info.GetChunkInfo().GetSize()));
-            }
-            for (const auto& buffer_chunk_info : index_buffet_chunks_info) {
-              barriers.emplace_back(
-                  MM::RenderSystem::Utils::GetVkBufferMemoryBarrier2(
-                      VK_PIPELINE_STAGE_2_TRANSFER_BIT, 0,
-                      VK_PIPELINE_STAGE_2_TRANSFER_BIT,
-                      VK_ACCESS_2_TRANSFER_READ_BIT,
-                      buffer_chunk_info.GetQueueIndex(), transform_queue_index,
-                      index_self_copy_info.srcBuffer,
-                      buffer_chunk_info.GetChunkInfo().GetOffset(),
-                      buffer_chunk_info.GetChunkInfo().GetSize()));
-            }
-
-            VkDependencyInfo dependency_info{
-                MM::RenderSystem::Utils::GetVkDependencyInfo(
-                    0, nullptr, barriers.size(), barriers.data(), 0, nullptr,
-                    0)};
-            vkCmdPipelineBarrier2(cmd.GetCommandBuffer(), &dependency_info);
-
-            vkCmdCopyBuffer2(cmd.GetCommandBuffer(),
-                             &vertex_self_copy_to_stage_info);
-
-            vkCmdCopyBuffer2(cmd.GetCommandBuffer(), &vertex_self_copy_info);
-
-            vkCmdCopyBuffer2(cmd.GetCommandBuffer(),
-                             &vertex_stage_copy_to_self_info);
-
-            vkCmdCopyBuffer2(cmd.GetCommandBuffer(),
-                             &index_self_copy_to_stage_info);
-
-            vkCmdCopyBuffer2(cmd.GetCommandBuffer(), &index_self_copy_info);
-
-            vkCmdCopyBuffer2(cmd.GetCommandBuffer(),
-                             &index_stage_copy_to_self_info);
-
-            for (auto& barrier : barriers) {
-              barrier.srcAccessMask = VK_ACCESS_2_TRANSFER_WRITE_BIT;
-              barrier.dstAccessMask = VK_ACCESS_2_TRANSFER_WRITE_BIT;
-              barrier.dstQueueFamilyIndex = barrier.srcQueueFamilyIndex;
-              barrier.srcQueueFamilyIndex = transform_queue_index;
-            }
-
-            vkCmdPipelineBarrier2(cmd.GetCommandBuffer(), &dependency_info);
-
-            MM_CHECK(Utils::EndCommandBuffer(cmd),
-                     LOG_ERROR("Failed to end command buffer.");
-                     return MM_RESULT_CODE;)
-
-            return ExecuteResult::SUCCESS;
-          }),
-      LOG_ERROR("An error occurred during buffer move while removing the "
-                "fragmentation "
-                "buffer.");
-      return MM_RESULT_CODE;)
-
-  VkDeviceSize new_offset = 0;
-  for (auto& buffer_chunk_info : vertex_buffer_chunks_info) {
-    buffer_chunk_info.SetOffset(new_offset);
-    new_offset += buffer_chunk_info.GetSize();
-  }
-  new_offset = 0;
-  for (auto& buffer_chunk_info : index_buffet_chunks_info) {
-    buffer_chunk_info.SetOffset(new_offset);
-    new_offset += buffer_chunk_info.GetSize();
-  }
-
-  return ExecuteResult::SUCCESS;
-}
 
 const VkPhysicalDeviceFeatures&
 MM::RenderSystem::RenderEngine::GetPhysicalDeviceFeatures() const {
@@ -2250,67 +1865,6 @@ MM::RenderSystem::RenderEngine::GetCommandExecutorLockGuard() {
   return CommandExecutorLockGuard{*command_executor_};
 }
 
-void MM::RenderSystem::RenderEngine::GetRemoveBufferFragmentationBufferCopy(
-    std::list<BufferSubResourceAttribute>& buffer_chunks_info,
-    VkDeviceSize& stage_buffer_size,
-    std::vector<VkBufferCopy2>& self_copy_regions,
-    std::vector<VkBufferCopy2>& self_copy_to_stage_regions,
-    std::vector<VkBufferCopy2>& stage_copy_to_self_regions) {
-  stage_buffer_size = 0;
-
-  std::vector<uint8_t> stage_flag(buffer_chunks_info.size(), 0);
-  VkDeviceSize pre_valid_size = 0;
-
-  std::uint32_t index = 0;
-  for (auto buffer_chunk_info = buffer_chunks_info.begin();
-       buffer_chunk_info != buffer_chunks_info.end();
-       ++buffer_chunk_info, ++index) {
-    if (pre_valid_size + buffer_chunk_info->GetSize() >=
-        buffer_chunk_info->GetOffset()) {
-      stage_flag[index] = 1;
-      self_copy_to_stage_regions.push_back(Utils::GetBufferCopy(
-          buffer_chunk_info->GetSize(), buffer_chunk_info->GetOffset(),
-          stage_buffer_size));
-      stage_copy_to_self_regions.push_back(Utils::GetBufferCopy(
-          buffer_chunk_info->GetSize(), stage_buffer_size, pre_valid_size));
-      pre_valid_size += buffer_chunk_info->GetSize();
-      stage_buffer_size += buffer_chunk_info->GetSize();
-      continue;
-    }
-
-    // TODO Optimize to binary search.
-    const VkDeviceSize new_offset = pre_valid_size;
-    std::uint32_t index2 = 0;
-    for (auto buffer_chunk_info2 = buffer_chunks_info.begin();
-         buffer_chunk_info2 != buffer_chunk_info;
-         ++buffer_chunk_info2, ++index2) {
-      if (stage_flag[index2] != 1) {
-        if (new_offset <
-            buffer_chunk_info2->GetOffset() + buffer_chunk_info2->GetSize()) {
-          if (new_offset + buffer_chunk_info->GetSize() >
-              buffer_chunk_info2->GetOffset()) {
-            stage_flag[index] = 1;
-            self_copy_to_stage_regions.push_back(Utils::GetBufferCopy(
-                buffer_chunk_info->GetSize(), buffer_chunk_info->GetOffset(),
-                stage_buffer_size));
-            stage_copy_to_self_regions.push_back(
-                Utils::GetBufferCopy(buffer_chunk_info->GetSize(),
-                                     stage_buffer_size, pre_valid_size));
-            pre_valid_size += buffer_chunk_info->GetSize();
-            stage_buffer_size += buffer_chunk_info->GetSize();
-            continue;
-          }
-        }
-      }
-    }
-
-    self_copy_regions.push_back(
-        Utils::GetBufferCopy(buffer_chunk_info->GetSize(),
-                             buffer_chunk_info->GetOffset(), pre_valid_size));
-    pre_valid_size += buffer_chunk_info->GetSize();
-  }
-}
-
 MM::ExecuteResult MM::RenderSystem::RenderEngine::GraphQueueWaitIdle() {
   return MM::RenderSystem::Utils::VkResultToMMResult(
       vkQueueWaitIdle(graphics_queue_));
@@ -2333,4 +1887,245 @@ MM::ExecuteResult MM::RenderSystem::RenderEngine::ComputeQueueWaitIdle() {
 
 bool MM::RenderSystem::RenderEngine::CommandExecutorIsFree() const {
   return command_executor_->IsFree();
+}
+
+MM::ExecuteResult
+MM::RenderSystem::RenderEngine::CopyBufferInputParametersCheck(
+    MM::RenderSystem::AllocatedBuffer& src_buffer,
+    MM::RenderSystem::AllocatedBuffer& dest_buffer,
+    const std::vector<VkBufferCopy2>& regions) {
+  if (!src_buffer.IsValid()) {
+    LOG_ERROR("Src_buffer is invalid.");
+    return ExecuteResult::OBJECT_IS_INVALID;
+  }
+
+  if (!dest_buffer.IsValid()) {
+    LOG_ERROR("Dest_buffer is invalid.");
+    return ExecuteResult::OBJECT_IS_INVALID;
+  }
+
+  if (!src_buffer.IsTransformSrc() || !dest_buffer.IsTransformDest()) {
+    LOG_ERROR(
+        "Src_buffer or dest_buffer is not Transform src buffer or Transform "
+        "dest buffer.");
+    return ExecuteResult::OPERATION_NOT_SUPPORTED;
+  }
+
+  if (regions.empty()) {
+    return ExecuteResult::SUCCESS;
+  }
+
+  for (const auto& region : regions) {
+    if (region.size == 0) {
+      LOG_ERROR("VkBufferCopy2::size must greater than 0.");
+      return ExecuteResult::OPERATION_NOT_SUPPORTED;
+    }
+  }
+
+  if (src_buffer.GetBuffer() == dest_buffer.GetBuffer()) {
+    std::list<BufferChunkInfo> write_areas{};
+    // Check for any overlap and oversize.
+    for (const auto& region : regions) {
+      if (region.srcOffset + region.size > src_buffer.GetBufferSize() ||
+          region.dstOffset + region.size > dest_buffer.GetBufferSize()) {
+        LOG_ERROR("The sum of size and src_offset/dest_offset is too large.");
+        return ExecuteResult::INPUT_PARAMETERS_ARE_NOT_SUITABLE;
+      }
+      if (write_areas.empty()) {
+        write_areas.emplace_back(region.dstOffset, region.size);
+        continue;
+      }
+      bool have_greater_than = false;
+      for (auto write_area = write_areas.begin();
+           write_area != write_areas.end(); ++write_area) {
+        if (region.dstOffset <= write_area->GetOffset()) {
+          if (region.dstOffset + region.size >= write_area->GetOffset()) {
+            LOG_ERROR(
+                "During the buffer copy process, there is an overlap in the "
+                "specified copy area.");
+            return ExecuteResult::INPUT_PARAMETERS_ARE_NOT_SUITABLE;
+          }
+          write_areas.emplace(write_area, region.dstOffset, region.size);
+          have_greater_than = true;
+          break;
+        }
+      }
+      if (!have_greater_than) {
+        const auto last_area = --write_areas.end();
+        if (last_area->GetOffset() + last_area->GetSize() >= region.dstOffset) {
+          LOG_ERROR(
+              "During the buffer copy process, there is an overlap in the "
+              "specified copy area.");
+          return ExecuteResult::INPUT_PARAMETERS_ARE_NOT_SUITABLE;
+        }
+        write_areas.emplace_back(region.dstOffset, region.size);
+      }
+    }
+    for (const auto& region : regions) {
+      for (const auto& write_area : write_areas) {
+        if (region.srcOffset <= write_area.GetOffset()) {
+          if (region.srcOffset + region.size >= write_area.GetOffset()) {
+            LOG_ERROR(
+                "During the buffer copy process, there is an overlap in the "
+                "specified copy area.");
+            return ExecuteResult::INPUT_PARAMETERS_ARE_NOT_SUITABLE;
+          }
+          break;
+        }
+      }
+    }
+  } else {
+    for (const auto& region : regions) {
+      if (region.srcOffset + region.size > src_buffer.GetBufferSize() ||
+          region.dstOffset + region.size > dest_buffer.GetBufferSize()) {
+        LOG_ERROR("The sum of size and src_offset/dest_offset is too large.");
+        return ExecuteResult::INPUT_PARAMETERS_ARE_NOT_SUITABLE;
+      }
+    }
+  }
+
+  return ExecuteResult ::SUCCESS;
+}
+
+MM::ExecuteResult MM::RenderSystem::RenderEngine::CopyImageInputParametersCheck(
+    MM::RenderSystem::AllocatedImage& src_image,
+    MM::RenderSystem::AllocatedImage& dest_image,
+    const std::vector<VkImageCopy2>& regions) {
+  if (!src_image.IsValid()) {
+    LOG_ERROR("Src_image is invalid.");
+    return ExecuteResult::OBJECT_IS_INVALID;
+  }
+
+  if (!dest_image.IsValid()) {
+    LOG_ERROR("Dest_image is invalid.");
+    return ExecuteResult::OBJECT_IS_INVALID;
+  }
+
+  if (!src_image.IsTransformSrc() || !dest_image.IsTransformDest()) {
+    LOG_ERROR(
+        "Src_buffer or dest_buffer is not Transform src buffer or Transform "
+        "dest buffer.");
+    return ExecuteResult::INPUT_PARAMETERS_ARE_NOT_SUITABLE;
+  }
+
+  if (regions.empty()) {
+    return ExecuteResult::SUCCESS;
+  }
+
+  std::unordered_map<std::uint64_t, std::vector<ImageChunkInfo>>
+      image_write_areas;
+  for (const auto& region : regions) {
+    if (region.extent.width == 0 || region.extent.height == 0 ||
+        region.extent.depth == 0) {
+      LOG_ERROR("VkImageCopy::extent::width/height/depth must greater than 0.");
+      return ExecuteResult::INPUT_PARAMETERS_ARE_NOT_SUITABLE;
+    }
+
+    if (region.dstSubresource.aspectMask != region.srcSubresource.aspectMask) {
+      LOG_ERROR("Src_image aspect mask not equal dest_image aspect mask.");
+      return ExecuteResult::INPUT_PARAMETERS_ARE_NOT_SUITABLE;
+    }
+
+    if (region.srcSubresource.aspectMask & VK_IMAGE_ASPECT_METADATA_BIT ||
+        region.dstSubresource.aspectMask & VK_IMAGE_ASPECT_METADATA_BIT) {
+      LOG_ERROR(
+          "Src_image or dest_image include "
+          "VK_IMAGE_ASPECT_METADATA_BIT.aspectMask must not contain "
+          "VK_IMAGE_ASPECT_METADATA_BIT.");
+      return ExecuteResult::INPUT_PARAMETERS_ARE_NOT_SUITABLE;
+    }
+
+    if (region.srcSubresource.aspectMask & VK_IMAGE_ASPECT_COLOR_BIT &&
+        (region.srcSubresource.aspectMask & VK_IMAGE_ASPECT_DEPTH_BIT ||
+         region.srcSubresource.aspectMask & VK_IMAGE_ASPECT_STENCIL_BIT)) {
+      LOG_ERROR(
+          "If aspectMask contains VK_IMAGE_ASPECT_COLOR_BIT, it must not "
+          "contain either of VK_IMAGE_ASPECT_DEPTH_BIT or "
+          "VK_IMAGE_ASPECT_STENCIL_BIT.");
+      return ExecuteResult::INPUT_PARAMETERS_ARE_NOT_SUITABLE;
+    }
+
+    if (region.dstSubresource.aspectMask & VK_IMAGE_ASPECT_COLOR_BIT &&
+        (region.dstSubresource.aspectMask & VK_IMAGE_ASPECT_DEPTH_BIT ||
+         region.dstSubresource.aspectMask & VK_IMAGE_ASPECT_STENCIL_BIT)) {
+      LOG_ERROR(
+          "If aspectMask contains VK_IMAGE_ASPECT_COLOR_BIT, it must not "
+          "contain either of VK_IMAGE_ASPECT_DEPTH_BIT or "
+          "VK_IMAGE_ASPECT_STENCIL_BIT.");
+      return ExecuteResult::INPUT_PARAMETERS_ARE_NOT_SUITABLE;
+    }
+
+    if (region.srcSubresource.mipLevel > src_image.GetMipmapLevels() ||
+        region.dstSubresource.mipLevel > dest_image.GetMipmapLevels()) {
+      LOG_ERROR(
+          "The specified number of mipmap level is greater than the number of "
+          "mipmap level contained in the image itself.");
+      return ExecuteResult::INPUT_PARAMETERS_ARE_NOT_SUITABLE;
+    }
+    // layer_count must == 1
+    //    if (region.srcSubresource.layerCount !=
+    //    region.dstSubresource.layerCount) {
+    //      LOG_ERROR(
+    //          "The array layer number of src_image and dest_image is
+    //          different.");
+    //      return ExecuteResult::INPUT_PARAMETERS_ARE_NOT_SUITABLE;
+    //    }
+    //    if (region.srcSubresource.baseArrayLayer +
+    //                region.srcSubresource.layerCount >
+    //            src_image.GetImageLayout() ||
+    //        region.dstSubresource.baseArrayLayer +
+    //                region.dstSubresource.layerCount >
+    //            dest_image.GetImageLayout()) {
+    //      LOG_ERROR(
+    //          "The specified number of array level is greater than the number
+    //          of " "array level contained in the image itself.");
+    //      return ExecuteResult::INPUT_PARAMETERS_ARE_NOT_SUITABLE;
+    //    }
+    if (region.srcSubresource.layerCount != 1 ||
+        region.srcSubresource.baseArrayLayer != 0 ||
+        region.dstSubresource.layerCount != 1 ||
+        region.dstSubresource.baseArrayLayer != 0) {
+      LOG_ERROR("The layerCount must 1 and baseArrayLayer must 0.");
+      return ExecuteResult::INPUT_PARAMETERS_ARE_NOT_SUITABLE;
+    }
+
+    if (!Utils::ImageRegionAreaLessThanImageExtent(region.srcOffset,
+                                                   region.extent, src_image) ||
+        !Utils::ImageRegionAreaLessThanImageExtent(region.dstOffset,
+                                                   region.extent, dest_image)) {
+      LOG_ERROR(
+          "The specified area is lager than src_image/dest_image extent.");
+      return ExecuteResult::INPUT_PARAMETERS_ARE_NOT_SUITABLE;
+    }
+
+    if (src_image.GetImage() == dest_image.GetImage()) {
+      image_write_areas[region.dstSubresource.mipLevel].emplace_back(
+          region.dstOffset, region.extent);
+    }
+  }
+  if (src_image.GetImage() == dest_image.GetImage()) {
+    for (const auto& region : regions) {
+      for (const auto& image_write_area :
+           image_write_areas[region.srcSubresource.mipLevel]) {
+        if (Utils::ImageRegionIsOverlap(region.srcOffset,
+                                        image_write_area.GetOffset(),
+                                        image_write_area.GetExtent())) {
+          LOG_ERROR(
+              "During the buffer copy process, there is an overlap in the "
+              "specified copy area.");
+          return ExecuteResult::INPUT_PARAMETERS_ARE_NOT_SUITABLE;
+        }
+      }
+    }
+  }
+
+  return ExecuteResult ::SUCCESS;
+}
+
+MM::RenderSystem::CommandExecutorGeneralCommandBufferGuard
+MM::RenderSystem::RenderEngine::GetGeneralCommandBufferGuard(
+    MM::RenderSystem::CommandBufferType command_buffer_type) {
+  assert(IsValid());
+  return CommandExecutorGeneralCommandBufferGuard(*command_executor_,
+                                                  command_buffer_type);
 }

@@ -147,6 +147,9 @@ class AllocatedBuffer : public RenderResourceDataBase {
       QueueIndex new_index,
       std::vector<VkBufferMemoryBarrier2>& barriers) const;
 
+  ExecuteResult GetCopy(const std::string& new_name,
+                        AllocatedBuffer& new_allocated_buffer) const;
+
   void Release() override;
 
   bool IsValid() const override;

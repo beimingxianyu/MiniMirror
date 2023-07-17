@@ -10,7 +10,7 @@
 
 MM::ExecuteResult MM::RenderSystem::Utils::VkResultToMMResult(
     VkResult vk_result) {
-  ExecuteResult MM_result = ExecuteResult::SUCCESS;
+  ExecuteResult MM_result;
   switch (vk_result) {
     case VK_SUCCESS:
       MM_result = ExecuteResult::SUCCESS;
@@ -731,7 +731,7 @@ bool MM::RenderSystem::Utils::DescriptorTypeIsTexelBuffer(
   }
 }
 
-VkBufferCopy2 MM::RenderSystem::Utils::GetBufferCopy(
+VkBufferCopy2 MM::RenderSystem::Utils::GetVkBufferCopy2(
     const VkDeviceSize& size, const VkDeviceSize& src_offset,
     const VkDeviceSize& dest_offset) {
   VkBufferCopy2 buffer_copy_region{};
@@ -883,7 +883,7 @@ VkImageSubresourceLayers MM::RenderSystem::Utils::GetVkImageSubResourceLayers(
                                   array_layer_count};
 }
 
-VkImageCopy2 MM::RenderSystem::Utils::GetImageCopy(
+VkImageCopy2 MM::RenderSystem::Utils::GetVkImageCopy2(
     const VkImageSubresourceLayers& src_sub_resource,
     const VkImageSubresourceLayers& dest_sub_resource,
     const VkOffset3D& src_offset, const VkOffset3D& dest_offset,
@@ -923,6 +923,20 @@ VkCopyImageInfo2 MM::RenderSystem::Utils::GetVkCopyImageInfo2(
                           dest_layout,
                           static_cast<uint32_t>(copy_regions.size()),
                           copy_regions.data()};
+}
+
+VkCopyImageInfo2 MM::RenderSystem::Utils::GetVkCopyImageInfo2(
+    VkImage src_image, VkImage dest_image, void* next, VkImageLayout src_layout,
+    VkImageLayout dest_layout, std::uint32_t regions_count,
+    const VkImageCopy2* copy_regions) {
+  return VkCopyImageInfo2{VK_STRUCTURE_TYPE_COPY_IMAGE_INFO_2,
+                          next,
+                          src_image,
+                          src_layout,
+                          dest_image,
+                          dest_layout,
+                          regions_count,
+                          copy_regions};
 }
 
 MM::ExecuteResult MM::RenderSystem::Utils::GetEndSizeAndOffset(
@@ -1573,7 +1587,7 @@ VkCopyBufferInfo2 MM::RenderSystem::Utils::GetVkCopyBufferInfo2(
 }
 
 VkCopyBufferInfo2 MM::RenderSystem::Utils::GetVkCopyBufferInfo2(
-    VkBuffer src_buffer, VkBuffer dest_buffer, void* next,
+    void* next, VkBuffer src_buffer, VkBuffer dest_buffer,
     std::uint32_t regions_count, VkBufferCopy2* regions) {
   return VkCopyBufferInfo2{VK_STRUCTURE_TYPE_COPY_BUFFER_INFO_2,
                            next,
@@ -1581,4 +1595,22 @@ VkCopyBufferInfo2 MM::RenderSystem::Utils::GetVkCopyBufferInfo2(
                            dest_buffer,
                            regions_count,
                            regions};
+}
+
+VkSubmitInfo MM::RenderSystem::Utils::GetVkSubmitInfo(
+    void* next, uint32_t wait_semaphore_info_count,
+    const VkSemaphore* wait_semaphore_infos,
+    const VkPipelineStageFlags* wait_dst_stage_mask,
+    uint32_t command_buffer_info_count, const VkCommandBuffer* command_buffer,
+    uint32_t signal_semaphore_info_count,
+    const VkSemaphore* signal_semaphore_infos) {
+  return VkSubmitInfo{VK_STRUCTURE_TYPE_SUBMIT_INFO,
+                      next,
+                      wait_semaphore_info_count,
+                      wait_semaphore_infos,
+                      wait_dst_stage_mask,
+                      command_buffer_info_count,
+                      command_buffer,
+                      signal_semaphore_info_count,
+                      signal_semaphore_infos};
 }

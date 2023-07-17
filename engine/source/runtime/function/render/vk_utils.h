@@ -289,9 +289,9 @@ ExecuteResult CreateBuffer(
     const VmaAllocationCreateInfo& vma_allocation_create_info,
     VmaAllocationInfo* vma_allocation_info, AllocatedBuffer& allocated_buffer);
 
-VkBufferCopy2 GetBufferCopy(const VkDeviceSize& size,
-                            const VkDeviceSize& src_offset = 0,
-                            const VkDeviceSize& dest_offset = 0);
+VkBufferCopy2 GetVkBufferCopy2(const VkDeviceSize& size,
+                               const VkDeviceSize& src_offset = 0,
+                               const VkDeviceSize& dest_offset = 0);
 
 VkCopyBufferInfo2 GetVkCopyBufferInfo2(
     AllocatedBuffer& src_buffer, AllocatedBuffer& dest_buffer,
@@ -311,8 +311,8 @@ VkCopyBufferInfo2 GetVkCopyBufferInfo2(const AllocatedBuffer& src_buffer,
                                        std::uint32_t regions_count,
                                        VkBufferCopy2* regions);
 
-VkCopyBufferInfo2 GetVkCopyBufferInfo2(VkBuffer src_buffer,
-                                       VkBuffer dest_buffer, void* next,
+VkCopyBufferInfo2 GetVkCopyBufferInfo2(void* next, VkBuffer src_buffer,
+                                       VkBuffer dest_buffer,
                                        std::uint32_t regions_count,
                                        VkBufferCopy2* regions);
 
@@ -347,11 +347,11 @@ VkImageSubresourceLayers GetVkImageSubResourceLayers(
     const std::uint32_t& base_array_layer,
     const std::uint32_t& array_layer_count);
 
-VkImageCopy2 GetImageCopy(const VkImageSubresourceLayers& src_sub_resource,
-                          const VkImageSubresourceLayers& dest_sub_resource,
-                          const VkOffset3D& src_offset,
-                          const VkOffset3D& dest_offset,
-                          const VkExtent3D& extent);
+VkImageCopy2 GetVkImageCopy2(const VkImageSubresourceLayers& src_sub_resource,
+                             const VkImageSubresourceLayers& dest_sub_resource,
+                             const VkOffset3D& src_offset,
+                             const VkOffset3D& dest_offset,
+                             const VkExtent3D& extent);
 
 VkCopyImageInfo2 GetVkCopyImageInfo2(
     AllocatedImage& src_image, AllocatedImage& dest_image,
@@ -362,6 +362,12 @@ VkCopyImageInfo2 GetVkCopyImageInfo2(
     const AllocatedImage& src_image, AllocatedImage& dest_image,
     const VkImageLayout& src_layout, const VkImageLayout& dest_layout,
     const std::vector<VkImageCopy2>& copy_regions);
+
+VkCopyImageInfo2 GetVkCopyImageInfo2(VkImage src_image, VkImage dest_image,
+                                     void* next, VkImageLayout src_layout,
+                                     VkImageLayout dest_layout,
+                                     uint32_t regions_count,
+                                     const VkImageCopy2* copy_regions);
 
 ExecuteResult GetEndSizeAndOffset(
     const AllocatedBuffer& buffer,
@@ -419,6 +425,14 @@ VkImageBlit2 GetImageBlit2(const void* next,
 
 CommandBufferType ChooseCommandBufferType(RenderEngine* render_engine,
                                           std::uint32_t queue_index);
+
+VkSubmitInfo GetVkSubmitInfo(void* next, uint32_t wait_semaphore_info_count,
+                             const VkSemaphore* wait_semaphore_infos,
+                             const VkPipelineStageFlags* wait_dst_stage_mask,
+                             uint32_t command_buffer_info_count,
+                             const VkCommandBuffer* command_buffer,
+                             uint32_t signal_semaphore_info_count,
+                             const VkSemaphore* signal_semaphore_infos);
 }  // namespace Utils
 }  // namespace RenderSystem
 }  // namespace MM

@@ -112,6 +112,9 @@ class RenderEngine {
 
   bool CommandExecutorIsFree() const;
 
+  CommandExecutorGeneralCommandBufferGuard GetGeneralCommandBufferGuard(
+      CommandBufferType command_buffer_type);
+
   /**
    * \remark The executed \ref command_task_flow will be moved, and no other
    * operations can be performed on \ref command_task_flow after calling this
@@ -299,12 +302,12 @@ class RenderEngine {
       const std::vector<VkPresentModeKHR>& available_present_modes);
   VkExtent2D ChooseSwapExtent(const VkSurfaceCapabilitiesKHR& capabilities);
   void ChooseMultiSampleCount();
-  void GetRemoveBufferFragmentationBufferCopy(
-      std::list<BufferSubResourceAttribute>& buffer_chunks_info,
-      VkDeviceSize& stage_buffer_size,
-      std::vector<VkBufferCopy2>& self_copy_regions,
-      std::vector<VkBufferCopy2>& self_copy_to_stage_regions,
-      std::vector<VkBufferCopy2>& stage_copy_to_self_regions);
+  ExecuteResult CopyBufferInputParametersCheck(
+      AllocatedBuffer& src_buffer, AllocatedBuffer& dest_buffer,
+      const std::vector<VkBufferCopy2>& regions);
+  ExecuteResult CopyImageInputParametersCheck(
+      AllocatedImage& src_image, AllocatedImage& dest_image,
+      const std::vector<VkImageCopy2>& regions);
 
  private:
   bool is_initialized_{false};

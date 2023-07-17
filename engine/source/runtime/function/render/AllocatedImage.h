@@ -22,9 +22,8 @@ class AllocatedImage final : public RenderResourceDataBase {
   AllocatedImage(const std::string& name,
                  const RenderResourceDataID& render_resource_data_ID,
                  RenderEngine* render_engine,
-                 const ImageDataInfo& image_data_info,
-                 const VmaAllocator& allocator, const VkImage& image,
-                 const VmaAllocation& allocation, bool have_data = false);
+                 const ImageDataInfo& image_data_info, VmaAllocator allocator,
+                 VkImage image, VmaAllocation allocation);
   AllocatedImage(const std::string& name,
                  MM::RenderSystem::RenderEngine* render_engine,
                  MM::AssetSystem::AssetManager::HandlerType image_handler,
@@ -93,6 +92,9 @@ class AllocatedImage final : public RenderResourceDataBase {
   ResourceType GetResourceType() const override;
 
   VkDeviceSize GetSize() const override;
+
+  MM::Utils::ExecuteResult GetCopy(const std::string& new_name,
+                                   AllocatedImage& new_allocated_image) const;
 
   bool IsArray() const override;
 

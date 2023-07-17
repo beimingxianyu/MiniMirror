@@ -337,8 +337,8 @@ MM::RenderSystem::RenderResourceTexture::GetDeepCopy(
   std::vector<VkImageCopy2> image_region_vector;
   for (const auto& sub_resource : sub_resource_vector) {
     VkImageCopy2 temp_image_copy =
-        Utils::GetImageCopy(sub_resource, sub_resource, VkOffset3D{0, 0, 0},
-                            VkOffset3D{0, 0, 0}, image_.GetImageExtent());
+        Utils::GetVkImageCopy2(sub_resource, sub_resource, VkOffset3D{0, 0, 0},
+                               VkOffset3D{0, 0, 0}, image_.GetImageExtent());
     image_region_vector.push_back(temp_image_copy);
   }
 
@@ -529,8 +529,9 @@ MM::ExecuteResult MM::RenderSystem::RenderResourceTexture::InitImage(
            LOG_ERROR("Failed to create VkImage.");
            return Utils::VkResultToMMResult(VK_RESULT_CODE);)
 
-  image_ = AllocatedImage{render_engine_->allocator_, temp_image,
-                          temp_allocation, image_info};
+  image_ = AllocatedImage{
+      render_engine_->allocator_, temp_image,       temp_allocation, image_info,
+      <#initializer #>,           <#initializer #>, <#initializer #>};
 
   MM_CHECK(render_engine_->RunSingleCommandAndWait(
                CommandBufferType::TRANSFORM,
@@ -539,7 +540,7 @@ MM::ExecuteResult MM::RenderSystem::RenderResourceTexture::InitImage(
                 &image_layout =
                     image_.GetImageLayout()](AllocatedCommandBuffer& cmd) {
                  MM_CHECK(Utils::BeginCommandBuffer(cmd),
-                          LOG_ERROR("Failed to begin command buffer.");
+                          LOG_FATAL("Failed to begin command buffer.");
                           return MM_RESULT_CODE;)
 
                  Utils::AddTransferImageCommands(
@@ -554,7 +555,7 @@ MM::ExecuteResult MM::RenderSystem::RenderResourceTexture::InitImage(
                                         image_layout, 1, &copy_region);
 
                  MM_CHECK(Utils::EndCommandBuffer(cmd),
-                          LOG_ERROR("Failed to end command buffer.");
+                          LOG_FATAL("Failed to end command buffer.");
                           return MM_RESULT_CODE;);
 
                  return ExecuteResult::SUCCESS;
@@ -572,7 +573,7 @@ MM::ExecuteResult MM::RenderSystem::RenderResourceTexture::GenerateMipmap() {
           CommandBufferType::TRANSFORM,
           [&image = image_](AllocatedCommandBuffer& cmd) {
             MM_CHECK(Utils::BeginCommandBuffer(cmd),
-                     LOG_ERROR("Failed to begin command buffer.");
+                     LOG_FATAL("Failed to begin command buffer.");
                      return MM_RESULT_CODE;)
 
             VkImageMemoryBarrier2 barrier{};
@@ -663,7 +664,7 @@ MM::ExecuteResult MM::RenderSystem::RenderResourceTexture::GenerateMipmap() {
             vkCmdPipelineBarrier2(cmd.GetCommandBuffer(), &dependency_info);
 
             MM_CHECK(Utils::EndCommandBuffer(cmd),
-                     LOG_ERROR("Failed to end command buffer.");
+                     LOG_FATAL("Failed to end command buffer.");
                      return MM_RESULT_CODE;)
             return ExecuteResult::SUCCESS;
           },
@@ -1114,7 +1115,8 @@ MM::RenderSystem::RenderResourceBuffer::GetDeepCopy(
                                        new_buffer, new_allocation,
                                        new_buffer_info};
 
-  const VkBufferCopy2 buffer_copy = Utils::GetBufferCopy(GetBufferSize(), 0, 0);
+  const VkBufferCopy2 buffer_copy =
+      Utils::GetVkBufferCopy2(GetBufferSize(), 0, 0);
 
   MM_CHECK(render_engine_->CopyBuffer(buffer_, new_allocated_buffer,
                                       std::vector<VkBufferCopy2>{buffer_copy}),
@@ -1301,7 +1303,7 @@ MM::ExecuteResult MM::RenderSystem::RenderResourceBuffer::CopyDataToBuffer(
     return ExecuteResult::CREATE_OBJECT_FAILED;
   }
 
-  const auto buffer_copy_region = Utils::GetBufferCopy(size, 0, offset);
+  const auto buffer_copy_region = Utils::GetVkBufferCopy2(size, 0, offset);
   std::vector<VkBufferCopy2> buffer_copy_regions{buffer_copy_region};
   auto buffer_copy_info =
       Utils::GetVkCopyBufferInfo2(stage_buffer, buffer_, buffer_copy_regions);
@@ -1322,13 +1324,13 @@ MM::ExecuteResult MM::RenderSystem::RenderResourceBuffer::CopyDataToBuffer(
           CommandBufferType::TRANSFORM, 1,
           [&buffer_copy_info = buffer_copy_info](AllocatedCommandBuffer& cmd) {
             MM_CHECK(Utils::BeginCommandBuffer(cmd),
-                     LOG_ERROR("Failed to begin command buffer.");
+                     LOG_FATAL("Failed to begin command buffer.");
                      return MM_RESULT_CODE;)
 
             vkCmdCopyBuffer2(cmd.GetCommandBuffer(), &buffer_copy_info);
 
             MM_CHECK(Utils::EndCommandBuffer(cmd),
-                     LOG_ERROR("Failed to end command buffer.");
+                     LOG_FATAL("Failed to end command buffer.");
                      return MM_RESULT_CODE;)
 
             return ExecuteResult::SUCCESS;

@@ -342,7 +342,7 @@ MM::ExecuteResult MM::RenderSystem::AllocatedBuffer::CopyDataToBuffer(
            return MM::Utils::ExecuteResult ::CREATE_OBJECT_FAILED;)
 
   const auto buffer_copy_region =
-      Utils::GetBufferCopy(size, src_offset, dest_offset);
+      Utils::GetVkBufferCopy2(size, src_offset, dest_offset);
   std::vector<VkBufferCopy2> buffer_copy_regions{buffer_copy_region};
   auto buffer_copy_info =
       Utils::GetVkCopyBufferInfo2(stage_buffer, *this, buffer_copy_regions);
@@ -369,7 +369,7 @@ MM::ExecuteResult MM::RenderSystem::AllocatedBuffer::CopyDataToBuffer(
             }
 
             MM_CHECK(Utils::BeginCommandBuffer(cmd),
-                     LOG_ERROR("Failed to begin command buffer.");
+                     LOG_FATAL("Failed to begin command buffer.");
                      return MM_RESULT_CODE;)
 
             std::vector<VkBufferMemoryBarrier2> barriers;
@@ -422,7 +422,7 @@ MM::ExecuteResult MM::RenderSystem::AllocatedBuffer::CopyDataToBuffer(
             vkCmdPipelineBarrier2(cmd.GetCommandBuffer(), &dependency_info);
 
             MM_CHECK(Utils::EndCommandBuffer(cmd),
-                     LOG_ERROR("Failed to end command buffer.");
+                     LOG_FATAL("Failed to end command buffer.");
                      return MM_RESULT_CODE;)
 
             return ExecuteResult::SUCCESS;
@@ -570,7 +570,7 @@ MM::ExecuteResult MM::RenderSystem::AllocatedBuffer::CopyAssetDataToBuffer(
                            stage_buffer.GetAllocation());
 
             MM_CHECK(Utils::BeginCommandBuffer(cmd),
-                     LOG_ERROR("Failed to begin command buffer.");
+                     LOG_FATAL("Failed to begin command buffer.");
                      return MM_RESULT_CODE;)
 
             vkCmdPipelineBarrier2(cmd.GetCommandBuffer(), &dependency_info);
@@ -583,15 +583,15 @@ MM::ExecuteResult MM::RenderSystem::AllocatedBuffer::CopyAssetDataToBuffer(
                                                queue_index}};
 
             auto buffer_copy_region =
-                Utils::GetBufferCopy(asset_datas_size, 0, 0);
+                Utils::GetVkBufferCopy2(asset_datas_size, 0, 0);
             auto buffer_copy_info = Utils::GetVkCopyBufferInfo2(
-                stage_buffer.GetBuffer(), this_buffer->GetBuffer(), nullptr, 1,
+                nullptr, stage_buffer.GetBuffer(), this_buffer->GetBuffer(), 1,
                 &buffer_copy_region);
 
             vkCmdCopyBuffer2(cmd.GetCommandBuffer(), &buffer_copy_info);
 
             MM_CHECK(Utils::EndCommandBuffer(cmd),
-                     LOG_ERROR("Failed to end command buffer.");
+                     LOG_FATAL("Failed to end command buffer.");
                      return MM_RESULT_CODE;)
 
             return MM::Utils::ExecuteResult ::SUCCESS;
@@ -761,6 +761,13 @@ MM::RenderSystem::AllocatedBuffer::GetVkBufferMemoryBarriber2(
 
   return MM::Utils::ExecuteResult ::SUCCESS;
 }
+
+MM::ExecuteResult MM::RenderSystem::AllocatedBuffer::GetCopy(
+    const std::string& new_name,
+    MM::RenderSystem::AllocatedBuffer& new_allocated_buffer) const {
+  return MM::ExecuteResult::SUCCESS;
+}
+
 // MM::ExecuteResult MM::RenderSystem::AllocatedBuffer::TransformQueueFamily(
 //     const BufferChunkInfo& buffer_chunk_info,
 //     std::uint32_t new_queue_family_index) {

@@ -59,6 +59,34 @@ class MeshBufferManager {
   ExecuteResult Release();
 
  private:
+  ExecuteResult AddRemoveBufferFragmentationCommands(
+      RenderEngine* this_render_engine, AllocatedCommandBuffer& cmd,
+      std::list<BufferSubResourceAttribute>& vertex_buffer_chunks_info,
+      std::list<BufferSubResourceAttribute>& index_buffet_chunks_info,
+      VkCopyBufferInfo2& vertex_self_copy_info,
+      VkCopyBufferInfo2& vertex_self_copy_to_stage_info,
+      VkCopyBufferInfo2& vertex_stage_copy_to_self_info,
+      VkCopyBufferInfo2& index_self_copy_info,
+      VkCopyBufferInfo2& index_self_copy_to_stage_info,
+      VkCopyBufferInfo2& index_stage_copy_to_self_info);
+
+  void GetRemoveBufferFragmentationBufferCopy(
+      std::list<BufferSubResourceAttribute>& buffer_chunks_info,
+      VkDeviceSize& stage_buffer_size,
+      std::vector<VkBufferCopy2>& self_copy_regions,
+      std::vector<VkBufferCopy2>& self_copy_to_stage_regions,
+      std::vector<VkBufferCopy2>& stage_copy_to_self_regions);
+
+  ExecuteResult RemoveBufferFragmentationImp(
+      MM::RenderSystem::AllocatedMeshBuffer& buffer,
+      std::list<BufferSubResourceAttribute>& vertex_buffer_chunks_info,
+      std::list<BufferSubResourceAttribute>& index_buffet_chunks_info);
+
+  ExecuteResult AddReserveCommands(AllocatedCommandBuffer& cmd,
+                                   VkDependencyInfo& dependency_info,
+                                   VkCopyBufferInfo2& vertex_buffer_copy_info,
+                                   VkCopyBufferInfo2& index_buffer_copy_info);
+
   void FreeMeshBuffer();
 
  private:

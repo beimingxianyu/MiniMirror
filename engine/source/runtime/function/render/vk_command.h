@@ -98,6 +98,8 @@ class AllocatedCommandBuffer {
    */
   bool ResetCommandBuffer();
 
+  bool ResetFence() { return wrapper_->ResetFence(); }
+
   bool IsValid() const;
 
  private:
@@ -131,6 +133,8 @@ class AllocatedCommandBuffer {
     bool IsValid() const;
 
     bool ResetCommandBuffer();
+
+    bool ResetFence();
 
    private:
     RenderEngine* engine_{nullptr};
@@ -500,103 +504,17 @@ class CommandExecutor {
 
   bool IsFree() const;
 
-  ExecuteResult AcquireGeneralGraphCommandBuffer(
-      std::unique_ptr<AllocatedCommandBuffer>& output) {
-    std::lock_guard guard{general_command_buffers_acquire_release_mutex_};
-    if (general_command_buffers_[0][0] != nullptr) {
-      output = std::move(general_command_buffers_[0][0]);
-      return ExecuteResult ::SUCCESS;
-    }
-    if (general_command_buffers_[0][1] != nullptr) {
-      output = std::move(general_command_buffers_[0][1]);
-      return ExecuteResult ::SUCCESS;
-    }
-    if (general_command_buffers_[0][2] != nullptr) {
-      output = std::move(general_command_buffers_[0][2]);
-      return ExecuteResult ::SUCCESS;
-    }
-
-    return ExecuteResult ::SYNCHRONIZE_FAILED;
-  }
+  void AcquireGeneralGraphCommandBuffer(
+      std::unique_ptr<AllocatedCommandBuffer>& output);
 
   ExecuteResult AcquireGeneralComputeCommandBuffer(
-      std::unique_ptr<AllocatedCommandBuffer>& output) {
-    std::lock_guard guard{general_command_buffers_acquire_release_mutex_};
-    if (general_command_buffers_[1][0] != nullptr) {
-      output = std::move(general_command_buffers_[1][0]);
-      return ExecuteResult ::SUCCESS;
-    }
-    if (general_command_buffers_[1][1] != nullptr) {
-      output = std::move(general_command_buffers_[1][1]);
-      return ExecuteResult ::SUCCESS;
-    }
-    if (general_command_buffers_[1][2] != nullptr) {
-      output = std::move(general_command_buffers_[1][2]);
-      return ExecuteResult ::SUCCESS;
-    }
-
-    return ExecuteResult ::SYNCHRONIZE_FAILED;
-  }
+      std::unique_ptr<AllocatedCommandBuffer>& output);
 
   ExecuteResult AcquireGeneralTransformCommandBuffer(
-      std::unique_ptr<AllocatedCommandBuffer>& output) {
-    std::lock_guard guard{general_command_buffers_acquire_release_mutex_};
-    if (general_command_buffers_[2][0] != nullptr) {
-      output = std::move(general_command_buffers_[2][0]);
-      return ExecuteResult ::SUCCESS;
-    }
-    if (general_command_buffers_[2][1] != nullptr) {
-      output = std::move(general_command_buffers_[2][1]);
-      return ExecuteResult ::SUCCESS;
-    }
-    if (general_command_buffers_[2][2] != nullptr) {
-      output = std::move(general_command_buffers_[2][2]);
-      return ExecuteResult ::SUCCESS;
-    }
-
-    return ExecuteResult ::SYNCHRONIZE_FAILED;
-  }
+      std::unique_ptr<AllocatedCommandBuffer>& output);
 
   void ReleaseGeneralCommandBuffer(
-      std::unique_ptr<AllocatedCommandBuffer>& output) {
-    if (output->IsValid()) {
-      return;
-    }
-    std::uint64_t general_command_type_index = UINT32_MAX;
-    switch (output->GetCommandBufferType()) {
-      case CommandBufferType::GRAPH:
-        general_command_type_index = 0;
-        break;
-      case CommandBufferType::COMPUTE:
-        general_command_type_index = 1;
-        break;
-      case CommandBufferType::TRANSFORM:
-        general_command_type_index = 2;
-        break;
-      case CommandBufferType::UNDEFINED:
-        return;
-    }
-
-    std::lock_guard guard{general_command_buffers_acquire_release_mutex_};
-    if (general_command_buffers_[general_command_type_index][0] == nullptr) {
-      output->ResetCommandBuffer();
-      general_command_buffers_[general_command_type_index][0] =
-          std::move(output);
-      return;
-    }
-    if (general_command_buffers_[general_command_type_index][1] == nullptr) {
-      output->ResetCommandBuffer();
-      general_command_buffers_[general_command_type_index][1] =
-          std::move(output);
-      return;
-    }
-    if (general_command_buffers_[general_command_type_index][2] != nullptr) {
-      output->ResetCommandBuffer();
-      general_command_buffers_[general_command_type_index][2] =
-          std::move(output);
-      return;
-    }
-  }
+      std::unique_ptr<AllocatedCommandBuffer>&& output);
 
   /**
    * \remark \ref command_task_flow is invalid after call this function.
@@ -922,6 +840,11 @@ class CommandExecutor {
   std::array<std::array<std::unique_ptr<AllocatedCommandBuffer>, 3>, 3>
       general_command_buffers_{};
   std::mutex general_command_buffers_acquire_release_mutex_{};
+  std::condition_variable
+      general_command_buffers_acquire_release_condition_variable_{};
+  bool general_garph_command_wait_flag_{false};
+  bool general_compute_command_wait_flag_{false};
+  bool general_transform_command_wait_flag_{false};
 
   std::atomic_uint32_t recoding_graph_command_buffer_number_{0};
   std::atomic_uint32_t recording_compute_command_buffer_number_{0};
@@ -977,7 +900,6 @@ class CommandExecutorLockGuard {
  public:
   CommandExecutorLockGuard() = default;
   ~CommandExecutorLockGuard();
-  ;
   explicit CommandExecutorLockGuard(CommandExecutor& command_executor);
   CommandExecutorLockGuard(const CommandExecutorLockGuard& other) = delete;
   CommandExecutorLockGuard(CommandExecutorLockGuard&& other) noexcept;
@@ -989,13 +911,44 @@ class CommandExecutorLockGuard {
  public:
   void Lock();
 
+  bool IsLocked() const;
+
   void Unlock();
 
   bool IsValid() const;
 
  private:
   CommandExecutor* command_executor_{nullptr};
+
+  std::atomic_bool lock_flag_{};
 };
+
+class CommandExecutorGeneralCommandBufferGuard {
+ public:
+  CommandExecutorGeneralCommandBufferGuard(
+      CommandExecutor& command_executor, CommandBufferType command_buffer_type);
+  ~CommandExecutorGeneralCommandBufferGuard();
+  CommandExecutorGeneralCommandBufferGuard(
+      const CommandExecutorGeneralCommandBufferGuard& other) = delete;
+  CommandExecutorGeneralCommandBufferGuard(
+      CommandExecutorGeneralCommandBufferGuard&& other) noexcept;
+  CommandExecutorGeneralCommandBufferGuard& operator=(
+      const CommandExecutorGeneralCommandBufferGuard& other) = delete;
+  CommandExecutorGeneralCommandBufferGuard& operator=(
+      CommandExecutorGeneralCommandBufferGuard&& other) noexcept;
+
+ public:
+  AllocatedCommandBuffer* GetGeneralCommandBuffer();
+
+  void Release();
+
+  bool IsValid() const;
+
+ private:
+  CommandExecutor* command_executor_{nullptr};
+  std::unique_ptr<AllocatedCommandBuffer> general_command_buffer_{nullptr};
+};
+
 }  // namespace RenderSystem
 }  // namespace MM
 #pragma clang diagnostic pop
