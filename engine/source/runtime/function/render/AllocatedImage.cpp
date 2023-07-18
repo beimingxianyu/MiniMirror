@@ -126,8 +126,7 @@ void MM::RenderSystem::AllocatedImage::Release() {
 }
 
 bool MM::RenderSystem::AllocatedImage::IsValid() const {
-  return render_engine_ != nullptr && wrapper_.IsValid() &&
-         image_data_info_.IsValid() && RenderResourceDataBase::IsValid();
+  return render_engine_ != nullptr && wrapper_.IsValid();
 }
 
 MM::RenderSystem::ResourceType
@@ -245,7 +244,7 @@ MM::RenderSystem::AllocatedImage::CheckInitParametersWhenInitFromAnAsset(
 }
 
 const std::vector<MM::RenderSystem::ImageSubResourceAttribute>&
-MM::RenderSystem::AllocatedImage::GetImageSubResourceAttributes() const {
+MM::RenderSystem::AllocatedImage::GetSubResourceAttributes() const {
   return image_data_info_.image_sub_resource_attributes_;
 }
 
@@ -594,150 +593,474 @@ MM::Utils::ExecuteResult MM::RenderSystem::AllocatedImage::GetCopy(
            LOG_ERROR("Failed to create VkImage.");
            return MM::RenderSystem::Utils::VkResultToMMResult(VK_RESULT_CODE);)
 
-  MM_CHECK(
-      render_engine_->RunSingleCommandAndWait(
-          CommandBufferType::TRANSFORM, 1,
-          [this_image = this, new_image,
-           new_allocation](AllocatedCommandBuffer& cmd) {
-            std::vector<VkImageMemoryBarrier2> barriers{};
-            barriers.reserve(
-                this_image->GetImageSubResourceAttributes().size());
-            // old image barrier
-            for (const auto& sub_resource :
-                 this_image->GetImageSubResourceAttributes()) {
-              VkImageAspectFlags aspect_flags{
-                  MM::RenderSystem::Utils::ChooseImageAspectFlags(
-                      sub_resource.GetImageLayout())};
-              VkImageSubresourceRange sub_resource_range{
-                  MM::RenderSystem::Utils::GetVkImageSubresourceRange(
-                      aspect_flags, sub_resource.GetBaseMipmapLevel(),
-                      sub_resource.GetMipmapCount(),
-                      sub_resource.GetBaseArrayLevel(),
-                      sub_resource.GetArrayCount())};
-              barriers.emplace_back(
-                  MM::RenderSystem::Utils::GetVkImageMemoryBarrier2(
-                      VK_PIPELINE_STAGE_2_TRANSFER_BIT, 0,
-                      VK_PIPELINE_STAGE_2_TRANSFER_BIT,
-                      VK_ACCESS_2_TRANSFER_READ_BIT,
-                      sub_resource.GetImageLayout(),
-                      sub_resource.GetImageLayout(),
-                      sub_resource.GetQueueIndex(),
-                      this_image->render_engine_->GetTransformQueueIndex(),
-                      this_image->GetImage(), sub_resource_range));
-            }
-            // new image barrier
-            for (const auto& sub_resource :
-                 this_image->GetImageSubResourceAttributes()) {
-              VkImageAspectFlags aspect_flags{
-                  MM::RenderSystem::Utils::ChooseImageAspectFlags(
-                      sub_resource.GetImageLayout())};
-              VkImageSubresourceRange sub_resource_range{
-                  MM::RenderSystem::Utils::GetVkImageSubresourceRange(
-                      aspect_flags, sub_resource.GetBaseMipmapLevel(),
-                      sub_resource.GetMipmapCount(),
-                      sub_resource.GetBaseArrayLevel(),
-                      sub_resource.GetArrayCount())};
-              barriers.emplace_back(
-                  MM::RenderSystem::Utils::GetVkImageMemoryBarrier2(
-                      VK_PIPELINE_STAGE_2_TRANSFER_BIT, 0,
-                      VK_PIPELINE_STAGE_2_TRANSFER_BIT,
-                      VK_ACCESS_2_TRANSFER_WRITE_BIT,
-                      this_image->image_data_info_.image_create_info_
-                          .initial_layout_,
-                      sub_resource.GetImageLayout(),
-                      sub_resource.GetQueueIndex(),
-                      this_image->render_engine_->GetTransformQueueIndex(),
-                      new_image, sub_resource_range));
-            }
-            VkDependencyInfo dependency_info{
-                MM::RenderSystem::Utils::GetVkDependencyInfo(
-                    0, nullptr, 0, nullptr, barriers.size(), barriers.data(),
-                    0)};
-
-            MM_CHECK(MM::RenderSystem::Utils::BeginCommandBuffer(cmd),
-                     LOG_FATAL("Failed to begine command buffer.");
-                     return MM_RESULT_CODE;)
-
-            vkCmdPipelineBarrier2(cmd.GetCommandBuffer(), &dependency_info);
-
-            std::vector<VkImageCopy2> image_copy_infos{
-                this_image->GetMipmapLevels()};
-            image_copy_infos.reserve(this_image->GetMipmapLevels());
-            for (const auto& sub_resource :
-                 this_image->GetImageSubResourceAttributes()) {
-              VkImageAspectFlags aspect_flags =
-                  MM::RenderSystem::Utils::ChooseImageAspectFlags(
-                      sub_resource.GetImageLayout());
-              for (std::uint32_t i = 0; i != sub_resource.GetMipmapCount();
-                   ++i) {
-                VkImageSubresourceLayers image_subresource_layers{
-                    MM::RenderSystem::Utils::GetVkImageSubResourceLayers(
-                        aspect_flags, sub_resource.GetBaseMipmapLevel() + i, 0,
-                        1)};
-                image_copy_infos.emplace_back(
-                    MM::RenderSystem::Utils::GetVkImageCopy2(
-                        image_subresource_layers, image_subresource_layers,
-                        VkOffset3D{0, 0, 0}, VkOffset3D{0, 0, 0},
-                        this_image->GetImageExtent()));
-              }
-            }
-
-            auto sub_resource_all = this_image->GetImageSubResourceAttributes();
-            std::uint32_t same_layout_count = 0;
-            std::uint64_t same_layout_offset = 0;
-            VkImageLayout current_layout = sub_resource_all[0].GetImageLayout();
-            for (std::uint64_t i = 0; i != sub_resource_all.size(); ++i) {
-              same_layout_count += sub_resource_all[i].GetMipmapCount();
-              if (i == sub_resource_all.size() - 1 ||
-                  current_layout != sub_resource_all[i].GetImageLayout()) {
-                VkCopyImageInfo2 copy_image_info{
-                    MM::RenderSystem::Utils::GetVkCopyImageInfo2(
-                        this_image->GetImage(), new_image, nullptr,
-                        current_layout, current_layout, same_layout_count,
-                        image_copy_infos.data() + same_layout_offset)};
-                vkCmdCopyImage2(cmd.GetCommandBuffer(), &copy_image_info);
-
-                same_layout_count = 0;
-                same_layout_offset = i + 1;
-                if (i != sub_resource_all.size() - 1) {
-                  current_layout = sub_resource_all[i + 1].GetImageLayout();
-                }
-              }
-            }
-
-            std::uint64_t sub_resource_count =
-                this_image->GetImageSubResourceAttributes().size();
-            for (std::uint64_t i = 0; i != sub_resource_count; ++i) {
-              barriers[i].dstQueueFamilyIndex = barriers[i].srcQueueFamilyIndex;
-              barriers[i].srcQueueFamilyIndex =
-                  this_image->render_engine_->GetTransformQueueIndex();
-              barriers[i].srcAccessMask = VK_ACCESS_2_TRANSFER_WRITE_BIT;
-              barriers[i].dstAccessMask = VK_ACCESS_2_TRANSFER_WRITE_BIT;
-            }
-            for (std::uint64_t i = sub_resource_count;
-                 i != 2 * sub_resource_count; ++i) {
-              barriers[i].dstQueueFamilyIndex = barriers[i].srcQueueFamilyIndex;
-              barriers[i].srcQueueFamilyIndex =
-                  this_image->render_engine_->GetTransformQueueIndex();
-              barriers[i].srcAccessMask = VK_ACCESS_2_TRANSFER_WRITE_BIT;
-              barriers[i].oldLayout = barriers[i].newLayout;
-            }
-            vkCmdPipelineBarrier2(cmd.GetCommandBuffer(), &dependency_info);
-
-            MM_CHECK(MM::RenderSystem::Utils::EndCommandBuffer(cmd),
-                     LOG_FATAL("Failed to end command buffer");
-                     return MM_RESULT_CODE;)
-
-            return ExecuteResult ::SUCCESS;
-          },
-          std::vector<RenderResourceDataID>{GetRenderResourceDataID()}),
-      LOG_ERROR("Failed to copy data to new image.");
-      return MM_RESULT_CODE;)
+  MM_CHECK(render_engine_->RunSingleCommandAndWait(
+               CommandBufferType::TRANSFORM, 1,
+               [this_image = this, new_image](AllocatedCommandBuffer& cmd) {
+                 if (this_image->GetSubResourceAttributes().size() == 1) {
+                   return this_image->AddCopyImageCommandsWhenOneSubResource(
+                       cmd, new_image);
+                 } else {
+                   return this_image->AddCopyImagCommandseWhenMultSubResource(
+                       cmd, new_image);
+                 }
+               },
+               std::vector<RenderResourceDataID>{GetRenderResourceDataID()}),
+           LOG_ERROR("Failed to copy data to new image.");
+           return MM_RESULT_CODE;)
 
   new_allocated_image = AllocatedImage{
       new_name,         GetRenderResourceDataID(), render_engine_,
       image_data_info_, wrapper_.GetAllocator(),   new_image,
       new_allocation};
+
+  return ExecuteResult ::SUCCESS;
+}
+
+MM::ExecuteResult
+MM::RenderSystem::AllocatedImage::AddCopyImageCommandsWhenOneSubResource(
+    MM::RenderSystem::AllocatedCommandBuffer& cmd, VkImage new_image) const {
+  std::array<VkImageMemoryBarrier2, 2> barriers{};
+  const ImageSubResourceAttribute& sub_resource = GetSubResourceAttributes()[0];
+  VkImageAspectFlags aspect_flags{
+      MM::RenderSystem::Utils::ChooseImageAspectFlags(
+          sub_resource.GetImageLayout())};
+  VkImageSubresourceRange sub_resource_range{
+      MM::RenderSystem::Utils::GetVkImageSubresourceRange(
+          aspect_flags, sub_resource.GetBaseMipmapLevel(),
+          sub_resource.GetMipmapCount(), sub_resource.GetBaseArrayLevel(),
+          sub_resource.GetArrayCount())};
+
+  // old image barrier
+  barriers[0] = MM::RenderSystem::Utils::GetVkImageMemoryBarrier2(
+      VK_PIPELINE_STAGE_2_TRANSFER_BIT, 0, VK_PIPELINE_STAGE_2_TRANSFER_BIT,
+      VK_ACCESS_2_TRANSFER_READ_BIT, sub_resource.GetImageLayout(),
+      sub_resource.GetImageLayout(), sub_resource.GetQueueIndex(),
+      render_engine_->GetTransformQueueIndex(), GetImage(), sub_resource_range);
+
+  // new image barrier
+  barriers[1] = MM::RenderSystem::Utils::GetVkImageMemoryBarrier2(
+      VK_PIPELINE_STAGE_2_TRANSFER_BIT, 0, VK_PIPELINE_STAGE_2_TRANSFER_BIT,
+      VK_ACCESS_2_TRANSFER_WRITE_BIT,
+      image_data_info_.image_create_info_.initial_layout_,
+      sub_resource.GetImageLayout(), sub_resource.GetQueueIndex(),
+      render_engine_->GetTransformQueueIndex(), new_image, sub_resource_range);
+
+  VkDependencyInfo dependency_info{MM::RenderSystem::Utils::GetVkDependencyInfo(
+      0, nullptr, 0, nullptr, barriers.size(), barriers.data(), 0)};
+
+  MM_CHECK(MM::RenderSystem::Utils::BeginCommandBuffer(cmd),
+           LOG_FATAL("Failed to begine command buffer.");
+           return MM_RESULT_CODE;)
+
+  vkCmdPipelineBarrier2(cmd.GetCommandBuffer(), &dependency_info);
+
+  std::vector<VkImageCopy2> image_copy_infos{GetMipmapLevels()};
+  image_copy_infos.reserve(GetMipmapLevels());
+  for (std::uint32_t i = 0; i != sub_resource.GetMipmapCount(); ++i) {
+    VkImageSubresourceLayers image_subresource_layers{
+        MM::RenderSystem::Utils::GetVkImageSubResourceLayers(
+            aspect_flags, sub_resource.GetBaseMipmapLevel() + i, 0, 1)};
+    image_copy_infos.emplace_back(MM::RenderSystem::Utils::GetVkImageCopy2(
+        image_subresource_layers, image_subresource_layers, VkOffset3D{0, 0, 0},
+        VkOffset3D{0, 0, 0}, GetImageExtent()));
+  }
+
+  VkCopyImageInfo2 copy_image_info{MM::RenderSystem::Utils::GetVkCopyImageInfo2(
+      GetImage(), new_image, nullptr, sub_resource.GetImageLayout(),
+      sub_resource.GetImageLayout(), image_copy_infos.size(),
+      image_copy_infos.data())};
+  vkCmdCopyImage2(cmd.GetCommandBuffer(), &copy_image_info);
+
+  barriers[0].dstQueueFamilyIndex = barriers[0].srcQueueFamilyIndex;
+  barriers[0].srcQueueFamilyIndex = render_engine_->GetTransformQueueIndex();
+  barriers[0].srcAccessMask = VK_ACCESS_2_TRANSFER_WRITE_BIT;
+  barriers[0].dstAccessMask = VK_ACCESS_2_TRANSFER_WRITE_BIT;
+
+  barriers[1].dstQueueFamilyIndex = barriers[1].srcQueueFamilyIndex;
+  barriers[1].srcQueueFamilyIndex = render_engine_->GetTransformQueueIndex();
+  barriers[1].srcAccessMask = VK_ACCESS_2_TRANSFER_WRITE_BIT;
+  barriers[1].oldLayout = barriers[1].newLayout;
+
+  vkCmdPipelineBarrier2(cmd.GetCommandBuffer(), &dependency_info);
+
+  MM_CHECK(MM::RenderSystem::Utils::EndCommandBuffer(cmd),
+           LOG_FATAL("Failed to end command buffer");
+           return MM_RESULT_CODE;)
+
+  return ExecuteResult ::SUCCESS;
+}
+
+MM::ExecuteResult
+MM::RenderSystem::AllocatedImage::AddCopyImagCommandseWhenMultSubResource(
+    MM::RenderSystem::AllocatedCommandBuffer& cmd, VkImage new_image) const {
+  std::vector<VkImageMemoryBarrier2> barriers{};
+  barriers.reserve(GetSubResourceAttributes().size() * 2);
+  // old image barrier
+  for (const auto& sub_resource : GetSubResourceAttributes()) {
+    VkImageAspectFlags aspect_flags{
+        MM::RenderSystem::Utils::ChooseImageAspectFlags(
+            sub_resource.GetImageLayout())};
+    VkImageSubresourceRange sub_resource_range{
+        MM::RenderSystem::Utils::GetVkImageSubresourceRange(
+            aspect_flags, sub_resource.GetBaseMipmapLevel(),
+            sub_resource.GetMipmapCount(), sub_resource.GetBaseArrayLevel(),
+            sub_resource.GetArrayCount())};
+    barriers.emplace_back(MM::RenderSystem::Utils::GetVkImageMemoryBarrier2(
+        VK_PIPELINE_STAGE_2_TRANSFER_BIT, 0, VK_PIPELINE_STAGE_2_TRANSFER_BIT,
+        VK_ACCESS_2_TRANSFER_READ_BIT, sub_resource.GetImageLayout(),
+        sub_resource.GetImageLayout(), sub_resource.GetQueueIndex(),
+        render_engine_->GetTransformQueueIndex(), GetImage(),
+        sub_resource_range));
+  }
+  // new image barrier
+  for (const auto& sub_resource : GetSubResourceAttributes()) {
+    VkImageAspectFlags aspect_flags{
+        MM::RenderSystem::Utils::ChooseImageAspectFlags(
+            sub_resource.GetImageLayout())};
+    VkImageSubresourceRange sub_resource_range{
+        MM::RenderSystem::Utils::GetVkImageSubresourceRange(
+            aspect_flags, sub_resource.GetBaseMipmapLevel(),
+            sub_resource.GetMipmapCount(), sub_resource.GetBaseArrayLevel(),
+            sub_resource.GetArrayCount())};
+    barriers.emplace_back(MM::RenderSystem::Utils::GetVkImageMemoryBarrier2(
+        VK_PIPELINE_STAGE_2_TRANSFER_BIT, 0, VK_PIPELINE_STAGE_2_TRANSFER_BIT,
+        VK_ACCESS_2_TRANSFER_WRITE_BIT, GetImageCreateInfo().initial_layout_,
+        sub_resource.GetImageLayout(),
+        GetImageCreateInfo().queue_family_indices_[0],
+        render_engine_->GetTransformQueueIndex(), new_image,
+        sub_resource_range));
+  }
+  VkDependencyInfo dependency_info{MM::RenderSystem::Utils::GetVkDependencyInfo(
+      0, nullptr, 0, nullptr, barriers.size(), barriers.data(), 0)};
+
+  MM_CHECK(MM::RenderSystem::Utils::BeginCommandBuffer(cmd),
+           LOG_FATAL("Failed to begine command buffer.");
+           return MM_RESULT_CODE;)
+
+  vkCmdPipelineBarrier2(cmd.GetCommandBuffer(), &dependency_info);
+
+  std::vector<VkImageCopy2> image_copy_infos{};
+  image_copy_infos.reserve(GetMipmapLevels());
+  for (const auto& sub_resource : GetSubResourceAttributes()) {
+    VkImageAspectFlags aspect_flags =
+        MM::RenderSystem::Utils::ChooseImageAspectFlags(
+            sub_resource.GetImageLayout());
+    for (std::uint32_t i = 0; i != sub_resource.GetMipmapCount(); ++i) {
+      VkImageSubresourceLayers image_subresource_layers{
+          MM::RenderSystem::Utils::GetVkImageSubResourceLayers(
+              aspect_flags, sub_resource.GetBaseMipmapLevel() + i, 0, 1)};
+      image_copy_infos.emplace_back(MM::RenderSystem::Utils::GetVkImageCopy2(
+          image_subresource_layers, image_subresource_layers,
+          VkOffset3D{0, 0, 0}, VkOffset3D{0, 0, 0}, GetImageExtent()));
+    }
+  }
+
+  auto sub_resource_all = GetSubResourceAttributes();
+  std::uint32_t same_layout_count = 0;
+  std::uint64_t same_layout_offset = 0;
+  VkImageLayout current_layout = sub_resource_all[0].GetImageLayout();
+  for (std::uint64_t i = 0; i != sub_resource_all.size(); ++i) {
+    same_layout_count += sub_resource_all[i].GetMipmapCount();
+    if (i == sub_resource_all.size() - 1 ||
+        current_layout != sub_resource_all[i].GetImageLayout()) {
+      VkCopyImageInfo2 copy_image_info{
+          MM::RenderSystem::Utils::GetVkCopyImageInfo2(
+              GetImage(), new_image, nullptr, current_layout, current_layout,
+              same_layout_count, image_copy_infos.data() + same_layout_offset)};
+      vkCmdCopyImage2(cmd.GetCommandBuffer(), &copy_image_info);
+
+      same_layout_count = 0;
+      same_layout_offset = i + 1;
+      if (i != sub_resource_all.size() - 1) {
+        current_layout = sub_resource_all[i + 1].GetImageLayout();
+      }
+    }
+  }
+
+  std::uint64_t sub_resource_count = GetSubResourceAttributes().size();
+  for (std::uint64_t i = 0; i != sub_resource_count; ++i) {
+    std::swap(barriers[i].srcQueueFamilyIndex, barriers[i].dstQueueFamilyIndex);
+    barriers[i].srcAccessMask = VK_ACCESS_2_TRANSFER_WRITE_BIT;
+    barriers[i].dstAccessMask = VK_ACCESS_2_TRANSFER_WRITE_BIT;
+
+    barriers[i + sub_resource_count].srcQueueFamilyIndex =
+        barriers[i].srcQueueFamilyIndex;
+    barriers[i + sub_resource_count].dstQueueFamilyIndex =
+        barriers[i].dstQueueFamilyIndex;
+    barriers[i + sub_resource_count].srcAccessMask =
+        VK_ACCESS_2_TRANSFER_WRITE_BIT;
+    barriers[i + sub_resource_count].oldLayout =
+        barriers[i + sub_resource_count].newLayout;
+  }
+  vkCmdPipelineBarrier2(cmd.GetCommandBuffer(), &dependency_info);
+
+  MM_CHECK(MM::RenderSystem::Utils::EndCommandBuffer(cmd),
+           LOG_FATAL("Failed to end command buffer");
+           return MM_RESULT_CODE;)
+
+  return ExecuteResult ::SUCCESS;
+}
+
+MM::ExecuteResult
+MM::RenderSystem::AllocatedImage::TransformSubResourceAttribute(
+    const std::vector<ImageSubResourceAttribute>& new_sub_resource_attribute) {
+  if (!IsValid()) {
+    return ExecuteResult ::OBJECT_IS_INVALID;
+  }
+  if (new_sub_resource_attribute ==
+      image_data_info_.image_sub_resource_attributes_) {
+    return ExecuteResult ::SUCCESS;
+  }
+
+  MM_CHECK(CheckTransformInputParameter(new_sub_resource_attribute),
+           LOG_ERROR("New sub resource attribute is error.");
+           return MM_RESULT_CODE;)
+
+  MM_CHECK(
+      render_engine_->RunSingleCommandAndWait(
+          CommandBufferType::TRANSFORM, 1,
+          [this_image = this,
+           &new_sub_resource_attribute](AllocatedCommandBuffer& cmd) {
+            std::vector<VkImageMemoryBarrier2> current_to_transform_barriers{},
+                transform_to_new_barriers{};
+
+            std::uint64_t new_sub_resource_index = 0;
+            for (const auto& old_sub_resource :
+                 this_image->GetSubResourceAttributes()) {
+              std::uint32_t
+                  old_sub_resource_mipmap_level_end =
+                      old_sub_resource.GetBaseMipmapLevel() +
+                      old_sub_resource.GetMipmapCount(),
+                  new_sub_resource_mipmap_level_end =
+                      new_sub_resource_attribute[new_sub_resource_index]
+                          .GetBaseMipmapLevel() +
+                      new_sub_resource_attribute[new_sub_resource_index]
+                          .GetMipmapCount();
+              if (new_sub_resource_attribute[new_sub_resource_index]
+                          .GetQueueIndex() !=
+                      old_sub_resource.GetQueueIndex() ||
+                  new_sub_resource_attribute[new_sub_resource_index]
+                          .GetImageLayout() !=
+                      old_sub_resource.GetImageLayout()) {
+                std::uint32_t
+                    transform_mipmap_level_offset =
+                        old_sub_resource.GetBaseMipmapLevel() >
+                                new_sub_resource_attribute
+                                    [new_sub_resource_index]
+                                        .GetBaseMipmapLevel()
+                            ? old_sub_resource.GetBaseMipmapLevel()
+                            : new_sub_resource_attribute[new_sub_resource_index]
+                                  .GetBaseMipmapLevel(),
+                    transform_mipmap_level_count =
+                        old_sub_resource_mipmap_level_end <
+                                new_sub_resource_mipmap_level_end
+                            ? old_sub_resource_mipmap_level_end -
+                                  transform_mipmap_level_offset
+                            : new_sub_resource_mipmap_level_end -
+                                  transform_mipmap_level_offset;
+                VkImageAspectFlags aspect_flag =
+                    MM::RenderSystem::Utils::ChooseImageAspectFlags(
+                        new_sub_resource_attribute[new_sub_resource_index]
+                            .GetImageLayout());
+                current_to_transform_barriers.emplace_back(
+                    MM::RenderSystem::Utils::GetVkImageMemoryBarrier2(
+                        VK_PIPELINE_STAGE_2_TRANSFER_BIT, 0,
+                        VK_PIPELINE_STAGE_2_TRANSFER_BIT,
+                        VK_ACCESS_2_TRANSFER_READ_BIT,
+                        old_sub_resource.GetImageLayout(),
+                        new_sub_resource_attribute[new_sub_resource_index]
+                            .GetImageLayout(),
+                        old_sub_resource.GetQueueIndex(),
+                        this_image->render_engine_->GetTransformQueueIndex(),
+                        this_image->GetImage(),
+                        MM::RenderSystem::Utils::GetVkImageSubresourceRange(
+                            aspect_flag, transform_mipmap_level_offset,
+                            transform_mipmap_level_count, 0, 1)));
+                transform_to_new_barriers.emplace_back(
+                    MM::RenderSystem::Utils::GetVkImageMemoryBarrier2(
+                        VK_PIPELINE_STAGE_2_TRANSFER_BIT,
+                        VK_ACCESS_2_TRANSFER_READ_BIT,
+                        VK_PIPELINE_STAGE_2_TRANSFER_BIT,
+                        VK_ACCESS_2_TRANSFER_WRITE_BIT,
+                        old_sub_resource.GetImageLayout(),
+                        new_sub_resource_attribute[new_sub_resource_index]
+                            .GetImageLayout(),
+                        this_image->render_engine_->GetTransformQueueIndex(),
+                        new_sub_resource_attribute[new_sub_resource_index]
+                            .GetQueueIndex(),
+                        this_image->GetImage(),
+                        MM::RenderSystem::Utils::GetVkImageSubresourceRange(
+                            aspect_flag, transform_mipmap_level_offset,
+                            transform_mipmap_level_count, 0, 1)));
+              }
+
+              if (new_sub_resource_mipmap_level_end ==
+                  old_sub_resource_mipmap_level_end) {
+                ++new_sub_resource_index;
+                continue;
+              }
+
+              while (new_sub_resource_mipmap_level_end <
+                     old_sub_resource_mipmap_level_end) {
+                ++new_sub_resource_index;
+                new_sub_resource_mipmap_level_end =
+                    new_sub_resource_attribute[new_sub_resource_index]
+                        .GetBaseMipmapLevel() +
+                    new_sub_resource_attribute[new_sub_resource_index]
+                        .GetMipmapCount();
+                if (new_sub_resource_attribute[new_sub_resource_index]
+                            .GetQueueIndex() !=
+                        old_sub_resource.GetQueueIndex() ||
+                    new_sub_resource_attribute[new_sub_resource_index]
+                            .GetImageLayout() !=
+                        old_sub_resource.GetImageLayout()) {
+                  std::uint32_t transform_offset =
+                                    old_sub_resource.GetBaseMipmapLevel() >
+                                            new_sub_resource_attribute
+                                                [new_sub_resource_index]
+                                                    .GetBaseMipmapLevel()
+                                        ? old_sub_resource.GetBaseMipmapLevel()
+                                        : new_sub_resource_attribute
+                                              [new_sub_resource_index]
+                                                  .GetBaseMipmapLevel(),
+                                transform_size =
+                                    old_sub_resource_mipmap_level_end <
+                                            new_sub_resource_mipmap_level_end
+                                        ? old_sub_resource_mipmap_level_end -
+                                              transform_offset
+                                        : new_sub_resource_mipmap_level_end -
+                                              transform_offset;
+                  VkImageAspectFlags aspect_flag =
+                      MM::RenderSystem::Utils::ChooseImageAspectFlags(
+                          new_sub_resource_attribute[new_sub_resource_index]
+                              .GetImageLayout());
+                  current_to_transform_barriers.emplace_back(
+                      MM::RenderSystem::Utils::GetVkImageMemoryBarrier2(
+                          VK_PIPELINE_STAGE_2_TRANSFER_BIT, 0,
+                          VK_PIPELINE_STAGE_2_TRANSFER_BIT,
+                          VK_ACCESS_2_TRANSFER_READ_BIT,
+                          old_sub_resource.GetImageLayout(),
+                          new_sub_resource_attribute[new_sub_resource_index]
+                              .GetImageLayout(),
+                          old_sub_resource.GetQueueIndex(),
+                          this_image->render_engine_->GetTransformQueueIndex(),
+                          this_image->GetImage(),
+                          MM::RenderSystem::Utils::GetVkImageSubresourceRange(
+                              aspect_flag, transform_offset, transform_size, 0,
+                              1)));
+                  transform_to_new_barriers.emplace_back(
+                      MM::RenderSystem::Utils::GetVkImageMemoryBarrier2(
+                          VK_PIPELINE_STAGE_2_TRANSFER_BIT,
+                          VK_ACCESS_2_TRANSFER_READ_BIT,
+                          VK_PIPELINE_STAGE_2_TRANSFER_BIT,
+                          VK_ACCESS_2_TRANSFER_WRITE_BIT,
+                          old_sub_resource.GetImageLayout(),
+                          new_sub_resource_attribute[new_sub_resource_index]
+                              .GetImageLayout(),
+                          this_image->render_engine_->GetTransformQueueIndex(),
+                          new_sub_resource_attribute[new_sub_resource_index]
+                              .GetQueueIndex(),
+                          this_image->GetImage(),
+                          MM::RenderSystem::Utils::GetVkImageSubresourceRange(
+                              aspect_flag, transform_offset, transform_size, 0,
+                              1)));
+                }
+
+                if (new_sub_resource_mipmap_level_end ==
+                    old_sub_resource_mipmap_level_end) {
+                  ++new_sub_resource_index;
+                  break;
+                }
+              }
+            }
+
+            VkDependencyInfo dependency_info1{
+                MM::RenderSystem::Utils::GetVkDependencyInfo(
+                    0, nullptr, 0, nullptr,
+                    current_to_transform_barriers.size(),
+                    current_to_transform_barriers.data(), 0)},
+                dependency_info2{MM::RenderSystem::Utils::GetVkDependencyInfo(
+                    0, nullptr, 0, nullptr, transform_to_new_barriers.size(),
+                    transform_to_new_barriers.data(), 0)};
+
+            MM_CHECK(MM::RenderSystem::Utils::BeginCommandBuffer(cmd),
+                     LOG_FATAL("Failed to begin command buffer.");
+                     return MM_RESULT_CODE;)
+
+            vkCmdPipelineBarrier2(cmd.GetCommandBuffer(), &dependency_info1);
+            vkCmdPipelineBarrier2(cmd.GetCommandBuffer(), &dependency_info2);
+
+            MM_CHECK(MM::RenderSystem::Utils::EndCommandBuffer(cmd),
+                     LOG_FATAL("Failed to end command buffer.");
+                     return MM_RESULT_CODE;)
+
+            this_image->MarkThisUseForWrite();
+            this_image->image_data_info_.image_sub_resource_attributes_ =
+                std::move(new_sub_resource_attribute);
+
+            return ExecuteResult ::SUCCESS;
+          },
+          std::vector<RenderResourceDataID>{GetRenderResourceDataID()}),
+      LOG_ERROR("Failed to transform sub resource attribute.");
+      return MM_RESULT_CODE;)
+
+  return ExecuteResult ::SUCCESS;
+}
+
+MM::ExecuteResult
+MM::RenderSystem::AllocatedImage::CheckTransformInputParameter(
+    const std::vector<ImageSubResourceAttribute>& new_sub_resource_attribute)
+    const {
+  QueueIndex graph_queue_index = render_engine_->GetGraphQueueIndex(),
+             compute_queue_index = render_engine_->GetComputeQueueIndex(),
+             transform_queue_index = render_engine_->GetTransformQueueIndex(),
+             present_queue_index = render_engine_->GetPresentQueueIndex();
+
+  // [start, end)
+  std::uint32_t start = UINT32_MAX, count = 0;
+  for (const auto& sub_resource : new_sub_resource_attribute) {
+    // Check queue index is valid
+    if (sub_resource.GetQueueIndex() != graph_queue_index &&
+        sub_resource.GetQueueIndex() != compute_queue_index &&
+        sub_resource.GetQueueIndex() != transform_queue_index &&
+        sub_resource.GetQueueIndex() != present_queue_index) {
+      return ExecuteResult ::INPUT_PARAMETERS_ARE_NOT_SUITABLE;
+    }
+
+    // Check image layout
+    if (sub_resource.GetImageLayout() == VK_IMAGE_LAYOUT_UNDEFINED ||
+        sub_resource.GetImageLayout() == VK_IMAGE_LAYOUT_PREINITIALIZED) {
+      return ExecuteResult ::INPUT_PARAMETERS_ARE_NOT_SUITABLE;
+    }
+
+    // Check array layer
+    if (sub_resource.GetBaseArrayLevel() != 0 ||
+        sub_resource.GetArrayCount() != 1) {
+      return ExecuteResult ::INPUT_PARAMETERS_ARE_NOT_SUITABLE;
+    }
+
+    // Check overlap
+    if ((sub_resource.GetBaseMipmapLevel() < start &&
+         sub_resource.GetBaseMipmapLevel() + sub_resource.GetMipmapCount() >
+             start) ||
+        (sub_resource.GetBaseMipmapLevel() >= start &&
+         sub_resource.GetBaseMipmapLevel() < start + count)) {
+      return ExecuteResult ::INPUT_PARAMETERS_ARE_NOT_SUITABLE;
+    }
+    if (sub_resource.GetBaseMipmapLevel() < start) {
+      start = sub_resource.GetBaseMipmapLevel();
+    }
+    if (sub_resource.GetBaseMipmapLevel() + sub_resource.GetMipmapCount() >
+        start + count) {
+      count = sub_resource.GetBaseMipmapLevel() +
+              sub_resource.GetMipmapCount() - start;
+    }
+  }
+
+  // Check that all ranges are covered.
+  if (start != 0 || count != GetMipmapLevels()) {
+    return ExecuteResult ::INPUT_PARAMETERS_ARE_NOT_SUITABLE;
+  }
 
   return ExecuteResult ::SUCCESS;
 }

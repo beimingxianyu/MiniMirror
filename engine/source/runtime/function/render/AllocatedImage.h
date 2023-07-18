@@ -36,8 +36,11 @@ class AllocatedImage final : public RenderResourceDataBase {
   AllocatedImage& operator=(AllocatedImage&& other) noexcept;
 
  public:
-  const std::vector<ImageSubResourceAttribute>& GetImageSubResourceAttributes()
+  const std::vector<ImageSubResourceAttribute>& GetSubResourceAttributes()
       const;
+
+  ExecuteResult TransformSubResourceAttribute(
+      const std::vector<ImageSubResourceAttribute>& new_sub_resource_attribute);
 
   RenderEngine* GetRenderEnginePtr();
 
@@ -136,6 +139,16 @@ class AllocatedImage final : public RenderResourceDataBase {
       MM::RenderSystem::AllocatedBuffer& stage_allocated_buffer,
       const VkImageCreateInfo* vk_image_create_info,
       const VmaAllocationCreateInfo* vma_allocation_create_info);
+
+  MM::ExecuteResult AddCopyImageCommandsWhenOneSubResource(
+      AllocatedCommandBuffer& cmd, VkImage new_image) const;
+
+  MM::ExecuteResult AddCopyImagCommandseWhenMultSubResource(
+      AllocatedCommandBuffer& cmd, VkImage new_image) const;
+
+  ExecuteResult CheckTransformInputParameter(
+      const std::vector<ImageSubResourceAttribute>& new_sub_resource_attribute)
+      const;
 
  private:
   class AllocatedImageWrapper {

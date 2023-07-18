@@ -225,54 +225,6 @@ MM::ExecuteResult MM::RenderSystem::RenderEngine::CopyBuffer(
                       src_buffer.GetRenderEnginePtr()->GetTransformQueueIndex(),
                       barriers),
                   return MM_RESULT_CODE;)
-
-              //              if (src_buffer.GetSubResourceAttributes().size()
-              //              == 1) {
-              //                VkBufferMemoryBarrier2 barrier =
-              //                    Utils::GetVkBufferMemoryBarrier2(
-              //                        VK_PIPELINE_STAGE_2_TRANSFER_BIT, 0,
-              //                        VK_PIPELINE_STAGE_2_TRANSFER_BIT,
-              //                        VK_ACCESS_2_TRANSFER_READ_BIT,
-              //                        src_buffer.GetSubResourceAttributes()[0]
-              //                            .GetQueueIndex(),
-              //                        src_buffer.GetRenderEnginePtr()
-              //                            ->GetTransformQueueIndex(),
-              //                        src_buffer.GetBuffer(),
-              //                        transform_offset, transform_size);
-              //                VkDependencyInfo
-              //                dependency_info{Utils::GetVkDependencyInfo(
-              //                    0, nullptr, 1, &barrier, 0, nullptr, 0)};
-              //                vkCmdPipelineBarrier2(cmd.GetCommandBuffer(),
-              //                &dependency_info);
-              //
-              //                vkCmdCopyBuffer2(cmd.GetCommandBuffer(),
-              //                &copy_buffer);
-              //
-              //                barrier.srcAccessMask =
-              //                VK_ACCESS_2_TRANSFER_WRITE_BIT;
-              //                barrier.srcQueueFamilyIndex =
-              //                src_buffer.GetRenderEnginePtr()->GetTransformQueueIndex();
-              //                barrier.dstQueueFamilyIndex =
-              //                src_buffer.GetSubResourceAttributes()[0].GetQueueIndex();
-              //                vkCmdPipelineBarrier2(cmd.GetCommandBuffer(),
-              //                &dependency_info);
-              //              } else {
-              //
-              //                VkBufferMemoryBarrier2 barrier1 =
-              //                src_buffer.GetVkBufferMemoryBarriber2();
-              //                    Utils::GetVkBufferMemoryBarrier2(
-              //                        VK_PIPELINE_STAGE_2_TRANSFER_BIT, 0,
-              //                        VK_PIPELINE_STAGE_2_TRANSFER_BIT,
-              //                        VK_ACCESS_2_TRANSFER_READ_BIT,
-              //                        src_buffer.GetSubResourceAttributes()[0]
-              //                            .GetQueueIndex(),
-              //                        src_buffer.GetRenderEnginePtr()
-              //                            ->GetTransformQueueIndex(),
-              //                        src_buffer.GetBuffer(),
-              //                        src_transform_offset,
-              //                        src_transform_size);
-              //
-              //              }
             } else {
               VkDeviceSize src_transform_offset = UINT32_MAX,
                            src_transform_size = 0, src_end_size = 0,
@@ -420,7 +372,7 @@ MM::ExecuteResult MM::RenderSystem::RenderEngine::CopyImage(
             std::set<const ImageSubResourceAttribute*> effect_dest_image;
             VkImageLayout src_layout, dest_layout;
             for (const auto& src_sub_resource :
-                 src_image.GetImageSubResourceAttributes()) {
+                 src_image.GetSubResourceAttributes()) {
               if (regions[0].srcSubresource.mipLevel >=
                       src_sub_resource.GetBaseMipmapLevel() &&
                   regions[0].srcSubresource.mipLevel <
@@ -431,7 +383,7 @@ MM::ExecuteResult MM::RenderSystem::RenderEngine::CopyImage(
               }
             }
             for (const auto& dest_sub_resource :
-                 dest_image.GetImageSubResourceAttributes()) {
+                 dest_image.GetSubResourceAttributes()) {
               if (regions[0].srcSubresource.mipLevel >=
                       dest_sub_resource.GetBaseMipmapLevel() &&
                   regions[0].srcSubresource.mipLevel <
@@ -449,7 +401,7 @@ MM::ExecuteResult MM::RenderSystem::RenderEngine::CopyImage(
             for (std::uint64_t i = 1; i != regions.size(); ++i) {
               VkImageLayout new_src_layout, new_dest_layout;
               for (const auto& src_sub_resource :
-                   src_image.GetImageSubResourceAttributes()) {
+                   src_image.GetSubResourceAttributes()) {
                 if (regions[i].srcSubresource.mipLevel >=
                         src_sub_resource.GetBaseMipmapLevel() &&
                     regions[1].srcSubresource.mipLevel <
@@ -460,7 +412,7 @@ MM::ExecuteResult MM::RenderSystem::RenderEngine::CopyImage(
                 }
               }
               for (const auto& dest_sub_resource :
-                   dest_image.GetImageSubResourceAttributes()) {
+                   dest_image.GetSubResourceAttributes()) {
                 if (regions[1].srcSubresource.mipLevel >=
                         dest_sub_resource.GetBaseMipmapLevel() &&
                     regions[1].srcSubresource.mipLevel <
@@ -485,7 +437,7 @@ MM::ExecuteResult MM::RenderSystem::RenderEngine::CopyImage(
                 this_render_engine->GetTransformQueueIndex();
             std::vector<VkImageMemoryBarrier2> barriers;
             for (const auto& sub_resource :
-                 src_image.GetImageSubResourceAttributes()) {
+                 src_image.GetSubResourceAttributes()) {
               if (effect_src_image.count(&sub_resource)) {
                 VkImageAspectFlags aspect_flag =
                     MM::RenderSystem::Utils::ChooseImageAspectFlags(
@@ -508,7 +460,7 @@ MM::ExecuteResult MM::RenderSystem::RenderEngine::CopyImage(
             }
             if (!is_same) {
               for (const auto& dest_resource :
-                   dest_image.GetImageSubResourceAttributes()) {
+                   dest_image.GetSubResourceAttributes()) {
                 if (effect_src_image.count(&dest_resource)) {
                   VkImageAspectFlags aspect_flag =
                       MM::RenderSystem::Utils::ChooseImageAspectFlags(

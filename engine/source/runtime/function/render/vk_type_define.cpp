@@ -1980,6 +1980,19 @@ MM::RenderSystem::ImageSubresourceRangeInfo::ImageSubresourceRangeInfo(
       base_array_level_(vk_image_subresource_range.baseArrayLayer),
       array_count_(vk_image_subresource_range.layerCount) {}
 
+bool MM::RenderSystem::ImageSubresourceRangeInfo::operator==(
+    const MM::RenderSystem::ImageSubresourceRangeInfo& rhs) const {
+  return base_mipmaps_level_ == rhs.base_mipmaps_level_ &&
+         mipmaps_count_ == rhs.mipmaps_count_ &&
+         base_array_level_ == rhs.base_array_level_ &&
+         array_count_ == rhs.array_count_;
+}
+
+bool MM::RenderSystem::ImageSubresourceRangeInfo::operator!=(
+    const MM::RenderSystem::ImageSubresourceRangeInfo& rhs) const {
+  return !(rhs == *this);
+}
+
 const MM::RenderSystem::ImageSubresourceRangeInfo&
 MM::RenderSystem::ImageSubResourceAttribute::GetImageSubresourceRangeInfo()
     const {
@@ -2098,6 +2111,17 @@ std::uint32_t MM::RenderSystem::ImageSubResourceAttribute::GetMipmapCount()
 std::uint32_t MM::RenderSystem::ImageSubResourceAttribute::GetArrayCount()
     const {
   return image_subresource_range_info_.GetArrayCount();
+}
+
+bool MM::RenderSystem::ImageSubResourceAttribute::operator==(
+    const MM::RenderSystem::ImageSubResourceAttribute& rhs) const {
+  return image_subresource_range_info_ == rhs.image_subresource_range_info_ &&
+         queue_index_ == rhs.queue_index_ && image_layout_ == rhs.image_layout_;
+}
+
+bool MM::RenderSystem::ImageSubResourceAttribute::operator!=(
+    const MM::RenderSystem::ImageSubResourceAttribute& rhs) const {
+  return !(rhs == *this);
 }
 
 MM::RenderSystem::BufferSubResourceAttribute::BufferSubResourceAttribute(

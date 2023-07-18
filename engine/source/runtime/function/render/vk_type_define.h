@@ -219,6 +219,11 @@ class ImageSubresourceRangeInfo {
       ImageSubresourceRangeInfo&& other) noexcept;
 
  public:
+  bool operator==(const ImageSubresourceRangeInfo& rhs) const;
+
+  bool operator!=(const ImageSubresourceRangeInfo& rhs) const;
+
+ public:
   std::uint32_t GetBaseMipmapsLevel() const;
 
   void SetBaseMipmapsLevel(std::uint32_t dest_mipmaps_level);
@@ -339,6 +344,11 @@ class ImageSubResourceAttribute {
   ImageSubResourceAttribute& operator=(const ImageSubResourceAttribute& other);
   ImageSubResourceAttribute& operator=(
       ImageSubResourceAttribute&& other) noexcept;
+
+ public:
+  bool operator==(const ImageSubResourceAttribute& rhs) const;
+
+  bool operator!=(const ImageSubResourceAttribute& rhs) const;
 
  public:
   const ImageSubresourceRangeInfo& GetImageSubresourceRangeInfo() const;

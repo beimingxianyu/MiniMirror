@@ -247,10 +247,6 @@ uint32_t MM::RenderSystem::AllocatedBuffer::UseCount() const {
   return 0;
 }
 
-bool MM::RenderSystem::AllocatedBuffer::IsValid() const {
-  return wrapper_ != nullptr && wrapper_->IsValid();
-}
-
 MM::RenderSystem::VertexAndIndexBuffer::VertexAndIndexBuffer(
     RenderEngine* engine)
     : render_engine_(engine) {

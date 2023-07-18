@@ -236,6 +236,11 @@ void MM::RenderSystem::AllocatedBuffer::Release() {
   buffer_data_info_.Reset();
 }
 
+bool MM::RenderSystem::AllocatedBuffer::IsValid() const {
+  return render_engine_ != nullptr && render_engine_->IsValid() &&
+         wrapper_.IsValid();
+}
+
 const std::vector<MM::RenderSystem::BufferSubResourceAttribute>&
 MM::RenderSystem::AllocatedBuffer::GetSubResourceAttributes() const {
   return buffer_data_info_.buffer_sub_resource_attributes_;
@@ -362,7 +367,7 @@ MM::ExecuteResult MM::RenderSystem::AllocatedBuffer::CopyDataToBuffer(
       render_engine_->RunSingleCommandAndWait(
           CommandBufferType::TRANSFORM, 1,
           [&buffer_copy_info = buffer_copy_info, render_engine = render_engine_,
-           this_buffer = this, size](AllocatedCommandBuffer& cmd) {
+           this_buffer = this](AllocatedCommandBuffer& cmd) {
             if (buffer_copy_info.pRegions->size >
                 this_buffer->GetSize() - buffer_copy_info.pRegions->dstOffset) {
               return ExecuteResult ::INPUT_PARAMETERS_ARE_NOT_SUITABLE;
@@ -678,8 +683,8 @@ MM::RenderSystem::AllocatedBuffer::GetBufferDataInfo() const {
 
 MM::ExecuteResult
 MM::RenderSystem::AllocatedBuffer::CheckInitParametersWhenInitFromAnAsset(
-    MM::RenderSystem::RenderEngine* render_engine,
-    const MM::AssetSystem::AssetManager::HandlerType asset_handler,
+    RenderEngine* render_engine,
+    AssetSystem::AssetManager::HandlerType asset_handler,
     const VkBufferCreateInfo* vk_buffer_create_info,
     const VmaAllocationCreateInfo* vma_allocation_create_info) {
   MM_CHECK_WITHOUT_LOG(CheckInitParameters(render_engine, vk_buffer_create_info,
@@ -765,7 +770,369 @@ MM::RenderSystem::AllocatedBuffer::GetVkBufferMemoryBarriber2(
 MM::ExecuteResult MM::RenderSystem::AllocatedBuffer::GetCopy(
     const std::string& new_name,
     MM::RenderSystem::AllocatedBuffer& new_allocated_buffer) const {
-  return MM::ExecuteResult::SUCCESS;
+  if (IsValid()) {
+    return MM::Utils::ExecuteResult::OBJECT_IS_INVALID;
+  }
+
+  VkBuffer new_buffer{nullptr};
+  VmaAllocation new_allocation{nullptr};
+
+  VkBufferCreateInfo buffer_create_info =
+      buffer_data_info_.buffer_create_info_.GetVkBufferCreateInfo();
+  VmaAllocationCreateInfo allocation_create_info =
+      buffer_data_info_.allocation_create_info_.GetVmaAllocationCreateInfo();
+
+  VK_CHECK(vmaCreateBuffer(const_cast<VmaAllocator>(wrapper_.GetAllocator()),
+                           &buffer_create_info, &allocation_create_info,
+                           &new_buffer, &new_allocation, nullptr),
+           LOG_ERROR("Failed to create VkBuffer.");
+           return MM::RenderSystem::Utils::VkResultToMMResult(VK_RESULT_CODE);)
+
+  MM_CHECK(
+      render_engine_->RunSingleCommandAndWait(
+          CommandBufferType::TRANSFORM, 1,
+          [this_buffer = this, new_buffer](AllocatedCommandBuffer& cmd) {
+            if (this_buffer->GetSubResourceAttributes().size() == 1) {
+              return this_buffer->AddCopyBufferCommandsWhenOneSubResource(
+                  cmd, new_buffer);
+            } else {
+              return this_buffer->AddCopyBufferCommandseWhenMultSubResource(
+                  cmd, new_buffer);
+            }
+          },
+          std::vector<RenderResourceDataID>{GetRenderResourceDataID()}),
+      LOG_ERROR("Failed to copy data to new buffer.");
+      return MM_RESULT_CODE;)
+
+  new_allocated_buffer =
+      AllocatedBuffer{new_name,
+                      GetRenderResourceDataID(),
+                      render_engine_,
+                      buffer_data_info_,
+                      const_cast<VmaAllocator>(wrapper_.GetAllocator()),
+                      new_buffer,
+                      new_allocation};
+
+  return ExecuteResult ::SUCCESS;
+}
+
+MM::ExecuteResult
+MM::RenderSystem::AllocatedBuffer::AddCopyBufferCommandsWhenOneSubResource(
+    MM::RenderSystem::AllocatedCommandBuffer& cmd, VkBuffer new_buffer) const {
+  const BufferSubResourceAttribute& sub_resource =
+      GetSubResourceAttributes()[0];
+  std::array<VkBufferMemoryBarrier2, 2> barriers{
+      MM::RenderSystem::Utils::GetVkBufferMemoryBarrier2(
+          VK_PIPELINE_STAGE_2_TRANSFER_BIT, 0, VK_PIPELINE_STAGE_2_TRANSFER_BIT,
+          VK_ACCESS_2_TRANSFER_READ_BIT, sub_resource.GetQueueIndex(),
+          render_engine_->GetTransformQueueIndex(), *this,
+          sub_resource.GetOffset(), sub_resource.GetSize()),
+      MM::RenderSystem::Utils::GetVkBufferMemoryBarrier2(
+          VK_PIPELINE_STAGE_2_TRANSFER_BIT, 0, VK_PIPELINE_STAGE_2_TRANSFER_BIT,
+          VK_ACCESS_2_TRANSFER_WRITE_BIT, sub_resource.GetQueueIndex(),
+          render_engine_->GetTransformQueueIndex(),
+          const_cast<VkBuffer>(new_buffer), sub_resource.GetOffset(),
+          sub_resource.GetSize())};
+  VkDependencyInfo dependency_info{MM::RenderSystem::Utils::GetVkDependencyInfo(
+      0, nullptr, barriers.size(), barriers.data(), 0, nullptr, 0)};
+
+  VkBufferCopy2 buffer_copy{
+      MM::RenderSystem::Utils::GetVkBufferCopy2(GetBufferSize(), 0, 0)};
+  VkCopyBufferInfo2 copy_buffer_info{
+      MM::RenderSystem::Utils::GetVkCopyBufferInfo2(
+          nullptr, const_cast<VkBuffer>(GetBuffer()), new_buffer, 1,
+          &buffer_copy)};
+
+  MM_CHECK(MM::RenderSystem::Utils::BeginCommandBuffer(cmd),
+           LOG_FATAL("Failed to begin command buffer.");
+           return MM_RESULT_CODE;)
+
+  vkCmdPipelineBarrier2(cmd.GetCommandBuffer(), &dependency_info);
+
+  vkCmdCopyBuffer2(cmd.GetCommandBuffer(), &copy_buffer_info);
+
+  barriers[0].srcAccessMask = VK_ACCESS_2_TRANSFER_WRITE_BIT;
+  barriers[0].dstAccessMask = VK_ACCESS_2_TRANSFER_WRITE_BIT;
+  std::swap(barriers[0].srcQueueFamilyIndex, barriers[0].dstQueueFamilyIndex);
+  barriers[1].srcAccessMask = VK_ACCESS_2_TRANSFER_WRITE_BIT;
+  std::swap(barriers[1].srcQueueFamilyIndex, barriers[1].dstQueueFamilyIndex);
+  vkCmdPipelineBarrier2(cmd.GetCommandBuffer(), &dependency_info);
+
+  MM_CHECK(MM::RenderSystem::Utils::EndCommandBuffer(cmd),
+           LOG_FATAL("Failed to end command buffer.");
+           return MM_RESULT_CODE;)
+
+  return MM::Utils::ExecuteResult::SUCCESS;
+}
+
+MM::ExecuteResult
+MM::RenderSystem::AllocatedBuffer::AddCopyBufferCommandseWhenMultSubResource(
+    MM::RenderSystem::AllocatedCommandBuffer& cmd, VkBuffer new_buffer) const {
+  std::vector<VkBufferMemoryBarrier2> barriers{};
+  barriers.reserve(GetSubResourceAttributes().size() * 2);
+  // old image barrier
+  for (const auto& sub_resource : GetSubResourceAttributes()) {
+    barriers.emplace_back(MM::RenderSystem::Utils::GetVkBufferMemoryBarrier2(
+        VK_PIPELINE_STAGE_2_TRANSFER_BIT, 0, VK_PIPELINE_STAGE_2_TRANSFER_BIT,
+        VK_ACCESS_2_TRANSFER_READ_BIT, sub_resource.GetQueueIndex(),
+        render_engine_->GetTransformQueueIndex(),
+        const_cast<VkBuffer>(GetBuffer()), sub_resource.GetOffset(),
+        sub_resource.GetSize()));
+  }
+  // new image barrier
+  for (const auto& sub_resource : GetSubResourceAttributes()) {
+    barriers.emplace_back(MM::RenderSystem::Utils::GetVkBufferMemoryBarrier2(
+        VK_PIPELINE_STAGE_2_TRANSFER_BIT, 0, VK_PIPELINE_STAGE_2_TRANSFER_BIT,
+        VK_ACCESS_2_TRANSFER_WRITE_BIT,
+        GetBufferCreateInfo().queue_family_indices_[0],
+        render_engine_->GetTransformQueueIndex(), new_buffer,
+        sub_resource.GetOffset(), sub_resource.GetSize()));
+  }
+  VkDependencyInfo dependency_info{MM::RenderSystem::Utils::GetVkDependencyInfo(
+      0, nullptr, barriers.size(), barriers.data(), 0, nullptr, 0)};
+
+  MM_CHECK(MM::RenderSystem::Utils::BeginCommandBuffer(cmd),
+           LOG_FATAL("Failed to begine command buffer.");
+           return MM_RESULT_CODE;)
+
+  vkCmdPipelineBarrier2(cmd.GetCommandBuffer(), &dependency_info);
+
+  std::vector<VkBufferCopy2> buffer_copy{};
+  buffer_copy.reserve(GetSubResourceAttributes().size());
+  for (const auto& sub_resource : GetSubResourceAttributes()) {
+    buffer_copy.emplace_back(MM::RenderSystem::Utils::GetVkBufferCopy2(
+        sub_resource.GetSize(), sub_resource.GetOffset(),
+        sub_resource.GetOffset()));
+  }
+  VkCopyBufferInfo2 copy_buffer_info{
+      MM::RenderSystem::Utils::GetVkCopyBufferInfo2(
+          nullptr, const_cast<VkBuffer>(GetBuffer()), new_buffer,
+          buffer_copy.size(), buffer_copy.data())};
+  vkCmdCopyBuffer2(cmd.GetCommandBuffer(), &copy_buffer_info);
+
+  std::uint64_t sub_resource_count = GetSubResourceAttributes().size();
+  for (std::uint64_t i = 0; i != sub_resource_count; ++i) {
+    std::swap(barriers[i].dstQueueFamilyIndex, barriers[i].srcQueueFamilyIndex);
+    barriers[i].srcAccessMask = VK_ACCESS_2_TRANSFER_WRITE_BIT;
+    barriers[i].dstAccessMask = VK_ACCESS_2_TRANSFER_WRITE_BIT;
+
+    barriers[i + sub_resource_count].srcQueueFamilyIndex =
+        barriers[i].srcQueueFamilyIndex;
+    barriers[i + sub_resource_count].dstQueueFamilyIndex =
+        barriers[i].dstQueueFamilyIndex;
+    barriers[i + sub_resource_count].srcAccessMask =
+        VK_ACCESS_2_TRANSFER_WRITE_BIT;
+  }
+  vkCmdPipelineBarrier2(cmd.GetCommandBuffer(), &dependency_info);
+
+  MM_CHECK(MM::RenderSystem::Utils::EndCommandBuffer(cmd),
+           LOG_FATAL("Failed to end command buffer");
+           return MM_RESULT_CODE;)
+
+  return ExecuteResult ::SUCCESS;
+}
+
+MM::ExecuteResult
+MM::RenderSystem::AllocatedBuffer::TransformSubResourceAttribute(
+    const std::vector<BufferSubResourceAttribute>& new_sub_resource_attribute) {
+  if (!IsValid()) {
+    return ExecuteResult ::OBJECT_IS_INVALID;
+  }
+  if (new_sub_resource_attribute ==
+      buffer_data_info_.buffer_sub_resource_attributes_) {
+    return ExecuteResult ::SUCCESS;
+  }
+
+  MM_CHECK(CheckTransformInputParameter(new_sub_resource_attribute),
+           LOG_ERROR("New sub resource attribute is error.");
+           return MM_RESULT_CODE;)
+
+  MM_CHECK(
+      render_engine_->RunSingleCommandAndWait(
+          CommandBufferType::TRANSFORM, 1,
+          [this_buffer = this,
+           &new_sub_resource_attribute](AllocatedCommandBuffer& cmd) {
+            std::vector<VkBufferMemoryBarrier2> current_to_transform_barriers{},
+                transform_to_new_barriers{};
+
+            std::uint64_t new_sub_resource_index = 0;
+            for (const auto& old_sub_resource :
+                 this_buffer->GetSubResourceAttributes()) {
+              VkDeviceSize
+                  old_sub_resource_end =
+                      old_sub_resource.GetOffset() + old_sub_resource.GetSize(),
+                  new_sub_resource_end =
+                      new_sub_resource_attribute[new_sub_resource_index]
+                          .GetOffset() +
+                      new_sub_resource_attribute[new_sub_resource_index]
+                          .GetSize();
+              if (new_sub_resource_attribute[new_sub_resource_index]
+                      .GetQueueIndex() != old_sub_resource.GetQueueIndex()) {
+                VkDeviceSize
+                    transform_offset =
+                        old_sub_resource.GetOffset() >
+                                new_sub_resource_attribute
+                                    [new_sub_resource_index]
+                                        .GetOffset()
+                            ? old_sub_resource.GetOffset()
+                            : new_sub_resource_attribute[new_sub_resource_index]
+                                  .GetOffset(),
+                    transform_size =
+                        old_sub_resource_end < new_sub_resource_end
+                            ? old_sub_resource_end - transform_offset
+                            : new_sub_resource_end - transform_offset;
+                current_to_transform_barriers.emplace_back(
+                    MM::RenderSystem::Utils::GetVkBufferMemoryBarrier2(
+                        VK_PIPELINE_STAGE_2_TRANSFER_BIT, 0,
+                        VK_PIPELINE_STAGE_2_TRANSFER_BIT,
+                        VK_ACCESS_2_TRANSFER_READ_BIT,
+                        old_sub_resource.GetQueueIndex(),
+                        this_buffer->render_engine_->GetTransformQueueIndex(),
+                        this_buffer->GetBuffer(), transform_offset,
+                        transform_size));
+                transform_to_new_barriers.emplace_back(
+                    MM::RenderSystem::Utils::GetVkBufferMemoryBarrier2(
+                        VK_PIPELINE_STAGE_2_TRANSFER_BIT,
+                        VK_ACCESS_2_TRANSFER_READ_BIT,
+                        VK_PIPELINE_STAGE_2_TRANSFER_BIT,
+                        VK_ACCESS_2_TRANSFER_WRITE_BIT,
+                        this_buffer->render_engine_->GetTransformQueueIndex(),
+                        new_sub_resource_attribute[new_sub_resource_index]
+                            .GetQueueIndex(),
+                        this_buffer->GetBuffer(), transform_offset,
+                        transform_size));
+              }
+
+              if (new_sub_resource_end == old_sub_resource_end) {
+                ++new_sub_resource_index;
+                continue;
+              }
+
+              while (new_sub_resource_end < old_sub_resource_end) {
+                ++new_sub_resource_index;
+                new_sub_resource_end =
+                    new_sub_resource_attribute[new_sub_resource_index]
+                        .GetOffset() +
+                    new_sub_resource_attribute[new_sub_resource_index]
+                        .GetSize();
+                if (new_sub_resource_attribute[new_sub_resource_index]
+                        .GetQueueIndex() != old_sub_resource.GetQueueIndex()) {
+                  VkDeviceSize transform_offset =
+                                   old_sub_resource.GetOffset() >
+                                           new_sub_resource_attribute
+                                               [new_sub_resource_index]
+                                                   .GetOffset()
+                                       ? old_sub_resource.GetOffset()
+                                       : new_sub_resource_attribute
+                                             [new_sub_resource_index]
+                                                 .GetOffset(),
+                               transform_size =
+                                   old_sub_resource_end < new_sub_resource_end
+                                       ? old_sub_resource_end - transform_offset
+                                       : new_sub_resource_end -
+                                             transform_offset;
+                  current_to_transform_barriers.emplace_back(
+                      MM::RenderSystem::Utils::GetVkBufferMemoryBarrier2(
+                          VK_PIPELINE_STAGE_2_TRANSFER_BIT, 0,
+                          VK_PIPELINE_STAGE_2_TRANSFER_BIT,
+                          VK_ACCESS_2_TRANSFER_READ_BIT,
+                          old_sub_resource.GetQueueIndex(),
+                          this_buffer->render_engine_->GetTransformQueueIndex(),
+                          this_buffer->GetBuffer(), transform_offset,
+                          transform_size));
+                  transform_to_new_barriers.emplace_back(
+                      MM::RenderSystem::Utils::GetVkBufferMemoryBarrier2(
+                          VK_PIPELINE_STAGE_2_TRANSFER_BIT,
+                          VK_ACCESS_2_TRANSFER_READ_BIT,
+                          VK_PIPELINE_STAGE_2_TRANSFER_BIT,
+                          VK_ACCESS_2_TRANSFER_WRITE_BIT,
+                          this_buffer->render_engine_->GetTransformQueueIndex(),
+                          new_sub_resource_attribute[new_sub_resource_index]
+                              .GetQueueIndex(),
+                          this_buffer->GetBuffer(), transform_offset,
+                          transform_size));
+                }
+
+                if (new_sub_resource_end == old_sub_resource_end) {
+                  ++new_sub_resource_index;
+                  break;
+                }
+              }
+            }
+
+            VkDependencyInfo dependency_info1{
+                MM::RenderSystem::Utils::GetVkDependencyInfo(
+                    0, nullptr, current_to_transform_barriers.size(),
+                    current_to_transform_barriers.data(), 0, nullptr, 0)},
+                dependency_info2{MM::RenderSystem::Utils::GetVkDependencyInfo(
+                    0, nullptr, transform_to_new_barriers.size(),
+                    transform_to_new_barriers.data(), 0, nullptr, 0)};
+
+            MM_CHECK(MM::RenderSystem::Utils::BeginCommandBuffer(cmd),
+                     LOG_FATAL("Failed to begin command buffer.");
+                     return MM_RESULT_CODE;)
+
+            vkCmdPipelineBarrier2(cmd.GetCommandBuffer(), &dependency_info1);
+            vkCmdPipelineBarrier2(cmd.GetCommandBuffer(), &dependency_info2);
+
+            MM_CHECK(MM::RenderSystem::Utils::EndCommandBuffer(cmd),
+                     LOG_FATAL("Failed to end command buffer.");
+                     return MM_RESULT_CODE;)
+
+            this_buffer->MarkThisUseForWrite();
+
+            this_buffer->buffer_data_info_.buffer_sub_resource_attributes_ =
+                std::move(new_sub_resource_attribute);
+
+            return ExecuteResult ::SUCCESS;
+          },
+          std::vector<RenderResourceDataID>{GetRenderResourceDataID()}),
+      LOG_ERROR("Failed to transform sub resource attribute.");
+      return MM_RESULT_CODE;)
+
+  return ExecuteResult ::SUCCESS;
+}
+
+MM::ExecuteResult
+MM::RenderSystem::AllocatedBuffer::CheckTransformInputParameter(
+    const std::vector<BufferSubResourceAttribute>& new_sub_resource_attribute)
+    const {
+  QueueIndex graph_queue_index = render_engine_->GetGraphQueueIndex(),
+             compute_queue_index = render_engine_->GetComputeQueueIndex(),
+             transform_queue_index = render_engine_->GetTransformQueueIndex(),
+             present_queue_index = render_engine_->GetPresentQueueIndex();
+
+  // [start, end)
+  VkDeviceSize start = UINT64_MAX, size = 0;
+  for (const auto& sub_resource : new_sub_resource_attribute) {
+    // Check queue index is valid
+    if (sub_resource.GetQueueIndex() != graph_queue_index &&
+        sub_resource.GetQueueIndex() != compute_queue_index &&
+        sub_resource.GetQueueIndex() != transform_queue_index &&
+        sub_resource.GetQueueIndex() != present_queue_index) {
+      return ExecuteResult ::INPUT_PARAMETERS_ARE_NOT_SUITABLE;
+    }
+
+    // Check overlap
+    if ((sub_resource.GetOffset() < start &&
+         sub_resource.GetOffset() + sub_resource.GetSize() > start) ||
+        (sub_resource.GetOffset() >= start &&
+         sub_resource.GetOffset() < start + size)) {
+      return ExecuteResult ::INPUT_PARAMETERS_ARE_NOT_SUITABLE;
+    }
+    if (sub_resource.GetOffset() < start) {
+      start = sub_resource.GetOffset();
+    }
+    if (sub_resource.GetOffset() + sub_resource.GetSize() > start + size) {
+      size = sub_resource.GetOffset() + sub_resource.GetSize() - start;
+    }
+  }
+  // Check that all ranges are covered.
+  if (start != 0 || size != GetBufferSize()) {
+    return ExecuteResult ::INPUT_PARAMETERS_ARE_NOT_SUITABLE;
+  }
+
+  return ExecuteResult ::SUCCESS;
 }
 
 // MM::ExecuteResult MM::RenderSystem::AllocatedBuffer::TransformQueueFamily(

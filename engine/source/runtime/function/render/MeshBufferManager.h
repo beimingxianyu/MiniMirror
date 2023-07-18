@@ -21,6 +21,7 @@ class MeshBufferManager {
 
  public:
   ExecuteResult AllocateMeshBuffer(
+      VkDeviceSize vertex_size, VkDeviceSize index_size,
       RenderResourceMeshBuffer& render_resource_mesh_buffer);
 
   VkBuffer GetVertexBuffer();
@@ -87,7 +88,8 @@ class MeshBufferManager {
                                    VkCopyBufferInfo2& vertex_buffer_copy_info,
                                    VkCopyBufferInfo2& index_buffer_copy_info);
 
-  void FreeMeshBuffer();
+  void FreeMeshBuffer(BufferSubResourceAttribute* sub_vertex_buffer_info_ptr,
+                      BufferSubResourceAttribute* sub_index_buffer_info_ptr);
 
  private:
   AllocatedMeshBuffer managed_allocated_mesh_buffer_{};

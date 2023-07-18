@@ -113,6 +113,10 @@ class AllocatedBuffer : public RenderResourceDataBase {
   const std::vector<BufferSubResourceAttribute>& GetSubResourceAttributes()
       const;
 
+  ExecuteResult TransformSubResourceAttribute(
+      const std::vector<BufferSubResourceAttribute>&
+          new_sub_resource_attribute);
+
   const BufferDataInfo& GetBufferDataInfo() const;
 
   const BufferCreateInfo& GetBufferCreateInfo() const;
@@ -162,7 +166,7 @@ class AllocatedBuffer : public RenderResourceDataBase {
 
   static ExecuteResult CheckInitParametersWhenInitFromAnAsset(
       RenderEngine* render_engine,
-      const AssetSystem::AssetManager::HandlerType asset_handler,
+      AssetSystem::AssetManager::HandlerType asset_handler,
       const VkBufferCreateInfo* vk_buffer_create_info,
       const VmaAllocationCreateInfo* vma_allocation_create_info);
 
@@ -170,6 +174,16 @@ class AllocatedBuffer : public RenderResourceDataBase {
       RenderEngine* render_engine,
       const VkBufferCreateInfo& vk_buffer_create_info,
       const VmaAllocationCreateInfo& vma_allocation_create_info);
+
+  ExecuteResult AddCopyBufferCommandsWhenOneSubResource(
+      AllocatedCommandBuffer& cmd, VkBuffer new_buffer) const;
+
+  ExecuteResult AddCopyBufferCommandseWhenMultSubResource(
+      AllocatedCommandBuffer& cmd, VkBuffer new_buffer) const;
+
+  ExecuteResult CheckTransformInputParameter(
+      const std::vector<BufferSubResourceAttribute>& new_sub_resource_attribute)
+      const;
 
  private:
   RenderEngine* render_engine_{nullptr};

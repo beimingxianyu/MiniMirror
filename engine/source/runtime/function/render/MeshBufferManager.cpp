@@ -57,8 +57,10 @@ MeshBufferManager::MeshBufferManager(MeshBufferManager&& other) noexcept {
 }
 
 ExecuteResult MeshBufferManager::AllocateMeshBuffer(
+    VkDeviceSize vertex_size, VkDeviceSize index_size,
     RenderResourceMeshBuffer& render_resource_mesh_buffer) {
   // TODO
+
   return ExecuteResult::SUCCESS;
 }
 
@@ -137,6 +139,8 @@ ExecuteResult MeshBufferManager::RemoveBufferFragmentation() {
                                         sub_index_buffer_list_),
            LOG_ERROR("Failed to remove buffer fragmentaion.");
            return MM_RESULT_CODE;)
+
+  return ExecuteResult ::SUCCESS;
 }
 
 ExecuteResult MeshBufferManager::Reserve(VkDeviceSize new_vertex_buffer_size,
@@ -267,7 +271,9 @@ bool MeshBufferManager::IsValid() const {
   return managed_allocated_mesh_buffer_.IsValid() && capacity_data_.IsValid();
 }
 
-void MeshBufferManager::FreeMeshBuffer() {
+void MeshBufferManager::FreeMeshBuffer(
+    BufferSubResourceAttribute&& sub_vertex_buffer_info,
+    BufferSubResourceAttribute&& sub_index_buffer_info) {
   // TODO
 }
 
