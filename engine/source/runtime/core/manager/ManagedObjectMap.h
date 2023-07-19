@@ -7,7 +7,6 @@
 
 namespace MM {
 namespace Manager {
-
 template <typename KeyType, typename ValueType, typename Less = std::less<>,
           typename Allocator = std::allocator<
               std::pair<const KeyType, ManagedObjectWrapper<ValueType>>>>

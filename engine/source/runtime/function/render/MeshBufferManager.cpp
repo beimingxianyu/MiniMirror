@@ -44,7 +44,11 @@ MeshBufferManager::MeshBufferManager(
   }
 }
 
-MeshBufferManager::MeshBufferManager(MeshBufferManager&& other) noexcept {
+MeshBufferManager::MeshBufferManager(MeshBufferManager&& other) noexcept
+    : managed_allocated_mesh_buffer_(),
+      capacity_data_(),
+      sub_vertex_buffer_list_(),
+      sub_index_buffer_list_() {
   std::lock(allocate_free_mutex_, other.allocate_free_mutex_);
   std::lock_guard guard1(allocate_free_mutex_, std::adopt_lock),
       guard2(other.allocate_free_mutex_, std::adopt_lock);
@@ -56,10 +60,46 @@ MeshBufferManager::MeshBufferManager(MeshBufferManager&& other) noexcept {
   sub_index_buffer_list_ = std::move(other.sub_index_buffer_list_);
 }
 
+MeshBufferManager& MeshBufferManager::operator=(
+    MeshBufferManager&& other) noexcept {
+  if (std::addressof(other) == this) {
+    return *this;
+  }
+
+  std::lock(allocate_free_mutex_, other.allocate_free_mutex_);
+  std::lock_guard guard1(allocate_free_mutex_, std::adopt_lock),
+      guard2(other.allocate_free_mutex_, std::adopt_lock);
+
+  managed_allocated_mesh_buffer_ =
+      std::move(other.managed_allocated_mesh_buffer_);
+  capacity_data_ = std::move(other.capacity_data_);
+  sub_vertex_buffer_list_ = std::move(other.sub_vertex_buffer_list_);
+  sub_index_buffer_list_ = std::move(other.sub_index_buffer_list_);
+
+  return *this;
+}
+
 ExecuteResult MeshBufferManager::AllocateMeshBuffer(
     VkDeviceSize vertex_size, VkDeviceSize index_size,
-    RenderResourceMeshBuffer& render_resource_mesh_buffer) {
+    AllocatedMesh& render_resource_mesh_buffer) {
   // TODO
+  std::lock_guard guard(allocate_free_mutex_);
+
+  VkDeviceSize vertex_buffer_size = GetAllocatedMeshBuffer().GetVertexSize(),
+               index_buffer_size = GetAllocatedMeshBuffer().GetIndexSize();
+  if ((capacity_data_.vertex_buffer_remaining_capacity_ <
+       vertex_buffer_size * capacity_data_.capacity_coefficient_) ||
+      (capacity_data_.index_buffer_remaining_capacity_ <
+       index_buffer_size * capacity_data_.capacity_coefficient_)) {
+    MM_CHECK(Reserve(vertex_buffer_size * capacity_data_.expansion_coefficient_,
+                     index_buffer_size * capacity_data_.expansion_coefficient_),
+             LOG_ERROR("Failed to expand vertex buffer and index buffer.");)
+  }
+
+  if (capacity_data_.vertex_buffer_remaining_capacity_ < vertex_size ||
+      capacity_data_.index_buffer_remaining_capacity_ < index_size) {
+    return ExecuteResult ::OUT_OF_DEVICE_MEMORY;
+  }
 
   return ExecuteResult::SUCCESS;
 }
@@ -272,8 +312,8 @@ bool MeshBufferManager::IsValid() const {
 }
 
 void MeshBufferManager::FreeMeshBuffer(
-    BufferSubResourceAttribute&& sub_vertex_buffer_info,
-    BufferSubResourceAttribute&& sub_index_buffer_info) {
+    BufferSubResourceAttribute* sub_vertex_buffer_info,
+    BufferSubResourceAttribute* sub_index_buffer_info) {
   // TODO
 }
 
@@ -555,6 +595,18 @@ ExecuteResult MeshBufferManager::AddReserveCommands(
            return MM_RESULT_CODE;)
 
   return ExecuteResult ::SUCCESS;
+}
+
+RenderEngine* MeshBufferManager::GetRenderEnginePtr() {
+  return managed_allocated_mesh_buffer_.GetRenderEnginePtr();
+}
+
+const RenderEngine* MeshBufferManager::GetRenderEnginePtr() const {
+  return managed_allocated_mesh_buffer_.GetRenderEnginePtr();
+}
+
+ExecuteResult MeshBufferManager::Release() {
+  // TODO
 }
 }  // namespace RenderSystem
 }  // namespace MM

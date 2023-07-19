@@ -1,8 +1,9 @@
 #pragma once
 
 #include "runtime/core/math/math.h"
+#include "runtime/resource/asset_system/asset_type/base/vertex.h"
+#include "utils/Json.h"
 #include "utils/error.h"
-#include "vertex.h"
 
 namespace MM {
 namespace AssetSystem {
@@ -28,6 +29,10 @@ class BoundingBox {
   virtual Utils::ExecuteResult UpdateBoundingBox(const Mesh& mesh) = 0;
 
   virtual void UpdateBoundingBoxWithOneVertex(const Vertex& vertex) = 0;
+
+  virtual Utils::ExecuteResult GetJson(
+      Utils::Json::Value& output_json_data,
+      Utils::Json::MemoryPoolAllocator<>& allocator) const;
 };
 
 class RectangleBox : public BoundingBox {
@@ -81,6 +86,10 @@ class RectangleBox : public BoundingBox {
   Utils::ExecuteResult UpdateBoundingBox(const Mesh& mesh) override;
 
   void UpdateBoundingBoxWithOneVertex(const Vertex& vertex) override;
+
+  Utils::ExecuteResult GetJson(
+      Utils::Json::Value& output_json_data,
+      Utils::Json::MemoryPoolAllocator<>& allocator) const override;
 
   friend void Swap(RectangleBox& lhs, RectangleBox& rhs) noexcept {
     using std::swap;
@@ -136,6 +145,10 @@ class CapsuleBox : public BoundingBox {
   Utils::ExecuteResult UpdateBoundingBox(const Mesh& mesh) override;
 
   void UpdateBoundingBoxWithOneVertex(const Vertex& vertex) override;
+
+  Utils::ExecuteResult GetJson(
+      rapidjson::Value& output_json_data,
+      Utils::Json::MemoryPoolAllocator<>& allocator) const override;
 
  private:
   float radius_{0.0f};

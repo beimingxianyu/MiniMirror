@@ -104,19 +104,19 @@ class AssetManager final
   ExecuteResult AddMesh(const FileSystem::Path& mesh_path, uint32_t mesh_index,
                         HandlerType& handler);
 
-  ExecuteResult AddMesh(
-      const FileSystem::Path& asset_path, AssetType::AssetID asset_ID,
-      std::unique_ptr<AssetType::RectangleBox>&& aabb_box,
-      std::unique_ptr<std::vector<uint32_t>>&& indexes,
-      std::unique_ptr<std::vector<AssetType::Vertex>>&& vertices,
-      HandlerType& handler);
+  ExecuteResult AddMesh(const FileSystem::Path& asset_path,
+                        AssetType::AssetID asset_ID,
+                        std::unique_ptr<AssetType::RectangleBox>&& aabb_box,
+                        std::vector<uint32_t>&& indexes,
+                        std::vector<AssetType::Vertex>&& vertices,
+                        HandlerType& handler);
 
-  ExecuteResult AddMesh(
-      const FileSystem::Path& asset_path, AssetType::AssetID asset_ID,
-      std::unique_ptr<AssetType::CapsuleBox>&& capsule_box,
-      std::unique_ptr<std::vector<uint32_t>>&& indexes,
-      std::unique_ptr<std::vector<AssetType::Vertex>>&& vertices,
-      HandlerType& handler);
+  ExecuteResult AddMesh(const FileSystem::Path& asset_path,
+                        AssetType::AssetID asset_ID,
+                        std::unique_ptr<AssetType::CapsuleBox>&& capsule_box,
+                        std::vector<uint32_t>&& indexes,
+                        std::vector<AssetType::Vertex>&& vertices,
+                        HandlerType& handler);
 
   ExecuteResult GetAssetByID(Manager::ManagedObjectID managed_object_ID,
                              HandlerType& handler) const;

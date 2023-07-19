@@ -9,7 +9,8 @@
 
 namespace MM {
 namespace Manager {
-template <typename ObjectType, typename Allocator = std::allocator<ObjectType>>
+template <typename ObjectType, typename Equal = std::equal_to<>,
+          typename Allocator = std::allocator<ObjectType>>
 class ManagedObjectList
     : public ManagedObjectTableBase<ObjectType, ObjectType, ListTrait> {
  public:
@@ -71,8 +72,8 @@ class ManagedObjectList
   mutable std::shared_mutex data_mutex_{};
 };
 
-template <typename ObjectType, typename Allocator>
-ManagedObjectList<ObjectType, Allocator>::~ManagedObjectList() {
+template <typename ObjectType, typename Equal, typename Allocator>
+ManagedObjectList<ObjectType, Equal, Allocator>::~ManagedObjectList() {
   if (GetSize() != 0) {
     LOG_ERROR(
         "The container is not empty, and destroying it will result in an "
@@ -80,8 +81,8 @@ ManagedObjectList<ObjectType, Allocator>::~ManagedObjectList() {
   }
 }
 
-template <typename ObjectType, typename Allocator>
-ExecuteResult ManagedObjectList<ObjectType, Allocator>::GetUseCount(
+template <typename ObjectType, typename Equal, typename Allocator>
+ExecuteResult ManagedObjectList<ObjectType, Equal, Allocator>::GetUseCount(
     const ObjectType& key, std::vector<std::uint32_t>& use_counts) const {
   if (!ThisType::TestMovedWhenGetUseCount()) {
     return ExecuteResult::OBJECT_IS_INVALID;
@@ -91,7 +92,7 @@ ExecuteResult ManagedObjectList<ObjectType, Allocator>::GetUseCount(
 
   bool have = false;
   for (const auto& object : data_) {
-    if (key == object.GetObject()) {
+    if (Equal{}(object.GetObject(), key)) {
       have = true;
       use_counts.push_back(object.GetUseCount());
     }
@@ -104,8 +105,8 @@ ExecuteResult ManagedObjectList<ObjectType, Allocator>::GetUseCount(
   return ExecuteResult::SUCCESS;
 }
 
-template <typename ObjectType, typename Allocator>
-std::uint32_t ManagedObjectList<ObjectType, Allocator>::GetUseCount(
+template <typename ObjectType, typename Equal, typename Allocator>
+std::uint32_t ManagedObjectList<ObjectType, Equal, Allocator>::GetUseCount(
     const ObjectType& key, const std::atomic_uint32_t* use_count_ptr) const {
   if (!ThisType::TestMovedWhenGetUseCount()) {
     return 0;
@@ -114,7 +115,8 @@ std::uint32_t ManagedObjectList<ObjectType, Allocator>::GetUseCount(
   std::shared_lock<std::shared_mutex> guard{data_mutex_};
 
   for (const auto& object : data_) {
-    if (key == object.GetObject() && use_count_ptr == object.GetUseCountPtr()) {
+    if (Equal{}(object.GetObject(), key) &&
+        use_count_ptr == object.GetUseCountPtr()) {
       return object.GetUseCount();
     }
   }
@@ -122,8 +124,8 @@ std::uint32_t ManagedObjectList<ObjectType, Allocator>::GetUseCount(
   return 0;
 }
 
-template <typename ObjectType, typename Allocator>
-std::uint32_t ManagedObjectList<ObjectType, Allocator>::GetUseCount(
+template <typename ObjectType, typename Equal, typename Allocator>
+std::uint32_t ManagedObjectList<ObjectType, Equal, Allocator>::GetUseCount(
     const ObjectType& key) const {
   if (!ThisType::TestMovedWhenGetUseCount()) {
     return 0;
@@ -132,7 +134,7 @@ std::uint32_t ManagedObjectList<ObjectType, Allocator>::GetUseCount(
   std::shared_lock<std::shared_mutex> guard{data_mutex_};
 
   for (const auto& object : data_) {
-    if (key == object.GetObject()) {
+    if (Equal{}(object.GetObject(), key)) {
       return object.GetUseCount();
     }
   }
@@ -140,8 +142,8 @@ std::uint32_t ManagedObjectList<ObjectType, Allocator>::GetUseCount(
   return 0;
 }
 
-template <typename ObjectType, typename Allocator>
-ExecuteResult ManagedObjectList<ObjectType, Allocator>::GetObject(
+template <typename ObjectType, typename Equal, typename Allocator>
+ExecuteResult ManagedObjectList<ObjectType, Equal, Allocator>::GetObject(
     const ObjectType& key, const std::atomic_uint32_t* use_count_ptr,
     HandlerType& handler) const {
   if (!ThisType::TestMovedWhenAddObject()) {
@@ -152,7 +154,8 @@ ExecuteResult ManagedObjectList<ObjectType, Allocator>::GetObject(
   bool find = false;
   HandlerType new_handler;
   for (const auto& object : data_) {
-    if (object.GetObject() == key && object.GetUseCountPtr() == use_count_ptr) {
+    if (Equal{}(object.GetObject(), key) &&
+        object.GetUseCountPtr() == use_count_ptr) {
       new_handler = HandlerType(BaseType::GetThisPtrPtr(),
                                 const_cast<ObjectType*>(object.GetObjectPtr()),
                                 object.GetUseCountPtr());
@@ -170,12 +173,12 @@ ExecuteResult ManagedObjectList<ObjectType, Allocator>::GetObject(
   return ExecuteResult::PARENT_OBJECT_NOT_CONTAIN_SPECIFIC_CHILD_OBJECT;
 }
 
-template <typename ObjectType, typename Allocator>
-ManagedObjectList<ObjectType, Allocator>::ManagedObjectList()
+template <typename ObjectType, typename Equal, typename Allocator>
+ManagedObjectList<ObjectType, Equal, Allocator>::ManagedObjectList()
     : BaseType(this), data_(), data_mutex_() {}
 
-template <typename ObjectType, typename Allocator>
-ExecuteResult ManagedObjectList<ObjectType, Allocator>::GetObject(
+template <typename ObjectType, typename Equal, typename Allocator>
+ExecuteResult ManagedObjectList<ObjectType, Equal, Allocator>::GetObject(
     const ObjectType& key, std::vector<HandlerType>& handlers) const {
   if (!ThisType::TestMovedWhenGetObject()) {
     return ExecuteResult::OBJECT_IS_INVALID;
@@ -183,7 +186,7 @@ ExecuteResult ManagedObjectList<ObjectType, Allocator>::GetObject(
 
   std::shared_lock<std::shared_mutex> guard{data_mutex_};
   for (const auto& object : data_) {
-    if (object.GetObject() == key) {
+    if (Equal{}(object.GetObject(), key)) {
       handlers.emplace_back(BaseType::GetThisPtrPtr(),
                             const_cast<ObjectType*>(object.GetObjectPtr()),
                             object.GetUseCountPtr());
@@ -193,8 +196,8 @@ ExecuteResult ManagedObjectList<ObjectType, Allocator>::GetObject(
   return ExecuteResult::SUCCESS;
 }
 
-template <typename ObjectType, typename Allocator>
-ExecuteResult ManagedObjectList<ObjectType, Allocator>::GetObject(
+template <typename ObjectType, typename Equal, typename Allocator>
+ExecuteResult ManagedObjectList<ObjectType, Equal, Allocator>::GetObject(
     const ObjectType& key, HandlerType& handle) const {
   if (!ThisType::TestMovedWhenGetObject()) {
     return ExecuteResult::OBJECT_IS_INVALID;
@@ -205,7 +208,7 @@ ExecuteResult ManagedObjectList<ObjectType, Allocator>::GetObject(
   bool find = false;
 
   for (auto iter = data_.begin(); iter == data_.end(); ++iter) {
-    if (iter->GetObject() == key) {
+    if (Equal{}(iter->GetObject(), key)) {
       new_handler = HandlerType{BaseType::GetThisPtrPtr(),
                                 const_cast<ObjectType*>(iter->GetObjectPtr()),
                                 iter->GetUseCountPtr()};
@@ -223,8 +226,8 @@ ExecuteResult ManagedObjectList<ObjectType, Allocator>::GetObject(
   return ExecuteResult::PARENT_OBJECT_NOT_CONTAIN_SPECIFIC_CHILD_OBJECT;
 }
 
-template <typename ObjectType, typename Allocator>
-ExecuteResult ManagedObjectList<ObjectType, Allocator>::AddObject(
+template <typename ObjectType, typename Equal, typename Allocator>
+ExecuteResult ManagedObjectList<ObjectType, Equal, Allocator>::AddObject(
     ObjectType&& managed_object, HandlerType& handle) {
   if (!ThisType::TestMovedWhenAddObject()) {
     return ExecuteResult::OBJECT_IS_INVALID;
@@ -240,8 +243,8 @@ ExecuteResult ManagedObjectList<ObjectType, Allocator>::AddObject(
   return ExecuteResult::SUCCESS;
 }
 
-template <typename ObjectType, typename Allocator>
-ExecuteResult ManagedObjectList<ObjectType, Allocator>::RemoveObjectImp(
+template <typename ObjectType, typename Equal, typename Allocator>
+ExecuteResult ManagedObjectList<ObjectType, Equal, Allocator>::RemoveObjectImp(
     const ObjectType&, const std::atomic_uint32_t* use_count_ptr, ListTrait) {
   std::unique_lock<std::shared_mutex> guard{data_mutex_};
   if (ThisType::this_ptr_ptr_ == nullptr) {
@@ -261,9 +264,9 @@ ExecuteResult ManagedObjectList<ObjectType, Allocator>::RemoveObjectImp(
   return ExecuteResult::PARENT_OBJECT_NOT_CONTAIN_SPECIFIC_CHILD_OBJECT;
 }
 
-template <typename ObjectType, typename Allocator>
-ManagedObjectList<ObjectType, Allocator>&
-ManagedObjectList<ObjectType, Allocator>::operator=(
+template <typename ObjectType, typename Equal, typename Allocator>
+ManagedObjectList<ObjectType, Equal, Allocator>&
+ManagedObjectList<ObjectType, Equal, Allocator>::operator=(
     ManagedObjectList&& other) noexcept {
   if (&other == this) {
     return *this;
@@ -285,8 +288,8 @@ ManagedObjectList<ObjectType, Allocator>::operator=(
   return *this;
 }
 
-template <typename ObjectType, typename Allocator>
-ManagedObjectList<ObjectType, Allocator>::ManagedObjectList(
+template <typename ObjectType, typename Equal, typename Allocator>
+ManagedObjectList<ObjectType, Equal, Allocator>::ManagedObjectList(
     ManagedObjectList&& other) noexcept
     : BaseType() {
   std::unique_lock<std::shared_mutex> guard{other.data_mutex_};
@@ -295,13 +298,13 @@ ManagedObjectList<ObjectType, Allocator>::ManagedObjectList(
   data_ = std::move(other.data_);
 }
 
-template <typename ObjectType, typename Allocator>
-uint32_t ManagedObjectList<ObjectType, Allocator>::GetSize(
+template <typename ObjectType, typename Equal, typename Allocator>
+uint32_t ManagedObjectList<ObjectType, Equal, Allocator>::GetSize(
     const ObjectType& key) const {
   std::shared_lock<std::shared_mutex> guard{data_mutex_};
   std::uint32_t result = 0;
   for (const auto& object : data_) {
-    if (object.GetObject() == key) {
+    if (Equal{}(object.GetObject(), key)) {
       ++result;
     }
   }
@@ -309,22 +312,23 @@ uint32_t ManagedObjectList<ObjectType, Allocator>::GetSize(
   return result;
 }
 
-template <typename ObjectType, typename Allocator>
-bool ManagedObjectList<ObjectType, Allocator>::IsRelationshipContainer() const {
+template <typename ObjectType, typename Equal, typename Allocator>
+bool ManagedObjectList<ObjectType, Equal, Allocator>::IsRelationshipContainer()
+    const {
   return false;
 }
 
-template <typename ObjectType, typename Allocator>
-bool ManagedObjectList<ObjectType, Allocator>::IsMultiContainer() const {
+template <typename ObjectType, typename Equal, typename Allocator>
+bool ManagedObjectList<ObjectType, Equal, Allocator>::IsMultiContainer() const {
   return true;
 }
 
-template <typename ObjectType, typename Allocator>
-bool ManagedObjectList<ObjectType, Allocator>::Have(
+template <typename ObjectType, typename Equal, typename Allocator>
+bool ManagedObjectList<ObjectType, Equal, Allocator>::Have(
     const ObjectType& key) const {
   std::shared_lock<std::shared_mutex> guard{data_mutex_};
   for (auto iter = data_.begin(); iter != data_.end(); ++iter) {
-    if (iter->GetObject() == key) {
+    if (Equal{}(iter->GetObject(), key)) {
       return true;
     }
   }
@@ -332,8 +336,8 @@ bool ManagedObjectList<ObjectType, Allocator>::Have(
   return false;
 }
 
-template <typename ObjectType, typename Allocator>
-size_t ManagedObjectList<ObjectType, Allocator>::GetSize() const {
+template <typename ObjectType, typename Equal, typename Allocator>
+size_t ManagedObjectList<ObjectType, Equal, Allocator>::GetSize() const {
   return data_.size();
 }
 }  // namespace Manager

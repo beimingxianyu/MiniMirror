@@ -111,8 +111,7 @@ MM::ExecuteResult MM::AssetSystem::AssetManager::AddMesh(
 MM::ExecuteResult MM::AssetSystem::AssetManager::AddMesh(
     const FileSystem::Path& asset_path, AssetType::AssetID asset_ID,
     std::unique_ptr<AssetType::RectangleBox>&& aabb_box,
-    std::unique_ptr<std::vector<uint32_t>>&& indexes,
-    std::unique_ptr<std::vector<AssetType::Vertex>>&& vertices,
+    std::vector<uint32_t>&& indexes, std::vector<AssetType::Vertex>&& vertices,
     HandlerType& handler) {
   std::unique_ptr<AssetType::Mesh> mesh(std::make_unique<AssetType::Mesh>(
       asset_path, asset_ID, std::move(aabb_box), std::move(indexes),
@@ -124,8 +123,7 @@ MM::ExecuteResult MM::AssetSystem::AssetManager::AddMesh(
 MM::ExecuteResult MM::AssetSystem::AssetManager::AddMesh(
     const FileSystem::Path& asset_path, AssetType::AssetID asset_ID,
     std::unique_ptr<AssetType::CapsuleBox>&& capsule_box,
-    std::unique_ptr<std::vector<uint32_t>>&& indexes,
-    std::unique_ptr<std::vector<AssetType::Vertex>>&& vertices,
+    std::vector<uint32_t>&& indexes, std::vector<AssetType::Vertex>&& vertices,
     HandlerType& handler) {
   std::unique_ptr<AssetType::Mesh> mesh(std::make_unique<AssetType::Mesh>(
       asset_path, asset_ID, std::move(capsule_box), std::move(indexes),

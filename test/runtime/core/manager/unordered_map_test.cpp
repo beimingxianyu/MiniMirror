@@ -93,9 +93,6 @@ void InsertString(std::vector<MM::Manager::ManagedObjectUnorderedMap<
     handlers.emplace_back();
     map_data.AddObject(i, std::to_string(i), handlers.back());
     ASSERT_EQ(map_data.Have(i), true);
-    if (map_data.GetSize(i) == 2) {
-      handlers.size();
-    }
     ASSERT_EQ(map_data.GetSize(i), 1);
   }
 }

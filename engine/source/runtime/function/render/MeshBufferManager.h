@@ -5,9 +5,11 @@
 
 namespace MM {
 namespace RenderSystem {
-class RenderResourceMeshBuffer;
+class AllocatedMesh;
 
 class MeshBufferManager {
+  friend class AllocatedMesh;
+
  public:
   MeshBufferManager() = delete;
   ~MeshBufferManager() = default;
@@ -20,9 +22,13 @@ class MeshBufferManager {
   MeshBufferManager& operator=(MeshBufferManager&& other) noexcept;
 
  public:
-  ExecuteResult AllocateMeshBuffer(
-      VkDeviceSize vertex_size, VkDeviceSize index_size,
-      RenderResourceMeshBuffer& render_resource_mesh_buffer);
+  RenderEngine* GetRenderEnginePtr();
+
+  const RenderEngine* GetRenderEnginePtr() const;
+
+  ExecuteResult AllocateMeshBuffer(VkDeviceSize vertex_size,
+                                   VkDeviceSize index_size,
+                                   AllocatedMesh& render_resource_mesh_buffer);
 
   VkBuffer GetVertexBuffer();
 

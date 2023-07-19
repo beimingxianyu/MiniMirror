@@ -29,11 +29,11 @@ MM::AssetSystem::AssetType::Mesh::Mesh(const FileSystem::Path& mesh_path,
              (static_cast<std::uint64_t>(0x1) << 16));
 }
 
-MM::AssetSystem::AssetType::Mesh::Mesh(
-    const FileSystem::Path& asset_path, AssetID asset_ID,
-    std::unique_ptr<RectangleBox>&& aabb_box,
-    std::unique_ptr<std::vector<uint32_t>>&& indexes,
-    std::unique_ptr<std::vector<Vertex>>&& vertices)
+MM::AssetSystem::AssetType::Mesh::Mesh(const FileSystem::Path& asset_path,
+                                       AssetID asset_ID,
+                                       std::unique_ptr<RectangleBox>&& aabb_box,
+                                       std::vector<uint32_t>&& indexes,
+                                       std::vector<Vertex>&& vertices)
     : AssetBase(asset_path, asset_ID),
       bounding_box_(std::move(aabb_box)),
       indexes_(std::move(indexes)),
@@ -41,9 +41,8 @@ MM::AssetSystem::AssetType::Mesh::Mesh(
 
 MM::AssetSystem::AssetType::Mesh::Mesh(
     const FileSystem::Path& asset_path, AssetID asset_ID,
-    std::unique_ptr<CapsuleBox>&& capsule_box,
-    std::unique_ptr<std::vector<uint32_t>>&& indexes,
-    std::unique_ptr<std::vector<Vertex>>&& vertices)
+    std::unique_ptr<CapsuleBox>&& capsule_box, std::vector<uint32_t>&& indexes,
+    std::vector<Vertex>&& vertices)
     : AssetBase(asset_path, asset_ID),
       bounding_box_(std::move(capsule_box)),
       indexes_(std::move(indexes)),
@@ -70,7 +69,7 @@ MM::AssetSystem::AssetType::Mesh& MM::AssetSystem::AssetType::Mesh::operator=(
 
 bool MM::AssetSystem::AssetType::Mesh::IsValid() const {
   return AssetBase::IsValid() && bounding_box_ != nullptr &&
-         indexes_ != nullptr && vertices_ != nullptr;
+         !indexes_.empty() && !vertices_.empty();
 }
 
 MM::AssetSystem::AssetType::AssetType
@@ -79,28 +78,29 @@ MM::AssetSystem::AssetType::Mesh::GetAssetType() const {
 }
 
 uint32_t MM::AssetSystem::AssetType::Mesh::GetVerticesCount() const {
-  return vertices_->size();
+  return vertices_.size();
 }
 
 const MM::AssetSystem::AssetType::BoundingBox&
 MM::AssetSystem::AssetType::Mesh::GetBoundingBox() const {
+  assert(bounding_box_ != nullptr);
   return *bounding_box_;
 }
 
 const std::vector<std::uint32_t>& MM::AssetSystem::AssetType::Mesh::GetIndexes()
     const {
-  return *indexes_;
+  return indexes_;
 }
 
 const std::vector<MM::AssetSystem::AssetType::Vertex>&
 MM::AssetSystem::AssetType::Mesh::GetVertices() const {
-  return *vertices_;
+  return vertices_;
 }
 
 void MM::AssetSystem::AssetType::Mesh::Release() {
   bounding_box_.reset();
-  indexes_.reset();
-  vertices_.reset();
+  indexes_.clear();
+  vertices_.clear();
   AssetBase::Release();
 }
 
@@ -163,7 +163,7 @@ void MM::AssetSystem::AssetType::Mesh::ProcessMesh(const aiMesh& mesh) {
     }
     vertices.push_back(std::move(temp));
   }
-  vertices_ = std::make_unique<std::vector<Vertex>>(std::move(vertices));
+  vertices_ = std::move(vertices);
 
   // Generally, unsigned does not overflow.
   std::vector<std::uint32_t> indexes;
@@ -175,7 +175,7 @@ void MM::AssetSystem::AssetType::Mesh::ProcessMesh(const aiMesh& mesh) {
     indexes.emplace_back(mesh.mFaces[i].mIndices[2]);
   }
   indexes.shrink_to_fit();
-  indexes_ = std::make_unique<std::vector<std::uint32_t>>(std::move(indexes));
+  indexes_ = std::move(indexes);
 
   bounding_box_->UpdateBoundingBox(*this);
 }
@@ -203,49 +203,13 @@ MM::ExecuteResult MM::AssetSystem::AssetType::Mesh::GetJson(
                          GetAssetPath().StringView().data()),
                      allocator);
   document.AddMember("asset id", GetAssetID(), allocator);
-  document.AddMember("number of indexes", indexes_->size(), allocator);
-  document.AddMember("number of vertices", vertices_->size(), allocator);
+  document.AddMember("number of indexes", indexes_.size(), allocator);
+  document.AddMember("number of vertices", vertices_.size(), allocator);
 
   Utils::Json::Value bounding_box(Utils::Json::kObjectType);
 
-  switch (bounding_box_->GetBoundingType()) {
-    case BoundingBox::BoundingBoxType::AABB: {
-      Utils::Json::Value bounding_type{"AABB"};
-      const Math::vec3& left_bottom_forward =
-          dynamic_cast<const RectangleBox&>(*bounding_box_)
-              .GetLeftBottomForward();
-      const Math::vec3& right_top_back =
-          dynamic_cast<const RectangleBox&>(*bounding_box_).GetRightTopBack();
-      Utils::Json::Value left{left_bottom_forward.x};
-      Utils::Json::Value bottom{left_bottom_forward.y};
-      Utils::Json::Value forward{left_bottom_forward.z};
-      Utils::Json::Value right{right_top_back.x};
-      Utils::Json::Value top{right_top_back.y};
-      Utils::Json::Value back{right_top_back.z};
-      bounding_box.AddMember("bounding box type", bounding_type, allocator);
-      bounding_box.AddMember("left", left, allocator);
-      bounding_box.AddMember("bottom", bottom, allocator);
-      bounding_box.AddMember("forward", forward, allocator);
-      bounding_box.AddMember("right", right, allocator);
-      bounding_box.AddMember("top", top, allocator);
-      bounding_box.AddMember("back", back, allocator);
-      document.AddMember("bounding box", bounding_box, allocator);
-    } break;
-    case BoundingBox::BoundingBoxType::CAPSULE: {
-      Utils::Json::Value bounding_type{"capsule"};
-      Utils::Json::Value radius{
-          dynamic_cast<const CapsuleBox&>(*bounding_box_).GetRadius()};
-      Utils::Json::Value top{
-          dynamic_cast<const CapsuleBox&>(*bounding_box_).GetTop()};
-      Utils::Json::Value bottom{
-          dynamic_cast<const CapsuleBox&>(*bounding_box_).GetBottom()};
-      bounding_box.AddMember("bounding type", bounding_type, allocator);
-      bounding_box.AddMember("radius", radius, allocator);
-      bounding_box.AddMember("top", top, allocator);
-      bounding_box.AddMember("bottom", bottom, allocator);
-      document.AddMember("bounding box", bounding_box, allocator);
-    } break;
-  }
+  bounding_box_->GetJson(bounding_box, allocator);
+  document.AddMember("bounding box", bounding_box, allocator);
 
   return ExecuteResult ::SUCCESS;
 }
@@ -310,22 +274,26 @@ MM::ExecuteResult MM::AssetSystem::AssetType::Mesh::CalculateAssetID(
 std::vector<std::pair<void*, std::uint64_t>>
 MM::AssetSystem::AssetType::Mesh::GetDatas() {
   return std::vector<std::pair<void*, std::uint64_t>>{
-      std::pair<void*, std::uint64_t>(indexes_->data(),
-                                      sizeof(std::uint32_t) * indexes_->size()),
-      std::pair<void*, std::uint64_t>(vertices_->data(),
-                                      sizeof(Vertex) * vertices_->size())};
+      std::pair<void*, std::uint64_t>(indexes_.data(),
+                                      sizeof(std::uint32_t) * indexes_.size()),
+      std::pair<void*, std::uint64_t>(vertices_.data(),
+                                      sizeof(Vertex) * vertices_.size())};
 }
 
 std::vector<std::pair<const void*, std::uint64_t>>
 MM::AssetSystem::AssetType::Mesh::GetDatas() const {
   return std::vector<std::pair<const void*, std::uint64_t>>{
       std::pair<const void*, std::uint64_t>(
-          indexes_->data(), sizeof(std::uint32_t) * indexes_->size()),
-      std::pair<const void*, std::uint64_t>(
-          vertices_->data(), sizeof(Vertex) * vertices_->size())};
+          indexes_.data(), sizeof(std::uint32_t) * indexes_.size()),
+      std::pair<const void*, std::uint64_t>(vertices_.data(),
+                                            sizeof(Vertex) * vertices_.size())};
 }
 
 std::uint64_t MM::AssetSystem::AssetType::Mesh::GetSize() const {
-  return indexes_->size() * sizeof(std::uint32_t) +
-         vertices_->size() * sizeof(Vertex);
+  return indexes_.size() * sizeof(std::uint32_t) +
+         vertices_.size() * sizeof(Vertex);
+}
+
+std::uint32_t MM::AssetSystem::AssetType::Mesh::GetIndexesCount() const {
+  return indexes_.size();
 }

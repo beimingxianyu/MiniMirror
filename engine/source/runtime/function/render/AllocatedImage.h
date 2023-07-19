@@ -18,7 +18,7 @@ class RenderEngine;
 class AllocatedImage final : public RenderResourceDataBase {
  public:
   AllocatedImage() = default;
-  ~AllocatedImage() = default;
+  virtual ~AllocatedImage() override = default;
   AllocatedImage(const std::string& name,
                  const RenderResourceDataID& render_resource_data_ID,
                  RenderEngine* render_engine,

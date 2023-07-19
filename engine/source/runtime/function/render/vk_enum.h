@@ -9,8 +9,7 @@ namespace RenderSystem {
 enum class ResourceType {
   Texture,
   BUFFER,
-  INDEX_BUFFER,
-  VERTEX_BUFFER,
+  MESH_BUFFER,
   FRAME_BUFFER,
   CONSTANTS,
   STAGE_BUFFER,

@@ -24,19 +24,19 @@ class Mesh : public AssetBase {
        BoundingBox::BoundingBoxType bounding_box_type);
   Mesh(const FileSystem::Path& asset_path, AssetID asset_ID,
        std::unique_ptr<RectangleBox>&& aabb_box,
-       std::unique_ptr<std::vector<uint32_t>>&& indexes,
-       std::unique_ptr<std::vector<Vertex>>&& vertices);
+       std::vector<uint32_t>&& indexes, std::vector<Vertex>&& vertices);
   Mesh(const FileSystem::Path& asset_path, AssetID asset_ID,
        std::unique_ptr<CapsuleBox>&& capsule_box,
-       std::unique_ptr<std::vector<uint32_t>>&& indexes,
-       std::unique_ptr<std::vector<Vertex>>&& vertices);
+       std::vector<uint32_t>&& indexes, std::vector<Vertex>&& vertices);
   Mesh(const Mesh& other) = delete;
   Mesh(Mesh&& other) noexcept;
   Mesh& operator=(const Mesh& other) = delete;
   Mesh& operator=(Mesh&& other) noexcept;
 
  public:
-  uint32_t GetVerticesCount() const;
+  std::uint32_t GetVerticesCount() const;
+
+  std::uint32_t GetIndexesCount() const;
 
   const BoundingBox& GetBoundingBox() const;
 
@@ -72,8 +72,8 @@ class Mesh : public AssetBase {
 
  private:
   std::unique_ptr<BoundingBox> bounding_box_{nullptr};
-  std::unique_ptr<std::vector<uint32_t>> indexes_{nullptr};
-  std::unique_ptr<std::vector<Vertex>> vertices_{nullptr};
+  std::vector<uint32_t> indexes_{};
+  std::vector<Vertex> vertices_{};
 };
 }  // namespace AssetType
 }  // namespace AssetSystem

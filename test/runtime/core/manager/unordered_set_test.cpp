@@ -84,9 +84,6 @@ void InsertString2(
     handlers.emplace_back();
     set_data.AddObject(std::to_string(i), handlers.back());
     ASSERT_EQ(set_data.Have(std::to_string(i)), true);
-    if (set_data.GetSize(std::to_string(i)) == 2) {
-      handlers.size();
-    }
     ASSERT_EQ(set_data.GetSize(std::to_string(i)), 1);
   }
 }

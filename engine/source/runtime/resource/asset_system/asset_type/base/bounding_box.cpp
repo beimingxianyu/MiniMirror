@@ -18,6 +18,12 @@ MM::AssetSystem::AssetType::BoundingBox::operator=(
   return *this;
 }
 
+MM::ExecuteResult MM::AssetSystem::AssetType::BoundingBox::GetJson(
+    Utils::Json::Value& output_json_data,
+    Utils::Json::MemoryPoolAllocator<>& allocator) const {
+  return Utils::ExecuteResult::UNDEFINED_ERROR;
+}
+
 MM::AssetSystem::AssetType::RectangleBox::RectangleBox(
     const Math::vec3& left_bottom_forward, const Math::vec3& right_top_back)
     : left_bottom_forward(left_bottom_forward),
@@ -229,6 +235,33 @@ MM::ExecuteResult MM::AssetSystem::AssetType::RectangleBox::UpdateBoundingBox(
   return ExecuteResult ::SUCCESS;
 }
 
+MM::ExecuteResult MM::AssetSystem::AssetType::RectangleBox::GetJson(
+    rapidjson::Value& output_json_data,
+    Utils::Json::MemoryPoolAllocator<>& allocator) const {
+  if (!output_json_data.IsObject()) {
+    return ExecuteResult ::INPUT_PARAMETERS_ARE_INCORRECT;
+  }
+
+  Utils::Json::Value bounding_type{"AABB"};
+  const Math::vec3& left_bottom_forward = GetLeftBottomForward();
+  const Math::vec3& right_top_back = GetRightTopBack();
+  Utils::Json::Value left{left_bottom_forward.x};
+  Utils::Json::Value bottom{left_bottom_forward.y};
+  Utils::Json::Value forward{left_bottom_forward.z};
+  Utils::Json::Value right{right_top_back.x};
+  Utils::Json::Value top{right_top_back.y};
+  Utils::Json::Value back{right_top_back.z};
+  output_json_data.AddMember("bounding box type", bounding_type, allocator);
+  output_json_data.AddMember("left", left, allocator);
+  output_json_data.AddMember("bottom", bottom, allocator);
+  output_json_data.AddMember("forward", forward, allocator);
+  output_json_data.AddMember("right", right, allocator);
+  output_json_data.AddMember("top", top, allocator);
+  output_json_data.AddMember("back", back, allocator);
+
+  return ExecuteResult ::SUCCESS;
+}
+
 MM::AssetSystem::AssetType::CapsuleBox&
 MM::AssetSystem::AssetType::CapsuleBox::operator=(const CapsuleBox& other) {
   if (&other == this) {
@@ -344,6 +377,25 @@ MM::ExecuteResult MM::AssetSystem::AssetType::CapsuleBox::UpdateBoundingBox(
       bottom_ = vertex_position.y;
     }
   }
+
+  return ExecuteResult ::SUCCESS;
+}
+
+MM::ExecuteResult MM::AssetSystem::AssetType::CapsuleBox::GetJson(
+    rapidjson::Value& output_json_data,
+    rapidjson::MemoryPoolAllocator<>& allocator) const {
+  if (!output_json_data.IsObject()) {
+    return ExecuteResult ::INPUT_PARAMETERS_ARE_INCORRECT;
+  }
+
+  Utils::Json::Value bounding_type{"capsule"};
+  Utils::Json::Value radius{GetRadius()};
+  Utils::Json::Value top{GetTop()};
+  Utils::Json::Value bottom{GetBottom()};
+  output_json_data.AddMember("bounding type", bounding_type, allocator);
+  output_json_data.AddMember("radius", radius, allocator);
+  output_json_data.AddMember("top", top, allocator);
+  output_json_data.AddMember("bottom", bottom, allocator);
 
   return ExecuteResult ::SUCCESS;
 }

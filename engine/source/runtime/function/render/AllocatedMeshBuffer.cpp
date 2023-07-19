@@ -199,13 +199,15 @@ ExecuteResult AllocatedMeshBuffer::InitMeshBuffer(
       nullptr, 0, vertex_buffer_size,
       VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT |
           VK_BUFFER_USAGE_TRANSFER_SRC_BIT |
-          VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT,
+          VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT |
+          VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
       VK_SHARING_MODE_EXCLUSIVE, 1, &graph_index);
   VkBufferCreateInfo index_buffer_create_info = Utils::GetVkBufferCreateInfo(
       nullptr, 0, index_buffer_size,
       VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT |
           VK_BUFFER_USAGE_TRANSFER_SRC_BIT |
-          VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT,
+          VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT |
+          VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
       VK_SHARING_MODE_EXCLUSIVE, 1, &graph_index);
 
   VmaAllocationCreateInfo vma_allocation_create_info =

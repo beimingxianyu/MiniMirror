@@ -529,7 +529,11 @@ MM::ExecuteResult MM::RenderSystem::AllocatedBuffer::CopyAssetDataToBuffer(
     return MM::Utils::ExecuteResult ::INPUT_PARAMETERS_ARE_NOT_SUITABLE;
   }
 
-  AllocatedBuffer stage_buffer;
+  AllocatedBuffer stage_buffer{};
+  MM_CHECK(GetRenderEnginePtr()->CreateStageBuffer(asset_datas_size,
+                                                   queue_index, stage_buffer),
+           LOG_ERROR("Failed to create stage buffer.");
+           return MM::Utils::ExecuteResult ::CREATE_OBJECT_FAILED;)
 
   std::vector<BufferSubResourceAttribute> old_sub_resource_attribute;
   MM_CHECK(
@@ -553,11 +557,6 @@ MM::ExecuteResult MM::RenderSystem::AllocatedBuffer::CopyAssetDataToBuffer(
 
             VkDependencyInfo dependency_info{
                 Utils::GetVkDependencyInfo(nullptr, &barrier, nullptr, 0)};
-
-            MM_CHECK(this_buffer->GetRenderEnginePtr()->CreateStageBuffer(
-                         asset_datas_size, queue_index, stage_buffer),
-                     LOG_ERROR("Failed to create stage buffer.");
-                     return MM::Utils::ExecuteResult ::CREATE_OBJECT_FAILED;)
 
             void* stage_buffer_ptr{nullptr};
             VkDeviceSize src_offset{0};

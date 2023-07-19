@@ -63,7 +63,7 @@ class AllocatedBufferWrapper {
 class AllocatedBuffer : public RenderResourceDataBase {
  public:
   AllocatedBuffer() = default;
-  ~AllocatedBuffer() = default;
+  virtual ~AllocatedBuffer() override = default;
   AllocatedBuffer(
       const std::string& name,
       const MM::RenderSystem::RenderResourceDataID& render_resource_data_ID,

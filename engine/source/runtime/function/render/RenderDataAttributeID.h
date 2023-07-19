@@ -9,7 +9,7 @@ namespace RenderSystem {
  * | - - - - - - - - - - - - - - - - | - - - - - - - - - - - - - - - - | - - - - - - - | - - - | - - - - - - - - | - - - | - - - | - - - | - - - |
  * |           pNext                 |              flags              |      empty    | IType |      format     | comp.r| comp.g| comp.b| comp.a|
  * |           16bit                 |              18bits             |      empty    | 3bits |      8bits      | 3bits | 3bits | 3bits | 3bits |
- * |  The last 16 bits of pointer.   |              Bitmask            |      empty    | value |      value      | valus | valus | valus | valus |
+ * |  The last 16 bits of pointer.   |              Bitmask            |      empty    | value |      value      | value | value | value | value |
  * | - - - - - - - - - - - - - - - - | - - - - - - - - - - - - - - - - | - - - - - - - | - - - | - - - - - - - - | - - - | - - - | - - - | - - - |
  *
  * resource_attribute2_
@@ -70,9 +70,9 @@ using RenderImageDataAttributeID = RenderResourceDataAttributeID;
 // clang-format off
 /** resource_attribute1_
  * | - - - - - - - - - - - - - | - - - - - - - - - - - - - - - - | - - | - - - - - - - - | - - - - - - - - - - - - - - - - - - - - - - - - - |
- * |               empty       |           pNext                 |SMod |      flags      |                     usage                         |
+ * |               empty       |           pNext                 |sMod |      flags      |                     usage                         |
  * |               empty       |           16bit                 |2bits|      8bits      |                     25bits                        |
- * |               empty       |  The last 16 bits of pointer.   |value|      Bitmask    |                     Bitmask                       |
+ * |               empty       |  the last 16 bits of pointer.   |value|      bitmask    |                     bitmask                       |
  * | - - - - - - - - - - - - - | - - - - - - - - - - - - - - - - | - - | - - - - - - - - | - - - - - - - - - - - - - - - - - - - - - - - - - |
  *
  * resource_attribute2_
@@ -84,12 +84,37 @@ using RenderImageDataAttributeID = RenderResourceDataAttributeID;
  *
  * resource_attribute3_
  *  | - - - - - - - - - - - - - - - | - - - - | - - - - - - - - - - | - - - - - - - | - - - - - - - - - - | - - - - | - - - - - - - - - - - - - - |
- *  |          flags                |  usage  |    requiredFlags    |     empty     |    preferredFlags   | MemType |           priority          |                                                                                       |
+ *  |          flags                |  usage  |    requiredFlags    |     empty     |    preferredFlags   | memType |           priority          |                                                                                       |
  *  |          15bits               |  4bits  |       10bits        |     empty     |       10bits        |  4bits  |            14bits           |
- *  |          BitMask              |  value  |       Bitmask       |     empty     |       Bitmask       |  value  |            value            |
+ *  |          bitmask              |  value  |       bitmask       |     empty     |       bitmask       |  value  |            value            |
  *  | - - - - - - - - - - - - - - - | - - - - | - - - - - - - - - - | - - - - - - - | - - - - - - - - - - | - - - - | - - - - - - - - - - - - - - |
 **/
 // clang-format on
 using RenderBufferDataAttributeID = RenderResourceDataAttributeID;
+
+// clang-format off
+/** resource_attribute1_
+ * | - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - |
+ * |                                                         empty
+ * |                                                         64bits                                                                  |
+ * |                                                         value                                                                   |
+ * | - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - |
+ *
+ * resource_attribute2_
+ * | - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - |
+ * |                                                         empty
+ * |                                                         64bits                                                                  |
+ * |                                                         value                                                                   |
+ * | - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - |
+ *
+ * resource_attribute3_
+ * | - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - |
+ * |                                                         empty
+ * |                                                         64bits                                                                  |
+ * |                                                         value                                                                   |
+ * | - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - |
+**/
+// clang-format on
+using RenderMeshBufferDataAttributeID = RenderResourceDataAttributeID;
 }  // namespace RenderSystem
 }  // namespace MM

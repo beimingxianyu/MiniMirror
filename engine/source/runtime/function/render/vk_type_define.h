@@ -27,6 +27,7 @@ namespace MM {
 namespace RenderSystem {
 class RenderEngine;
 using QueueIndex = std::uint32_t;
+using VertexIndex = std::uint32_t;
 
 struct QueueFamilyIndices {
   std::optional<uint32_t> graphics_family_;

@@ -9,7 +9,6 @@
 
 namespace MM {
 namespace Manager {
-// TODO Add custom comparator functionality(set, multiset, map, multimap)
 template <typename ObjectType, typename Less = std::less<>,
           typename Allocator = std::allocator<ManagedObjectWrapper<ObjectType>>>
 class ManagedObjectSet

@@ -150,7 +150,7 @@ MM::RenderSystem::AllocatedImage::AllocatedImage(
     MM::AssetSystem::AssetManager::HandlerType image_handler,
     VkImageLayout image_layout, const VkImageCreateInfo* vk_image_create_info,
     const VmaAllocationCreateInfo* vma_allocation_create_info)
-    : RenderResourceDataBase(name, RenderResourceDataID{}),
+    : RenderResourceDataBase(name, RenderResourceDataID()),
       render_engine_(render_engine),
       image_data_info_(),
       wrapper_() {
