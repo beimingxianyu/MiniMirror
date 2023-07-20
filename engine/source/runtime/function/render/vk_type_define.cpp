@@ -2226,6 +2226,7 @@ void MM::RenderSystem::MeshBufferCapacityData::Reset() {
 bool MM::RenderSystem::MeshBufferCapacityData::IsValid() const {
   return capacity_coefficient_ > 0.0f && expansion_coefficient_ > 1.0f;
 }
+
 MM::RenderSystem::MeshBufferCapacityData::MeshBufferCapacityData(
     float capacity_coefficient, float expansion_coefficient,
     VkDeviceSize index_buffer_remaining_capacity,

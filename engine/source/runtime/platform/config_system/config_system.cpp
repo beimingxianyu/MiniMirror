@@ -86,13 +86,6 @@ MM::ConfigSystem::ConfigSystem* MM::ConfigSystem::ConfigSystem::GetInstance() {
   return config_system_;
 }
 
-std::string MM::ConfigSystem::ConfigSystem::GetConfig(const std::string& key) {
-  if (Have(key)) {
-    return config_data_base_[key];
-  }
-  return std::string{};
-}
-
 bool MM::ConfigSystem::ConfigSystem::Have(const std::string& key) const {
   return config_data_base_.find(key) != config_data_base_.end();
 }
@@ -188,15 +181,10 @@ void MM::ConfigSystem::ConfigSystem::CheckInit() {
     throw std::runtime_error(
         "The required settings are not loaded. Please reset init config file.");
   }
-  if (!CheckInitVertexAndIndexBuffer()) {
-    throw std::runtime_error(
-        "The setting for vertex_buffer_size and index_buffer_size are "
-        "incorrect. Please reset init config file.");
-  }
 }
 
 bool MM::ConfigSystem::ConfigSystem::CheckAllNeedConfigLoaded() {
-  if (config_data_base_.size() < 18) {
+  if (config_data_base_.size() < 16) {
     return false;
   }
   if (config_data_base_.find("version_major") == config_data_base_.end()) {
@@ -250,39 +238,10 @@ bool MM::ConfigSystem::ConfigSystem::CheckAllNeedConfigLoaded() {
       config_data_base_.end()) {
     return false;
   }
-  if (config_data_base_.find("max_vertex_buffer_size") ==
-      config_data_base_.end()) {
-    return false;
-  }
   if (config_data_base_.find("init_index_buffer_size") ==
       config_data_base_.end()) {
     return false;
   }
-  if (config_data_base_.find("max_index_buffer_size") ==
-      config_data_base_.end()) {
-    return false;
-  }
-  return true;
-}
-
-bool MM::ConfigSystem::ConfigSystem::CheckInitVertexAndIndexBuffer() {
-  const std::string init_vertex_buffer_size =
-      config_data_base_.find("init_vertex_buffer_size")->second;
-  const std::string max_vertex_buffer_size =
-      config_data_base_.find("max_vertex_buffer_size")->second;
-  if (std::stoul(init_vertex_buffer_size) >
-      std::stoul(max_vertex_buffer_size)) {
-    return false;
-  }
-
-  const std::string init_index_buffer_size =
-      config_data_base_.find("init_index_buffer_size")->second;
-  const std::string max_index_buffer_size =
-      config_data_base_.find("max_index_buffer_size")->second;
-  if (std::stoul(init_index_buffer_size) > std::stoul(max_index_buffer_size)) {
-    return false;
-  }
-
   return true;
 }
 
@@ -346,7 +305,7 @@ MM::ExecuteResult MM::ConfigSystem::ConfigSystem::GetConfig(
 }
 
 MM::ExecuteResult MM::ConfigSystem::ConfigSystem::GetConfig(
-    const std::string& key, int& get_data) const {
+    const std::string& key, std::int32_t& get_data) const {
   if (Have(key)) {
     get_data = std::stoi(config_data_base_[key]);
     return ExecuteResult::SUCCESS;
@@ -355,9 +314,9 @@ MM::ExecuteResult MM::ConfigSystem::ConfigSystem::GetConfig(
 }
 
 MM::ExecuteResult MM::ConfigSystem::ConfigSystem::GetConfig(
-    const std::string& key, unsigned int& get_data) const {
+    const std::string& key, std::uint32_t& get_data) const {
   if (Have(key)) {
-    get_data = static_cast<unsigned int>(std::stoi(config_data_base_[key]));
+    get_data = static_cast<unsigned int>(std::stol(config_data_base_[key]));
     return ExecuteResult::SUCCESS;
   }
   return ExecuteResult::NO_SUCH_CONFIG;
@@ -373,9 +332,9 @@ MM::ExecuteResult MM::ConfigSystem::ConfigSystem::GetConfig(
 }
 
 MM::ExecuteResult MM::ConfigSystem::ConfigSystem::GetConfig(
-    const std::string& key, long& get_data) const {
+    const std::string& key, double& get_data) const {
   if (Have((key))) {
-    get_data = std::stol(config_data_base_[key]);
+    get_data = std::stod(config_data_base_[key]);
     return ExecuteResult::SUCCESS;
   }
   return ExecuteResult::NO_SUCH_CONFIG;
@@ -391,25 +350,16 @@ MM::ExecuteResult MM::ConfigSystem::ConfigSystem::GetConfig(
 }
 
 MM::ExecuteResult MM::ConfigSystem::ConfigSystem::GetConfig(
-    const std::string& key, long long& get_data) const {
+    const std::string& key, std::int64_t& get_data) const {
   if (Have((key))) {
-    get_data = std::stoll(config_data_base_[key]);
+    get_data = std::stoull(config_data_base_[key]);
     return ExecuteResult::SUCCESS;
   }
   return ExecuteResult::NO_SUCH_CONFIG;
 }
 
 MM::ExecuteResult MM::ConfigSystem::ConfigSystem::GetConfig(
-    const std::string& key, unsigned long& get_data) const {
-  if (Have((key))) {
-    get_data = std::stoul(config_data_base_[key]);
-    return ExecuteResult::SUCCESS;
-  }
-  return ExecuteResult::NO_SUCH_CONFIG;
-}
-
-MM::ExecuteResult MM::ConfigSystem::ConfigSystem::GetConfig(
-    const std::string& key, unsigned long long& get_data) const {
+    const std::string& key, std::uint64_t& get_data) const {
   if (Have((key))) {
     get_data = std::stoull(config_data_base_[key]);
     return ExecuteResult::SUCCESS;

@@ -365,7 +365,7 @@ template <typename ConstantType>
 class RenderResourceConstants final : public RenderResourceDataBase {
  public:
   RenderResourceConstants() = default;
-  ~RenderResourceConstants() override = default;
+  ~RenderResourceConstants() = default;
   /**
    * \remark If the ConstantType cannot be directly destructed using "delete",
    * the incoming std:: shared_ptr should come with a customized destructor.

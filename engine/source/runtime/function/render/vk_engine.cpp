@@ -972,8 +972,7 @@ void MM::RenderSystem::RenderEngine::ChooseMultiSampleCount() {
     return;
   }
   MM_CHECK(CONFIG_SYSTEM->GetConfig("multi_sample_count", count),
-           LOG_ERROR("The setting of \"multi_sample_count\" is not exist.");
-           render_engine_info_.multi_sample_count_ = VK_SAMPLE_COUNT_4_BIT;
+           LOG_FATAL("The setting of \"multi_sample_count\" is not exist.");
            return;)
 
   if (count < 2) {
@@ -1031,14 +1030,11 @@ void MM::RenderSystem::RenderEngine::InitInstance() {
   uint32_t version_major = 0;
   uint32_t version_minor = 0;
   uint32_t version_patch = 0;
-  MM_CHECK(
-      CONFIG_SYSTEM->GetConfig("version_major", version_major) |
-          CONFIG_SYSTEM->GetConfig("version_minor", version_minor) |
-          CONFIG_SYSTEM->GetConfig("version_patch", version_patch),
-      version_major = 0;
-      version_minor = 0; version_patch = 0; LOG_WARN(
-          "Failed to get the engine version, set to the default version of "
-          "0.0.0.");)
+  MM_CHECK(CONFIG_SYSTEM->GetConfig("version_major", version_major) |
+               CONFIG_SYSTEM->GetConfig("version_minor", version_minor) |
+               CONFIG_SYSTEM->GetConfig("version_patch", version_patch),
+           LOG_FATAL("The software version number is not set.");
+           return;)
   if (enable_validation_layers_) {
     if (CheckValidationLayerSupport()) {
       enable_layer_.push_back(validation_layers_name.c_str());
@@ -1415,14 +1411,12 @@ void MM::RenderSystem::RenderEngine::InitGlfw() {
   // Read the initialization settings.
   MM_CHECK(
       CONFIG_SYSTEM->GetConfig("window_extent_width", window_extent_.width),
-      LOG_WARN(
-          "\"Window_extent_width.\" is not set.Set to default value(1960)");
-      window_extent_.width = 1960;)
+      LOG_FATAL("Setting item \"Window_extent_width.\" does not exist.");
+      return;)
   MM_CHECK(
       CONFIG_SYSTEM->GetConfig("window_extent_height", window_extent_.height),
-      LOG_WARN(
-          "\"Window_extent_height.\" is not set.Set to default value(1080)");
-      window_extent_.height = 1080;)
+      LOG_FATAL("Setting iterm \"Window_extent_height.\" does not exist.");
+      return;)
 
   // Initialize glfw.
   glfwInit();

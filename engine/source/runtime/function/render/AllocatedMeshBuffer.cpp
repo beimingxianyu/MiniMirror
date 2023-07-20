@@ -21,11 +21,15 @@ AllocatedMeshBuffer::AllocatedMeshBuffer(RenderEngine *render_engine)
     return;
   }
 
-  const auto vertex_buffer_size =
-      std::stoull(CONFIG_SYSTEM->GetConfig("init_vertex_buffer_size"));
-
-  const auto index_buffer_size =
-      std::stoull(CONFIG_SYSTEM->GetConfig("init_index_buffer_size"));
+  VkDeviceSize vertex_buffer_size = 0, index_buffer_size = 0;
+  MM_CHECK(
+      CONFIG_SYSTEM->GetConfig("init_vertex_buffer_size", vertex_buffer_size),
+      LOG_FATAL("Setting item \"init_vertex_buffer_size\" does not exist.");
+      return;);
+  MM_CHECK(
+      CONFIG_SYSTEM->GetConfig("init_index_buffer_size", index_buffer_size),
+      LOG_FATAL("Setting item \"init_index_buffer_size\" does not exist.");
+      return;);
   InitMeshBuffer(vertex_buffer_size, index_buffer_size);
 }
 

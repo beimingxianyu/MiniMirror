@@ -19,13 +19,13 @@ std::unordered_map<std::string, std::string> LoadConfigFromIni(
 class ConfigSystem {
   friend std::shared_ptr<ConfigSystem>;
 
-public:
+ public:
   ConfigSystem(const ConfigSystem&) = delete;
   ConfigSystem(ConfigSystem&&) = delete;
   ConfigSystem& operator=(const ConfigSystem&) = delete;
   ConfigSystem& operator=(ConfigSystem&&) = delete;
 
-public:
+ public:
   /**
    * \brief Create instance.
    * \return A ConfigSystem instance.
@@ -48,7 +48,7 @@ public:
   void SetConfig(const std::string& key, const unsigned long& data);
   void SetConfig(const std::string& key, const unsigned long long& data);
 
-  // TODO Implement the "std::stoXX" function again using error codes and add TYPE_CONVERSION_FAILED.
+  // TYPE_CONVERSION_FAILED.
   /**
    * \brief Get the value.
    * \param key Name of the setting to be modified.
@@ -57,23 +57,16 @@ public:
    * return true.
    */
   ExecuteResult GetConfig(const std::string& key, std::string& get_data) const;
-  ExecuteResult GetConfig(const std::string& key, int& get_data) const;
-  ExecuteResult GetConfig(const std::string& key, unsigned& get_data) const;
-  ExecuteResult GetConfig(const std::string& key, float& get_data) const;
-  ExecuteResult GetConfig(const std::string& key, long& get_data) const;
-  ExecuteResult GetConfig(const std::string& key, long double& get_data) const;
-  ExecuteResult GetConfig(const std::string& key, long long& get_data) const;
-  ExecuteResult GetConfig(const std::string& key, unsigned long& get_data) const;
+  ExecuteResult GetConfig(const std::string& key, std::int32_t& get_data) const;
   ExecuteResult GetConfig(const std::string& key,
-                          unsigned long long& get_data) const;
+                          std::uint32_t& get_data) const;
+  ExecuteResult GetConfig(const std::string& key, std::int64_t& get_data) const;
+  ExecuteResult GetConfig(const std::string& key,
+                          std::uint64_t& get_data) const;
+  ExecuteResult GetConfig(const std::string& key, float& get_data) const;
+  ExecuteResult GetConfig(const std::string& key, double& get_data) const;
+  ExecuteResult GetConfig(const std::string& key, long double& get_data) const;
   // void SetConfig(std::string key, std::string data);
-
-  /**
-   * \brief Get the value,but its type is std::string.
-   * \param key Name of the setting to be modified.
-   * \return The data of setting you want to obtain.
-   */
-  std::string GetConfig(const std::string& key);
 
   /**
    * \brief Judge whether a setting item exists.
@@ -117,8 +110,7 @@ public:
    */
   std::size_t Size();
 
-
-   /**
+  /**
    * \brief Destroy the instance. If it is successfully destroyed, it returns
    * true, otherwise it returns false.
    * \remark Only when no other module uses
@@ -126,14 +118,13 @@ public:
    * \return If it is successfully
    * destroyed, it returns true, otherwise it returns false.
    */
-  
 
-protected:
+ protected:
   ConfigSystem() = default;
   ~ConfigSystem();
   static ConfigSystem* config_system_;
 
-private:
+ private:
   /**
    * \brief Destroy the instance. If it is successfully destroyed, it returns
    * true, otherwise it returns false.
@@ -146,11 +137,9 @@ private:
 
   static bool CheckAllNeedConfigLoaded();
 
-  static bool CheckInitVertexAndIndexBuffer();
-
-private:
+ private:
   static std::mutex sync_flag_;
   static std::unordered_map<std::string, std::string> config_data_base_;
 };
-}
+}  // namespace ConfigSystem
 }  // namespace MM

@@ -26,9 +26,9 @@ class MeshBufferManager {
 
   const RenderEngine* GetRenderEnginePtr() const;
 
-  ExecuteResult AllocateMeshBuffer(VkDeviceSize vertex_size,
-                                   VkDeviceSize index_size,
-                                   AllocatedMesh& render_resource_mesh_buffer);
+  ExecuteResult AllocateMeshBuffer(VkDeviceSize require_vertex_size,
+                                   VkDeviceSize require_index_size,
+                                   AllocatedMesh& allocated_mesh);
 
   VkBuffer GetVertexBuffer();
 
@@ -94,10 +94,22 @@ class MeshBufferManager {
                                    VkCopyBufferInfo2& vertex_buffer_copy_info,
                                    VkCopyBufferInfo2& index_buffer_copy_info);
 
-  void FreeMeshBuffer(BufferSubResourceAttribute* sub_vertex_buffer_info_ptr,
-                      BufferSubResourceAttribute* sub_index_buffer_info_ptr);
+  void FreeMeshBuffer(AllocatedMesh& allocated_mesh);
+
+  ExecuteResult ReserveStandard(VkDeviceSize require_vertex_size,
+                                VkDeviceSize require_index_size);
+
+  ExecuteResult RemoveBufferFragmentationWithoutLock();
+
+  ExecuteResult ReserveImp(VkDeviceSize new_vertex_buffer_size,
+                           VkDeviceSize new_index_buffer_size);
+
+  ExecuteResult ReserveWithoutLock(VkDeviceSize new_vertex_buffer_size,
+                                   VkDeviceSize new_index_buffer_size);
 
  private:
+  bool is_valid{false};
+
   AllocatedMeshBuffer managed_allocated_mesh_buffer_{};
   MeshBufferCapacityData capacity_data_{};
   std::list<BufferSubResourceAttribute> sub_vertex_buffer_list_{};

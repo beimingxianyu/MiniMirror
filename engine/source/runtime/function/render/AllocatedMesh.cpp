@@ -16,8 +16,7 @@ MM::RenderSystem::AllocatedMesh::~AllocatedMesh() {
 
   RenderResourceDataBase::Release();
 
-  mesh_buffer_manager_->FreeMeshBuffer(sub_vertex_buffer_info_ptr_,
-                                       sub_index_buffer_info_ptr_);
+  mesh_buffer_manager_->FreeMeshBuffer(*this);
 
   mesh_buffer_manager_ = nullptr;
   sub_vertex_buffer_info_ptr_ = nullptr;
@@ -25,8 +24,8 @@ MM::RenderSystem::AllocatedMesh::~AllocatedMesh() {
 }
 
 MM::RenderSystem::AllocatedMesh::AllocatedMesh(
-    MM::RenderSystem::MeshBufferManager* mesh_buffer_manager,
     const std::string& name,
+    MM::RenderSystem::MeshBufferManager* mesh_buffer_manager,
     MM::AssetSystem::AssetManager::HandlerType mesh_asset)
     : RenderResourceDataBase(name, RenderResourceDataID{}),
       mesh_buffer_manager_(mesh_buffer_manager),
@@ -58,17 +57,16 @@ MM::RenderSystem::AllocatedMesh::AllocatedMesh(
            LOG_ERROR("Failed to copy asset data to buffer.");
            RenderResourceDataBase::Release();
 
-           mesh_buffer_manager_->FreeMeshBuffer(sub_vertex_buffer_info_ptr_,
-                                                sub_index_buffer_info_ptr_);
+           mesh_buffer_manager_->FreeMeshBuffer(*this);
            mesh_buffer_manager_ = nullptr;
            sub_vertex_buffer_info_ptr_ = nullptr;
            sub_index_buffer_info_ptr_ = nullptr; return;)
 }
 
 MM::RenderSystem::AllocatedMesh::AllocatedMesh(
+    const std::string& name,
     MM::RenderSystem::MeshBufferManager* mesh_buffer_manager,
-    const std::string& name, VkDeviceSize vertex_buffer_size,
-    VkDeviceSize index_buffer_size)
+    VkDeviceSize vertex_buffer_size, VkDeviceSize index_buffer_size)
     : RenderResourceDataBase(name, RenderResourceDataID()),
       mesh_buffer_manager_(mesh_buffer_manager),
       sub_vertex_buffer_info_ptr_(nullptr),
@@ -104,6 +102,8 @@ MM::RenderSystem::AllocatedMesh& MM::RenderSystem::AllocatedMesh::operator=(
   if (std::addressof(other) == this) {
     return *this;
   }
+
+  Release();
 
   RenderResourceDataBase::operator=(std::move(other));
   mesh_buffer_manager_ = other.mesh_buffer_manager_;
@@ -364,8 +364,7 @@ void MM::RenderSystem::AllocatedMesh::Release() {
   if (IsValid()) {
     RenderResourceDataBase::Release();
 
-    mesh_buffer_manager_->FreeMeshBuffer(sub_vertex_buffer_info_ptr_,
-                                         sub_index_buffer_info_ptr_);
+    mesh_buffer_manager_->FreeMeshBuffer(*this);
 
     mesh_buffer_manager_ = nullptr;
     sub_vertex_buffer_info_ptr_ = nullptr;

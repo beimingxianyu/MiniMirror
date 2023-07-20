@@ -15,11 +15,12 @@ class AllocatedMesh : public RenderResourceDataBase {
  public:
   AllocatedMesh() = default;
   virtual ~AllocatedMesh() override;
-  AllocatedMesh(MM::RenderSystem::MeshBufferManager* mesh_buffer_manager,
-                const std::string& name,
+  AllocatedMesh(const std::string& name,
+                MM::RenderSystem::MeshBufferManager* mesh_buffer_manager,
                 MM::AssetSystem::AssetManager::HandlerType mesh_asset);
-  AllocatedMesh(MM::RenderSystem::MeshBufferManager* mesh_buffer_manager,
-                const std::string& name, VkDeviceSize vertex_buffer_size,
+  AllocatedMesh(const std::string& name,
+                MM::RenderSystem::MeshBufferManager* mesh_buffer_manager,
+                VkDeviceSize vertex_buffer_size,
                 VkDeviceSize index_buffer_size);
   AllocatedMesh(const AllocatedMesh& other) = delete;
   AllocatedMesh(AllocatedMesh&& other) noexcept;
