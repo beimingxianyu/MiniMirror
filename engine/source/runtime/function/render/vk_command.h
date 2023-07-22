@@ -332,7 +332,7 @@ ExecuteResult CommandTask::Merge(CommandTasks&&... command_tasks) {
   bool input_parameters_is_right = true;
   ((input_parameters_is_right &= (&command_tasks != this)), ...);
   if (!input_parameters_is_right) {
-    LOG_ERROR(
+    MM_LOG_ERROR(
         "The predecessor of an object of type MM::RenderSystem::CommandTask "
         "cannot be itself.");
     return ExecuteResult::INPUT_PARAMETERS_ARE_INCORRECT;
@@ -340,7 +340,8 @@ ExecuteResult CommandTask::Merge(CommandTasks&&... command_tasks) {
   ((input_parameters_is_right &= (task_flow_ == command_tasks.task_flow_)),
    ...);
   if (!input_parameters_is_right) {
-    LOG_ERROR("Two MM::RenderSystem::CommandTask's task_flow_ are not equal.");
+    MM_LOG_ERROR(
+        "Two MM::RenderSystem::CommandTask's task_flow_ are not equal.");
     return ExecuteResult::INPUT_PARAMETERS_ARE_INCORRECT;
   }
   // TODO Optimize the algorithm to remove this limitation.
@@ -348,21 +349,22 @@ ExecuteResult CommandTask::Merge(CommandTasks&&... command_tasks) {
                                   command_tasks.post_tasks_.size() == 0)),
    ...);
   if (!input_parameters_is_right) {
-    LOG_ERROR("Two MM::RenderSystem::CommandTask's task_flow_ are not equal.");
+    MM_LOG_ERROR(
+        "Two MM::RenderSystem::CommandTask's task_flow_ are not equal.");
     return ExecuteResult::INPUT_PARAMETERS_ARE_INCORRECT;
   }
   ((input_parameters_is_right &=
     (command_tasks.command_type_ == command_type_)),
    ...);
   if (!input_parameters_is_right) {
-    LOG_ERROR(
+    MM_LOG_ERROR(
         "Two MM::RenderSystem::CommandTask's command_type_ are not equal.");
     return ExecuteResult::INPUT_PARAMETERS_ARE_INCORRECT;
   }
   // TODO Optimize the algorithm to remove this limitation.
   ((input_parameters_is_right &= (!command_tasks.HaveSubTasks())), ...);
   if (!input_parameters_is_right) {
-    LOG_ERROR("Cannot nest merge MM::RenderSystem::CommandTask.");
+    MM_LOG_ERROR("Cannot nest merge MM::RenderSystem::CommandTask.");
     return ExecuteResult::INPUT_PARAMETERS_ARE_INCORRECT;
   }
 
@@ -393,7 +395,7 @@ ExecuteResult CommandTask::IsPreTaskTo(CommandTasks&&... command_tasks) {
   bool input_parameters_is_right = true;
   ((input_parameters_is_right &= (&command_tasks != this)), ...);
   if (!input_parameters_is_right) {
-    LOG_ERROR(
+    MM_LOG_ERROR(
         "The predecessor of an object of type MM::RenderSystem::CommandTask "
         "cannot be itself.");
     return ExecuteResult::INPUT_PARAMETERS_ARE_INCORRECT;
@@ -401,7 +403,8 @@ ExecuteResult CommandTask::IsPreTaskTo(CommandTasks&&... command_tasks) {
   ((input_parameters_is_right &= (task_flow_ == command_tasks.task_flow_)),
    ...);
   if (!input_parameters_is_right) {
-    LOG_ERROR("Two MM::RenderSystem::CommandTask's task_flow_ are not equal.");
+    MM_LOG_ERROR(
+        "Two MM::RenderSystem::CommandTask's task_flow_ are not equal.");
     return ExecuteResult::INPUT_PARAMETERS_ARE_INCORRECT;
   }
 
@@ -417,7 +420,7 @@ ExecuteResult CommandTask::IsPostTaskTo(CommandTasks&&... command_tasks) {
   bool input_parameters_is_right = true;
   ((input_parameters_is_right &= (&command_tasks != this)), ...);
   if (!input_parameters_is_right) {
-    LOG_ERROR(
+    MM_LOG_ERROR(
         "The post task of an object of type MM::RenderSystem::CommandTask "
         "cannot be itself.");
     return ExecuteResult::INPUT_PARAMETERS_ARE_INCORRECT;
@@ -425,7 +428,8 @@ ExecuteResult CommandTask::IsPostTaskTo(CommandTasks&&... command_tasks) {
   ((input_parameters_is_right &= (task_flow_ == command_tasks.task_flow_)),
    ...);
   if (!input_parameters_is_right) {
-    LOG_ERROR("Two MM::RenderSystem::CommandTask's task_flow_ are not equal.");
+    MM_LOG_ERROR(
+        "Two MM::RenderSystem::CommandTask's task_flow_ are not equal.");
     return ExecuteResult::INPUT_PARAMETERS_ARE_INCORRECT;
   }
 
@@ -789,7 +793,7 @@ class CommandExecutor {
 
   void ProcessOneCanSubmitTask(
       std::list<CommandTaskToBeSubmit>::iterator& command_task_to_be_submit,
-      const std::shared_ptr<ExecutingCommandTaskFlow>& command_task_flow,
+      std::shared_ptr<ExecutingCommandTaskFlow>& command_task_flow,
       std::uint32_t& number_of_blocked_cross_task_flow);
 
   void ProcessWhenOneFailedSubmit(
@@ -808,16 +812,18 @@ class CommandExecutor {
       std::shared_ptr<ExecutingCommandTaskFlow>& command_task_flow,
       std::unique_ptr<ExecutingTask>& input_tasks, ExecuteResult& result);
 
-  ExecuteResult SubmitTasksSync(
+  void SubmitTasksSync(
       std::shared_ptr<ExecutingCommandTaskFlow>& command_task_flow,
-      std::unique_ptr<ExecutingTask>& input_tasks);
+      std::unique_ptr<ExecutingTask>&& input_tasks);
 
-  ExecuteResult SubmitTaskAsync(
-      std::shared_ptr<ExecutingCommandTaskFlow>& command_task_flow,
-      std::unique_ptr<ExecutingTask>& input_tasks);
+  void SubmitTaskAsync(
+      std::shared_ptr<ExecutingCommandTaskFlow> command_task_flow,
+      std::unique_ptr<ExecutingTask>&& input_tasks);
 
-  ExecuteResult SubmitTasks(
-      std::shared_ptr<ExecutingCommandTaskFlow>& command_task_flow,
+  void SubmitTasks(
+      std::shared_ptr<
+          MM::RenderSystem::CommandExecutor::ExecutingCommandTaskFlow>&
+          command_task_flow,
       std::unique_ptr<ExecutingTask>&& input_tasks);
 
   void ProcessTask();

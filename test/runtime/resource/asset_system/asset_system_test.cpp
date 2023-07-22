@@ -84,13 +84,13 @@ TEST(asset_system, asset_manager) {
     }
   };
 
-  MM::FileSystem::Path json_path1{std::string(TEST_FILE_DIR_TEST) +
+  MM::FileSystem::Path json_path1{std::string(MM_TEST_FILE_DIR_TEST) +
                                   "/asset_system/combination1.json"},
-      json_path2{std::string(TEST_FILE_DIR_TEST) +
+      json_path2{std::string(MM_TEST_FILE_DIR_TEST) +
                  "/asset_system/combination2.json"},
-      json_path3{std::string(TEST_FILE_DIR_TEST) +
+      json_path3{std::string(MM_TEST_FILE_DIR_TEST) +
                  "/asset_system/combination3.json"},
-      json_path4{std::string(TEST_FILE_DIR_TEST) +
+      json_path4{std::string(MM_TEST_FILE_DIR_TEST) +
                  "/asset_system/combination4.json"};
   ImageImageMeshMesh asset1(json_path1), asset2(json_path2);
   ImageImageMesh asset3(json_path3), asset4(json_path4);
@@ -140,12 +140,12 @@ TEST(asset_system, asset_manager) {
   auto& mesh1_2 = dynamic_cast<MM::AssetSystem::AssetType::Mesh&>(
       *asset1.GetHandler(3).GetObject());
 
-  MM::FileSystem::Path path1_1(std::string(TEST_FILE_DIR_TEST) +
+  MM::FileSystem::Path path1_1(std::string(MM_TEST_FILE_DIR_TEST) +
                                "/asset_system/test_picture1.jpg"),
-      path1_2(std::string(TEST_FILE_DIR_TEST) +
+      path1_2(std::string(MM_TEST_FILE_DIR_TEST) +
               "/asset_system/test_picture2.png"),
-      path1_3(std::string(TEST_FILE_DIR_TEST) + "/asset_system/monkey.obj"),
-      path1_4(std::string(TEST_FILE_DIR_TEST) + "/asset_system/model.fbx");
+      path1_3(std::string(MM_TEST_FILE_DIR_TEST) + "/asset_system/monkey.obj"),
+      path1_4(std::string(MM_TEST_FILE_DIR_TEST) + "/asset_system/model.fbx");
   MM::AssetSystem::AssetType::AssetID asset_id1_1, asset_id1_2, asset_id1_3,
       asset_id1_4;
   ASSERT_EQ(MM::AssetSystem::AssetType::Image::CalculateAssetID(path1_1, 3,
@@ -248,11 +248,11 @@ TEST(asset_system, asset_manager) {
   auto& mesh3_1 = dynamic_cast<MM::AssetSystem::AssetType::Mesh&>(
       *asset3.GetHandler(2).GetObject());
 
-  MM::FileSystem::Path path3_1(std::string(TEST_FILE_DIR_TEST) +
+  MM::FileSystem::Path path3_1(std::string(MM_TEST_FILE_DIR_TEST) +
                                "/asset_system/test_picture1.jpg"),
-      path3_2(std::string(TEST_FILE_DIR_TEST) +
+      path3_2(std::string(MM_TEST_FILE_DIR_TEST) +
               "/asset_system/test_picture2.png"),
-      path3_3(std::string(TEST_FILE_DIR_TEST) + "/asset_system/model.fbx");
+      path3_3(std::string(MM_TEST_FILE_DIR_TEST) + "/asset_system/model.fbx");
   MM::AssetSystem::AssetType::AssetID asset_id3_1, asset_id3_2, asset_id3_3;
   ASSERT_EQ(MM::AssetSystem::AssetType::Image::CalculateAssetID(path3_1, 2,
                                                                 asset_id3_1),
@@ -330,11 +330,11 @@ TEST(asset_system, asset_manager) {
   auto& mesh4_1 = dynamic_cast<MM::AssetSystem::AssetType::Mesh&>(
       *asset4.GetHandler(2).GetObject());
 
-  MM::FileSystem::Path path4_1(std::string(TEST_FILE_DIR_TEST) +
+  MM::FileSystem::Path path4_1(std::string(MM_TEST_FILE_DIR_TEST) +
                                "/asset_system/test_picture1.jpg"),
-      path4_2(std::string(TEST_FILE_DIR_TEST) +
+      path4_2(std::string(MM_TEST_FILE_DIR_TEST) +
               "/asset_system/test_picture1.jpg"),
-      path4_3(std::string(TEST_FILE_DIR_TEST) + "/asset_system/model.fbx");
+      path4_3(std::string(MM_TEST_FILE_DIR_TEST) + "/asset_system/model.fbx");
   MM::AssetSystem::AssetType::AssetID asset_id4_1, asset_id4_2, asset_id4_3;
   ASSERT_EQ(MM::AssetSystem::AssetType::Image::CalculateAssetID(path4_1, 3,
                                                                 asset_id4_1),

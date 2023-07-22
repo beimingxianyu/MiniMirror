@@ -276,7 +276,7 @@ MM::ExecuteResult MM::RenderSystem::RenderEngine::CopyBuffer(
             VkDependencyInfo dependency_info{Utils::GetVkDependencyInfo(
                 0, nullptr, barriers.size(), barriers.data(), 0, nullptr, 0)};
             MM_CHECK(Utils::BeginCommandBuffer(cmd),
-                     LOG_FATAL("Failed to begin command buffer.");
+                     MM_LOG_FATAL("Failed to begin command buffer.");
                      return MM_RESULT_CODE;);
 
             vkCmdPipelineBarrier2(cmd.GetCommandBuffer(), &dependency_info);
@@ -293,12 +293,12 @@ MM::ExecuteResult MM::RenderSystem::RenderEngine::CopyBuffer(
             vkCmdPipelineBarrier2(cmd.GetCommandBuffer(), &dependency_info);
 
             MM_CHECK(Utils::EndCommandBuffer(cmd),
-                     LOG_FATAL("Failed to end command buffer.");
+                     MM_LOG_FATAL("Failed to end command buffer.");
                      return MM_RESULT_CODE;);
             return ExecuteResult::SUCCESS;
           },
           sync_resource_data_IDs),
-      LOG_ERROR("Failed to copy buffer.");
+      MM_LOG_ERROR("Failed to copy buffer.");
       return MM_RESULT_CODE;)
 
   return ExecuteResult::SUCCESS;
@@ -361,7 +361,7 @@ MM::ExecuteResult MM::RenderSystem::RenderEngine::CopyImage(
           [&src_image, &dest_image, &regions,
            this_render_engine = this](AllocatedCommandBuffer& cmd) {
             MM_CHECK(Utils::BeginCommandBuffer(cmd),
-                     LOG_FATAL("Failed to begin command buffer");
+                     MM_LOG_FATAL("Failed to begin command buffer");
                      return MM_RESULT_CODE;)
 
             bool is_same = (src_image.GetImage() == dest_image.GetImage());
@@ -515,12 +515,12 @@ MM::ExecuteResult MM::RenderSystem::RenderEngine::CopyImage(
             vkCmdPipelineBarrier2(cmd.GetCommandBuffer(), &dependency_info);
 
             MM_CHECK(Utils::EndCommandBuffer(cmd),
-                     LOG_FATAL("Failed to end command buffer.");
+                     MM_LOG_FATAL("Failed to end command buffer.");
                      return MM_RESULT_CODE;)
             return ExecuteResult::SUCCESS;
           },
           sync_render_resource_data_IDs),
-      LOG_ERROR("Failed to copy image.");
+      MM_LOG_ERROR("Failed to copy image.");
       return MM_RESULT_CODE;)
 
   return ExecuteResult::SUCCESS;
@@ -560,21 +560,21 @@ MM::ExecuteResult MM::RenderSystem::RenderEngine::CopyDataToBuffer(
   assert(IsValid());
 #ifdef CHECK_PARAMETERS
   if (!dest_buffer.IsValid()) {
-    LOG_ERROR("Dest_buffer is invalid.");
+    MM_LOG_ERROR("Dest_buffer is invalid.");
     return ExecuteResult::OBJECT_IS_INVALID;
   }
 
   if (!dest_buffer.CanMapped()) {
-    LOG_ERROR("Dest_buffer can not mapped.");
+    MM_LOG_ERROR("Dest_buffer can not mapped.");
     return ExecuteResult::INPUT_PARAMETERS_ARE_INCORRECT;
   }
 
   if (data == nullptr) {
-    LOG_ERROR("data is nullptr.");
+    MM_LOG_ERROR("data is nullptr.");
   }
 
   if (copy_offset + copy_size > dest_buffer.GetBufferSize()) {
-    LOG_ERROR("The sum of copy_offset and copy_size is too large.");
+    MM_LOG_ERROR("The sum of copy_offset and copy_size is too large.");
   }
 #endif
 
@@ -971,8 +971,8 @@ void MM::RenderSystem::RenderEngine::ChooseMultiSampleCount() {
     render_engine_info_.multi_sample_count_ = VK_SAMPLE_COUNT_1_BIT;
     return;
   }
-  MM_CHECK(CONFIG_SYSTEM->GetConfig("multi_sample_count", count),
-           LOG_FATAL("The setting of \"multi_sample_count\" is not exist.");
+  MM_CHECK(MM_CONFIG_SYSTEM->GetConfig("multi_sample_count", count),
+           MM_LOG_FATAL("The setting of \"multi_sample_count\" is not exist.");
            return;)
 
   if (count < 2) {
@@ -1030,16 +1030,16 @@ void MM::RenderSystem::RenderEngine::InitInstance() {
   uint32_t version_major = 0;
   uint32_t version_minor = 0;
   uint32_t version_patch = 0;
-  MM_CHECK(CONFIG_SYSTEM->GetConfig("version_major", version_major) |
-               CONFIG_SYSTEM->GetConfig("version_minor", version_minor) |
-               CONFIG_SYSTEM->GetConfig("version_patch", version_patch),
-           LOG_FATAL("The software version number is not set.");
+  MM_CHECK(MM_CONFIG_SYSTEM->GetConfig("version_major", version_major) |
+               MM_CONFIG_SYSTEM->GetConfig("version_minor", version_minor) |
+               MM_CONFIG_SYSTEM->GetConfig("version_patch", version_patch),
+           MM_LOG_FATAL("The software version number is not set.");
            return;)
   if (enable_validation_layers_) {
     if (CheckValidationLayerSupport()) {
       enable_layer_.push_back(validation_layers_name.c_str());
     } else {
-      LOG_ERROR("Validation layer extension not found!");
+      MM_LOG_ERROR("Validation layer extension not found!");
     }
   }
   GetRequireExtensions(enable_instance_extensions_);
@@ -1074,14 +1074,14 @@ void MM::RenderSystem::RenderEngine::InitInstance() {
 
   if (vkCreateInstance(&instance_create_info, nullptr, &instance_) !=
       VK_SUCCESS) {
-    LOG_FATAL("Failed to create VkInstance!");
+    MM_LOG_FATAL("Failed to create VkInstance!");
   }
 }
 
 void MM::RenderSystem::RenderEngine::InitSurface() {
   if (glfwCreateWindowSurface(instance_, window_, nullptr, &surface_) !=
       VK_SUCCESS) {
-    LOG_FATAL("failed to create window surface!");
+    MM_LOG_FATAL("failed to create window surface!");
   }
 }
 
@@ -1090,7 +1090,7 @@ void MM::RenderSystem::RenderEngine::InitPhysicalDevice() {
   vkEnumeratePhysicalDevices(instance_, &deviceCount, nullptr);
 
   if (deviceCount == 0) {
-    LOG_FATAL("failed to find GPUs with Vulkan support!");
+    MM_LOG_FATAL("failed to find GPUs with Vulkan support!");
   }
 
   std::vector<VkPhysicalDevice> devices(deviceCount);
@@ -1107,7 +1107,7 @@ void MM::RenderSystem::RenderEngine::InitPhysicalDevice() {
   }
 
   if (physical_device_ == VK_NULL_HANDLE) {
-    LOG_FATAL("failed to find a suitable GPU!");
+    MM_LOG_FATAL("failed to find a suitable GPU!");
   }
 }
 
@@ -1200,7 +1200,7 @@ void MM::RenderSystem::RenderEngine::InitLogicalDevice() {
 
   if (vkCreateDevice(physical_device_, &device_create_info, nullptr,
                      &device_) != VK_SUCCESS) {
-    LOG_FATAL("failed to create logical device!");
+    MM_LOG_FATAL("failed to create logical device!");
   }
 
   vkGetDeviceQueue(device_, queue_family_indices_.graphics_family_.value(), 0,
@@ -1278,7 +1278,7 @@ void MM::RenderSystem::RenderEngine::InitSwapChain() {
 
   if (vkCreateSwapchainKHR(device_, &swap_chain_create_info, nullptr,
                            &swapchain_) != VK_SUCCESS) {
-    LOG_FATAL("Failed to create swap chain!");
+    MM_LOG_FATAL("Failed to create swap chain!");
   }
 
   swapchain_format_ = swap_chain_format.format;
@@ -1312,7 +1312,7 @@ void MM::RenderSystem::RenderEngine::InitSwapChainImageView() {
 
     if (vkCreateImageView(device_, &createInfo, nullptr,
                           &swapchain_image_views_[i]) != VK_SUCCESS) {
-      LOG_FATAL("Failed to create swapchain image views!");
+      MM_LOG_FATAL("Failed to create swapchain image views!");
     }
   }
 }
@@ -1321,14 +1321,15 @@ void MM::RenderSystem::RenderEngine::InitCommandExecutor() {
   std::uint32_t single_frame_graph_command_buffer_number = 0;
   std::uint32_t single_frame_compute_command_buffer_number = 0;
   std::uint32_t single_frame_transform_command_buffer_number = 0;
-  if (CONFIG_SYSTEM->GetConfig("single_frame_graph_command_buffer_number",
-                               single_frame_graph_command_buffer_number) ==
+  if (MM_CONFIG_SYSTEM->GetConfig("single_frame_graph_command_buffer_number",
+                                  single_frame_graph_command_buffer_number) ==
           ExecuteResult::SUCCESS &&
-      CONFIG_SYSTEM->GetConfig("single_frame_compute_command_buffer_number",
-                               single_frame_compute_command_buffer_number) ==
+      MM_CONFIG_SYSTEM->GetConfig("single_frame_compute_command_buffer_number",
+                                  single_frame_compute_command_buffer_number) ==
           ExecuteResult::SUCCESS &&
-      CONFIG_SYSTEM->GetConfig("single_frame_transform_command_buffer_number",
-                               single_frame_transform_command_buffer_number) ==
+      MM_CONFIG_SYSTEM->GetConfig(
+          "single_frame_transform_command_buffer_number",
+          single_frame_transform_command_buffer_number) ==
           ExecuteResult::SUCCESS) {
     command_executor_ = std::make_unique<CommandExecutor>(
         this, single_frame_graph_command_buffer_number,
@@ -1399,23 +1400,24 @@ void MM::RenderSystem::RenderEngine::SetUpDebugMessenger() {
   if (func) {
     if (func(instance_, &createInfo, nullptr, &debug_messenger_) !=
         VK_SUCCESS) {
-      LOG_FATAL("Failed to set up Debug Messenger!");
+      MM_LOG_FATAL("Failed to set up Debug Messenger!");
       return;
     }
     return;
   }
-  LOG_FATAL("Failed to set up Debug Messenger!");
+  MM_LOG_FATAL("Failed to set up Debug Messenger!");
 }
 
 void MM::RenderSystem::RenderEngine::InitGlfw() {
   // Read the initialization settings.
   MM_CHECK(
-      CONFIG_SYSTEM->GetConfig("window_extent_width", window_extent_.width),
-      LOG_FATAL("Setting item \"Window_extent_width.\" does not exist.");
+      MM_CONFIG_SYSTEM->GetConfig("window_extent_width", window_extent_.width),
+      MM_LOG_FATAL("Setting item \"Window_extent_width.\" does not exist.");
       return;)
   MM_CHECK(
-      CONFIG_SYSTEM->GetConfig("window_extent_height", window_extent_.height),
-      LOG_FATAL("Setting iterm \"Window_extent_height.\" does not exist.");
+      MM_CONFIG_SYSTEM->GetConfig("window_extent_height",
+                                  window_extent_.height),
+      MM_LOG_FATAL("Setting iterm \"Window_extent_height.\" does not exist.");
       return;)
 
   // Initialize glfw.
@@ -1732,7 +1734,8 @@ VkBool32 MM::RenderSystem::ValidationLayerDebugCall(
       default:
         log_level = LogSystem::LogSystem::LogLevel::WARN;
     }
-    LOG(log_level, std::string("validation layer: ") + callback_data->pMessage);
+    MM_LOG(log_level,
+           std::string("validation layer: ") + callback_data->pMessage);
   }
   return VK_FALSE;
 }
@@ -1799,7 +1802,7 @@ MM::ExecuteResult MM::RenderSystem::RenderEngine::CreateStageBuffer(
   MM_CHECK_WITHOUT_LOG(
       CreateBuffer(stage_buffer_create_info, stage_allocation_create_info,
                    nullptr, stage_buffer),
-      LOG_ERROR("Failed to create stage buffer.");
+      MM_LOG_ERROR("Failed to create stage buffer.");
       return MM_RESULT_CODE;)
 
   return MM::Utils::ExecuteResult ::SUCCESS;
@@ -1841,17 +1844,17 @@ MM::RenderSystem::RenderEngine::CopyBufferInputParametersCheck(
     MM::RenderSystem::AllocatedBuffer& dest_buffer,
     const std::vector<VkBufferCopy2>& regions) {
   if (!src_buffer.IsValid()) {
-    LOG_ERROR("Src_buffer is invalid.");
+    MM_LOG_ERROR("Src_buffer is invalid.");
     return ExecuteResult::OBJECT_IS_INVALID;
   }
 
   if (!dest_buffer.IsValid()) {
-    LOG_ERROR("Dest_buffer is invalid.");
+    MM_LOG_ERROR("Dest_buffer is invalid.");
     return ExecuteResult::OBJECT_IS_INVALID;
   }
 
   if (!src_buffer.IsTransformSrc() || !dest_buffer.IsTransformDest()) {
-    LOG_ERROR(
+    MM_LOG_ERROR(
         "Src_buffer or dest_buffer is not Transform src buffer or Transform "
         "dest buffer.");
     return ExecuteResult::OPERATION_NOT_SUPPORTED;
@@ -1863,7 +1866,7 @@ MM::RenderSystem::RenderEngine::CopyBufferInputParametersCheck(
 
   for (const auto& region : regions) {
     if (region.size == 0) {
-      LOG_ERROR("VkBufferCopy2::size must greater than 0.");
+      MM_LOG_ERROR("VkBufferCopy2::size must greater than 0.");
       return ExecuteResult::OPERATION_NOT_SUPPORTED;
     }
   }
@@ -1874,7 +1877,8 @@ MM::RenderSystem::RenderEngine::CopyBufferInputParametersCheck(
     for (const auto& region : regions) {
       if (region.srcOffset + region.size > src_buffer.GetBufferSize() ||
           region.dstOffset + region.size > dest_buffer.GetBufferSize()) {
-        LOG_ERROR("The sum of size and src_offset/dest_offset is too large.");
+        MM_LOG_ERROR(
+            "The sum of size and src_offset/dest_offset is too large.");
         return ExecuteResult::INPUT_PARAMETERS_ARE_NOT_SUITABLE;
       }
       if (write_areas.empty()) {
@@ -1886,7 +1890,7 @@ MM::RenderSystem::RenderEngine::CopyBufferInputParametersCheck(
            write_area != write_areas.end(); ++write_area) {
         if (region.dstOffset <= write_area->GetOffset()) {
           if (region.dstOffset + region.size >= write_area->GetOffset()) {
-            LOG_ERROR(
+            MM_LOG_ERROR(
                 "During the buffer copy process, there is an overlap in the "
                 "specified copy area.");
             return ExecuteResult::INPUT_PARAMETERS_ARE_NOT_SUITABLE;
@@ -1899,7 +1903,7 @@ MM::RenderSystem::RenderEngine::CopyBufferInputParametersCheck(
       if (!have_greater_than) {
         const auto last_area = --write_areas.end();
         if (last_area->GetOffset() + last_area->GetSize() >= region.dstOffset) {
-          LOG_ERROR(
+          MM_LOG_ERROR(
               "During the buffer copy process, there is an overlap in the "
               "specified copy area.");
           return ExecuteResult::INPUT_PARAMETERS_ARE_NOT_SUITABLE;
@@ -1911,7 +1915,7 @@ MM::RenderSystem::RenderEngine::CopyBufferInputParametersCheck(
       for (const auto& write_area : write_areas) {
         if (region.srcOffset <= write_area.GetOffset()) {
           if (region.srcOffset + region.size >= write_area.GetOffset()) {
-            LOG_ERROR(
+            MM_LOG_ERROR(
                 "During the buffer copy process, there is an overlap in the "
                 "specified copy area.");
             return ExecuteResult::INPUT_PARAMETERS_ARE_NOT_SUITABLE;
@@ -1924,7 +1928,8 @@ MM::RenderSystem::RenderEngine::CopyBufferInputParametersCheck(
     for (const auto& region : regions) {
       if (region.srcOffset + region.size > src_buffer.GetBufferSize() ||
           region.dstOffset + region.size > dest_buffer.GetBufferSize()) {
-        LOG_ERROR("The sum of size and src_offset/dest_offset is too large.");
+        MM_LOG_ERROR(
+            "The sum of size and src_offset/dest_offset is too large.");
         return ExecuteResult::INPUT_PARAMETERS_ARE_NOT_SUITABLE;
       }
     }
@@ -1938,17 +1943,17 @@ MM::ExecuteResult MM::RenderSystem::RenderEngine::CopyImageInputParametersCheck(
     MM::RenderSystem::AllocatedImage& dest_image,
     const std::vector<VkImageCopy2>& regions) {
   if (!src_image.IsValid()) {
-    LOG_ERROR("Src_image is invalid.");
+    MM_LOG_ERROR("Src_image is invalid.");
     return ExecuteResult::OBJECT_IS_INVALID;
   }
 
   if (!dest_image.IsValid()) {
-    LOG_ERROR("Dest_image is invalid.");
+    MM_LOG_ERROR("Dest_image is invalid.");
     return ExecuteResult::OBJECT_IS_INVALID;
   }
 
   if (!src_image.IsTransformSrc() || !dest_image.IsTransformDest()) {
-    LOG_ERROR(
+    MM_LOG_ERROR(
         "Src_buffer or dest_buffer is not Transform src buffer or Transform "
         "dest buffer.");
     return ExecuteResult::INPUT_PARAMETERS_ARE_NOT_SUITABLE;
@@ -1963,18 +1968,19 @@ MM::ExecuteResult MM::RenderSystem::RenderEngine::CopyImageInputParametersCheck(
   for (const auto& region : regions) {
     if (region.extent.width == 0 || region.extent.height == 0 ||
         region.extent.depth == 0) {
-      LOG_ERROR("VkImageCopy::extent::width/height/depth must greater than 0.");
+      MM_LOG_ERROR(
+          "VkImageCopy::extent::width/height/depth must greater than 0.");
       return ExecuteResult::INPUT_PARAMETERS_ARE_NOT_SUITABLE;
     }
 
     if (region.dstSubresource.aspectMask != region.srcSubresource.aspectMask) {
-      LOG_ERROR("Src_image aspect mask not equal dest_image aspect mask.");
+      MM_LOG_ERROR("Src_image aspect mask not equal dest_image aspect mask.");
       return ExecuteResult::INPUT_PARAMETERS_ARE_NOT_SUITABLE;
     }
 
     if (region.srcSubresource.aspectMask & VK_IMAGE_ASPECT_METADATA_BIT ||
         region.dstSubresource.aspectMask & VK_IMAGE_ASPECT_METADATA_BIT) {
-      LOG_ERROR(
+      MM_LOG_ERROR(
           "Src_image or dest_image include "
           "VK_IMAGE_ASPECT_METADATA_BIT.aspectMask must not contain "
           "VK_IMAGE_ASPECT_METADATA_BIT.");
@@ -1984,7 +1990,7 @@ MM::ExecuteResult MM::RenderSystem::RenderEngine::CopyImageInputParametersCheck(
     if (region.srcSubresource.aspectMask & VK_IMAGE_ASPECT_COLOR_BIT &&
         (region.srcSubresource.aspectMask & VK_IMAGE_ASPECT_DEPTH_BIT ||
          region.srcSubresource.aspectMask & VK_IMAGE_ASPECT_STENCIL_BIT)) {
-      LOG_ERROR(
+      MM_LOG_ERROR(
           "If aspectMask contains VK_IMAGE_ASPECT_COLOR_BIT, it must not "
           "contain either of VK_IMAGE_ASPECT_DEPTH_BIT or "
           "VK_IMAGE_ASPECT_STENCIL_BIT.");
@@ -1994,7 +2000,7 @@ MM::ExecuteResult MM::RenderSystem::RenderEngine::CopyImageInputParametersCheck(
     if (region.dstSubresource.aspectMask & VK_IMAGE_ASPECT_COLOR_BIT &&
         (region.dstSubresource.aspectMask & VK_IMAGE_ASPECT_DEPTH_BIT ||
          region.dstSubresource.aspectMask & VK_IMAGE_ASPECT_STENCIL_BIT)) {
-      LOG_ERROR(
+      MM_LOG_ERROR(
           "If aspectMask contains VK_IMAGE_ASPECT_COLOR_BIT, it must not "
           "contain either of VK_IMAGE_ASPECT_DEPTH_BIT or "
           "VK_IMAGE_ASPECT_STENCIL_BIT.");
@@ -2003,7 +2009,7 @@ MM::ExecuteResult MM::RenderSystem::RenderEngine::CopyImageInputParametersCheck(
 
     if (region.srcSubresource.mipLevel > src_image.GetMipmapLevels() ||
         region.dstSubresource.mipLevel > dest_image.GetMipmapLevels()) {
-      LOG_ERROR(
+      MM_LOG_ERROR(
           "The specified number of mipmap level is greater than the number of "
           "mipmap level contained in the image itself.");
       return ExecuteResult::INPUT_PARAMETERS_ARE_NOT_SUITABLE;
@@ -2031,7 +2037,7 @@ MM::ExecuteResult MM::RenderSystem::RenderEngine::CopyImageInputParametersCheck(
         region.srcSubresource.baseArrayLayer != 0 ||
         region.dstSubresource.layerCount != 1 ||
         region.dstSubresource.baseArrayLayer != 0) {
-      LOG_ERROR("The layerCount must 1 and baseArrayLayer must 0.");
+      MM_LOG_ERROR("The layerCount must 1 and baseArrayLayer must 0.");
       return ExecuteResult::INPUT_PARAMETERS_ARE_NOT_SUITABLE;
     }
 
@@ -2039,7 +2045,7 @@ MM::ExecuteResult MM::RenderSystem::RenderEngine::CopyImageInputParametersCheck(
                                                    region.extent, src_image) ||
         !Utils::ImageRegionAreaLessThanImageExtent(region.dstOffset,
                                                    region.extent, dest_image)) {
-      LOG_ERROR(
+      MM_LOG_ERROR(
           "The specified area is lager than src_image/dest_image extent.");
       return ExecuteResult::INPUT_PARAMETERS_ARE_NOT_SUITABLE;
     }
@@ -2056,7 +2062,7 @@ MM::ExecuteResult MM::RenderSystem::RenderEngine::CopyImageInputParametersCheck(
         if (Utils::ImageRegionIsOverlap(region.srcOffset,
                                         image_write_area.GetOffset(),
                                         image_write_area.GetExtent())) {
-          LOG_ERROR(
+          MM_LOG_ERROR(
               "During the buffer copy process, there is an overlap in the "
               "specified copy area.");
           return ExecuteResult::INPUT_PARAMETERS_ARE_NOT_SUITABLE;

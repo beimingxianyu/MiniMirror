@@ -7,9 +7,9 @@ MM::AssetSystem::AssetType::Image::Image(const FileSystem::Path& image_path,
     : AssetBase(image_path) {
   assert(desired_channels != 0 && desired_channels < 5);
   if (!AssetBase::IsValid()) {
-    LOG_ERROR(std::string("Failed to load the image with path ") +
-              image_path.StringView().data() +
-              ",because the file does not exist.");
+    MM_LOG_ERROR(std::string("Failed to load the image with path ") +
+                 image_path.StringView().data() +
+                 ",because the file does not exist.");
     return;
   }
 
@@ -22,8 +22,8 @@ MM::AssetSystem::AssetType::Image::Image(const FileSystem::Path& image_path,
     image_info_.image_height_ = 0;
     image_info_.image_channels_ = 0;
     image_pixels_.reset();
-    LOG_ERROR(std::string("Failed to load the image with path ") +
-              image_path.String());
+    MM_LOG_ERROR(std::string("Failed to load the image with path ") +
+                 image_path.String());
   }
   image_info_.image_channels_ = desired_channels;
   switch (image_info_.image_channels_) {
@@ -44,9 +44,9 @@ MM::AssetSystem::AssetType::Image::Image(const FileSystem::Path& image_path,
       image_info_.image_height_ = 0;
       image_info_.image_channels_ = 0;
       image_pixels_.reset();
-      LOG_ERROR(std::string("Failed to load the image with path ") +
-                image_path.String() +
-                ",because this format are not supported.");
+      MM_LOG_ERROR(std::string("Failed to load the image with path ") +
+                   image_path.String() +
+                   ",because this format are not supported.");
   }
   SetAssetID(GetAssetID() + image_info_.image_channels_);
   image_info_.image_width_ = image_width;
@@ -201,7 +201,7 @@ MM::ExecuteResult MM::AssetSystem::AssetType::Image::CalculateAssetID(
     const MM::FileSystem::Path& path, std::uint32_t desired_channels,
     MM::AssetSystem::AssetType::AssetID& asset_ID) {
   FileSystem::LastWriteTime last_write_time;
-  MM_CHECK_WITHOUT_LOG(FILE_SYSTEM->GetLastWriteTime(path, last_write_time),
+  MM_CHECK_WITHOUT_LOG(MM_FILE_SYSTEM->GetLastWriteTime(path, last_write_time),
                        return MM_RESULT_CODE;)
 
   asset_ID = (path.GetHash() ^ last_write_time.time_since_epoch().count()) +

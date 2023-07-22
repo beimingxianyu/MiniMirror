@@ -155,7 +155,7 @@ MM::ExecuteResult MM::RenderSystem::AllocatedBuffer::CheckInitParameters(
           render_engine->GetPresentQueueIndex() &&
       *vk_buffer_create_info->pQueueFamilyIndices !=
           render_engine->GetComputeQueueIndex()) {
-    LOG_ERROR("The queue family index is error.");
+    MM_LOG_ERROR("The queue family index is error.");
     return ExecuteResult ::INITIALIZATION_FAILED;
   }
 
@@ -185,7 +185,7 @@ MM::RenderSystem::AllocatedBuffer::AllocatedBuffer(
   RenderResourceDataAttributeID render_resource_data_attribute_ID;
   MM_CHECK(buffer_data_info_.GetRenderResourceDataAttributeID(
                render_resource_data_attribute_ID),
-           LOG_ERROR("Failed to get RenderResourceDataAttributeID.");
+           MM_LOG_ERROR("Failed to get RenderResourceDataAttributeID.");
            RenderResourceDataBase::Release(); render_engine_ = nullptr;
            buffer_data_info_.Reset(); return;)
   SetRenderResourceDataID(RenderResourceDataID{
@@ -204,11 +204,12 @@ MM::ExecuteResult MM::RenderSystem::AllocatedBuffer::InitBuffer(
   VkBuffer temp_buffer{nullptr};
   VmaAllocation temp_allocation{nullptr};
 
-  VK_CHECK(vmaCreateBuffer(render_engine->GetAllocator(),
-                           &vk_buffer_create_info, &vma_allocation_create_info,
-                           &temp_buffer, &temp_allocation, nullptr),
-           LOG_ERROR("Failed to create VkBuffer.");
-           return ExecuteResult ::INITIALIZATION_FAILED;)
+  MM_VK_CHECK(
+      vmaCreateBuffer(render_engine->GetAllocator(), &vk_buffer_create_info,
+                      &vma_allocation_create_info, &temp_buffer,
+                      &temp_allocation, nullptr),
+      MM_LOG_ERROR("Failed to create VkBuffer.");
+      return ExecuteResult ::INITIALIZATION_FAILED;)
 
   wrapper_.SetAllocator(render_engine->GetAllocator());
   wrapper_.SetBuffer(temp_buffer);
@@ -312,10 +313,10 @@ MM::ExecuteResult MM::RenderSystem::AllocatedBuffer::CopyDataToBuffer(
 
   if (CanMapped()) {
     char* buffer_ptr{nullptr};
-    VK_CHECK_WITHOUT_LOG(
+    MM_VK_CHECK_WITHOUT_LOG(
         vmaMapMemory(GetAllocator(), GetAllocation(),
                      reinterpret_cast<void**>(&buffer_ptr)),
-        LOG_ERROR("Unable to obtain a pointer mapped to a buffer");
+        MM_LOG_ERROR("Unable to obtain a pointer mapped to a buffer");
         return ExecuteResult::UNDEFINED_ERROR;)
 
     char* data_ptr = reinterpret_cast<char*>(data) + src_offset;
@@ -333,7 +334,7 @@ MM::ExecuteResult MM::RenderSystem::AllocatedBuffer::CopyDataToBuffer(
   }
 
   if (!IsTransformDest()) {
-    LOG_ERROR(
+    MM_LOG_ERROR(
         "If you want to copy data into an unmapped AllocatedBuffer, it must be "
         "an AllocatedBuffer that can be specified as the transform "
         "destination.");
@@ -343,7 +344,7 @@ MM::ExecuteResult MM::RenderSystem::AllocatedBuffer::CopyDataToBuffer(
   AllocatedBuffer stage_buffer{};
   MM_CHECK(GetRenderEnginePtr()->CreateStageBuffer(
                size, render_engine_->GetTransformQueueIndex(), stage_buffer),
-           LOG_ERROR("Failed to create stage buffer.");
+           MM_LOG_ERROR("Failed to create stage buffer.");
            return MM::Utils::ExecuteResult ::CREATE_OBJECT_FAILED;)
 
   const auto buffer_copy_region =
@@ -354,10 +355,10 @@ MM::ExecuteResult MM::RenderSystem::AllocatedBuffer::CopyDataToBuffer(
 
   void* stage_buffer_ptr{nullptr};
 
-  VK_CHECK(vmaMapMemory(render_engine_->GetAllocator(),
-                        stage_buffer.GetAllocation(), &stage_buffer_ptr),
-           LOG_ERROR("Unable to obtain a pointer mapped to a buffer");
-           return Utils::VkResultToMMResult(VK_RESULT_CODE);)
+  MM_VK_CHECK(vmaMapMemory(render_engine_->GetAllocator(),
+                           stage_buffer.GetAllocation(), &stage_buffer_ptr),
+              MM_LOG_ERROR("Unable to obtain a pointer mapped to a buffer");
+              return Utils::VkResultToMMResult(MM_VK_RESULT_CODE);)
 
   memcpy(stage_buffer_ptr, data, size);
 
@@ -374,7 +375,7 @@ MM::ExecuteResult MM::RenderSystem::AllocatedBuffer::CopyDataToBuffer(
             }
 
             MM_CHECK(Utils::BeginCommandBuffer(cmd),
-                     LOG_FATAL("Failed to begin command buffer.");
+                     MM_LOG_FATAL("Failed to begin command buffer.");
                      return MM_RESULT_CODE;)
 
             std::vector<VkBufferMemoryBarrier2> barriers;
@@ -427,7 +428,7 @@ MM::ExecuteResult MM::RenderSystem::AllocatedBuffer::CopyDataToBuffer(
             vkCmdPipelineBarrier2(cmd.GetCommandBuffer(), &dependency_info);
 
             MM_CHECK(Utils::EndCommandBuffer(cmd),
-                     LOG_FATAL("Failed to end command buffer.");
+                     MM_LOG_FATAL("Failed to end command buffer.");
                      return MM_RESULT_CODE;)
 
             return ExecuteResult::SUCCESS;
@@ -476,7 +477,7 @@ MM::ExecuteResult MM::RenderSystem::AllocatedBuffer::CopyAssetDataToBuffer(
   }
 
   if (IsAssetResource()) {
-    LOG_ERROR(
+    MM_LOG_ERROR(
         "It is not supported to rewrite asset data to an AllocatedBuffer that "
         "has already written asset data.");
     return MM::Utils::ExecuteResult::OPERATION_NOT_SUPPORTED;
@@ -488,7 +489,7 @@ MM::ExecuteResult MM::RenderSystem::AllocatedBuffer::CopyAssetDataToBuffer(
     asset_datas_size += data.second;
   }
   if (asset_datas_size > GetBufferSize()) {
-    LOG_ERROR("Asset size lager than buffer size.");
+    MM_LOG_ERROR("Asset size lager than buffer size.");
     return MM::Utils::ExecuteResult ::INPUT_PARAMETERS_ARE_NOT_SUITABLE;
   }
 
@@ -497,10 +498,10 @@ MM::ExecuteResult MM::RenderSystem::AllocatedBuffer::CopyAssetDataToBuffer(
           queue_index &&
       CanMapped()) {
     char* buffer_ptr{nullptr};
-    VK_CHECK_WITHOUT_LOG(
+    MM_VK_CHECK_WITHOUT_LOG(
         vmaMapMemory(GetAllocator(), GetAllocation(),
                      reinterpret_cast<void**>(&buffer_ptr)),
-        LOG_ERROR("Unable to obtain a pointer mapped to a buffer");
+        MM_LOG_ERROR("Unable to obtain a pointer mapped to a buffer");
         return ExecuteResult::UNDEFINED_ERROR;)
 
     std::uint64_t src_offset = 0;
@@ -516,7 +517,7 @@ MM::ExecuteResult MM::RenderSystem::AllocatedBuffer::CopyAssetDataToBuffer(
   }
 
   if (!IsTransformDest()) {
-    LOG_ERROR(
+    MM_LOG_ERROR(
         "If you want to copy data into an unmapped AllocatedBuffer, it must be "
         "an AllocatedBuffer that can be specified as the transform "
         "destination.");
@@ -532,7 +533,7 @@ MM::ExecuteResult MM::RenderSystem::AllocatedBuffer::CopyAssetDataToBuffer(
   AllocatedBuffer stage_buffer{};
   MM_CHECK(GetRenderEnginePtr()->CreateStageBuffer(asset_datas_size,
                                                    queue_index, stage_buffer),
-           LOG_ERROR("Failed to create stage buffer.");
+           MM_LOG_ERROR("Failed to create stage buffer.");
            return MM::Utils::ExecuteResult ::CREATE_OBJECT_FAILED;)
 
   std::vector<BufferSubResourceAttribute> old_sub_resource_attribute;
@@ -560,11 +561,11 @@ MM::ExecuteResult MM::RenderSystem::AllocatedBuffer::CopyAssetDataToBuffer(
 
             void* stage_buffer_ptr{nullptr};
             VkDeviceSize src_offset{0};
-            VK_CHECK(
+            MM_VK_CHECK(
                 vmaMapMemory(this_buffer->GetAllocator(),
                              stage_buffer.GetAllocation(), &stage_buffer_ptr),
-                LOG_ERROR("Unable to obtain a pointer mapped to a buffer");
-                return Utils::VkResultToMMResult(VK_RESULT_CODE);)
+                MM_LOG_ERROR("Unable to obtain a pointer mapped to a buffer");
+                return Utils::VkResultToMMResult(MM_VK_RESULT_CODE);)
             for (const auto& asset_data : datas) {
               memcpy(static_cast<char*>(stage_buffer_ptr) + src_offset,
                      asset_data.first, asset_data.second);
@@ -574,7 +575,7 @@ MM::ExecuteResult MM::RenderSystem::AllocatedBuffer::CopyAssetDataToBuffer(
                            stage_buffer.GetAllocation());
 
             MM_CHECK(Utils::BeginCommandBuffer(cmd),
-                     LOG_FATAL("Failed to begin command buffer.");
+                     MM_LOG_FATAL("Failed to begin command buffer.");
                      return MM_RESULT_CODE;)
 
             vkCmdPipelineBarrier2(cmd.GetCommandBuffer(), &dependency_info);
@@ -595,13 +596,13 @@ MM::ExecuteResult MM::RenderSystem::AllocatedBuffer::CopyAssetDataToBuffer(
             vkCmdCopyBuffer2(cmd.GetCommandBuffer(), &buffer_copy_info);
 
             MM_CHECK(Utils::EndCommandBuffer(cmd),
-                     LOG_FATAL("Failed to end command buffer.");
+                     MM_LOG_FATAL("Failed to end command buffer.");
                      return MM_RESULT_CODE;)
 
             return MM::Utils::ExecuteResult ::SUCCESS;
           },
           std::vector<RenderResourceDataID>{GetRenderResourceDataID()}),
-      LOG_ERROR("Failed to copy asset data to AllocatedBuffer.");
+      MM_LOG_ERROR("Failed to copy asset data to AllocatedBuffer.");
       if (!old_sub_resource_attribute.empty()) {
         buffer_data_info_.buffer_sub_resource_attributes_ =
             std::move(old_sub_resource_attribute);
@@ -647,7 +648,7 @@ MM::RenderSystem::AllocatedBuffer::AllocatedBuffer(
   RenderResourceDataAttributeID render_resource_data_attribute_ID;
   MM_CHECK(buffer_data_info_.GetRenderResourceDataAttributeID(
                render_resource_data_attribute_ID),
-           LOG_ERROR("Failed to get RenderResourceDataAttributeID.");
+           MM_LOG_ERROR("Failed to get RenderResourceDataAttributeID.");
            RenderResourceDataBase::Release(); render_engine_ = nullptr;
            buffer_data_info_.Reset(); return;)
   SetRenderResourceDataID(RenderResourceDataID{
@@ -691,13 +692,13 @@ MM::RenderSystem::AllocatedBuffer::CheckInitParametersWhenInitFromAnAsset(
                        return MM_RESULT_CODE;)
 
   if (!asset_handler.IsValid()) {
-    LOG_ERROR("The asset handler is invalid.");
+    MM_LOG_ERROR("The asset handler is invalid.");
     return MM::Utils::ExecuteResult ::INITIALIZATION_FAILED;
   }
   if (!Utils::CanBeMapped(vma_allocation_create_info->usage,
                           vma_allocation_create_info->flags) &&
       !(vk_buffer_create_info->usage & VK_BUFFER_USAGE_TRANSFER_DST_BIT)) {
-    LOG_ERROR(
+    MM_LOG_ERROR(
         "Load data from asset must can be mapped or specify transform "
         "destination.");
     return MM::Utils::ExecuteResult ::INITIALIZATION_FAILED;
@@ -781,11 +782,12 @@ MM::ExecuteResult MM::RenderSystem::AllocatedBuffer::GetCopy(
   VmaAllocationCreateInfo allocation_create_info =
       buffer_data_info_.allocation_create_info_.GetVmaAllocationCreateInfo();
 
-  VK_CHECK(vmaCreateBuffer(const_cast<VmaAllocator>(wrapper_.GetAllocator()),
-                           &buffer_create_info, &allocation_create_info,
-                           &new_buffer, &new_allocation, nullptr),
-           LOG_ERROR("Failed to create VkBuffer.");
-           return MM::RenderSystem::Utils::VkResultToMMResult(VK_RESULT_CODE);)
+  MM_VK_CHECK(
+      vmaCreateBuffer(const_cast<VmaAllocator>(wrapper_.GetAllocator()),
+                      &buffer_create_info, &allocation_create_info, &new_buffer,
+                      &new_allocation, nullptr),
+      MM_LOG_ERROR("Failed to create VkBuffer.");
+      return MM::RenderSystem::Utils::VkResultToMMResult(MM_VK_RESULT_CODE);)
 
   MM_CHECK(
       render_engine_->RunSingleCommandAndWait(
@@ -800,7 +802,7 @@ MM::ExecuteResult MM::RenderSystem::AllocatedBuffer::GetCopy(
             }
           },
           std::vector<RenderResourceDataID>{GetRenderResourceDataID()}),
-      LOG_ERROR("Failed to copy data to new buffer.");
+      MM_LOG_ERROR("Failed to copy data to new buffer.");
       return MM_RESULT_CODE;)
 
   new_allocated_buffer =
@@ -843,7 +845,7 @@ MM::RenderSystem::AllocatedBuffer::AddCopyBufferCommandsWhenOneSubResource(
           &buffer_copy)};
 
   MM_CHECK(MM::RenderSystem::Utils::BeginCommandBuffer(cmd),
-           LOG_FATAL("Failed to begin command buffer.");
+           MM_LOG_FATAL("Failed to begin command buffer.");
            return MM_RESULT_CODE;)
 
   vkCmdPipelineBarrier2(cmd.GetCommandBuffer(), &dependency_info);
@@ -858,7 +860,7 @@ MM::RenderSystem::AllocatedBuffer::AddCopyBufferCommandsWhenOneSubResource(
   vkCmdPipelineBarrier2(cmd.GetCommandBuffer(), &dependency_info);
 
   MM_CHECK(MM::RenderSystem::Utils::EndCommandBuffer(cmd),
-           LOG_FATAL("Failed to end command buffer.");
+           MM_LOG_FATAL("Failed to end command buffer.");
            return MM_RESULT_CODE;)
 
   return MM::Utils::ExecuteResult::SUCCESS;
@@ -891,7 +893,7 @@ MM::RenderSystem::AllocatedBuffer::AddCopyBufferCommandseWhenMultSubResource(
       0, nullptr, barriers.size(), barriers.data(), 0, nullptr, 0)};
 
   MM_CHECK(MM::RenderSystem::Utils::BeginCommandBuffer(cmd),
-           LOG_FATAL("Failed to begine command buffer.");
+           MM_LOG_FATAL("Failed to begine command buffer.");
            return MM_RESULT_CODE;)
 
   vkCmdPipelineBarrier2(cmd.GetCommandBuffer(), &dependency_info);
@@ -925,7 +927,7 @@ MM::RenderSystem::AllocatedBuffer::AddCopyBufferCommandseWhenMultSubResource(
   vkCmdPipelineBarrier2(cmd.GetCommandBuffer(), &dependency_info);
 
   MM_CHECK(MM::RenderSystem::Utils::EndCommandBuffer(cmd),
-           LOG_FATAL("Failed to end command buffer");
+           MM_LOG_FATAL("Failed to end command buffer");
            return MM_RESULT_CODE;)
 
   return ExecuteResult ::SUCCESS;
@@ -943,7 +945,7 @@ MM::RenderSystem::AllocatedBuffer::TransformSubResourceAttribute(
   }
 
   MM_CHECK(CheckTransformInputParameter(new_sub_resource_attribute),
-           LOG_ERROR("New sub resource attribute is error.");
+           MM_LOG_ERROR("New sub resource attribute is error.");
            return MM_RESULT_CODE;)
 
   MM_CHECK(
@@ -1068,14 +1070,14 @@ MM::RenderSystem::AllocatedBuffer::TransformSubResourceAttribute(
                     transform_to_new_barriers.data(), 0, nullptr, 0)};
 
             MM_CHECK(MM::RenderSystem::Utils::BeginCommandBuffer(cmd),
-                     LOG_FATAL("Failed to begin command buffer.");
+                     MM_LOG_FATAL("Failed to begin command buffer.");
                      return MM_RESULT_CODE;)
 
             vkCmdPipelineBarrier2(cmd.GetCommandBuffer(), &dependency_info1);
             vkCmdPipelineBarrier2(cmd.GetCommandBuffer(), &dependency_info2);
 
             MM_CHECK(MM::RenderSystem::Utils::EndCommandBuffer(cmd),
-                     LOG_FATAL("Failed to end command buffer.");
+                     MM_LOG_FATAL("Failed to end command buffer.");
                      return MM_RESULT_CODE;)
 
             this_buffer->MarkThisUseForWrite();
@@ -1086,7 +1088,7 @@ MM::RenderSystem::AllocatedBuffer::TransformSubResourceAttribute(
             return ExecuteResult ::SUCCESS;
           },
           std::vector<RenderResourceDataID>{GetRenderResourceDataID()}),
-      LOG_ERROR("Failed to transform sub resource attribute.");
+      MM_LOG_ERROR("Failed to transform sub resource attribute.");
       return MM_RESULT_CODE;)
 
   return ExecuteResult ::SUCCESS;

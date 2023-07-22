@@ -433,6 +433,10 @@ VkSubmitInfo GetVkSubmitInfo(void* next, uint32_t wait_semaphore_info_count,
                              const VkCommandBuffer* command_buffer,
                              uint32_t signal_semaphore_info_count,
                              const VkSemaphore* signal_semaphore_infos);
+
+bool IsValidPipelineCacheData(const std::string& filename, const char* buffer,
+                              uint32_t size,
+                              const VkPhysicalDeviceProperties& gpu_properties);
 }  // namespace Utils
 }  // namespace RenderSystem
 }  // namespace MM

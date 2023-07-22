@@ -23,8 +23,7 @@ MM::FileSystem::Path::Path(const std::string& other) {
 #ifdef WIN32
   // Determine whether it is a relative path.
   if (new_path[0] == '.') {
-    const std::string temp =
-        std::string() + BIN_DIR + PATH_SEPARATOR + new_path;
+    const std::string temp = g_bin_dir + PATH_SEPARATOR + new_path;
     path_ = std::make_unique<std::filesystem::path>(RemoveDotAndDotDot(
         std::filesystem::path(temp).make_preferred().string()));
     return;
@@ -41,7 +40,7 @@ MM::FileSystem::Path::Path(const std::string& other) {
 #else
   // Determine whether it is a relative path.
   if (new_path[0] == '.') {
-    const std::string temp = std::string() + BIN_DIR + "/" + new_path;
+    const std::string temp = g_bin_dir + "/" + new_path;
     path_ = RemoveDotAndDotDot(
         std::filesystem::path(temp).make_preferred().string());
     return;
@@ -513,6 +512,29 @@ MM::ExecuteResult MM::FileSystem::FileSystem::GetAll(
     const Path& path, std::vector<Path>& sub_paths) const {
   GetDirectories(path, sub_paths);
   return GetFiles(path, sub_paths);
+}
+
+MM::ExecuteResult MM::FileSystem::FileSystem::ReadFile(
+    const MM::FileSystem::Path& path, std::vector<char>& output_data) const {
+  if (!output_data.empty()) {
+    return ExecuteResult ::INPUT_PARAMETERS_ARE_NOT_SUITABLE;
+  }
+
+  ;
+  std::ifstream file(path.CStr(), std::ios::ate | std::ios::binary);
+
+  if (!file.is_open()) {
+    return ExecuteResult ::FILE_OPERATION_ERROR;
+  }
+
+  std::size_t file_size = static_cast<std::size_t>(file.tellg());
+  output_data.reserve(file_size);
+  file.seekg(0);
+  file.read(output_data.data(), file_size);
+
+  file.close();
+
+  return MM::ExecuteResult::SUCCESS;
 }
 
 bool MM::FileSystem::FileSystem::Destroy() {

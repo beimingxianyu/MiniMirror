@@ -6,6 +6,7 @@
 #include <string>
 #include <thread>
 
+#include "utils/error.h"
 #include "utils/type_utils.h"
 
 namespace MM {

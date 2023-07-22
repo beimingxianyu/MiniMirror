@@ -18,7 +18,7 @@ MeshBufferManager::MeshBufferManager(
       sub_vertex_buffer_list_(),
       allocate_free_mutex_() {
   if (!managed_allocated_mesh_buffer_.IsValid()) {
-    LOG_ERROR("Manage an invalid mesh buffer.");
+    MM_LOG_ERROR("Manage an invalid mesh buffer.");
     managed_allocated_mesh_buffer_.Release();
     capacity_data_.Reset();
     is_valid = false;
@@ -41,7 +41,7 @@ MeshBufferManager::MeshBufferManager(
       sub_vertex_buffer_list_(),
       allocate_free_mutex_() {
   if (!managed_allocated_mesh_buffer_.IsValid()) {
-    LOG_ERROR("Manage an invalid mesh buffer.");
+    MM_LOG_ERROR("Manage an invalid mesh buffer.");
     managed_allocated_mesh_buffer_.Release();
     capacity_data_.Reset();
     is_valid = false;
@@ -96,7 +96,7 @@ ExecuteResult MeshBufferManager::AllocateMeshBuffer(
     AllocatedMesh& allocated_mesh) {
   std::unique_lock<std::mutex> guard(allocate_free_mutex_);
   if (!IsValid()) {
-    LOG_ERROR("MM::RenderSystem::MeshBufferManager is invalid.");
+    MM_LOG_ERROR("MM::RenderSystem::MeshBufferManager is invalid.");
     return MM::Utils::ExecuteResult ::OBJECT_IS_INVALID;
   }
 
@@ -123,7 +123,7 @@ ExecuteResult MeshBufferManager::AllocateMeshBuffer(
                         index_buffer_size -
                             capacity_data_.index_buffer_remaining_capacity_ +
                             require_index_size),
-        LOG_ERROR("Failed to reserve mesh buffer.");
+        MM_LOG_ERROR("Failed to reserve mesh buffer.");
         return MM_RESULT_CODE;)
   }
 
@@ -319,7 +319,7 @@ void MeshBufferManager::SetExpansionCoefficient(float expansion_coefficient) {
 ExecuteResult MeshBufferManager::RemoveBufferFragmentation() {
   std::lock_guard guard(allocate_free_mutex_);
   if (!IsValid()) {
-    LOG_ERROR("MM::RenderSystem::MeshBufferManager is invalid.");
+    MM_LOG_ERROR("MM::RenderSystem::MeshBufferManager is invalid.");
     return MM::Utils::ExecuteResult ::OBJECT_IS_INVALID;
   }
 
@@ -336,7 +336,7 @@ ExecuteResult MeshBufferManager::RemoveBufferFragmentation() {
   MM_CHECK(RemoveBufferFragmentationImp(managed_allocated_mesh_buffer_,
                                         sub_vertex_buffer_list_,
                                         sub_index_buffer_list_),
-           LOG_ERROR("Failed to remove buffer fragmentaion.");
+           MM_LOG_ERROR("Failed to remove buffer fragmentaion.");
            return MM_RESULT_CODE;)
 
   return ExecuteResult ::SUCCESS;
@@ -346,7 +346,7 @@ ExecuteResult MeshBufferManager::Reserve(VkDeviceSize new_vertex_buffer_size,
                                          VkDeviceSize new_index_buffer_size) {
   std::lock_guard guard{allocate_free_mutex_};
   if (!IsValid()) {
-    LOG_ERROR("MM::RenderSystem::MeshBufferManager is invalid.");
+    MM_LOG_ERROR("MM::RenderSystem::MeshBufferManager is invalid.");
     return MM::Utils::ExecuteResult ::OBJECT_IS_INVALID;
   }
   bool new_vertex_size_is_less =
@@ -361,7 +361,7 @@ ExecuteResult MeshBufferManager::Reserve(VkDeviceSize new_vertex_buffer_size,
   }
 
   MM_CHECK(ReserveImp(new_vertex_buffer_size, new_index_buffer_size),
-           LOG_ERROR("Failed to reserve mesh buffer.");
+           MM_LOG_ERROR("Failed to reserve mesh buffer.");
            return MM_RESULT_CODE;)
 
   return ExecuteResult ::SUCCESS;
@@ -417,7 +417,7 @@ ExecuteResult MeshBufferManager::RemoveBufferFragmentationImp(
   assert(render_engine->IsValid());
 #ifdef CHECK_PARAMETERS
   if (!buffer.IsValid()) {
-    LOG_ERROR("buffer is invalid.");
+    MM_LOG_ERROR("buffer is invalid.");
     return ExecuteResult::OBJECT_IS_INVALID;
   }
   if (vertex_buffer_chunks_info.empty() || index_buffet_chunks_info.empty()) {
@@ -455,13 +455,13 @@ ExecuteResult MeshBufferManager::RemoveBufferFragmentationImp(
   MM_CHECK(render_engine->CreateBuffer(buffer_create_info,
                                        vma_allocation_create_info, nullptr,
                                        vertex_stage_buffer),
-           LOG_ERROR("Failed to create stage buffer.");
+           MM_LOG_ERROR("Failed to create stage buffer.");
            return MM_RESULT_CODE;)
   buffer_create_info.size = index_stage_buffer_size;
   MM_CHECK(render_engine->CreateBuffer(buffer_create_info,
                                        vma_allocation_create_info, nullptr,
                                        index_stage_buffer),
-           LOG_ERROR("Failed to create stage buffer.");
+           MM_LOG_ERROR("Failed to create stage buffer.");
            return MM_RESULT_CODE;)
 
   // vertex
@@ -499,7 +499,7 @@ ExecuteResult MeshBufferManager::RemoveBufferFragmentationImp(
                vertex_self_copy_info, vertex_self_copy_to_stage_info,
                vertex_stage_copy_to_self_info, index_self_copy_info,
                index_self_copy_to_stage_info, index_stage_copy_to_self_info),
-           LOG_ERROR("Failed recored commands.");
+           MM_LOG_ERROR("Failed recored commands.");
            return MM_RESULT_CODE;)
 
   VkCommandBuffer command_buffer_ptr =
@@ -507,13 +507,14 @@ ExecuteResult MeshBufferManager::RemoveBufferFragmentationImp(
   VkFence fence = command_buffer.GetGeneralCommandBuffer()->GetFence();
   VkSubmitInfo submit_info{MM::RenderSystem::Utils::GetVkSubmitInfo(
       nullptr, 0, nullptr, nullptr, 1, &command_buffer_ptr, 0, nullptr)};
-  VK_CHECK(
+  MM_VK_CHECK(
       vkQueueSubmit(render_engine->GetTransformQueue(), 1, &submit_info, fence),
-      LOG_ERROR("Failed to submit command.");
-      return MM::RenderSystem::Utils::VkResultToMMResult(VK_RESULT_CODE);)
+      MM_LOG_ERROR("Failed to submit command.");
+      return MM::RenderSystem::Utils::VkResultToMMResult(MM_VK_RESULT_CODE);)
   vkWaitForFences(render_engine->GetDevice(), 1, &fence, false, 1000000000);
-  VK_CHECK(vkGetFenceStatus(render_engine->GetDevice(), fence),
-           return MM::RenderSystem::Utils::VkResultToMMResult(VK_RESULT_CODE);)
+  MM_VK_CHECK(
+      vkGetFenceStatus(render_engine->GetDevice(), fence),
+      return MM::RenderSystem::Utils::VkResultToMMResult(MM_VK_RESULT_CODE);)
 
   VkDeviceSize new_offset = 0;
   for (auto& buffer_chunk_info : vertex_buffer_chunks_info) {
@@ -602,7 +603,7 @@ MeshBufferManager::AddRemoveBufferFragmentationCommands(
     VkCopyBufferInfo2& index_self_copy_to_stage_info,
     VkCopyBufferInfo2& index_stage_copy_to_self_info) {
   MM_CHECK(Utils::BeginCommandBuffer(cmd),
-           LOG_FATAL("Failed to begin command buffer.");
+           MM_LOG_FATAL("Failed to begin command buffer.");
            return MM_RESULT_CODE;)
 
   QueueIndex transform_queue_index =
@@ -652,7 +653,7 @@ MeshBufferManager::AddRemoveBufferFragmentationCommands(
   vkCmdPipelineBarrier2(cmd.GetCommandBuffer(), &dependency_info);
 
   MM_CHECK(Utils::EndCommandBuffer(cmd),
-           LOG_FATAL("Failed to end command buffer.");
+           MM_LOG_FATAL("Failed to end command buffer.");
            return MM_RESULT_CODE;)
 
   return ExecuteResult::SUCCESS;
@@ -663,7 +664,7 @@ ExecuteResult MeshBufferManager::AddReserveCommands(
     VkCopyBufferInfo2& vertex_buffer_copy_info,
     VkCopyBufferInfo2& index_buffer_copy_info) {
   MM_CHECK(MM::RenderSystem::Utils::BeginCommandBuffer(cmd),
-           LOG_FATAL("Failed to begine command buffer");
+           MM_LOG_FATAL("Failed to begine command buffer");
            return MM_RESULT_CODE;)
 
   vkCmdPipelineBarrier2(cmd.GetCommandBuffer(), &dependency_info);
@@ -682,7 +683,7 @@ ExecuteResult MeshBufferManager::AddReserveCommands(
   vkCmdPipelineBarrier2(cmd.GetCommandBuffer(), &dependency_info);
 
   MM_CHECK(MM::RenderSystem::Utils::EndCommandBuffer(cmd),
-           LOG_FATAL("Failed to end command buffer");
+           MM_LOG_FATAL("Failed to end command buffer");
            return MM_RESULT_CODE;)
 
   return ExecuteResult ::SUCCESS;
@@ -699,7 +700,7 @@ const RenderEngine* MeshBufferManager::GetRenderEnginePtr() const {
 ExecuteResult MeshBufferManager::Release() {
   std::lock_guard guard{allocate_free_mutex_};
   if ((!sub_vertex_buffer_list_.empty()) || (!sub_index_buffer_list_.empty())) {
-    LOG_ERROR(
+    MM_LOG_ERROR(
         "There is a reference to the mesh buffer managed by this object and "
         "the object cannot be release.");
     return ExecuteResult ::OPERATION_NOT_SUPPORTED;
@@ -719,12 +720,12 @@ ExecuteResult MeshBufferManager::ReserveStandard(
                index_buffer_size = GetAllocatedMeshBuffer().GetIndexSize();
 
   VkDeviceSize max_vertex_buffer_size = 0, max_index_buffer_size = 0;
-  MM_CHECK_WITHOUT_LOG(CONFIG_SYSTEM->GetConfig("max_vertex_buffer_size",
-                                                max_vertex_buffer_size),
+  MM_CHECK_WITHOUT_LOG(MM_CONFIG_SYSTEM->GetConfig("max_vertex_buffer_size",
+                                                   max_vertex_buffer_size),
                        max_vertex_buffer_size = VK_WHOLE_SIZE;)
-  MM_CHECK_WITHOUT_LOG(
-      CONFIG_SYSTEM->GetConfig("max_index_buffer_size", max_index_buffer_size),
-      max_index_buffer_size = VK_WHOLE_SIZE;)
+  MM_CHECK_WITHOUT_LOG(MM_CONFIG_SYSTEM->GetConfig("max_index_buffer_size",
+                                                   max_index_buffer_size),
+                       max_index_buffer_size = VK_WHOLE_SIZE;)
 
   if (vertex_buffer_size >= max_vertex_buffer_size ||
       index_buffer_size >= max_vertex_buffer_size) {
@@ -759,7 +760,7 @@ ExecuteResult MeshBufferManager::ReserveStandard(
           : max_index_buffer_size;
 
   MM_CHECK(ReserveWithoutLock(new_vertex_buffer_size, new_index_buffer_size),
-           LOG_ERROR("Failed to expand vertex buffer and index buffer.");
+           MM_LOG_ERROR("Failed to expand vertex buffer and index buffer.");
 
            return MM_RESULT_CODE;)
 
@@ -768,7 +769,7 @@ ExecuteResult MeshBufferManager::ReserveStandard(
 
 ExecuteResult MeshBufferManager::RemoveBufferFragmentationWithoutLock() {
   if (!IsValid()) {
-    LOG_ERROR("MM::RenderSystem::MeshBufferManager is invalid.");
+    MM_LOG_ERROR("MM::RenderSystem::MeshBufferManager is invalid.");
     return MM::Utils::ExecuteResult ::OBJECT_IS_INVALID;
   }
 
@@ -785,7 +786,7 @@ ExecuteResult MeshBufferManager::RemoveBufferFragmentationWithoutLock() {
   MM_CHECK(RemoveBufferFragmentationImp(managed_allocated_mesh_buffer_,
                                         sub_vertex_buffer_list_,
                                         sub_index_buffer_list_),
-           LOG_ERROR("Failed to remove buffer fragmentaion.");
+           MM_LOG_ERROR("Failed to remove buffer fragmentaion.");
            return MM_RESULT_CODE;)
 
   return ExecuteResult ::SUCCESS;
@@ -798,7 +799,7 @@ ExecuteResult MeshBufferManager::ReserveImp(
   AllocatedMeshBuffer new_mesh_buffer(render_engine, new_vertex_buffer_size,
                                       new_index_buffer_size);
   if (!new_mesh_buffer.IsValid()) {
-    LOG_ERROR("Failed to create a new mesh buffer.");
+    MM_LOG_ERROR("Failed to create a new mesh buffer.");
     return ExecuteResult::CREATE_OBJECT_FAILED;
   }
 
@@ -869,7 +870,7 @@ ExecuteResult MeshBufferManager::ReserveImp(
   MM_CHECK(AddReserveCommands(*command_buffer.GetGeneralCommandBuffer(),
                               dependency_info, vertex_copy_buffer_info,
                               index_copy_buffer_info),
-           LOG_ERROR("Failed to record command.");
+           MM_LOG_ERROR("Failed to record command.");
            return MM_RESULT_CODE;)
 
   VkCommandBuffer command_buffer_ptr =
@@ -877,14 +878,15 @@ ExecuteResult MeshBufferManager::ReserveImp(
   VkFence fence = command_buffer.GetGeneralCommandBuffer()->GetFence();
   VkSubmitInfo submit_info{MM::RenderSystem::Utils::GetVkSubmitInfo(
       nullptr, 0, nullptr, nullptr, 1, &command_buffer_ptr, 0, nullptr)};
-  VK_CHECK(
+  MM_VK_CHECK(
       vkQueueSubmit(render_engine->GetTransformQueue(), 1, &submit_info, fence),
-      LOG_ERROR("Failed to submit command.");
-      return MM::RenderSystem::Utils::VkResultToMMResult(VK_RESULT_CODE);)
+      MM_LOG_ERROR("Failed to submit command.");
+      return MM::RenderSystem::Utils::VkResultToMMResult(MM_VK_RESULT_CODE);)
   vkWaitForFences(render_engine->GetDevice(), 1, &fence, false, 100000000000);
-  VK_CHECK(vkGetFenceStatus(render_engine->GetDevice(), fence),
-           LOG_FATAL("Gpu execute command timeout.");
-           return MM::RenderSystem::Utils::VkResultToMMResult(VK_RESULT_CODE);)
+  MM_VK_CHECK(
+      vkGetFenceStatus(render_engine->GetDevice(), fence),
+      MM_LOG_FATAL("Gpu execute command timeout.");
+      return MM::RenderSystem::Utils::VkResultToMMResult(MM_VK_RESULT_CODE);)
   vkResetFences(render_engine->GetDevice(), 1, &fence);
 
   VkDeviceSize new_offset = 0;
@@ -921,7 +923,7 @@ ExecuteResult MeshBufferManager::ReserveWithoutLock(
   }
 
   MM_CHECK(ReserveImp(new_vertex_buffer_size, new_index_buffer_size),
-           LOG_ERROR("Failed to reserve mesh buffer.");
+           MM_LOG_ERROR("Failed to reserve mesh buffer.");
            return MM_RESULT_CODE;)
 
   return ExecuteResult ::SUCCESS;

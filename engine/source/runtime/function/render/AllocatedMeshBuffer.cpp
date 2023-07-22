@@ -17,18 +17,19 @@ AllocatedMeshBuffer::AllocatedMeshBuffer(RenderEngine *render_engine)
       index_buffer_() {
   if (render_engine_ == nullptr && render_engine_->IsValid()) {
     render_engine_ = nullptr;
-    LOG_ERROR("Failed to create allocated mesh buffer.");
+    MM_LOG_ERROR("Failed to create allocated mesh buffer.");
     return;
   }
 
   VkDeviceSize vertex_buffer_size = 0, index_buffer_size = 0;
   MM_CHECK(
-      CONFIG_SYSTEM->GetConfig("init_vertex_buffer_size", vertex_buffer_size),
-      LOG_FATAL("Setting item \"init_vertex_buffer_size\" does not exist.");
+      MM_CONFIG_SYSTEM->GetConfig("init_vertex_buffer_size",
+                                  vertex_buffer_size),
+      MM_LOG_FATAL("Setting item \"init_vertex_buffer_size\" does not exist.");
       return;);
   MM_CHECK(
-      CONFIG_SYSTEM->GetConfig("init_index_buffer_size", index_buffer_size),
-      LOG_FATAL("Setting item \"init_index_buffer_size\" does not exist.");
+      MM_CONFIG_SYSTEM->GetConfig("init_index_buffer_size", index_buffer_size),
+      MM_LOG_FATAL("Setting item \"init_index_buffer_size\" does not exist.");
       return;);
   InitMeshBuffer(vertex_buffer_size, index_buffer_size);
 }
@@ -43,7 +44,7 @@ AllocatedMeshBuffer::AllocatedMeshBuffer(RenderEngine *render_engine,
       index_buffer_() {
   if (render_engine_ == nullptr && render_engine_->IsValid()) {
     render_engine_ = nullptr;
-    LOG_ERROR("Failed to create allocated mesh buffer.");
+    MM_LOG_ERROR("Failed to create allocated mesh buffer.");
     return;
   }
 
@@ -66,7 +67,7 @@ AllocatedMeshBuffer::AllocatedMeshBuffer(RenderEngine *render_engine,
       index_buffer_() {
   if (render_engine_ == nullptr && render_engine_->IsValid()) {
     render_engine_ = nullptr;
-    LOG_ERROR("Failed to create allocated mesh buffer.");
+    MM_LOG_ERROR("Failed to create allocated mesh buffer.");
     return;
   }
 
@@ -223,19 +224,19 @@ ExecuteResult AllocatedMeshBuffer::InitMeshBuffer(
   VkBuffer temp_vertex_buffer{nullptr}, temp_index_buffer{nullptr};
   VmaAllocation temp_vertex_allocation{nullptr}, temp_index_allocation{nullptr};
 
-  VK_CHECK(
+  MM_VK_CHECK(
       vmaCreateBuffer(render_engine_->GetAllocator(), &index_buffer_create_info,
                       &vma_allocation_create_info, &temp_index_buffer,
                       &temp_index_allocation, nullptr),
-      LOG_ERROR("Failed to create index buffer.");
+      MM_LOG_ERROR("Failed to create index buffer.");
       render_engine_ = nullptr;
       return MM::Utils::ExecuteResult ::INITIALIZATION_FAILED;)
 
-  VK_CHECK(
+  MM_VK_CHECK(
       vmaCreateBuffer(render_engine_->GetAllocator(),
                       &vertex_buffer_create_info, &vma_allocation_create_info,
                       &temp_vertex_buffer, &temp_vertex_allocation, nullptr),
-      LOG_ERROR("Failed to create vertex buffer.");
+      MM_LOG_ERROR("Failed to create vertex buffer.");
       render_engine_ = nullptr;
       vmaDestroyBuffer(render_engine_->GetAllocator(), temp_index_buffer,
                        temp_index_allocation);

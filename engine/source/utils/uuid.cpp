@@ -83,7 +83,7 @@ MM::Utils::UUID::UUID() : first_part_(0), second_part_(0) {
   if (clock_sequence_ == 0xFFFF) {
     clock_sequence_ = 0;
   }
-  second_part_ |= HARDWARE_INFO_MAC_ADDRESS_16;
+  second_part_ |= MM_HARDWARE_INFO_MAC_ADDRESS_16;
   second_part_ |= clock_sequence << 48;
 }
 

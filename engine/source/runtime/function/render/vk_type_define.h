@@ -656,6 +656,7 @@ struct SamplerCreateInfo {
 
 class ImageView {
   friend class RenderEngine;
+  friend class AllocatedImage;
 
  public:
   ImageView() = default;
@@ -684,7 +685,7 @@ class ImageView {
 
   bool IsValid() const;
 
-  void Reset();
+  void Release();
 
  private:
   static ExecuteResult CheckInitParameters(
@@ -712,11 +713,7 @@ class ImageView {
 
  private:
   ImageViewCreateInfo image_view_create_info_{};
-  ImageViewWrapper* image_view_wrapper_{nullptr};
-
-  // TODO render_engine recovery
-  static MM::Utils::ConcurrentMap<RenderImageViewAttributeID, ImageViewWrapper>
-      image_view_container_;
+  ImageViewWrapper image_view_wrapper_{};
 };
 
 class Sampler {
@@ -788,11 +785,6 @@ class ImageBindData {
  public:
   ImageBindData() = default;
   ~ImageBindData() = default;
-  ImageBindData(const VkDescriptorSetLayoutBinding& bind, VkDevice device,
-                VkAllocationCallbacks* image_view_allocator,
-                const VkImageViewCreateInfo& vk_image_view_create_info,
-                VkAllocationCallbacks* sampler_allocator,
-                const VkSamplerCreateInfo& vk_sampler_create_info);
   ImageBindData(const DescriptorSetLayoutBinding& bind, ImageView&& image_view,
                 Sampler&& sampler);
   ImageBindData(const ImageBindData& other) = delete;
@@ -813,7 +805,7 @@ class ImageBindData {
 
   bool IsValid() const;
 
-  void Reset();
+  void Release();
 
  private:
   DescriptorSetLayoutBinding bind_{};

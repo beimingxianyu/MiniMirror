@@ -42,7 +42,7 @@ std::string Combination::GetAssetTypeString() const {
 }
 
 ExecuteResult Combination::GetJson(rapidjson::Document&) const {
-  LOG_FATAL("This function should not be called.");
+  MM_LOG_FATAL("This function should not be called.");
   return ExecuteResult ::UNDEFINED_ERROR;
 }
 
@@ -72,16 +72,17 @@ const AssetManager::AssetHandler& Combination::Get(std::uint64_t index) const {
 Combination::Combination(const FileSystem::Path& combination_path)
     : AssetBase(combination_path) {
   if (!AssetBase::IsValid()) {
-    LOG_ERROR(std::string("Failed to load the combination asset with path ") +
-              combination_path.StringView().data() +
-              ",because the file does not exist.");
+    MM_LOG_ERROR(
+        std::string("Failed to load the combination asset with path ") +
+        combination_path.StringView().data() +
+        ",because the file does not exist.");
     return;
   }
 
   std::ifstream combination_json_fstream(combination_path.StringView().data());
   if (!combination_json_fstream.is_open()) {
     AssetBase::Release();
-    LOG_ERROR(combination_path.String() + "can't open.");
+    MM_LOG_ERROR(combination_path.String() + "can't open.");
     return;
   }
   std::ostringstream combination_json_string_stream;
@@ -94,7 +95,7 @@ Combination::Combination(const FileSystem::Path& combination_path)
   if (combination_json.Parse(combination_json_string_stream.str().c_str())
           .HasParseError()) {
     AssetBase::Release();
-    LOG_ERROR(std::string("Combination asset has parse error."));
+    MM_LOG_ERROR(std::string("Combination asset has parse error."));
     return;
   }
 
@@ -113,7 +114,7 @@ Combination::Combination(const FileSystem::Path& combination_path)
            AssetBase::Release();
            return;);
 
-  *future = TASK_SYSTEM->Run(TaskSystem::TaskType::Common, taskflow);
+  *future = MM_TASK_SYSTEM->Run(TaskSystem::TaskType::Common, taskflow);
   future->wait();
 
   if (!load_result) {
@@ -179,7 +180,7 @@ Utils::ExecuteResult Combination::LoadImages(
       FileSystem::LastWriteTime last_write_time;
       std::uint64_t path_hash = image_path_in.GetHash();
       MM_CHECK_WITHOUT_LOG(
-          FILE_SYSTEM->GetLastWriteTime(image_path_in, last_write_time),
+          MM_FILE_SYSTEM->GetLastWriteTime(image_path_in, last_write_time),
           load_result = false;
           future->cancel(); return;)
       AssetID asset_id;

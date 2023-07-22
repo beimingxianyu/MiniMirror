@@ -554,7 +554,7 @@ void RenderResourceConstants<ConstantType>::Reset(
   RenderResourceDataBase::Reset(other);
 
   if (other->GetResourceType() != ResourceType::CONSTANTS) {
-    LOG_WARN(
+    MM_LOG_WARN(
         "The resource type of the reset resource is different from the "
         "original resource type. Only the resources held by the object will be "
         "released, and resources will not be reset.");

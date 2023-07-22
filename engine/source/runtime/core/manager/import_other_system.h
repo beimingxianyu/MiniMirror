@@ -7,4 +7,4 @@
 #include "runtime/core/log/log_system.h"
 #include "utils/marco.h"
 
-IMPORT_LOG_SYSTEM;
+MM_IMPORT_LOG_SYSTEM;

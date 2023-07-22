@@ -6,8 +6,8 @@ MM::AssetSystem::AssetType::AssetBase::AssetBase(
       asset_path_(asset_path),
       asset_path_and_last_editing_time_hash(0) {
   FileSystem::LastWriteTime last_write_time;
-  MM_CHECK(FILE_SYSTEM->GetLastWriteTime(asset_path, last_write_time),
-           LOG_ERROR(asset_path.String() + " is not exists.");
+  MM_CHECK(MM_FILE_SYSTEM->GetLastWriteTime(asset_path, last_write_time),
+           MM_LOG_ERROR(asset_path.String() + " is not exists.");
            asset_path_ = FileSystem::Path(""); return;);
   asset_path_and_last_editing_time_hash =
       asset_path.GetHash() ^
@@ -114,7 +114,7 @@ MM::AssetSystem::AssetType::AssetBase::GetAssetPath() const {
 
 MM::ExecuteResult MM::AssetSystem::AssetType::AssetBase::GetJson(
     rapidjson::Document&) const {
-  LOG_FATAL("This function should not be called.");
+  MM_LOG_FATAL("This function should not be called.");
   return MM::ExecuteResult::UNDEFINED_ERROR;
 }
 
@@ -125,17 +125,17 @@ void MM::AssetSystem::AssetType::AssetBase::SetAssetID(
 
 std::vector<std::pair<void*, std::uint64_t>>
 MM::AssetSystem::AssetType::AssetBase::GetDatas() {
-  LOG_FATAL("This function should not be called.");
+  MM_LOG_FATAL("This function should not be called.");
   return std::vector<std::pair<void*, std::uint64_t>>();
 }
 
 std::vector<std::pair<const void*, std::uint64_t>>
 MM::AssetSystem::AssetType::AssetBase::GetDatas() const {
-  LOG_FATAL("This function should not be called.");
+  MM_LOG_FATAL("This function should not be called.");
   return std::vector<std::pair<const void*, std::uint64_t>>();
 }
 
 std::uint64_t MM::AssetSystem::AssetType::AssetBase::GetSize() const {
-  LOG_FATAL("This function should not be called.");
+  MM_LOG_FATAL("This function should not be called.");
   return 0;
 }

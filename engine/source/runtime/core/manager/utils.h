@@ -150,7 +150,7 @@ std::shared_mutex& ChooseMutex(const ManagedObjectTable& managed_object_table,
     case 15:
       return managed_object_table.data_mutex15_;
     default:
-      LOG_FATAL("Error branch.");
+      MM_LOG_FATAL("Error branch.");
       return managed_object_table.data_mutex0_;
   }
 }

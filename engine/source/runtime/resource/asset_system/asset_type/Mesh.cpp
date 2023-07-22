@@ -12,15 +12,16 @@ MM::AssetSystem::AssetType::Mesh::Mesh(const FileSystem::Path& mesh_path,
       bounding_box_(
           std::make_unique<MM::AssetSystem::AssetType::RectangleBox>()) {
   if (!AssetBase::IsValid()) {
-    LOG_ERROR(std::string("Failed to load the mesh with path ") +
-              mesh_path.StringView().data() +
-              ",because the file does not exist.");
+    MM_LOG_ERROR(std::string("Failed to load the mesh with path ") +
+                 mesh_path.StringView().data() +
+                 ",because the file does not exist.");
     return;
   }
 
   LoadModel(mesh_path, mesh_index);
 
-  if (!Mesh::IsValid()) {
+  if (!(AssetBase::IsValid() && bounding_box_ != nullptr && !indexes_.empty() &&
+        !vertices_.empty())) {
     AssetBase::Release();
     return;
   }
@@ -117,13 +118,13 @@ void MM::AssetSystem::AssetType::Mesh::LoadModel(
           aiProcess_OptimizeMeshes);
   if (!scene || scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE ||
       !scene->mRootNode) {
-    LOG_ERROR(std::string("Failed to create Mesh.(detail:") +
-              mesh_importer.GetErrorString() + ")");
+    MM_LOG_ERROR(std::string("Failed to create Mesh.(detail:") +
+                 mesh_importer.GetErrorString() + ")");
     return;
   }
 
   if (scene->mNumMeshes <= mesh_index) {
-    LOG_ERROR("The grid index is larger than the maximum index.");
+    MM_LOG_ERROR("The grid index is larger than the maximum index.");
     return;
   }
 
@@ -132,7 +133,7 @@ void MM::AssetSystem::AssetType::Mesh::LoadModel(
 
 void MM::AssetSystem::AssetType::Mesh::ProcessMesh(const aiMesh& mesh) {
   if (!mesh.HasPositions()) {
-    LOG_ERROR("There is no vertex position information in the mesh.");
+    MM_LOG_ERROR("There is no vertex position information in the mesh.");
     return;
   }
   std::vector<Vertex> vertices;
@@ -219,8 +220,8 @@ MM::AssetSystem::AssetType::Mesh::Mesh(
     MM::AssetSystem::AssetType::BoundingBox::BoundingBoxType bounding_box_type)
     : AssetBase(mesh_path) {
   if (!AssetBase::IsValid()) {
-    LOG_ERROR(std::string("Failed to load the mesh with path ") +
-              mesh_path.String() + ",because the file does not exist.");
+    MM_LOG_ERROR(std::string("Failed to load the mesh with path ") +
+                 mesh_path.String() + ",because the file does not exist.");
     return;
   }
 
@@ -254,7 +255,7 @@ MM::ExecuteResult MM::AssetSystem::AssetType::Mesh::CalculateAssetID(
     MM::AssetSystem::AssetType::BoundingBox::BoundingBoxType bounding_box_type,
     MM::AssetSystem::AssetType::AssetID& asset_ID) {
   FileSystem::LastWriteTime last_write_time;
-  MM_CHECK_WITHOUT_LOG(FILE_SYSTEM->GetLastWriteTime(path, last_write_time),
+  MM_CHECK_WITHOUT_LOG(MM_FILE_SYSTEM->GetLastWriteTime(path, last_write_time),
                        return MM_RESULT_CODE;)
 
   std::uint64_t bounding_type_offset = 0;

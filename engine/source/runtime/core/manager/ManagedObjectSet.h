@@ -130,7 +130,7 @@ class ManagedObjectMultiSet
 template <typename ObjectType, typename Less, typename Allocator>
 ManagedObjectMultiSet<ObjectType, Less, Allocator>::~ManagedObjectMultiSet() {
   if (GetSize() != 0) {
-    LOG_ERROR(
+    MM_LOG_ERROR(
         "The container is not empty, and destroying it will result in an "
         "access error.");
   }
@@ -139,7 +139,7 @@ ManagedObjectMultiSet<ObjectType, Less, Allocator>::~ManagedObjectMultiSet() {
 template <typename ObjectType, typename Less, typename Allocator>
 ManagedObjectSet<ObjectType, Less, Allocator>::~ManagedObjectSet() {
   if (GetSize() != 0) {
-    LOG_ERROR(
+    MM_LOG_ERROR(
         "The container is not empty, and destroying it will result in an "
         "access error.");
   }
@@ -259,7 +259,7 @@ ManagedObjectMultiSet<ObjectType, Less, Allocator>::operator=(
 
   std::lock(data_mutex_, other.data_mutex_);
   if (!data_.empty()) {
-    LOG_ERROR(
+    MM_LOG_ERROR(
         "If there is data in the original container but it is reassigned, an "
         "access error will occur.");
   }
@@ -423,7 +423,7 @@ ManagedObjectSet<ObjectType, Less, Allocator>::operator=(
 
   std::lock(data_mutex_, other.data_mutex_);
   if (!data_.empty()) {
-    LOG_ERROR(
+    MM_LOG_ERROR(
         "If there is data in the original container but it is reassigned, an "
         "access error will occur.");
   }

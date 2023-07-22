@@ -313,11 +313,12 @@ MM::RenderSystem::RenderResourceTexture::GetDeepCopy(
   VkImage new_image{nullptr};
   VmaAllocation new_allocation{nullptr};
 
-  VK_CHECK(vmaCreateImage(render_engine_->GetAllocator(),
-                          &new_image_create_info, &new_allocation_create_info,
-                          &new_image, &new_allocation, nullptr),
-           LOG_ERROR("Failed to deep copy texture.");
-           return std::unique_ptr<RenderResourceDataBase>();)
+  MM_VK_CHECK(
+      vmaCreateImage(render_engine_->GetAllocator(), &new_image_create_info,
+                     &new_allocation_create_info, &new_image, &new_allocation,
+                     nullptr),
+      MM_LOG_ERROR("Failed to deep copy texture.");
+      return std::unique_ptr<RenderResourceDataBase>();)
 
   ImageInfo new_image_info = GetImageInfo();
   new_image_info.is_transform_dest_ = true;
@@ -345,7 +346,7 @@ MM::RenderSystem::RenderResourceTexture::GetDeepCopy(
   MM_CHECK(render_engine_->CopyImage(const_cast<AllocatedImage&>(image_),
                                      new_allocated_image, GetImageLayout(),
                                      GetImageLayout(), image_region_vector),
-           LOG_ERROR("Failed to copy imager to new image.");
+           MM_LOG_ERROR("Failed to copy imager to new image.");
            return std::unique_ptr<RenderResourceDataBase>();)
 
   return std::make_unique<RenderResourceTexture>(
@@ -359,7 +360,7 @@ void MM::RenderSystem::RenderResourceTexture::Release() {
     return;
   }
 
-  image_bind_info_.Reset();
+  image_bind_info_.Release();
   image_.Release();
   render_engine_ = nullptr;
 }
@@ -371,7 +372,7 @@ void MM::RenderSystem::RenderResourceTexture::Reset(
     return;
   }
   if (other->GetResourceType() != ResourceType::Texture) {
-    LOG_WARN(
+    MM_LOG_WARN(
         "The resource type of the reset resource is different from the "
         "original resource type. Only the resources held by the object will be "
         "released, and resources will not be reset.");
@@ -406,29 +407,29 @@ bool MM::RenderSystem::RenderResourceTexture::CheckInitParameter(
     const std::shared_ptr<AssetType::Image>& image,
     const uint32_t& mipmap_level, VkImageUsageFlags usages) const {
   if (engine == nullptr) {
-    LOG_ERROR("The incoming engine parameter pointer is null.");
+    MM_LOG_ERROR("The incoming engine parameter pointer is null.");
     return false;
   }
   if (!image->IsValid()) {
-    LOG_ERROR("The incoming image parameter is not available.");
+    MM_LOG_ERROR("The incoming image parameter is not available.");
     return false;
   }
   if (!engine->IsValid()) {
-    LOG_ERROR("The rendering engine is not available.");
+    MM_LOG_ERROR("The rendering engine is not available.");
     return false;
   }
   if (!Utils::DescriptorTypeIsImage(descriptor_type)) {
-    LOG_ERROR("Parameter descriptor_type is not  for texture adaptation.");
+    MM_LOG_ERROR("Parameter descriptor_type is not  for texture adaptation.");
     return false;
   }
   if (mipmap_level == 0) {
-    LOG_ERROR(
+    MM_LOG_ERROR(
         "The value of the parameter mipmap level is 0, and the parameter is "
         "incorrect.");
     return false;
   }
   if (usages & VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT) {
-    LOG_ERROR(
+    MM_LOG_ERROR(
         "Depth and stencil test do not match the RenderResourceTexture "
         "resource type. You should create a RenderResourceFrameBuffer resource "
         "to hold the depth and stencil test resources.");
@@ -436,14 +437,14 @@ bool MM::RenderSystem::RenderResourceTexture::CheckInitParameter(
   }
   if (usages & VK_IMAGE_USAGE_STORAGE_BIT &&
       descriptor_type != VK_DESCRIPTOR_TYPE_STORAGE_IMAGE) {
-    LOG_ERROR(
+    MM_LOG_ERROR(
         "VkImageUsageFlags specifies that the image is a storage image, but "
         "VkDescriptorType is not a storage image. ");
     return false;
   }
   if (descriptor_type == VK_DESCRIPTOR_TYPE_STORAGE_IMAGE &&
       !(usages & VK_IMAGE_USAGE_STORAGE_BIT)) {
-    LOG_ERROR(
+    MM_LOG_ERROR(
         "VkDescriptorType specifies that the image is a storage image, but "
         "VkImageUsageFlags is not a storage image. ");
     return false;
@@ -471,7 +472,7 @@ bool MM::RenderSystem::RenderResourceTexture::LoadImageToStageBuffer(
       image_info.image_format_ = VK_FORMAT_R8G8B8A8_SRGB;
       break;
     case AssetType::ImageFormat::UNDEFINED:
-      LOG_ERROR("Image loading failed, image format not defined.");
+      MM_LOG_ERROR("Image loading failed, image format not defined.");
       return false;
   }
 
@@ -481,15 +482,16 @@ bool MM::RenderSystem::RenderResourceTexture::LoadImageToStageBuffer(
       VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT, false);
 
   if (!stage_buffer.IsValid()) {
-    LOG_ERROR("Failed to create stage buffer.");
+    MM_LOG_ERROR("Failed to create stage buffer.");
   }
 
   void* stage_data;
-  VK_CHECK(vmaMapMemory(render_engine_->allocator_,
-                        stage_buffer.GetAllocation(), &stage_data),
-           LOG_ERROR("The vmaMapMemory operation failed, unable to complete "
-                     "the pointer mapping operation.");
-           return false;
+  MM_VK_CHECK(
+      vmaMapMemory(render_engine_->allocator_, stage_buffer.GetAllocation(),
+                   &stage_data),
+      MM_LOG_ERROR("The vmaMapMemory operation failed, unable to complete "
+                   "the pointer mapping operation.");
+      return false;
 
   )
   memcpy(stage_data, pixels, image_info.image_size_);
@@ -523,11 +525,11 @@ MM::ExecuteResult MM::RenderSystem::RenderResourceTexture::InitImage(
           image_bind_info_.bind_.descriptorType)) {
     usages |= VK_IMAGE_USAGE_SAMPLED_BIT;
   }
-  VK_CHECK(vmaCreateImage(render_engine_->allocator_, &image_create_info,
-                          &image_allocator_create_info, &temp_image,
-                          &temp_allocation, nullptr),
-           LOG_ERROR("Failed to create VkImage.");
-           return Utils::VkResultToMMResult(VK_RESULT_CODE);)
+  MM_VK_CHECK(vmaCreateImage(render_engine_->allocator_, &image_create_info,
+                             &image_allocator_create_info, &temp_image,
+                             &temp_allocation, nullptr),
+              MM_LOG_ERROR("Failed to create VkImage.");
+              return Utils::VkResultToMMResult(MM_VK_RESULT_CODE);)
 
   image_ = AllocatedImage{
       render_engine_->allocator_, temp_image,       temp_allocation, image_info,
@@ -540,7 +542,7 @@ MM::ExecuteResult MM::RenderSystem::RenderResourceTexture::InitImage(
                 &image_layout =
                     image_.GetImageLayout()](AllocatedCommandBuffer& cmd) {
                  MM_CHECK(Utils::BeginCommandBuffer(cmd),
-                          LOG_FATAL("Failed to begin command buffer.");
+                          MM_LOG_FATAL("Failed to begin command buffer.");
                           return MM_RESULT_CODE;)
 
                  Utils::AddTransferImageCommands(
@@ -555,13 +557,13 @@ MM::ExecuteResult MM::RenderSystem::RenderResourceTexture::InitImage(
                                         image_layout, 1, &copy_region);
 
                  MM_CHECK(Utils::EndCommandBuffer(cmd),
-                          LOG_FATAL("Failed to end command buffer.");
+                          MM_LOG_FATAL("Failed to end command buffer.");
                           return MM_RESULT_CODE;);
 
                  return ExecuteResult::SUCCESS;
                },
                1),
-           LOG_ERROR("Copying image data to the GPU failed.");
+           MM_LOG_ERROR("Copying image data to the GPU failed.");
            return MM_RESULT_CODE;)
 
   return ExecuteResult::SUCCESS;
@@ -573,7 +575,7 @@ MM::ExecuteResult MM::RenderSystem::RenderResourceTexture::GenerateMipmap() {
           CommandBufferType::TRANSFORM,
           [&image = image_](AllocatedCommandBuffer& cmd) {
             MM_CHECK(Utils::BeginCommandBuffer(cmd),
-                     LOG_FATAL("Failed to begin command buffer.");
+                     MM_LOG_FATAL("Failed to begin command buffer.");
                      return MM_RESULT_CODE;)
 
             VkImageMemoryBarrier2 barrier{};
@@ -664,12 +666,12 @@ MM::ExecuteResult MM::RenderSystem::RenderResourceTexture::GenerateMipmap() {
             vkCmdPipelineBarrier2(cmd.GetCommandBuffer(), &dependency_info);
 
             MM_CHECK(Utils::EndCommandBuffer(cmd),
-                     LOG_FATAL("Failed to end command buffer.");
+                     MM_LOG_FATAL("Failed to end command buffer.");
                      return MM_RESULT_CODE;)
             return ExecuteResult::SUCCESS;
           },
           1),
-      LOG_ERROR("Mipmap generation failed.");
+      MM_LOG_ERROR("Mipmap generation failed.");
       return MM_RESULT_CODE;)
 
   return ExecuteResult::SUCCESS;
@@ -683,10 +685,11 @@ bool MM::RenderSystem::RenderResourceTexture::InitImageView() {
   image_view_create_info.subresourceRange.levelCount = image_.GetMipmapLevels();
 
   VkImageView temp_image_view{nullptr};
-  VK_CHECK(vkCreateImageView(render_engine_->device_, &image_view_create_info,
-                             nullptr, &temp_image_view),
-           LOG_ERROR("failed to create VkImageView。");
-           RenderResourceTexture::Release(); return false;)
+  MM_VK_CHECK(
+      vkCreateImageView(render_engine_->device_, &image_view_create_info,
+                        nullptr, &temp_image_view),
+      MM_LOG_ERROR("failed to create VkImageView。");
+      RenderResourceTexture::Release(); return false;)
   image_bind_info_.image_view_ =
       MM::Utils::MakeSharedWithDestructor<VkImageView>(
           [&engine = render_engine_](VkImageView* value) {
@@ -712,10 +715,10 @@ bool MM::RenderSystem::RenderResourceTexture::InitSampler() {
   sampler_create_info.maxLod = static_cast<float>(image_.GetMipmapLevels());
 
   VkSampler temp_sampler{nullptr};
-  VK_CHECK(vkCreateSampler(render_engine_->device_, &sampler_create_info,
-                           nullptr, &temp_sampler),
-           LOG_ERROR("Failed to create VkSampler");
-           return false;)
+  MM_VK_CHECK(vkCreateSampler(render_engine_->device_, &sampler_create_info,
+                              nullptr, &temp_sampler),
+              MM_LOG_ERROR("Failed to create VkSampler");
+              return false;)
 
   image_bind_info_.sampler_ = MM::Utils::MakeSharedWithDestructor<VkSampler>(
       [engine = render_engine_](VkSampler* value) {
@@ -1035,7 +1038,7 @@ void MM::RenderSystem::RenderResourceBuffer::Reset(
     return;
   }
   if (other->GetResourceType() != ResourceType::BUFFER) {
-    LOG_WARN(
+    MM_LOG_WARN(
         "The resource type of the reset resource is different from the "
         "original resource type. Only the resources held by the object will be "
         "released, and resources will not be reset.");
@@ -1102,11 +1105,12 @@ MM::RenderSystem::RenderResourceBuffer::GetDeepCopy(
   VkBuffer new_buffer{nullptr};
   VmaAllocation new_allocation{nullptr};
 
-  VK_CHECK(vmaCreateBuffer(render_engine_->GetAllocator(),
-                           &new_buffer_create_info, &new_allocation_create_info,
-                           &new_buffer, &new_allocation, nullptr),
-           LOG_ERROR("Failed to create buffer.");
-           return std::unique_ptr<RenderResourceBuffer>())
+  MM_VK_CHECK(
+      vmaCreateBuffer(render_engine_->GetAllocator(), &new_buffer_create_info,
+                      &new_allocation_create_info, &new_buffer, &new_allocation,
+                      nullptr),
+      MM_LOG_ERROR("Failed to create buffer.");
+      return std::unique_ptr<RenderResourceBuffer>())
 
   BufferInfo new_buffer_info = GetBufferInfo();
   new_buffer_info.is_transform_dest_ = true;
@@ -1120,7 +1124,7 @@ MM::RenderSystem::RenderResourceBuffer::GetDeepCopy(
 
   MM_CHECK(render_engine_->CopyBuffer(buffer_, new_allocated_buffer,
                                       std::vector<VkBufferCopy2>{buffer_copy}),
-           LOG_ERROR("Failed to copy buffer.");
+           MM_LOG_ERROR("Failed to copy buffer.");
            return std::unique_ptr<RenderResourceBuffer>{};)
 
   return std::make_unique<RenderResourceBuffer>(
@@ -1135,96 +1139,99 @@ bool MM::RenderSystem::RenderResourceBuffer::CheckInitParameter(
     const VkDeviceSize& dynamic_offset, const void* data,
     const VkDeviceSize& copy_offset, const VkDeviceSize& copy_size) const {
   if (engine == nullptr) {
-    LOG_ERROR("The incoming engine parameter pointer is null.");
+    MM_LOG_ERROR("The incoming engine parameter pointer is null.");
     return false;
   }
   if (!engine->IsValid()) {
-    LOG_ERROR("The rendering engine is not available.");
+    MM_LOG_ERROR("The rendering engine is not available.");
     return false;
   }
 
   if (size > 65536 && Utils::DescriptorTypeIsUniformBuffer(descriptor_type)) {
-    LOG_ERROR(
+    MM_LOG_ERROR(
         "The maximum allowable uniform buffer size for most desktop clients is "
         "64KB (1024 * 64=65536).");
     return false;
   }
 
   if (!Utils::DescriptorTypeIsBuffer(descriptor_type)) {
-    LOG_ERROR("Parameter descriptor_type is not  for buffer adaptation.");
+    MM_LOG_ERROR("Parameter descriptor_type is not  for buffer adaptation.");
     return false;
   }
   if (buffer_usage & VK_BUFFER_USAGE_UNIFORM_TEXEL_BUFFER_BIT) {
     if (descriptor_type != VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER) {
-      LOG_ERROR("The buffer_usage and descriptor_type do not match.");
+      MM_LOG_ERROR("The buffer_usage and descriptor_type do not match.");
       return false;
     }
     if (render_engine_->gpu_properties_.limits.maxUniformBufferRange <
         range_size) {
-      LOG_ERROR(
+      MM_LOG_ERROR(
           "The uniform buffer range size you want to create is too large.");
       return false;
     }
   } else if (buffer_usage & VK_BUFFER_USAGE_STORAGE_TEXEL_BUFFER_BIT) {
     if (descriptor_type != VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER) {
-      LOG_ERROR("The buffer_usage and descriptor_type do not match.");
+      MM_LOG_ERROR("The buffer_usage and descriptor_type do not match.");
       return false;
     }
   } else if (buffer_usage & VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT) {
     if (descriptor_type != VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER &&
         descriptor_type != VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC) {
-      LOG_ERROR("The buffer_usage and descriptor_type do not match.");
+      MM_LOG_ERROR("The buffer_usage and descriptor_type do not match.");
       return false;
     }
     if (render_engine_->gpu_properties_.limits.maxUniformBufferRange <
         range_size) {
-      LOG_ERROR("The uniform buffer you want to create is too large.");
+      MM_LOG_ERROR("The uniform buffer you want to create is too large.");
       return false;
     }
   } else if (buffer_usage & VK_BUFFER_USAGE_STORAGE_BUFFER_BIT) {
     if (descriptor_type != VK_DESCRIPTOR_TYPE_STORAGE_BUFFER &&
         descriptor_type != VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC) {
-      LOG_ERROR("The buffer_usage and descriptor_type do not match.");
+      MM_LOG_ERROR("The buffer_usage and descriptor_type do not match.");
       return false;
     }
   } else {
-    LOG_ERROR("The buffer_usage not currently supported.");
+    MM_LOG_ERROR("The buffer_usage not currently supported.");
     return false;
   }
 
   if (size == 0 || range_size == 0) {
-    LOG_ERROR("Buffer size pr range size must great than 0.");
+    MM_LOG_ERROR("Buffer size pr range size must great than 0.");
     return false;
   }
 
   if (Utils::DescriptorTypeIsDynamicBuffer(descriptor_type)) {
     if (offset > ULLONG_MAX - dynamic_offset) {
-      LOG_ERROR("The sum of the offset and dynamic_offset too lager.");
+      MM_LOG_ERROR("The sum of the offset and dynamic_offset too lager.");
       return false;
     }
     if (offset + dynamic_offset > size) {
-      LOG_ERROR("The sum of offset and dynamic_offset is greater than size.");
+      MM_LOG_ERROR(
+          "The sum of offset and dynamic_offset is greater than size.");
       return false;
     }
   } else {
     if (offset > size) {
-      LOG_ERROR("The offset is greater than size.");
+      MM_LOG_ERROR("The offset is greater than size.");
       return false;
     }
   }
 
   if (!OffsetIsAlignment(engine, descriptor_type, offset, dynamic_offset)) {
-    LOG_ERROR("The offset value does not meet memory alignment requirements.");
+    MM_LOG_ERROR(
+        "The offset value does not meet memory alignment requirements.");
     return false;
   }
 
   if (data != nullptr) {
     if (copy_offset > ULLONG_MAX - copy_offset) {
-      LOG_ERROR("The sum of the copy_offset and copy_offset too lager.");
+      MM_LOG_ERROR("The sum of the copy_offset and copy_offset too lager.");
       return false;
     }
     if (copy_offset + copy_size > size) {
-      LOG_ERROR("The sum of copy_offset and copy_size is greater than size.");
+      MM_LOG_ERROR(
+          "The sum of copy_offset and copy_size is greater than size.");
       return false;
     }
   }
@@ -1247,11 +1254,11 @@ bool MM::RenderSystem::RenderResourceBuffer::InitBuffer(
   VkBuffer temp_buffer{nullptr};
   VmaAllocation temp_allocation{nullptr};
 
-  VK_CHECK(vmaCreateBuffer(render_engine_->allocator_, &buffer_create_info,
-                           &allocation_create_info, &temp_buffer,
-                           &temp_allocation, nullptr),
-           LOG_ERROR("Failed to create VkBuffer.");
-           return false;)
+  MM_VK_CHECK(vmaCreateBuffer(render_engine_->allocator_, &buffer_create_info,
+                              &allocation_create_info, &temp_buffer,
+                              &temp_allocation, nullptr),
+              MM_LOG_ERROR("Failed to create VkBuffer.");
+              return false;)
 
   BufferInfo temp_buffer_info{};
   temp_buffer_info.buffer_size_ = size;
@@ -1279,10 +1286,11 @@ MM::ExecuteResult MM::RenderSystem::RenderResourceBuffer::CopyDataToBuffer(
 
   if (buffer_.CanMapped()) {
     char* buffer_ptr{nullptr};
-    VK_CHECK(vmaMapMemory(render_engine_->allocator_, buffer_.GetAllocation(),
-                          reinterpret_cast<void**>(&buffer_ptr)),
-             LOG_ERROR("Unable to obtain a pointer mapped to a buffer");
-             return ExecuteResult::INPUT_PARAMETERS_ARE_NOT_SUITABLE;)
+    MM_VK_CHECK(
+        vmaMapMemory(render_engine_->allocator_, buffer_.GetAllocation(),
+                     reinterpret_cast<void**>(&buffer_ptr)),
+        MM_LOG_ERROR("Unable to obtain a pointer mapped to a buffer");
+        return ExecuteResult::INPUT_PARAMETERS_ARE_NOT_SUITABLE;)
 
     buffer_ptr = buffer_ptr + offset;
     memcpy(buffer_ptr, data, size);
@@ -1299,7 +1307,7 @@ MM::ExecuteResult MM::RenderSystem::RenderResourceBuffer::CopyDataToBuffer(
       VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT, false);
 
   if (!stage_buffer.IsValid()) {
-    LOG_ERROR("Failed to create stage buffer.");
+    MM_LOG_ERROR("Failed to create stage buffer.");
     return ExecuteResult::CREATE_OBJECT_FAILED;
   }
 
@@ -1310,10 +1318,10 @@ MM::ExecuteResult MM::RenderSystem::RenderResourceBuffer::CopyDataToBuffer(
 
   void* stage_buffer_ptr{nullptr};
 
-  VK_CHECK(vmaMapMemory(render_engine_->allocator_,
-                        stage_buffer.GetAllocation(), &stage_buffer_ptr),
-           LOG_ERROR("Unable to obtain a pointer mapped to a buffer");
-           return Utils::VkResultToMMResult(VK_RESULT_CODE);)
+  MM_VK_CHECK(vmaMapMemory(render_engine_->allocator_,
+                           stage_buffer.GetAllocation(), &stage_buffer_ptr),
+              MM_LOG_ERROR("Unable to obtain a pointer mapped to a buffer");
+              return Utils::VkResultToMMResult(MM_VK_RESULT_CODE);)
 
   memcpy(stage_buffer_ptr, data, size);
 
@@ -1324,13 +1332,13 @@ MM::ExecuteResult MM::RenderSystem::RenderResourceBuffer::CopyDataToBuffer(
           CommandBufferType::TRANSFORM, 1,
           [&buffer_copy_info = buffer_copy_info](AllocatedCommandBuffer& cmd) {
             MM_CHECK(Utils::BeginCommandBuffer(cmd),
-                     LOG_FATAL("Failed to begin command buffer.");
+                     MM_LOG_FATAL("Failed to begin command buffer.");
                      return MM_RESULT_CODE;)
 
             vkCmdCopyBuffer2(cmd.GetCommandBuffer(), &buffer_copy_info);
 
             MM_CHECK(Utils::EndCommandBuffer(cmd),
-                     LOG_FATAL("Failed to end command buffer.");
+                     MM_LOG_FATAL("Failed to end command buffer.");
                      return MM_RESULT_CODE;)
 
             return ExecuteResult::SUCCESS;
@@ -1381,7 +1389,7 @@ bool MM::RenderSystem::RenderResourceBuffer::OffsetIsAlignment(
       return !(offset + dynamic_offset % engine->gpu_properties_.limits
                                              .minStorageBufferOffsetAlignment);
     default:
-      LOG_ERROR(
+      MM_LOG_ERROR(
           "The type referred to by descriptor_type is not currently "
           "supported.");
       return false;

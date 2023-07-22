@@ -20,9 +20,9 @@
 
 TEST(asset_system, asset_base) {
   MM::FileSystem::Path path1(""),
-      path2(MM::FileSystem::Path(std::string(TEST_FILE_DIR_TEST) +
+      path2(MM::FileSystem::Path(std::string(MM_TEST_FILE_DIR_TEST) +
                                  "/asset_system/test_picture1.jpg")),
-      path3(MM::FileSystem::Path(std::string(TEST_FILE_DIR_TEST) +
+      path3(MM::FileSystem::Path(std::string(MM_TEST_FILE_DIR_TEST) +
                                  "/asset_system/test_picture2.png"));
   ASSERT_EQ(path1.IsExists(), false);
   ASSERT_EQ(path2.IsExists(), true);
@@ -77,9 +77,9 @@ TEST(asset_system, asset_base) {
 
 TEST(asset_system, image) {
   MM::FileSystem::Path path1(""),
-      path2(MM::FileSystem::Path(std::string(TEST_FILE_DIR_TEST) +
+      path2(MM::FileSystem::Path(std::string(MM_TEST_FILE_DIR_TEST) +
                                  "/asset_system/test_picture1.jpg")),
-      path3(MM::FileSystem::Path(std::string(TEST_FILE_DIR_TEST) +
+      path3(MM::FileSystem::Path(std::string(MM_TEST_FILE_DIR_TEST) +
                                  "/asset_system/test_picture2.png"));
   ASSERT_EQ(path1.IsExists(), false);
   ASSERT_EQ(path2.IsExists(), true);
@@ -372,9 +372,9 @@ TEST(asset_system, image) {
 
 TEST(asset_system, mesh) {
   MM::FileSystem::Path path1(""),
-      path2(MM::FileSystem::Path(std::string(TEST_FILE_DIR_TEST) +
+      path2(MM::FileSystem::Path(std::string(MM_TEST_FILE_DIR_TEST) +
                                  "/asset_system/monkey.obj")),
-      path3(MM::FileSystem::Path(std::string(TEST_FILE_DIR_TEST) +
+      path3(MM::FileSystem::Path(std::string(MM_TEST_FILE_DIR_TEST) +
                                  "/asset_system/model.fbx"));
   ASSERT_EQ(path1.IsExists(), false);
   ASSERT_EQ(path2.IsExists(), true);
@@ -580,9 +580,9 @@ TEST(asset_system, combination) {
     }
   };
 
-  MM::FileSystem::Path json_path1{std::string(TEST_FILE_DIR_TEST) +
+  MM::FileSystem::Path json_path1{std::string(MM_TEST_FILE_DIR_TEST) +
                                   "/asset_system/combination2.json"},
-      json_path2{std::string(TEST_FILE_DIR_TEST) +
+      json_path2{std::string(MM_TEST_FILE_DIR_TEST) +
                  "/asset_system/combination1.json"};
   ImageImageMeshMesh image_image_mesh1(json_path1);
   ImageImageMeshMesh image_image_mesh2(json_path2);
@@ -609,12 +609,12 @@ TEST(asset_system, combination) {
   auto& mesh2 = dynamic_cast<MM::AssetSystem::AssetType::Mesh&>(
       *image_image_mesh2.GetHandler(3).GetObject());
 
-  MM::FileSystem::Path path1(std::string(TEST_FILE_DIR_TEST) +
+  MM::FileSystem::Path path1(std::string(MM_TEST_FILE_DIR_TEST) +
                              "/asset_system/test_picture1.jpg"),
-      path2(std::string(TEST_FILE_DIR_TEST) +
+      path2(std::string(MM_TEST_FILE_DIR_TEST) +
             "/asset_system/test_picture2.png"),
-      path3(std::string(TEST_FILE_DIR_TEST) + "/asset_system/monkey.obj"),
-      path4(std::string(TEST_FILE_DIR_TEST) + "/asset_system/model.fbx");
+      path3(std::string(MM_TEST_FILE_DIR_TEST) + "/asset_system/monkey.obj"),
+      path4(std::string(MM_TEST_FILE_DIR_TEST) + "/asset_system/model.fbx");
 
   MM::FileSystem::LastWriteTime last_write_time1, last_write_time2,
       last_write_time3, last_write_time4;

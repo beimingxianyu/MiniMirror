@@ -75,8 +75,8 @@ MM::ConfigSystem::ConfigSystem* MM::ConfigSystem::ConfigSystem::GetInstance() {
     std::lock_guard<std::mutex> guard(sync_flag_);
     if (!config_system_) {
       config_system_ = new ConfigSystem{};
-      config_data_base_["config_dir"] = CONFIG_DIR;
-      std::cout << CONFIG_DIR << std::endl;
+      config_data_base_["config_dir"] =
+          FileSystem::Path(MM_STR(MM_RELATIVE_CONFIG_DIR)).String();
       ExecuteResult load_result =
           config_system_->LoadConfigFromIni(FileSystem::Path(
               config_data_base_["config_dir"] + "/init_config.ini"));
@@ -184,6 +184,7 @@ void MM::ConfigSystem::ConfigSystem::CheckInit() {
 }
 
 bool MM::ConfigSystem::ConfigSystem::CheckAllNeedConfigLoaded() {
+  std::cout << config_data_base_["config_dir"] << std::endl;
   if (config_data_base_.size() < 16) {
     return false;
   }

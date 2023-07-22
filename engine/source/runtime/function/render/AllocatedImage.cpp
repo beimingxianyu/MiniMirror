@@ -193,7 +193,7 @@ MM::RenderSystem::AllocatedImage::AllocatedImage(
   RenderResourceDataAttributeID render_resource_data_attribute_ID;
   MM_CHECK(image_data_info_.GetRenderResourceDataAttributeID(
                render_resource_data_attribute_ID),
-           LOG_ERROR("Failed to get RenderResourceDataAttributeID.");
+           MM_LOG_ERROR("Failed to get RenderResourceDataAttributeID.");
            RenderResourceDataBase::Release(); render_engine_ = nullptr;
            image_data_info_.Reset(); return;)
   SetRenderResourceDataID(RenderResourceDataID{
@@ -212,7 +212,7 @@ MM::ExecuteResult MM::RenderSystem::AllocatedImage::CheckImageHandler(
   if (!image_handler.IsValid() ||
       image_handler.GetObject()->GetAssetType() !=
           AssetSystem::AssetType::AssetType::IMAGE) {
-    LOG_ERROR(
+    MM_LOG_ERROR(
         "The object pointed to by the image handle is not an image asset.");
     return ExecuteResult ::INITIALIZATION_FAILED;
   }
@@ -232,11 +232,11 @@ MM::RenderSystem::AllocatedImage::CheckInitParametersWhenInitFromAnAsset(
       return MM_RESULT_CODE;)
 
   MM_CHECK_WITHOUT_LOG(CheckImageHandler(image_handler),
-                       LOG_ERROR("Image asset handler is invalid.");
+                       MM_LOG_ERROR("Image asset handler is invalid.");
                        return MM_RESULT_CODE;)
 
   if (!(vk_image_create_info->usage & VK_IMAGE_USAGE_TRANSFER_DST_BIT)) {
-    LOG_ERROR("This image can not initialization from a image asset.");
+    MM_LOG_ERROR("This image can not initialization from a image asset.");
     return ExecuteResult::INITIALIZATION_FAILED;
   }
 
@@ -264,15 +264,16 @@ MM::ExecuteResult MM::RenderSystem::AllocatedImage::LoadImageDataToStageBuffer(
               VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
               VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, 0, nullptr, nullptr, 0},
           nullptr, stage_allocated_buffer),
-      LOG_ERROR("Failed to create stage VkBuffer.");
+      MM_LOG_ERROR("Failed to create stage VkBuffer.");
       return MM_RESULT_CODE;)
 
   void* stage_data;
-  VK_CHECK(vmaMapMemory(render_engine_->GetAllocator(),
-                        stage_allocated_buffer.GetAllocation(), &stage_data),
-           LOG_ERROR("The vmaMapMemory operation failed, unable to complete "
-                     "the pointer mapping operation.");
-           return ExecuteResult::UNDEFINED_ERROR;)
+  MM_VK_CHECK(
+      vmaMapMemory(render_engine_->GetAllocator(),
+                   stage_allocated_buffer.GetAllocation(), &stage_data),
+      MM_LOG_ERROR("The vmaMapMemory operation failed, unable to complete "
+                   "the pointer mapping operation.");
+      return ExecuteResult::UNDEFINED_ERROR;)
   memcpy(stage_data, image_data->GetPixelsData(),
          image_data_info_.image_create_info_.image_size_);
   vmaUnmapMemory(render_engine_->GetAllocator(),
@@ -289,19 +290,20 @@ MM::ExecuteResult MM::RenderSystem::AllocatedImage::InitImage(
   VmaAllocation created_allocation;
   if (vk_image_create_info->mipLevels ==
       image_data_info_.image_create_info_.miplevels_) {
-    VK_CHECK(vmaCreateImage(render_engine_->GetAllocator(),
-                            vk_image_create_info, vma_allocation_create_info,
-                            &created_image, &created_allocation, nullptr),
-             LOG_ERROR("Failed to create VkImage.");
-             return MM::Utils::ExecuteResult::CREATE_OBJECT_FAILED;)
+    MM_VK_CHECK(vmaCreateImage(render_engine_->GetAllocator(),
+                               vk_image_create_info, vma_allocation_create_info,
+                               &created_image, &created_allocation, nullptr),
+                MM_LOG_ERROR("Failed to create VkImage.");
+                return MM::Utils::ExecuteResult::CREATE_OBJECT_FAILED;)
   } else {
     VkImageCreateInfo temp_image_create_info =
         image_data_info_.image_create_info_.GetVkImageCreateInfo();
-    VK_CHECK(vmaCreateImage(render_engine_->GetAllocator(),
-                            &temp_image_create_info, vma_allocation_create_info,
-                            &created_image, &created_allocation, nullptr),
-             LOG_ERROR("Failed to create VkImage.");
-             return MM::Utils::ExecuteResult::CREATE_OBJECT_FAILED;)
+    MM_VK_CHECK(
+        vmaCreateImage(render_engine_->GetAllocator(), &temp_image_create_info,
+                       vma_allocation_create_info, &created_image,
+                       &created_allocation, nullptr),
+        MM_LOG_ERROR("Failed to create VkImage.");
+        return MM::Utils::ExecuteResult::CREATE_OBJECT_FAILED;)
   }
 
   MM_CHECK(
@@ -310,7 +312,7 @@ MM::ExecuteResult MM::RenderSystem::AllocatedImage::InitImage(
           [this_image = this, &created_image,
            &stage_allocated_buffer](AllocatedCommandBuffer& cmd) mutable {
             MM_CHECK(Utils::BeginCommandBuffer(cmd),
-                     LOG_FATAL("Failed to begin VkCommandBuffer.");
+                     MM_LOG_FATAL("Failed to begin VkCommandBuffer.");
                      return MM_RESULT_CODE;)
 
             ImageCreateInfo& image_create_info =
@@ -333,12 +335,12 @@ MM::ExecuteResult MM::RenderSystem::AllocatedImage::InitImage(
             }
 
             MM_CHECK(Utils::EndCommandBuffer(cmd),
-                     LOG_FATAL("Failed to end VkCommandBuffer.");
+                     MM_LOG_FATAL("Failed to end VkCommandBuffer.");
                      return MM_RESULT_CODE;)
 
             return MM::Utils::ExecuteResult ::SUCCESS;
           }),
-      LOG_ERROR("Failed to copy stage buffer data to image.");
+      MM_LOG_ERROR("Failed to copy stage buffer data to image.");
       return MM_RESULT_CODE;)
 
   wrapper_ = AllocatedImageWrapper{render_engine_->GetAllocator(),
@@ -413,11 +415,11 @@ MM::ExecuteResult MM::RenderSystem::AllocatedImage::CheckInitParameters(
           render_engine->GetPresentQueueIndex() &&
       *vk_image_create_info->pQueueFamilyIndices !=
           render_engine->GetComputeQueueIndex()) {
-    LOG_ERROR("The queue family index is error.");
+    MM_LOG_ERROR("The queue family index is error.");
     return ExecuteResult ::INITIALIZATION_FAILED;
   }
   if (image_layout == VK_IMAGE_LAYOUT_MAX_ENUM) {
-    LOG_ERROR("The image layout is error.");
+    MM_LOG_ERROR("The image layout is error.");
     return ExecuteResult ::INITIALIZATION_FAILED;
   }
 
@@ -587,11 +589,12 @@ MM::Utils::ExecuteResult MM::RenderSystem::AllocatedImage::GetCopy(
       image_data_info_.image_create_info_.GetVkImageCreateInfo();
   VmaAllocationCreateInfo allocation_create_info =
       image_data_info_.allocation_create_info_.GetVmaAllocationCreateInfo();
-  VK_CHECK(vmaCreateImage(wrapper_.GetAllocator(), &image_create_info,
-                          &allocation_create_info, &new_image, &new_allocation,
-                          nullptr),
-           LOG_ERROR("Failed to create VkImage.");
-           return MM::RenderSystem::Utils::VkResultToMMResult(VK_RESULT_CODE);)
+  MM_VK_CHECK(
+      vmaCreateImage(wrapper_.GetAllocator(), &image_create_info,
+                     &allocation_create_info, &new_image, &new_allocation,
+                     nullptr),
+      MM_LOG_ERROR("Failed to create VkImage.");
+      return MM::RenderSystem::Utils::VkResultToMMResult(MM_VK_RESULT_CODE);)
 
   MM_CHECK(render_engine_->RunSingleCommandAndWait(
                CommandBufferType::TRANSFORM, 1,
@@ -605,7 +608,7 @@ MM::Utils::ExecuteResult MM::RenderSystem::AllocatedImage::GetCopy(
                  }
                },
                std::vector<RenderResourceDataID>{GetRenderResourceDataID()}),
-           LOG_ERROR("Failed to copy data to new image.");
+           MM_LOG_ERROR("Failed to copy data to new image.");
            return MM_RESULT_CODE;)
 
   new_allocated_image = AllocatedImage{
@@ -649,7 +652,7 @@ MM::RenderSystem::AllocatedImage::AddCopyImageCommandsWhenOneSubResource(
       0, nullptr, 0, nullptr, barriers.size(), barriers.data(), 0)};
 
   MM_CHECK(MM::RenderSystem::Utils::BeginCommandBuffer(cmd),
-           LOG_FATAL("Failed to begine command buffer.");
+           MM_LOG_FATAL("Failed to begine command buffer.");
            return MM_RESULT_CODE;)
 
   vkCmdPipelineBarrier2(cmd.GetCommandBuffer(), &dependency_info);
@@ -684,7 +687,7 @@ MM::RenderSystem::AllocatedImage::AddCopyImageCommandsWhenOneSubResource(
   vkCmdPipelineBarrier2(cmd.GetCommandBuffer(), &dependency_info);
 
   MM_CHECK(MM::RenderSystem::Utils::EndCommandBuffer(cmd),
-           LOG_FATAL("Failed to end command buffer");
+           MM_LOG_FATAL("Failed to end command buffer");
            return MM_RESULT_CODE;)
 
   return ExecuteResult ::SUCCESS;
@@ -734,7 +737,7 @@ MM::RenderSystem::AllocatedImage::AddCopyImagCommandseWhenMultSubResource(
       0, nullptr, 0, nullptr, barriers.size(), barriers.data(), 0)};
 
   MM_CHECK(MM::RenderSystem::Utils::BeginCommandBuffer(cmd),
-           LOG_FATAL("Failed to begine command buffer.");
+           MM_LOG_FATAL("Failed to begine command buffer.");
            return MM_RESULT_CODE;)
 
   vkCmdPipelineBarrier2(cmd.GetCommandBuffer(), &dependency_info);
@@ -795,7 +798,7 @@ MM::RenderSystem::AllocatedImage::AddCopyImagCommandseWhenMultSubResource(
   vkCmdPipelineBarrier2(cmd.GetCommandBuffer(), &dependency_info);
 
   MM_CHECK(MM::RenderSystem::Utils::EndCommandBuffer(cmd),
-           LOG_FATAL("Failed to end command buffer");
+           MM_LOG_FATAL("Failed to end command buffer");
            return MM_RESULT_CODE;)
 
   return ExecuteResult ::SUCCESS;
@@ -813,7 +816,7 @@ MM::RenderSystem::AllocatedImage::TransformSubResourceAttribute(
   }
 
   MM_CHECK(CheckTransformInputParameter(new_sub_resource_attribute),
-           LOG_ERROR("New sub resource attribute is error.");
+           MM_LOG_ERROR("New sub resource attribute is error.");
            return MM_RESULT_CODE;)
 
   MM_CHECK(
@@ -984,14 +987,14 @@ MM::RenderSystem::AllocatedImage::TransformSubResourceAttribute(
                     transform_to_new_barriers.data(), 0)};
 
             MM_CHECK(MM::RenderSystem::Utils::BeginCommandBuffer(cmd),
-                     LOG_FATAL("Failed to begin command buffer.");
+                     MM_LOG_FATAL("Failed to begin command buffer.");
                      return MM_RESULT_CODE;)
 
             vkCmdPipelineBarrier2(cmd.GetCommandBuffer(), &dependency_info1);
             vkCmdPipelineBarrier2(cmd.GetCommandBuffer(), &dependency_info2);
 
             MM_CHECK(MM::RenderSystem::Utils::EndCommandBuffer(cmd),
-                     LOG_FATAL("Failed to end command buffer.");
+                     MM_LOG_FATAL("Failed to end command buffer.");
                      return MM_RESULT_CODE;)
 
             this_image->MarkThisUseForWrite();
@@ -1001,7 +1004,7 @@ MM::RenderSystem::AllocatedImage::TransformSubResourceAttribute(
             return ExecuteResult ::SUCCESS;
           },
           std::vector<RenderResourceDataID>{GetRenderResourceDataID()}),
-      LOG_ERROR("Failed to transform sub resource attribute.");
+      MM_LOG_ERROR("Failed to transform sub resource attribute.");
       return MM_RESULT_CODE;)
 
   return ExecuteResult ::SUCCESS;

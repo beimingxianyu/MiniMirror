@@ -49,7 +49,7 @@ MM::RenderSystem::VertexInputState::VertexInputState(
       instance_attributes_(instance_attributes) {
   std::string error_message;
   if (!CheckLayoutIsCorrect(error_message)) {
-    LOG_ERROR(error_message);
+    MM_LOG_ERROR(error_message);
     Reset();
     return;
   }
@@ -255,10 +255,10 @@ MM::RenderSystem::VertexAndIndexBuffer::VertexAndIndexBuffer(
   }
 
   const auto vertex_buffer_size =
-      std::stoull(CONFIG_SYSTEM->GetConfig("init_vertex_buffer_size"));
+      std::stoull(MM_CONFIG_SYSTEM->GetConfig("init_vertex_buffer_size"));
 
   const auto index_buffer_size =
-      std::stoull(CONFIG_SYSTEM->GetConfig("init_index_buffer_size"));
+      std::stoull(MM_CONFIG_SYSTEM->GetConfig("init_index_buffer_size"));
 
   vertex_buffer_ = engine->CreateBuffer(vertex_buffer_size,
                                         VK_BUFFER_USAGE_VERTEX_BUFFER_BIT |
@@ -267,7 +267,7 @@ MM::RenderSystem::VertexAndIndexBuffer::VertexAndIndexBuffer(
                                         VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE);
   if (!vertex_buffer_.IsValid()) {
     Release();
-    LOG_ERROR("Failed to create vertex total buffer.");
+    MM_LOG_ERROR("Failed to create vertex total buffer.");
   }
 
   index_buffer_ = engine->CreateBuffer(index_buffer_size,
@@ -277,7 +277,7 @@ MM::RenderSystem::VertexAndIndexBuffer::VertexAndIndexBuffer(
                                        VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE);
   if (!index_buffer_.IsValid()) {
     Release();
-    LOG_ERROR("Failed to create index total buffer.");
+    MM_LOG_ERROR("Failed to create index total buffer.");
   }
 }
 
@@ -432,11 +432,12 @@ void MM::RenderSystem::VertexAndIndexBuffer::Release() {
 bool MM::RenderSystem::VertexAndIndexBuffer::ChooseVertexBufferReserveSize(
     const VkDeviceSize& require_size, VkDeviceSize& output_reserve_size) {
   VkDeviceSize max_buffer_size = 0;
-  MM_CHECK(CONFIG_SYSTEM->GetConfig("max_vertex_buffer_size", max_buffer_size),
-           LOG_WARN("The max_vertex_buffer_size"
-                    " is not set,vertexbuffer_size will become"
-                    "infinitely larger.");
-           max_buffer_size = VK_WHOLE_SIZE;)
+  MM_CHECK(
+      MM_CONFIG_SYSTEM->GetConfig("max_vertex_buffer_size", max_buffer_size),
+      MM_LOG_WARN("The max_vertex_buffer_size"
+                  " is not set,vertexbuffer_size will become"
+                  "infinitely larger.");
+      max_buffer_size = VK_WHOLE_SIZE;)
 
   VkDeviceSize total_used_size = 0;
   for (auto buffer_chunk_info = vertex_buffer_chunks_info_.begin();
@@ -454,7 +455,7 @@ bool MM::RenderSystem::VertexAndIndexBuffer::ChooseVertexBufferReserveSize(
     total_used_size += (*buffer_chunk_info)->GetSize();
   }
   if (require_size + total_used_size > max_buffer_size) {
-    LOG_ERROR("Insufficient buffer space to load data.");
+    MM_LOG_ERROR("Insufficient buffer space to load data.");
     return false;
   }
 
@@ -473,11 +474,12 @@ bool MM::RenderSystem::VertexAndIndexBuffer::ChooseVertexBufferReserveSize(
 bool MM::RenderSystem::VertexAndIndexBuffer::ChooseIndexBufferReserveSize(
     const VkDeviceSize& require_size, VkDeviceSize& output_reserve_size) {
   VkDeviceSize max_buffer_size = 0;
-  MM_CHECK(CONFIG_SYSTEM->GetConfig("max_index_buffer_size", max_buffer_size),
-           LOG_WARN("The max_index_buffer_size"
-                    " is not set,vertexbuffer_size will become"
-                    "infinitely larger.");
-           max_buffer_size = VK_WHOLE_SIZE;)
+  MM_CHECK(
+      MM_CONFIG_SYSTEM->GetConfig("max_index_buffer_size", max_buffer_size),
+      MM_LOG_WARN("The max_index_buffer_size"
+                  " is not set,vertexbuffer_size will become"
+                  "infinitely larger.");
+      max_buffer_size = VK_WHOLE_SIZE;)
 
   VkDeviceSize total_used_size = 0;
   for (auto buffer_chunk_info = index_buffer_chunks_info_.begin();
@@ -495,7 +497,7 @@ bool MM::RenderSystem::VertexAndIndexBuffer::ChooseIndexBufferReserveSize(
     total_used_size += (*buffer_chunk_info)->GetSize();
   }
   if (require_size + total_used_size > max_buffer_size) {
-    LOG_ERROR("Insufficient buffer space to load data.");
+    MM_LOG_ERROR("Insufficient buffer space to load data.");
     return false;
   }
 
@@ -836,7 +838,7 @@ bool MM::RenderSystem::VertexAndIndexBuffer::Reserve(
         index_result = (*object).ReserveIndexBuffer(new_index_buffer_size);
       });
 
-  auto future = TASK_SYSTEM->Run(TaskSystem::TaskType::Render, task_flow);
+  auto future = MM_TASK_SYSTEM->Run(TaskSystem::TaskType::Render, task_flow);
   future.get();
 
   if (buffer_result && index_result) {

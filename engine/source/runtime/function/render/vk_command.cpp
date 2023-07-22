@@ -359,7 +359,7 @@ MM::RenderSystem::AllocatedCommandBuffer::AllocatedCommandBufferWrapper::
     queue_ = nullptr;
     command_pool_ = nullptr;
     command_buffer_ = nullptr;
-    LOG_ERROR("Failed to create AllocatedCommandBuffer!");
+    MM_LOG_ERROR("Failed to create AllocatedCommandBuffer!");
     return;
   }
 
@@ -369,7 +369,7 @@ MM::RenderSystem::AllocatedCommandBuffer::AllocatedCommandBufferWrapper::
     queue_ = nullptr;
     command_pool_ = nullptr;
     command_buffer_ = nullptr;
-    LOG_ERROR("Failed to create AllocatedCommandBuffer!");
+    MM_LOG_ERROR("Failed to create AllocatedCommandBuffer!");
   }
 }
 
@@ -407,18 +407,18 @@ bool MM::RenderSystem::AllocatedCommandBuffer::AllocatedCommandBufferWrapper::
 
 bool MM::RenderSystem::AllocatedCommandBuffer::AllocatedCommandBufferWrapper::
     ResetCommandBuffer() {
-  VK_CHECK(vkResetCommandPool(engine_->GetDevice(), command_pool_, 0),
-           LOG_ERROR("Failed to reset command buffer!");
-           return false;)
+  MM_VK_CHECK(vkResetCommandPool(engine_->GetDevice(), command_pool_, 0),
+              MM_LOG_ERROR("Failed to reset command buffer!");
+              return false;)
 
   return true;
 }
 
 bool MM::RenderSystem::AllocatedCommandBuffer::AllocatedCommandBufferWrapper::
     ResetFence() {
-  VK_CHECK(vkResetFences(engine_->GetDevice(), 1, &command_fence_),
-           LOG_ERROR("Failed to reset fence.");
-           return false;)
+  MM_VK_CHECK(vkResetFences(engine_->GetDevice(), 1, &command_fence_),
+              MM_LOG_ERROR("Failed to reset fence.");
+              return false;)
 
   return true;
 }
@@ -742,7 +742,7 @@ MM::RenderSystem::CommandExecutor::CommandExecutor(RenderEngine* engine)
       submit_failed_to_be_recycled_command_buffer_(),
       submit_failed_to_be_recycled_command_buffer_mutex_() {
   if (engine == nullptr || !engine->IsValid()) {
-    LOG_ERROR("Engine is invalid.");
+    MM_LOG_ERROR("Engine is invalid.");
     render_engine_ = nullptr;
     return;
   }
@@ -795,7 +795,7 @@ MM::RenderSystem::CommandExecutor::CommandExecutor(RenderEngine* engine)
   taskflow.emplace([this_object = this]() {
     this_object->RecycledSemaphoreThatSubmittedFailed();
   });
-  TASK_SYSTEM->Run(TaskSystem::TaskType::Render, taskflow);
+  MM_TASK_SYSTEM->Run(TaskSystem::TaskType::Render, taskflow);
 }
 
 MM::RenderSystem::CommandExecutor::~CommandExecutor() {
@@ -852,14 +852,14 @@ MM::RenderSystem::CommandExecutor::CommandExecutor(
       submit_failed_to_be_recycled_command_buffer_(),
       submit_failed_to_be_recycled_command_buffer_mutex_() {
   if (engine == nullptr || !engine->IsValid()) {
-    LOG_ERROR("Engine is invalid.");
+    MM_LOG_ERROR("Engine is invalid.");
     render_engine_ = nullptr;
     return;
   }
 
   if (graph_command_number < 1 || compute_command_number < 1 ||
       transform_command_number < 1) {
-    LOG_ERROR(
+    MM_LOG_ERROR(
         "graph_command_number,compute_command_number and "
         "transform_command_number must greater than 1.");
     render_engine_ = nullptr;
@@ -910,7 +910,7 @@ MM::RenderSystem::CommandExecutor::CommandExecutor(
   taskflow.emplace([this_object = this]() {
     this_object->RecycledSemaphoreThatSubmittedFailed();
   });
-  TASK_SYSTEM->Run(TaskSystem::TaskType::Render, taskflow);
+  MM_TASK_SYSTEM->Run(TaskSystem::TaskType::Render, taskflow);
 }
 
 std::uint32_t MM::RenderSystem::CommandExecutor::GetGraphCommandNumber() const {
@@ -945,7 +945,7 @@ std::uint32_t MM::RenderSystem::CommandExecutor::GetFreeTransformCommandNumber()
 MM::RenderSystem::RenderFuture MM::RenderSystem::CommandExecutor::Run(
     CommandTaskFlow&& command_task_flow) {
   if (!command_task_flow.IsValid()) {
-    LOG_ERROR("Command task flow is valid.");
+    MM_LOG_ERROR("Command task flow is valid.");
     return RenderFuture{};
   }
 
@@ -974,7 +974,7 @@ MM::RenderSystem::RenderFuture MM::RenderSystem::CommandExecutor::Run(
     if (!processing_task_flow_queue_) {
       TaskSystem::Taskflow task_flow;
       task_flow.emplace([this_object = this]() { this_object->ProcessTask(); });
-      TASK_SYSTEM->Run(TaskSystem::TaskType::Render, task_flow);
+      MM_TASK_SYSTEM->Run(TaskSystem::TaskType::Render, task_flow);
     }
   }
 
@@ -1050,11 +1050,11 @@ MM::ExecuteResult MM::RenderSystem::CommandExecutor::InitCommandPolls(
       Utils::GetCommandPoolCreateInfo(render_engine_->GetGraphQueueIndex());
 
   for (std::uint32_t i = 0; i < graph_command_pools.size(); ++i) {
-    VK_CHECK(
+    MM_VK_CHECK(
         vkCreateCommandPool(render_engine_->GetDevice(),
                             &command_buffer_create_info, nullptr,
                             &graph_command_pools[i]),
-        LOG_ERROR("Failed to create graph command pool.");
+        MM_LOG_ERROR("Failed to create graph command pool.");
         ClearWhenConstructFailed(graph_command_pools, compute_command_pools,
                                  transform_command_pools);
         return ExecuteResult::INITIALIZATION_FAILED;)
@@ -1063,11 +1063,11 @@ MM::ExecuteResult MM::RenderSystem::CommandExecutor::InitCommandPolls(
   command_buffer_create_info.queueFamilyIndex =
       render_engine_->GetComputeQueueIndex();
   for (std::uint32_t i = 0; i < compute_command_pools.size(); ++i) {
-    VK_CHECK(
+    MM_VK_CHECK(
         vkCreateCommandPool(render_engine_->GetDevice(),
                             &command_buffer_create_info, nullptr,
                             &compute_command_pools[i]),
-        LOG_ERROR("Failed to create compute command pool.");
+        MM_LOG_ERROR("Failed to create compute command pool.");
         ClearWhenConstructFailed(graph_command_pools, compute_command_pools,
                                  transform_command_pools);
         return ExecuteResult::INITIALIZATION_FAILED;)
@@ -1076,11 +1076,11 @@ MM::ExecuteResult MM::RenderSystem::CommandExecutor::InitCommandPolls(
   command_buffer_create_info.queueFamilyIndex =
       render_engine_->GetTransformQueueIndex();
   for (std::uint32_t i = 0; i < transform_command_pools.size(); ++i) {
-    VK_CHECK(
+    MM_VK_CHECK(
         vkCreateCommandPool(render_engine_->GetDevice(),
                             &command_buffer_create_info, nullptr,
                             &transform_command_pools[i]),
-        LOG_ERROR("Failed to create transform command pool.");
+        MM_LOG_ERROR("Failed to create transform command pool.");
         ClearWhenConstructFailed(graph_command_pools, compute_command_pools,
                                  transform_command_pools);
         return ExecuteResult::INITIALIZATION_FAILED;)
@@ -1101,11 +1101,11 @@ MM::ExecuteResult MM::RenderSystem::CommandExecutor::InitCommandBuffers(
 
   for (std::uint32_t i = 0; i < graph_command_buffers.size(); ++i) {
     command_buffer_allocate_info.commandPool = graph_command_pools[i];
-    VK_CHECK(
+    MM_VK_CHECK(
         vkAllocateCommandBuffers(render_engine_->GetDevice(),
                                  &command_buffer_allocate_info,
                                  graph_command_buffers.data()),
-        LOG_ERROR("Failed to allocate graph command buffers.");
+        MM_LOG_ERROR("Failed to allocate graph command buffers.");
         ClearWhenConstructFailed(graph_command_pools, compute_command_pools,
                                  transform_command_pools);
         return ExecuteResult::INITIALIZATION_FAILED;)
@@ -1113,11 +1113,11 @@ MM::ExecuteResult MM::RenderSystem::CommandExecutor::InitCommandBuffers(
 
   for (std::uint32_t i = 0; i < compute_command_buffers.size(); ++i) {
     command_buffer_allocate_info.commandPool = compute_command_pools[i];
-    VK_CHECK(
+    MM_VK_CHECK(
         vkAllocateCommandBuffers(render_engine_->GetDevice(),
                                  &command_buffer_allocate_info,
                                  compute_command_buffers.data()),
-        LOG_ERROR("Failed to allocate compute command buffers.");
+        MM_LOG_ERROR("Failed to allocate compute command buffers.");
         ClearWhenConstructFailed(graph_command_pools, compute_command_pools,
                                  transform_command_pools);
         return ExecuteResult::INITIALIZATION_FAILED;)
@@ -1125,11 +1125,11 @@ MM::ExecuteResult MM::RenderSystem::CommandExecutor::InitCommandBuffers(
 
   for (std::uint32_t i = 0; i < transform_command_buffers.size(); ++i) {
     command_buffer_allocate_info.commandPool = transform_command_pools[i];
-    VK_CHECK(
+    MM_VK_CHECK(
         vkAllocateCommandBuffers(render_engine_->GetDevice(),
                                  &command_buffer_allocate_info,
                                  transform_command_buffers.data()),
-        LOG_ERROR("Failed to allocate transform command buffers.");
+        MM_LOG_ERROR("Failed to allocate transform command buffers.");
         ClearWhenConstructFailed(graph_command_pools, compute_command_pools,
                                  transform_command_pools);
         return ExecuteResult::INITIALIZATION_FAILED;)
@@ -1241,10 +1241,10 @@ MM::ExecuteResult MM::RenderSystem::CommandExecutor::InitSemaphores(
   VkSemaphore new_semaphore{nullptr};
   for (std::uint32_t i = 0;
        i < (need_semaphore_number * need_semaphore_number) / 2; ++i) {
-    VK_CHECK(
+    MM_VK_CHECK(
         vkCreateSemaphore(render_engine_->GetDevice(), &semaphore_create_info,
                           nullptr, &new_semaphore),
-        LOG_ERROR("Failed to create VkSemaphore.");
+        MM_LOG_ERROR("Failed to create VkSemaphore.");
         ClearWhenConstructFailed(graph_command_pools, compute_command_pools,
                                  transform_command_pools);
         return ExecuteResult::INITIALIZATION_FAILED;)
@@ -1297,11 +1297,11 @@ MM::ExecuteResult MM::RenderSystem::CommandExecutor::AddCommandBuffer(
 
   for (std::uint32_t i = 0; i < new_command_buffer_num; ++i) {
     VkCommandPool new_command_pool{nullptr};
-    VK_CHECK(vkCreateCommandPool(render_engine_->GetDevice(),
-                                 &command_pool_create_info, nullptr,
-                                 &new_command_pool),
-             result = Utils::VkResultToMMResult(VK_RESULT_CODE);
-             execute_state = false;)
+    MM_VK_CHECK(vkCreateCommandPool(render_engine_->GetDevice(),
+                                    &command_pool_create_info, nullptr,
+                                    &new_command_pool),
+                result = Utils::VkResultToMMResult(MM_VK_RESULT_CODE);
+                execute_state = false;)
     if (!execute_state) {
       for (auto& command_pool : command_pools) {
         vkDestroyCommandPool(render_engine_->GetDevice(), command_pool,
@@ -1315,11 +1315,11 @@ MM::ExecuteResult MM::RenderSystem::CommandExecutor::AddCommandBuffer(
   for (std::uint32_t i = 0; i < new_command_buffer_num; ++i) {
     VkCommandBuffer new_command_buffer{nullptr};
     command_buffer_allocate_info.commandPool = command_pools[i];
-    VK_CHECK(vkAllocateCommandBuffers(render_engine_->GetDevice(),
-                                      &command_buffer_allocate_info,
-                                      &new_command_buffer),
-             result = Utils::VkResultToMMResult(VK_RESULT_CODE);
-             execute_state = false;)
+    MM_VK_CHECK(vkAllocateCommandBuffers(render_engine_->GetDevice(),
+                                         &command_buffer_allocate_info,
+                                         &new_command_buffer),
+                result = Utils::VkResultToMMResult(MM_VK_RESULT_CODE);
+                execute_state = false;)
     if (!execute_state) {
       for (auto& command_pool : command_pools) {
         vkDestroyCommandPool(render_engine_->GetDevice(), command_pool,
@@ -1338,7 +1338,7 @@ MM::ExecuteResult MM::RenderSystem::CommandExecutor::AddCommandBuffer(
         command_buffers[i]);
 
     if (!new_allocated_command_buffers.back().IsValid()) {
-      LOG_ERROR("The construction of AllocateCommandBuffer failed.");
+      MM_LOG_ERROR("The construction of AllocateCommandBuffer failed.");
       for (auto& command_pool : command_pools) {
         if (command_pool == nullptr) {
           continue;
@@ -1875,9 +1875,9 @@ MM::RenderSystem::CommandExecutor::ExecutingTask::operator=(
 }
 
 bool MM::RenderSystem::CommandExecutor::ExecutingTask::IsComplete() const {
-  VK_CHECK(vkGetFenceStatus(render_engine_->GetDevice(),
-                            command_buffers_[0]->GetFence()),
-           return false)
+  MM_VK_CHECK(vkGetFenceStatus(render_engine_->GetDevice(),
+                               command_buffers_[0]->GetFence()),
+              return false)
   return true;
 }
 
@@ -2261,7 +2261,7 @@ void MM::RenderSystem::CommandExecutor::ChooseVariableByCommandType(
 
 void MM::RenderSystem::CommandExecutor::ProcessOneCanSubmitTask(
     std::list<CommandTaskToBeSubmit>::iterator& command_task_to_be_submit,
-    const std::shared_ptr<ExecutingCommandTaskFlow>& command_task_flow,
+    std::shared_ptr<ExecutingCommandTaskFlow>& command_task_flow,
     std::uint32_t& number_of_blocked_cross_task_flow) {
   std::uint32_t* free_command_buffer_number{nullptr};
   std::stack<std::unique_ptr<AllocatedCommandBuffer>>* free_command_buffers;
@@ -2345,14 +2345,15 @@ void MM::RenderSystem::CommandExecutor::ProcessOneCanSubmitTask(
 
     // TODO  Attempt to directly call the \ref SubmitTasksSync method on tasks
     // that use synchronous submission instead of submitting to the task system.
-    TaskSystem::Taskflow task_flow;
-    task_flow.emplace([command_task_flow = command_task_flow,
-                       input_tasks = temp_execute_task.release(),
-                       this_object = this]() mutable {
-      this_object->SubmitTasks(command_task_flow,
-                               std::unique_ptr<ExecutingTask>(input_tasks));
-    });
-    TASK_SYSTEM->Run(TaskSystem::TaskType::Render, task_flow);
+    SubmitTasks(command_task_flow, std::move(temp_execute_task));
+    //    TaskSystem::Taskflow task_flow;
+    //    task_flow.emplace([command_task_flow = command_task_flow,
+    //                       input_tasks = temp_execute_task.release(),
+    //                       this_object = this]() mutable {
+    //      this_object->SubmitTasks(command_task_flow,
+    //                               std::unique_ptr<ExecutingTask>(input_tasks));
+    //    });
+    //    TASK_SYSTEM->Run(TaskSystem::TaskType::Render, task_flow);
   } else {
     //    ProcessCompleteTask();
     //    switch (command_task_to_be_submit->command_task_->GetCommandType())
@@ -2471,7 +2472,7 @@ void MM::RenderSystem::CommandExecutor::ProcessNextStepCanSubmitTask(
       next_can_be_submitted_tasks);
 }
 
-MM::ExecuteResult MM::RenderSystem::CommandExecutor::SubmitTasks(
+void MM::RenderSystem::CommandExecutor::SubmitTasks(
     std::shared_ptr<
         MM::RenderSystem::CommandExecutor::ExecutingCommandTaskFlow>&
         command_task_flow,
@@ -2481,14 +2482,14 @@ MM::ExecuteResult MM::RenderSystem::CommandExecutor::SubmitTasks(
          CommandBufferType::UNDEFINED);
 
   if (input_tasks->command_buffers_.size() == 1) {
-    return SubmitTasksSync(command_task_flow, input_tasks);
+    SubmitTasksSync(command_task_flow, std::move(input_tasks));
   }
 
   // TODO Modify the coefficients to achieve optimal performance.
   if (input_tasks->command_task_->use_render_resource_count_ / 2 > 200) {
-    return SubmitTaskAsync(command_task_flow, input_tasks);
+    SubmitTaskAsync(command_task_flow, std::move(input_tasks));
   } else {
-    return SubmitTasksSync(command_task_flow, input_tasks);
+    SubmitTasksSync(command_task_flow, std::move(input_tasks));
   }
 }
 
@@ -2676,8 +2677,8 @@ void MM::RenderSystem::CommandExecutor::ProcessCommandFlowList() {
                     RENDER_COMMAND_RECORD_OR_SUBMIT_FAILED;
             RenderFuture::wait_condition_variable_.notify_all();
           } iter = task_flow_queue_.erase(iter);
-          LOG_ERROR("Failed to create new command buffer, skip this "
-                    "command_task_flow.");)
+          MM_LOG_ERROR("Failed to create new command buffer, skip this "
+                       "command_task_flow.");)
       continue;
     }
     if (task_flow.the_maximum_number_of_compute_buffers_required_for_one_task_ >
@@ -2698,8 +2699,8 @@ void MM::RenderSystem::CommandExecutor::ProcessCommandFlowList() {
                     RENDER_COMMAND_RECORD_OR_SUBMIT_FAILED;
             RenderFuture::wait_condition_variable_.notify_all();
           } iter = task_flow_queue_.erase(iter);
-          LOG_ERROR("Failed to create new command buffer, skip this "
-                    "command_task_flow.");)
+          MM_LOG_ERROR("Failed to create new command buffer, skip this "
+                       "command_task_flow.");)
       continue;
     }
     if (task_flow
@@ -2721,8 +2722,8 @@ void MM::RenderSystem::CommandExecutor::ProcessCommandFlowList() {
                     RENDER_COMMAND_RECORD_OR_SUBMIT_FAILED;
             RenderFuture::wait_condition_variable_.notify_all();
           } iter = task_flow_queue_.erase(iter);
-          LOG_ERROR("Failed to create new command buffer, skip this "
-                    "command_task_flow.");)
+          MM_LOG_ERROR("Failed to create new command buffer, skip this "
+                       "command_task_flow.");)
       continue;
     }
 
@@ -2833,22 +2834,27 @@ std::uint32_t MM::RenderSystem::CommandExecutor::GetFreeCommandNumber(
   }
 }
 
-MM::ExecuteResult MM::RenderSystem::CommandExecutor::SubmitTasksSync(
+void MM::RenderSystem::CommandExecutor::SubmitTasksSync(
     std::shared_ptr<ExecutingCommandTaskFlow>& command_task_flow,
-    std::unique_ptr<ExecutingTask>& input_tasks) {
+    std::unique_ptr<ExecutingTask>&& input_tasks) {
   ExecuteResult result = RecordAndSubmitCommandSync(input_tasks);
   PostProcessOfSubmitTask(command_task_flow, input_tasks, result);
-
-  return result;
 }
 
-MM::ExecuteResult MM::RenderSystem::CommandExecutor::SubmitTaskAsync(
-    std::shared_ptr<ExecutingCommandTaskFlow>& command_task_flow,
-    std::unique_ptr<ExecutingTask>& input_tasks) {
-  ExecuteResult result = RecordAndSubmitCommandASync(input_tasks);
-  PostProcessOfSubmitTask(command_task_flow, input_tasks, result);
-
-  return result;
+void MM::RenderSystem::CommandExecutor::SubmitTaskAsync(
+    std::shared_ptr<ExecutingCommandTaskFlow> command_task_flow,
+    std::unique_ptr<ExecutingTask>&& input_tasks) {
+  TaskSystem::Taskflow taskflow;
+  taskflow.emplace([this_executor = this,
+                    command_task_flow_in = std::move(command_task_flow),
+                    input_tasks_in = input_tasks.release()]() mutable {
+    std::unique_ptr<ExecutingTask> input_tasks(input_tasks_in);
+    ExecuteResult result =
+        this_executor->RecordAndSubmitCommandASync(input_tasks);
+    this_executor->PostProcessOfSubmitTask(command_task_flow_in, input_tasks,
+                                           result);
+  });
+  MM_TASK_SYSTEM->Run(TaskSystem::TaskType::Render, std::move(taskflow));
 }
 
 MM::ExecuteResult MM::RenderSystem::CommandExecutor::RecordAndSubmitCommandSync(
@@ -2931,11 +2937,11 @@ MM::ExecuteResult MM::RenderSystem::CommandExecutor::RecordAndSubmitCommandSync(
     ++sub_task_index;
   }
 
-  VK_CHECK(vkQueueSubmit(input_tasks->command_buffers_.at(0)->GetQueue(),
-                         static_cast<std::uint32_t>(submit_infos.size()),
-                         submit_infos.data(),
-                         input_tasks->command_buffers_.at(0)->GetFence()),
-           result = Utils::VkResultToMMResult(VK_RESULT_CODE))
+  MM_VK_CHECK(vkQueueSubmit(input_tasks->command_buffers_.at(0)->GetQueue(),
+                            static_cast<std::uint32_t>(submit_infos.size()),
+                            submit_infos.data(),
+                            input_tasks->command_buffers_.at(0)->GetFence()),
+              result = Utils::VkResultToMMResult(MM_VK_RESULT_CODE))
 
   return result;
 }
@@ -3012,12 +3018,12 @@ MM::RenderSystem::CommandExecutor::RecordAndSubmitCommandASync(
       ++sub_task_index;
     }
 
-    VK_CHECK(
+    MM_VK_CHECK(
         vkQueueSubmit(execute_command_task->command_buffers_.at(0)->GetQueue(),
                       static_cast<std::uint32_t>(submit_infos.size()),
                       submit_infos.data(),
                       execute_command_task->command_buffers_.at(0)->GetFence()),
-        result = Utils::VkResultToMMResult(VK_RESULT_CODE))
+        result = Utils::VkResultToMMResult(MM_VK_RESULT_CODE))
   });
 
   std::uint32_t buffer_index = 0;
@@ -3043,7 +3049,7 @@ MM::RenderSystem::CommandExecutor::RecordAndSubmitCommandASync(
     }
   }
 
-  auto future = TASK_SYSTEM->Run(TaskSystem::TaskType::Render, taskflow);
+  auto future = MM_TASK_SYSTEM->Run(TaskSystem::TaskType::Render, taskflow);
   future.get();
 
   return result;
@@ -3111,7 +3117,7 @@ void MM::RenderSystem::CommandExecutor::PostProcessOfSubmitTask(
       }
     }
 
-    LOG_ERROR("Render command submit failed.");
+    MM_LOG_ERROR("Render command submit failed.");
     return;
   }
 

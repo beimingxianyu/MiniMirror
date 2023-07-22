@@ -33,13 +33,13 @@ MM::RenderSystem::AllocatedMesh::AllocatedMesh(
       sub_index_buffer_info_ptr_(nullptr) {
   if (mesh_buffer_manager == nullptr || !mesh_buffer_manager->IsValid()) {
     mesh_buffer_manager_ = nullptr;
-    LOG_ERROR("The mesh buffer manager is invalid.");
+    MM_LOG_ERROR("The mesh buffer manager is invalid.");
     return;
   }
   if (!mesh_asset.IsValid() || mesh_asset.GetAsset().GetAssetType() !=
                                    AssetSystem::AssetType::AssetType::MESH) {
     mesh_buffer_manager_ = nullptr;
-    LOG_ERROR("The mesh asset is invalid.");
+    MM_LOG_ERROR("The mesh asset is invalid.");
     return;
   }
   AssetSystem::AssetType::Mesh& mesh =
@@ -54,7 +54,7 @@ MM::RenderSystem::AllocatedMesh::AllocatedMesh(
            mesh_buffer_manager_ = nullptr; return;)
 
   MM_CHECK(CopyAssetDataToBuffer(mesh_asset),
-           LOG_ERROR("Failed to copy asset data to buffer.");
+           MM_LOG_ERROR("Failed to copy asset data to buffer.");
            RenderResourceDataBase::Release();
 
            mesh_buffer_manager_->FreeMeshBuffer(*this);
@@ -73,7 +73,7 @@ MM::RenderSystem::AllocatedMesh::AllocatedMesh(
       sub_index_buffer_info_ptr_(nullptr) {
   if (mesh_buffer_manager == nullptr || !mesh_buffer_manager->IsValid()) {
     mesh_buffer_manager_ = nullptr;
-    LOG_ERROR("The mesh buffer manager is invalid.");
+    MM_LOG_ERROR("The mesh buffer manager is invalid.");
     return;
   }
 
@@ -201,12 +201,12 @@ MM::ExecuteResult MM::RenderSystem::AllocatedMesh::CopyAssetDataToBuffer(
 
   if (asset_handler.GetAsset().GetAssetType() !=
       AssetSystem::AssetType::AssetType::MESH) {
-    LOG_ERROR("");
+    MM_LOG_ERROR("");
     return MM::Utils::ExecuteResult::OBJECT_IS_INVALID;
   }
 
   if (IsAssetResource()) {
-    LOG_ERROR(
+    MM_LOG_ERROR(
         "It is not supported to rewrite asset data to an AllocatedBuffer that "
         "has already written asset data.");
     return MM::Utils::ExecuteResult::OPERATION_NOT_SUPPORTED;
@@ -223,7 +223,7 @@ MM::ExecuteResult MM::RenderSystem::AllocatedMesh::CopyAssetDataToBuffer(
                    asset_mesh.GetIndexesCount() * sizeof(VertexIndex);
   if ((asset_vertex_size > buffer_vertex_size) ||
       (asset_index_size > buffer_index_size)) {
-    LOG_ERROR(
+    MM_LOG_ERROR(
         "The vertex and index buffers are too small to hold all the data for "
         "the given asset.");
     return MM::Utils::ExecuteResult::INPUT_PARAMETERS_ARE_NOT_SUITABLE;
@@ -235,7 +235,7 @@ MM::ExecuteResult MM::RenderSystem::AllocatedMesh::CopyAssetDataToBuffer(
   MM_CHECK(render_engine->CreateStageBuffer(
                asset_vertex_size + asset_index_size,
                render_engine->GetTransformQueueIndex(), stage_buffer),
-           LOG_ERROR("Failed to create stage buffer.");
+           MM_LOG_ERROR("Failed to create stage buffer.");
            return MM_RESULT_CODE;)
   void* stage_data_void{nullptr};
   char* stage_data_char{nullptr};
@@ -302,7 +302,7 @@ MM::ExecuteResult MM::RenderSystem::AllocatedMesh::CopyAssetDataToBuffer(
                     &index_buffer_copy)};
 
             MM_CHECK(MM::RenderSystem::Utils::BeginCommandBuffer(cmd),
-                     LOG_FATAL("Failed to begin command buffer.");
+                     MM_LOG_FATAL("Failed to begin command buffer.");
                      return MM_RESULT_CODE;)
 
             vkCmdPipelineBarrier2(cmd.GetCommandBuffer(), &dependency_info);
@@ -319,7 +319,7 @@ MM::ExecuteResult MM::RenderSystem::AllocatedMesh::CopyAssetDataToBuffer(
             vkCmdPipelineBarrier2(cmd.GetCommandBuffer(), &dependency_info);
 
             MM_CHECK(MM::RenderSystem::Utils::EndCommandBuffer(cmd),
-                     LOG_FATAL("Failed to end command buffer.");
+                     MM_LOG_FATAL("Failed to end command buffer.");
                      return MM_RESULT_CODE;)
 
             this_mesh->MarkThisIsAssetResource();
@@ -330,7 +330,7 @@ MM::ExecuteResult MM::RenderSystem::AllocatedMesh::CopyAssetDataToBuffer(
             return MM::Utils::ExecuteResult::SUCCESS;
           },
           std::vector<RenderResourceDataID>{GetRenderResourceDataID()}),
-      LOG_ERROR("Failed to record commands.");
+      MM_LOG_ERROR("Failed to record commands.");
       return MM_RESULT_CODE;)
 
   return MM::ExecuteResult::SUCCESS;

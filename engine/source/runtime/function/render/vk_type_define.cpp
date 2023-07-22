@@ -31,10 +31,10 @@ MM::RenderSystem::AllocateSemaphore::AllocateSemaphore(
   const VkSemaphoreCreateInfo semaphore_create_info =
       Utils::GetSemaphoreCreateInfo(flags);
   VkSemaphore new_semaphore{nullptr};
-  VK_CHECK(vkCreateSemaphore(engine->GetDevice(), &semaphore_create_info,
-                             nullptr, &new_semaphore),
-           LOG_ERROR("Failed to create Semaphore.");
-           return;)
+  MM_VK_CHECK(vkCreateSemaphore(engine->GetDevice(), &semaphore_create_info,
+                                nullptr, &new_semaphore),
+              MM_LOG_ERROR("Failed to create Semaphore.");
+              return;)
   wrapper_ = std::make_shared<AllocateSemaphoreWrapper>(engine, new_semaphore);
 }
 
@@ -129,10 +129,10 @@ MM::RenderSystem::AllocateFence::AllocateFence(RenderEngine* engine,
 
   const VkFenceCreateInfo fence_create_info = Utils::GetFenceCreateInfo(flags);
   VkFence new_fence{nullptr};
-  VK_CHECK(vkCreateFence(engine->GetDevice(), &fence_create_info, nullptr,
-                         &new_fence),
-           LOG_ERROR("Failed to create Fence.");
-           return;)
+  MM_VK_CHECK(vkCreateFence(engine->GetDevice(), &fence_create_info, nullptr,
+                            &new_fence),
+              MM_LOG_ERROR("Failed to create Fence.");
+              return;)
   wrapper_ = std::make_shared<AllocateFenceWrapper>(engine, new_fence);
 }
 
@@ -1230,58 +1230,29 @@ MM::RenderSystem::SamplerCreateInfo::GetRenderSamplerAttributeID(
   return ExecuteResult ::SUCCESS;
 }
 
-MM::Utils::ConcurrentMap<MM::RenderSystem::RenderImageViewAttributeID,
-                         MM::RenderSystem::ImageView::ImageViewWrapper>
-    MM::RenderSystem::ImageView::image_view_container_(512);
-
 MM::RenderSystem::ImageView::ImageView(
     VkDevice device, VkAllocationCallbacks* allocator,
     const VkImageViewCreateInfo& vk_image_view_create_info)
-    : image_view_wrapper_(nullptr),
+    : image_view_wrapper_(),
       image_view_create_info_(vk_image_view_create_info) {
 #ifdef CHECK_PARAMETERS
   MM_CHECK(CheckInitParameters(device, vk_image_view_create_info),
            image_view_create_info_.Reset();
            return;)
 #endif
-  RenderImageViewAttributeID render_image_view_attribute_ID{};
-  MM_CHECK(image_view_create_info_.GetRenderImageViewAttributeID(
-               render_image_view_attribute_ID),
-           image_view_create_info_.Reset();
-           return;)
-
-  auto* find_resource =
-      image_view_container_.Find(render_image_view_attribute_ID);
-  if (find_resource) {
-    image_view_wrapper_ = &find_resource->second;
-  }
-
   VkImageView image_view;
-  VK_CHECK(vkCreateImageView(device, &vk_image_view_create_info, allocator,
-                             &image_view),
-           LOG_ERROR("Failed to create MM::Render::ImageView.");
-           image_view_create_info_.Reset(); return;)
+  MM_VK_CHECK(vkCreateImageView(device, &vk_image_view_create_info, allocator,
+                                &image_view),
+              MM_LOG_ERROR("Failed to create MM::Render::ImageView.");
+              image_view_create_info_.Reset(); return;)
 
-  auto insert_result = image_view_container_.Emplace(
-      std::make_pair(render_image_view_attribute_ID,
-                     ImageViewWrapper{device, allocator, image_view}));
-
-  if (!insert_result.second) {
-    image_view_create_info_.Reset();
-    vkDestroyImageView(device, image_view, allocator);
-    LOG_ERROR("Image view insert error.");
-    return;
-  }
-
-  image_view_wrapper_ = &insert_result.first.second;
+  image_view_wrapper_ = ImageViewWrapper(device, allocator, image_view);
 }
 
 MM::RenderSystem::ImageView::ImageView(
     MM::RenderSystem::ImageView&& other) noexcept
-    : image_view_wrapper_(other.image_view_wrapper_),
-      image_view_create_info_(std::move(other.image_view_create_info_)) {
-  other.image_view_wrapper_ = nullptr;
-}
+    : image_view_wrapper_(std::move(other.image_view_wrapper_)),
+      image_view_create_info_(std::move(other.image_view_create_info_)) {}
 
 MM::RenderSystem::ImageView& MM::RenderSystem::ImageView::operator=(
     MM::RenderSystem::ImageView&& other) noexcept {
@@ -1289,24 +1260,22 @@ MM::RenderSystem::ImageView& MM::RenderSystem::ImageView::operator=(
     return *this;
   }
 
-  image_view_wrapper_ = other.image_view_wrapper_;
+  image_view_wrapper_ = std::move(other.image_view_wrapper_);
   image_view_create_info_ = std::move(other.image_view_create_info_);
-
-  other.image_view_wrapper_ = nullptr;
 
   return *this;
 }
 
 const VkDevice_T* MM::RenderSystem::ImageView::GetDevice() const {
-  return image_view_wrapper_->device_;
+  return image_view_wrapper_.device_;
 }
 
 const VkAllocationCallbacks* MM::RenderSystem::ImageView::GetAllocator() const {
-  return image_view_wrapper_->allocator_;
+  return image_view_wrapper_.allocator_;
 }
 
 const VkImageView_T* MM::RenderSystem::ImageView::GetVkImageView() const {
-  return image_view_wrapper_->image_view_;
+  return image_view_wrapper_.image_view_;
 }
 
 const MM::RenderSystem::ImageViewCreateInfo&
@@ -1315,43 +1284,43 @@ MM::RenderSystem::ImageView::GetImageViewCreateInfo() const {
 }
 
 bool MM::RenderSystem::ImageView::IsValid() const {
-  return image_view_wrapper_->IsValid() && image_view_create_info_.IsValid();
+  return image_view_wrapper_.IsValid() && image_view_create_info_.IsValid();
 }
 
-void MM::RenderSystem::ImageView::Reset() {
+void MM::RenderSystem::ImageView::Release() {
   image_view_create_info_.Reset();
-  image_view_wrapper_ = nullptr;
+  image_view_wrapper_.Release();
 }
 
 MM::ExecuteResult MM::RenderSystem::ImageView::CheckInitParameters(
     VkDevice device, const VkImageViewCreateInfo& vk_image_view_create_info) {
   if (device == nullptr) {
-    LOG_ERROR("The incoming engine parameter pointer is null.");
+    MM_LOG_ERROR("The incoming engine parameter pointer is null.");
     return ExecuteResult ::INITIALIZATION_FAILED;
   }
 
   if (vk_image_view_create_info.image == nullptr) {
-    LOG_ERROR("The incoming engine parameter pointer is null.");
+    MM_LOG_ERROR("The incoming engine parameter pointer is null.");
     return ExecuteResult ::INITIALIZATION_FAILED;
   }
   if (vk_image_view_create_info.viewType == VK_IMAGE_VIEW_TYPE_MAX_ENUM) {
-    LOG_ERROR("The image view type is error.");
+    MM_LOG_ERROR("The image view type is error.");
     return ExecuteResult ::INITIALIZATION_FAILED;
   }
   if (vk_image_view_create_info.flags ==
       VK_IMAGE_VIEW_CREATE_FLAG_BITS_MAX_ENUM) {
-    LOG_ERROR("The image view create flags is error.");
+    MM_LOG_ERROR("The image view create flags is error.");
     return ExecuteResult ::INITIALIZATION_FAILED;
   }
   if (vk_image_view_create_info.format == VK_FORMAT_MAX_ENUM) {
-    LOG_ERROR("The image view format is error.");
+    MM_LOG_ERROR("The image view format is error.");
     return ExecuteResult ::INITIALIZATION_FAILED;
   }
   if (vk_image_view_create_info.components.r == VK_COMPONENT_SWIZZLE_MAX_ENUM ||
       vk_image_view_create_info.components.g == VK_COMPONENT_SWIZZLE_MAX_ENUM ||
       vk_image_view_create_info.components.b == VK_COMPONENT_SWIZZLE_MAX_ENUM ||
       vk_image_view_create_info.components.a == VK_COMPONENT_SWIZZLE_MAX_ENUM) {
-    LOG_ERROR("The image view components is error.");
+    MM_LOG_ERROR("The image view components is error.");
     return ExecuteResult ::INITIALIZATION_FAILED;
   }
   if (vk_image_view_create_info.subresourceRange.aspectMask ==
@@ -1362,7 +1331,7 @@ MM::ExecuteResult MM::RenderSystem::ImageView::CheckInitParameters(
       vk_image_view_create_info.subresourceRange.baseArrayLayer +
               vk_image_view_create_info.subresourceRange.layerCount >
           128) {
-    LOG_ERROR("The image view subresource range is error");
+    MM_LOG_ERROR("The image view subresource range is error");
     return ExecuteResult ::INITIALIZATION_FAILED;
   }
 
@@ -1370,15 +1339,15 @@ MM::ExecuteResult MM::RenderSystem::ImageView::CheckInitParameters(
 }
 
 VkDevice MM::RenderSystem::ImageView::GetDevice() {
-  return image_view_wrapper_->device_;
+  return image_view_wrapper_.device_;
 }
 
 VkAllocationCallbacks* MM::RenderSystem::ImageView::GetAllocator() {
-  return image_view_wrapper_->allocator_;
+  return image_view_wrapper_.allocator_;
 }
 
 VkImageView MM::RenderSystem::ImageView::GetVkImageView() {
-  return image_view_wrapper_->image_view_;
+  return image_view_wrapper_.image_view_;
 }
 
 MM::Utils::ConcurrentMap<MM::RenderSystem::RenderSamplerAttributeID,
@@ -1400,15 +1369,16 @@ MM::RenderSystem::Sampler::Sampler(
            sampler_create_info_.Reset();
            return;)
 
-  auto* find_resource = sampler_container_.Find(render_sampler_attribute_ID);
+  std::pair<const RenderSamplerAttributeID, SamplerWrapper>* find_resource =
+      sampler_container_.Find(render_sampler_attribute_ID);
   if (find_resource) {
-    sampler_wrapper_ = &find_resource->second;
+    sampler_wrapper_ = &(find_resource->second);
   }
 
   VkSampler sampler;
-  VK_CHECK(
+  MM_VK_CHECK(
       vkCreateSampler(device, &vk_sampler_create_info, allocator, &sampler),
-      LOG_ERROR("Failed to create MM::Render::Sampler.");
+      MM_LOG_ERROR("Failed to create MM::Render::Sampler.");
       sampler_create_info_.Reset(); return;)
 
   auto insert_result = sampler_container_.Emplace(std::make_pair(
@@ -1417,7 +1387,7 @@ MM::RenderSystem::Sampler::Sampler(
   if (!insert_result.second) {
     sampler_create_info_.Reset();
     vkDestroySampler(device, sampler, allocator);
-    LOG_ERROR("Sampler insert error.");
+    MM_LOG_ERROR("Sampler insert error.");
     return;
   }
 
@@ -1477,51 +1447,51 @@ void MM::RenderSystem::Sampler::Reset() {
 MM::ExecuteResult MM::RenderSystem::Sampler::CheckInitParameters(
     VkDevice device, const VkSamplerCreateInfo& vk_sampler_create_info) {
   if (device == nullptr) {
-    LOG_ERROR("The incoming engine parameter pointer is null.");
+    MM_LOG_ERROR("The incoming engine parameter pointer is null.");
     return ExecuteResult ::INITIALIZATION_FAILED;
   }
 
   if (vk_sampler_create_info.flags == VK_SAMPLER_CREATE_FLAG_BITS_MAX_ENUM) {
-    LOG_ERROR("The sampler create flags is error.");
+    MM_LOG_ERROR("The sampler create flags is error.");
     return ExecuteResult ::INITIALIZATION_FAILED;
   }
   if (vk_sampler_create_info.magFilter == VK_FILTER_MAX_ENUM ||
       vk_sampler_create_info.minFilter == VK_FILTER_MAX_ENUM) {
-    LOG_ERROR("The sampler filter is error.");
+    MM_LOG_ERROR("The sampler filter is error.");
     return ExecuteResult ::INITIALIZATION_FAILED;
   }
   if (vk_sampler_create_info.mipmapMode == VK_SAMPLER_MIPMAP_MODE_MAX_ENUM) {
-    LOG_ERROR("The sampler mipmap mode is error.");
+    MM_LOG_ERROR("The sampler mipmap mode is error.");
     return ExecuteResult ::INITIALIZATION_FAILED;
   }
   if (vk_sampler_create_info.addressModeU == VK_SAMPLER_ADDRESS_MODE_MAX_ENUM ||
       vk_sampler_create_info.addressModeV == VK_SAMPLER_ADDRESS_MODE_MAX_ENUM ||
       vk_sampler_create_info.addressModeW == VK_SAMPLER_ADDRESS_MODE_MAX_ENUM) {
-    LOG_ERROR("The sampler address mode is error.");
+    MM_LOG_ERROR("The sampler address mode is error.");
     return ExecuteResult ::INITIALIZATION_FAILED;
   }
   if (vk_sampler_create_info.mipLodBias < 0 ||
       vk_sampler_create_info.mipLodBias > 1) {
-    LOG_ERROR("The sampler mip lod bias is error.");
+    MM_LOG_ERROR("The sampler mip lod bias is error.");
     return ExecuteResult ::INITIALIZATION_FAILED;
   }
   if (vk_sampler_create_info.anisotropyEnable == VK_TRUE &&
       vk_sampler_create_info.maxAnisotropy < 1) {
-    LOG_ERROR("The sampler max anisotropy is error.");
+    MM_LOG_ERROR("The sampler max anisotropy is error.");
     return ExecuteResult ::INITIALIZATION_FAILED;
   }
   if (vk_sampler_create_info.compareOp == VK_COMPARE_OP_MAX_ENUM) {
-    LOG_ERROR("The sampler compare operator is error.");
+    MM_LOG_ERROR("The sampler compare operator is error.");
     return ExecuteResult ::INITIALIZATION_FAILED;
   }
   if (vk_sampler_create_info.minLod < 0 || vk_sampler_create_info.minLod > 1 ||
       vk_sampler_create_info.maxLod < 0 || vk_sampler_create_info.maxLod > 1 ||
       vk_sampler_create_info.maxLod < vk_sampler_create_info.minLod) {
-    LOG_ERROR("The sampler min/max lod is error.");
+    MM_LOG_ERROR("The sampler min/max lod is error.");
     return ExecuteResult ::INITIALIZATION_FAILED;
   }
   if (vk_sampler_create_info.borderColor == VK_BORDER_COLOR_MAX_ENUM) {
-    LOG_ERROR("The sampler border color is error.");
+    MM_LOG_ERROR("The sampler border color is error.");
     return ExecuteResult ::INITIALIZATION_FAILED;
   }
 
@@ -1581,22 +1551,6 @@ MM::RenderSystem::ImageView::ImageViewWrapper::ImageViewWrapper(
     : device_(device), allocator_(allocator), image_view_(image_view) {}
 
 MM::RenderSystem::ImageBindData::ImageBindData(
-    const VkDescriptorSetLayoutBinding& bind, VkDevice device,
-    VkAllocationCallbacks* image_view_allocator,
-    const VkImageViewCreateInfo& vk_image_view_create_info,
-    VkAllocationCallbacks* sampler_allocator,
-    const VkSamplerCreateInfo& vk_sampler_create_info)
-    : bind_(bind),
-      image_view_(device, image_view_allocator, vk_image_view_create_info),
-      sampler_(device, sampler_allocator, vk_sampler_create_info) {
-  if (!bind_.IsValid() && !image_view_.IsValid() && !sampler_.IsValid()) {
-    bind_.Reset();
-    image_view_.Reset();
-    sampler_.Reset();
-  }
-}
-
-MM::RenderSystem::ImageBindData::ImageBindData(
     const MM::RenderSystem::DescriptorSetLayoutBinding& bind,
     MM::RenderSystem::ImageView&& image_view,
     MM::RenderSystem::Sampler&& sampler)
@@ -1648,9 +1602,9 @@ bool MM::RenderSystem::ImageBindData::IsValid() const {
   return bind_.IsValid() && image_view_.IsValid() && sampler_.IsValid();
 }
 
-void MM::RenderSystem::ImageBindData::Reset() {
+void MM::RenderSystem::ImageBindData::Release() {
   bind_.Reset();
-  image_view_.Reset();
+  image_view_.Release();
   sampler_.Reset();
 }
 

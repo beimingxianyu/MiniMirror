@@ -11,7 +11,6 @@ target_link_libraries(base PUBLIC utils)
 
 ##########  file_system  ##########
 AddModule("file_system" "${CMAKE_CURRENT_SOURCE_DIR}/platform/file_system")
-target_compile_definitions(file_system PUBLIC "BIN_DIR=\"${CMAKE_RUNTIME_OUTPUT_DIRECTORY}\"")
 if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
     target_link_libraries(file_system PUBLIC base)
 else ()
@@ -20,7 +19,7 @@ endif ()
 
 ##########  config_system  ##########
 AddModule("config_system" "${CMAKE_CURRENT_SOURCE_DIR}/platform/config_system")
-target_compile_definitions(config_system PUBLIC "-DCONFIG_DIR=\"${config_dir}\"")
+target_compile_definitions(config_system PUBLIC "MM_RELATIVE_CONFIG_DIR=${relative_config_dir}")
 target_link_libraries(config_system PUBLIC file_system base)
 
 
@@ -52,6 +51,14 @@ target_link_libraries(manager PUBLIC base log_system)
 ########## resource_system ##########
 AddModule("asset_system" "${CMAKE_CURRENT_SOURCE_DIR}/resource/asset_system")
 target_link_libraries(asset_system PUBLIC file_system config_system log_system math assimp::assimp stb task_system manager)
+if (WIN32)
+    set(glslc_executor "glslc")
+elseif ()
+    set(glslc_executor "./glslc")
+endif ()
+target_compile_definitions(asset_system PUBLIC "MM_RELATIVE_ASSET_DIR=${relative_asset_dir}" "MM_RELATIVE_ASSET_DIR_STD=${relative_asset_dir_std}"
+        "MM_RELATIVE_ASSET_DIR_USER=${relative_asset_dir_user}" "MM_RELATIVE_ASSET_DIR_CACHE=${relative_asset_dir_cache}"
+        "MM_GLSLC_EXECUTOR=${glsl_executor}")
 
 #####################################################
 #####################  function  ####################

@@ -355,7 +355,7 @@ template <typename KeyType, typename ValueType,
 ExecuteResult
 ManagedObjectTableBase<KeyType, ValueType, RelationshipContainerTrait>::
     RemoveObjectImp(const KeyType&, const std::atomic_uint32_t*, HashMapTrait) {
-  LOG_FATAL("This function should not be called.");
+  MM_LOG_FATAL("This function should not be called.");
 
   return ExecuteResult::UNDEFINED_ERROR;
 }
@@ -367,7 +367,7 @@ ExecuteResult ManagedObjectTableBase<
     RelationshipContainerTrait>::RemoveObjectImp(const ValueType&,
                                                  const std::atomic_uint32_t*,
                                                  HashSetTrait) {
-  LOG_FATAL("This function should not be called.");
+  MM_LOG_FATAL("This function should not be called.");
 
   return ExecuteResult::UNDEFINED_ERROR;
 }
@@ -377,7 +377,7 @@ template <typename KeyType, typename ValueType,
 ExecuteResult
 ManagedObjectTableBase<KeyType, ValueType, RelationshipContainerTrait>::
     RemoveObjectImp(const ValueType&, const std::atomic_uint32_t*, SetTrait) {
-  LOG_FATAL("This function should not be called.");
+  MM_LOG_FATAL("This function should not be called.");
 
   return ExecuteResult::UNDEFINED_ERROR;
 }
@@ -387,7 +387,7 @@ template <typename KeyType, typename ValueType,
 ExecuteResult ManagedObjectTableBase<
     KeyType, ValueType,
     RelationshipContainerTrait>::RemoveObjectImp(const ValueType&, SetTrait) {
-  LOG_FATAL("This function should not be called.");
+  MM_LOG_FATAL("This function should not be called.");
 
   return ExecuteResult::UNDEFINED_ERROR;
 }
@@ -398,7 +398,7 @@ ExecuteResult ManagedObjectTableBase<
     KeyType, ValueType,
     RelationshipContainerTrait>::RemoveObjectImp(const ValueType&,
                                                  HashSetTrait) {
-  LOG_FATAL("This function should not be called.");
+  MM_LOG_FATAL("This function should not be called.");
 
   return ExecuteResult::UNDEFINED_ERROR;
 }
@@ -408,7 +408,7 @@ template <typename KeyType, typename ValueType,
 ExecuteResult ManagedObjectTableBase<
     KeyType, ValueType,
     RelationshipContainerTrait>::RemoveObjectImp(const KeyType&, HashMapTrait) {
-  LOG_FATAL("This function should not be called.");
+  MM_LOG_FATAL("This function should not be called.");
 
   return ExecuteResult::UNDEFINED_ERROR;
 }
@@ -418,7 +418,7 @@ template <typename KeyType, typename ValueType,
 ExecuteResult
 ManagedObjectTableBase<KeyType, ValueType, RelationshipContainerTrait>::
     RemoveObjectImp(const KeyType&, const std::atomic_uint32_t*, MapTrait) {
-  LOG_FATAL("This function should not be called.");
+  MM_LOG_FATAL("This function should not be called.");
 
   return ExecuteResult::UNDEFINED_ERROR;
 }
@@ -428,7 +428,7 @@ template <typename KeyType, typename ValueType,
 ExecuteResult ManagedObjectTableBase<
     KeyType, ValueType,
     RelationshipContainerTrait>::RemoveObjectImp(const KeyType&, MapTrait) {
-  LOG_FATAL("This function should not be called.");
+  MM_LOG_FATAL("This function should not be called.");
 
   return ExecuteResult::UNDEFINED_ERROR;
 }
@@ -438,7 +438,7 @@ template <typename KeyType, typename ValueType,
 bool ManagedObjectTableBase<KeyType, ValueType, RelationshipContainerTrait>::
     TestMovedWhenGetUseCount() const {
   if (!IsValid()) {
-    LOG_WARN("You cannot get use count from the moved container.");
+    MM_LOG_WARN("You cannot get use count from the moved container.");
     return false;
   }
 
@@ -450,7 +450,7 @@ template <typename KeyType, typename ValueType,
 bool ManagedObjectTableBase<KeyType, ValueType, RelationshipContainerTrait>::
     TestMovedWhenGetObject() const {
   if (!IsValid()) {
-    LOG_WARN("You cannot get values from the moved container.");
+    MM_LOG_WARN("You cannot get values from the moved container.");
     return false;
   }
 
@@ -462,7 +462,7 @@ template <typename KeyType, typename ValueType,
 bool ManagedObjectTableBase<KeyType, ValueType, RelationshipContainerTrait>::
     TestMovedWhenAddObject() const {
   if (!IsValid()) {
-    LOG_WARN("You cannot add values to the moved container.");
+    MM_LOG_WARN("You cannot add values to the moved container.");
     return false;
   }
 
@@ -505,7 +505,7 @@ template <typename KeyType, typename ValueType,
 ExecuteResult
 ManagedObjectTableBase<KeyType, ValueType, RelationshipContainerTrait>::
     RemoveObjectImp(const ValueType&, const std::atomic_uint32_t*, ListTrait) {
-  LOG_FATAL("This function should not be called.");
+  MM_LOG_FATAL("This function should not be called.");
 
   return ExecuteResult::UNDEFINED_ERROR;
 }
@@ -515,7 +515,7 @@ template <typename KeyType, typename ValueType,
 std::uint32_t
 ManagedObjectTableBase<KeyType, ValueType, RelationshipContainerTrait>::GetSize(
     const KeyType&) const {
-  LOG_FATAL("This function should not be called.");
+  MM_LOG_FATAL("This function should not be called.");
 
   return 0;
 }
@@ -524,7 +524,7 @@ template <typename KeyType, typename ValueType,
           typename RelationshipContainerTrait>
 bool ManagedObjectTableBase<KeyType, ValueType, RelationshipContainerTrait>::
     IsRelationshipContainer() const {
-  LOG_FATAL("This function should not be called.");
+  MM_LOG_FATAL("This function should not be called.");
 
   return false;
 }
@@ -549,7 +549,7 @@ template <typename KeyType, typename ValueType,
           typename RelationshipContainerTrait>
 bool ManagedObjectTableBase<
     KeyType, ValueType, RelationshipContainerTrait>::IsMultiContainer() const {
-  LOG_FATAL("This function should not be called.");
+  MM_LOG_FATAL("This function should not be called.");
 
   return false;
 }
@@ -559,7 +559,7 @@ template <typename KeyType, typename ValueType,
 bool ManagedObjectTableBase<KeyType, ValueType,
                             RelationshipContainerTrait>::Have(const KeyType&)
     const {
-  LOG_FATAL("This function should not be called.");
+  MM_LOG_FATAL("This function should not be called.");
 
   return false;
 }
@@ -568,7 +568,7 @@ template <typename KeyType, typename ValueType,
           typename RelationshipContainerTrait>
 std::size_t ManagedObjectTableBase<
     KeyType, ValueType, RelationshipContainerTrait>::GetSize() const {
-  LOG_FATAL("This function should not be called.");
+  MM_LOG_FATAL("This function should not be called.");
 
   return 0;
 }

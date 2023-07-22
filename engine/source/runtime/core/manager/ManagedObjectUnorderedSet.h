@@ -47,7 +47,7 @@ class ManagedObjectUnorderedSet
   }
   ~ManagedObjectUnorderedSet() {
     if (size_.load(std::memory_order_acquire) != 0) {
-      LOG_ERROR(
+      MM_LOG_ERROR(
           "The container is not empty, and destroying it will result in an "
           "access error.");
     }
@@ -95,7 +95,7 @@ class ManagedObjectUnorderedSet
               other.data_mutex12_, other.data_mutex13_, other.data_mutex14_,
               other.data_mutex15_);
     if (size_.load(std::memory_order_acquire) != 0) {
-      LOG_ERROR(
+      MM_LOG_ERROR(
           "If there is data in the original container but it is reassigned, an "
           "access error will occur.");
     }
@@ -349,7 +349,7 @@ class ManagedObjectUnorderedMultiSet
   }
   ~ManagedObjectUnorderedMultiSet() {
     if (size_.load(std::memory_order_acquire) != 0) {
-      LOG_ERROR(
+      MM_LOG_ERROR(
           "The container is not empty, and destroying it will result in an "
           "access error.");
     }
@@ -397,7 +397,7 @@ class ManagedObjectUnorderedMultiSet
               other.data_mutex12_, other.data_mutex13_, other.data_mutex14_,
               other.data_mutex15_);
     if (size_.load(std::memory_order_acquire) != 0) {
-      LOG_ERROR(
+      MM_LOG_ERROR(
           "If there is data in the original container but it is reassigned, an "
           "access error will occur.");
     }

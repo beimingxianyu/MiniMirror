@@ -32,12 +32,12 @@ MM::AssetSystem::AssetManager* MM::AssetSystem::AssetManager::GetInstance() {
     std::lock_guard<std::mutex> guard{sync_flag_};
     if (!asset_manager_) {
       std::uint64_t asset_size = 0;
-      if (CONFIG_SYSTEM->GetConfig("manager_size_asset_manager", asset_size) !=
-          ExecuteResult::SUCCESS) {
-        LOG_WARN("The number of managed asset was not specified.");
-        if (CONFIG_SYSTEM->GetConfig("manager_size", asset_size) !=
+      if (MM_CONFIG_SYSTEM->GetConfig("manager_size_asset_manager",
+                                      asset_size) != ExecuteResult::SUCCESS) {
+        MM_LOG_WARN("The number of managed asset was not specified.");
+        if (MM_CONFIG_SYSTEM->GetConfig("manager_size", asset_size) !=
             ExecuteResult::SUCCESS) {
-          LOG_FATAL("The number of managed objects was not specified.");
+          MM_LOG_FATAL("The number of managed objects was not specified.");
         }
       }
       asset_manager_ = new AssetManager{asset_size};

@@ -18,6 +18,8 @@ using LastWriteTime = std::filesystem::file_time_type;
 
 class FileSystem;
 
+const std::string g_bin_dir = std::filesystem::current_path().string();
+
 class Path {
   friend FileSystem;
   friend std::hash<Path>;
@@ -339,6 +341,9 @@ class FileSystem {
    */
   ExecuteResult GetLastWriteTime(const Path& path,
                                  LastWriteTime& last_write_time) const;
+
+  ExecuteResult ReadFile(const MM::FileSystem::Path& path,
+                         std::vector<char>& output_data) const;
 
  private:
   /**

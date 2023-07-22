@@ -101,9 +101,9 @@ VkFence MM::RenderSystem::Utils::GetVkFence(const VkDevice& device,
     fence_create_info = GetFenceCreateInfo();
   }
   VkFence fence{nullptr};
-  VK_CHECK(vkCreateFence(device, &fence_create_info, nullptr, &fence),
-           fence = nullptr;
-           LOG_ERROR("Failed to create VkFence!"))
+  MM_VK_CHECK(vkCreateFence(device, &fence_create_info, nullptr, &fence),
+              fence = nullptr;
+              MM_LOG_ERROR("Failed to create VkFence!"))
   return fence;
 }
 
@@ -945,13 +945,13 @@ MM::ExecuteResult MM::RenderSystem::Utils::GetEndSizeAndOffset(
     VkDeviceSize& output_end_size, VkDeviceSize& output_offset) {
 #ifdef CHECK_PARAMETERS
   if (!buffer.IsValid()) {
-    LOG_ERROR("The buffer is invalid.");
+    MM_LOG_ERROR("The buffer is invalid.");
     return ExecuteResult::OBJECT_IS_INVALID;
   }
 
   for (const auto& buffer_chunk_info : buffer_chunks_info) {
     if (!buffer_chunk_info->IsValid()) {
-      LOG_ERROR("The buffer_chunk_info is Invalid.");
+      MM_LOG_ERROR("The buffer_chunk_info is Invalid.");
       return ExecuteResult::OBJECT_IS_INVALID;
     }
   }
@@ -1198,67 +1198,67 @@ std::uint64_t MM::RenderSystem::Utils::ConvertVkImageLayoutToContinuousValue(
 MM::ExecuteResult MM::RenderSystem::Utils::CheckVkImageCreateInfo(
     const VkImageCreateInfo* vk_image_create_info) {
   if (vk_image_create_info == nullptr) {
-    LOG_ERROR("The vk image create info is nullptr.");
+    MM_LOG_ERROR("The vk image create info is nullptr.");
     return ExecuteResult ::OBJECT_IS_INVALID;
   }
 
   if (vk_image_create_info->sType != VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO) {
-    LOG_ERROR("The vk image create info sType is error.");
+    MM_LOG_ERROR("The vk image create info sType is error.");
     return ExecuteResult ::OBJECT_IS_INVALID;
   }
   if (vk_image_create_info->flags == VK_IMAGE_CREATE_FLAG_BITS_MAX_ENUM) {
-    LOG_ERROR("The vk image create info flags is error.");
+    MM_LOG_ERROR("The vk image create info flags is error.");
     return ExecuteResult ::OBJECT_IS_INVALID;
   }
   if (vk_image_create_info->imageType == VK_IMAGE_TYPE_MAX_ENUM) {
-    LOG_ERROR("The vk image create info imageType is error.");
+    MM_LOG_ERROR("The vk image create info imageType is error.");
     return ExecuteResult ::OBJECT_IS_INVALID;
   }
   if (vk_image_create_info->format == VK_FORMAT_MAX_ENUM) {
-    LOG_ERROR("The vk image create info format is error.");
+    MM_LOG_ERROR("The vk image create info format is error.");
     return ExecuteResult ::OBJECT_IS_INVALID;
   }
   if (vk_image_create_info->extent.width > 8192 ||
       vk_image_create_info->extent.height > 8192 ||
       vk_image_create_info->extent.depth > 8192) {
-    LOG_ERROR("The vk image create info extent is error.");
+    MM_LOG_ERROR("The vk image create info extent is error.");
     return ExecuteResult ::OBJECT_IS_INVALID;
   }
   if (vk_image_create_info->mipLevels < 128) {
-    LOG_ERROR("The vk image create info mipLevels is error.");
+    MM_LOG_ERROR("The vk image create info mipLevels is error.");
     return ExecuteResult ::OBJECT_IS_INVALID;
   }
   if (vk_image_create_info->mipLevels != 1 &&
       (vk_image_create_info->usage & VK_IMAGE_USAGE_SAMPLED_BIT)) {
-    LOG_ERROR("The vk image create info mipLevels is error.");
+    MM_LOG_ERROR("The vk image create info mipLevels is error.");
     return ExecuteResult ::OBJECT_IS_INVALID;
   }
   // Currently, only 1 layer of images are supported.
   if (vk_image_create_info->arrayLayers != 1) {
-    LOG_ERROR("The vk image create info arrayLayers is error.");
+    MM_LOG_ERROR("The vk image create info arrayLayers is error.");
     return ExecuteResult ::OBJECT_IS_INVALID;
   }
   if (vk_image_create_info->samples == VK_SAMPLE_COUNT_FLAG_BITS_MAX_ENUM) {
-    LOG_ERROR("The vk image create info samples is error.");
+    MM_LOG_ERROR("The vk image create info samples is error.");
     return ExecuteResult ::OBJECT_IS_INVALID;
   }
   if (vk_image_create_info->tiling == VK_IMAGE_TILING_MAX_ENUM) {
-    LOG_ERROR("The vk image create info tiling is error.");
+    MM_LOG_ERROR("The vk image create info tiling is error.");
     return ExecuteResult ::OBJECT_IS_INVALID;
   }
   if (vk_image_create_info->usage == VK_IMAGE_USAGE_FLAG_BITS_MAX_ENUM) {
-    LOG_ERROR("The vk image create info usage is error.");
+    MM_LOG_ERROR("The vk image create info usage is error.");
     return ExecuteResult ::OBJECT_IS_INVALID;
   }
   if (vk_image_create_info->sharingMode != VK_SHARING_MODE_EXCLUSIVE ||
       vk_image_create_info->queueFamilyIndexCount != 1 ||
       vk_image_create_info->pQueueFamilyIndices == nullptr) {
-    LOG_ERROR("The vk image create info queue family is error.");
+    MM_LOG_ERROR("The vk image create info queue family is error.");
     return ExecuteResult ::OBJECT_IS_INVALID;
   }
   if (vk_image_create_info->initialLayout != VK_IMAGE_LAYOUT_UNDEFINED &&
       vk_image_create_info->initialLayout != VK_IMAGE_LAYOUT_PREINITIALIZED) {
-    LOG_ERROR("The vk image create info initialLayout is error.");
+    MM_LOG_ERROR("The vk image create info initialLayout is error.");
     return ExecuteResult ::OBJECT_IS_INVALID;
   }
 
@@ -1268,35 +1268,35 @@ MM::ExecuteResult MM::RenderSystem::Utils::CheckVkImageCreateInfo(
 MM::ExecuteResult MM::RenderSystem::Utils::CheckVmaAllocationCreateInfo(
     const VmaAllocationCreateInfo* vma_allocation_create_info) {
   if (vma_allocation_create_info == nullptr) {
-    LOG_ERROR("The vma allocation create info is nullptr.");
+    MM_LOG_ERROR("The vma allocation create info is nullptr.");
     return ExecuteResult ::OBJECT_IS_INVALID;
   }
 
   if (vma_allocation_create_info->flags ==
       VMA_ALLOCATION_CREATE_FLAG_BITS_MAX_ENUM) {
-    LOG_ERROR("The vma allocation create info flags is error.");
+    MM_LOG_ERROR("The vma allocation create info flags is error.");
     return ExecuteResult ::OBJECT_IS_INVALID;
   }
   if (vma_allocation_create_info->usage == VMA_MEMORY_USAGE_MAX_ENUM) {
-    LOG_ERROR("The vma allocation create info usage is error.");
+    MM_LOG_ERROR("The vma allocation create info usage is error.");
     return ExecuteResult ::OBJECT_IS_INVALID;
   }
   if (vma_allocation_create_info->requiredFlags ==
           VK_MEMORY_PROPERTY_FLAG_BITS_MAX_ENUM ||
       vma_allocation_create_info->preferredFlags ==
           VK_MEMORY_PROPERTY_FLAG_BITS_MAX_ENUM) {
-    LOG_ERROR(
+    MM_LOG_ERROR(
         "The vma allocation create info requiredFlags/preferredFlags is "
         "error.");
     return ExecuteResult ::OBJECT_IS_INVALID;
   }
   if (vma_allocation_create_info->memoryTypeBits > 64) {
-    LOG_ERROR("The vma allocation create info memoryTypeBits is error.");
+    MM_LOG_ERROR("The vma allocation create info memoryTypeBits is error.");
     return ExecuteResult ::OBJECT_IS_INVALID;
   }
   if (vma_allocation_create_info->priority > 0 ||
       vma_allocation_create_info->priority < 1) {
-    LOG_ERROR("The vma allocation create info priority is error.");
+    MM_LOG_ERROR("The vma allocation create info priority is error.");
     return ExecuteResult ::OBJECT_IS_INVALID;
   }
 
@@ -1306,26 +1306,26 @@ MM::ExecuteResult MM::RenderSystem::Utils::CheckVmaAllocationCreateInfo(
 MM::ExecuteResult MM::RenderSystem::Utils::CheckVkBufferCreateInfo(
     const VkBufferCreateInfo* vk_buffer_create_info) {
   if (vk_buffer_create_info == nullptr) {
-    LOG_ERROR("The vk buffer create info is nullptr.");
+    MM_LOG_ERROR("The vk buffer create info is nullptr.");
     return ExecuteResult ::OBJECT_IS_INVALID;
   }
 
   if (vk_buffer_create_info->flags == VK_BUFFER_CREATE_FLAG_BITS_MAX_ENUM) {
-    LOG_ERROR("The vk buffer create info flags is error.");
+    MM_LOG_ERROR("The vk buffer create info flags is error.");
     return ExecuteResult ::OBJECT_IS_INVALID;
   }
   if (vk_buffer_create_info->size == 0) {
-    LOG_ERROR("The vk buffer create info size is error.");
+    MM_LOG_ERROR("The vk buffer create info size is error.");
     return ExecuteResult ::OBJECT_IS_INVALID;
   }
   if (vk_buffer_create_info->usage == VK_BUFFER_USAGE_FLAG_BITS_MAX_ENUM) {
-    LOG_ERROR("The vk buffer create info usage is error.");
+    MM_LOG_ERROR("The vk buffer create info usage is error.");
     return ExecuteResult ::OBJECT_IS_INVALID;
   }
   if (vk_buffer_create_info->sharingMode == VK_SHARING_MODE_EXCLUSIVE ||
       vk_buffer_create_info->queueFamilyIndexCount != 1 ||
       vk_buffer_create_info->pQueueFamilyIndices == nullptr) {
-    LOG_ERROR("The vk buffer create info queue family index mode is error.");
+    MM_LOG_ERROR("The vk buffer create info queue family index mode is error.");
     return ExecuteResult ::OBJECT_IS_INVALID;
   }
 
@@ -1366,11 +1366,12 @@ MM::ExecuteResult MM::RenderSystem::Utils::CreateBuffer(
   VkBuffer temp_buffer{};
   VmaAllocation temp_allocation{};
 
-  VK_CHECK(vmaCreateBuffer(render_engine->GetAllocator(),
-                           &vk_buffer_create_info, &vma_allocation_create_info,
-                           &temp_buffer, &temp_allocation, vma_allocation_info),
-           LOG_ERROR("Failed to create buffer.");
-           return ExecuteResult::CREATE_OBJECT_FAILED;)
+  MM_VK_CHECK(
+      vmaCreateBuffer(render_engine->GetAllocator(), &vk_buffer_create_info,
+                      &vma_allocation_create_info, &temp_buffer,
+                      &temp_allocation, vma_allocation_info),
+      MM_LOG_ERROR("Failed to create buffer.");
+      return ExecuteResult::CREATE_OBJECT_FAILED;)
 
   BufferDataInfo buffer_data_info{
       BufferCreateInfo(vk_buffer_create_info),
@@ -1613,4 +1614,72 @@ VkSubmitInfo MM::RenderSystem::Utils::GetVkSubmitInfo(
                       command_buffer,
                       signal_semaphore_info_count,
                       signal_semaphore_infos};
+}
+
+bool MM::RenderSystem::Utils::IsValidPipelineCacheData(
+    const std::string& filename, const char* buffer, uint32_t size,
+    const VkPhysicalDeviceProperties& gpu_properties) {
+  if (size > 32) {
+    uint32_t header = 0;
+    uint32_t version = 0;
+    uint32_t vendor = 0;
+    uint32_t deviceID = 0;
+    uint8_t pipelineCacheUUID[VK_UUID_SIZE] = {};
+
+    memcpy(&header, (uint8_t*)buffer + 0, 4);
+    memcpy(&version, (uint8_t*)buffer + 4, 4);
+    memcpy(&vendor, (uint8_t*)buffer + 8, 4);
+    memcpy(&deviceID, (uint8_t*)buffer + 12, 4);
+    memcpy(pipelineCacheUUID, (uint8_t*)buffer + 16, VK_UUID_SIZE);
+
+    if (header <= 0) {
+      MM_LOG_ERROR(std::string("Bad pipeline cache data header length in") +
+                   filename);
+      return false;
+    }
+
+    if (version != VK_PIPELINE_CACHE_HEADER_VERSION_ONE) {
+      MM_LOG_ERROR(
+          std::string("Unsupported cache header version in " + filename));
+      // std::cerr << "cache contains: 0x" << std::hex << version << std::endl;
+    }
+
+    if (vendor != gpu_properties.vendorID) {
+      MM_LOG_ERROR(std::string("Vendor id mismatch in ") + filename);
+      //      std::cerr << "cache contains: 0x" << std::hex << vendor <<
+      //      std::endl; std::cerr << "driver expects: 0x" <<
+      //      gpu_properties.vendorID << std::endl;
+      return false;
+    }
+
+    if (deviceID != gpu_properties.deviceID) {
+      MM_LOG_ERROR(std::string("Device id mismatch in ") + filename);
+      //      std::cerr << "cache contains: 0x" << std::hex << deviceID <<
+      //      std::endl; std::cerr << "driver expects: 0x" <<
+      //      gpu_properties.deviceID << std::endl;
+      return false;
+    }
+
+    if (memcmp(pipelineCacheUUID, gpu_properties.pipelineCacheUUID,
+               sizeof(pipelineCacheUUID)) != 0) {
+      MM_LOG_ERROR(std::string("UUID mismatch in ") + filename);
+      //      std::cerr << "cache contains: " << std::endl;
+
+      //      auto fn = [](uint8_t* uuid) {
+      //        for(int i = 0; i < 16; i++) {
+      //          std::cout << (int)uuid[i] << " ";
+      //          if(i % 4 == 3)
+      //            std::cerr << std::endl;
+      //        }
+      //        std::cerr << std::endl;
+      //      };
+      //      fn(pipelineCacheUUID);
+      //      std::cerr << "driver expects:" << std::endl;
+      //      fn(gpu_properties.pipelineCacheUUID);
+      return false;
+    }
+
+    return true;
+  }
+  return false;
 }
