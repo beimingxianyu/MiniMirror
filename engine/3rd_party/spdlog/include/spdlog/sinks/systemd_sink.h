@@ -27,13 +27,13 @@ class systemd_sink : public base_sink<Mutex>
 public:
     //
     systemd_sink()
-        : syslog_levels_{{/* spdlog::level::trace      */ MM_LOG_DEBUG,
-              /* spdlog::level::debug      */ MM_LOG_DEBUG,
-              /* spdlog::level::info       */ MM_LOG_INFO,
+        : syslog_levels_{{/* spdlog::level::trace      */ LOG_DEBUG,
+              /* spdlog::level::debug      */ LOG_DEBUG,
+              /* spdlog::level::info       */ LOG_INFO,
               /* spdlog::level::warn       */ LOG_WARNING,
               /* spdlog::level::err        */ LOG_ERR,
               /* spdlog::level::critical   */ LOG_CRIT,
-              /* spdlog::level::off        */ MM_LOG_INFO}}
+              /* spdlog::level::off        */ LOG_INFO}}
     {}
 
     ~systemd_sink() override {}
