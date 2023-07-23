@@ -582,11 +582,19 @@ MM::Utils::ExecuteResult MM::RenderSystem::AllocatedImage::GetCopy(
   if (IsValid()) {
     return MM::Utils::ExecuteResult::OBJECT_IS_INVALID;
   }
+  QueueIndex transform_queue_index = render_engine_->GetTransformQueueIndex();
   VkImage new_image{nullptr};
   VmaAllocation new_allocation{nullptr};
 
-  VkImageCreateInfo image_create_info =
-      image_data_info_.image_create_info_.GetVkImageCreateInfo();
+  VkImageCreateInfo image_create_info{
+      MM::RenderSystem::Utils::GetVkImageCreateInfo(
+          GetImageCreateInfo().next_, GetImageCreateInfo().flags_,
+          GetImageCreateInfo().image_type_, GetImageCreateInfo().format_,
+          GetImageCreateInfo().extent_, GetImageCreateInfo().miplevels_,
+          GetImageCreateInfo().array_levels_, GetImageCreateInfo().samples_,
+          GetImageCreateInfo().tiling_, GetImageCreateInfo().usage_,
+          GetImageCreateInfo().sharing_mode_, 1, &transform_queue_index,
+          GetImageCreateInfo().initial_layout_)};
   VmaAllocationCreateInfo allocation_create_info =
       image_data_info_.allocation_create_info_.GetVmaAllocationCreateInfo();
   MM_VK_CHECK(
@@ -615,6 +623,72 @@ MM::Utils::ExecuteResult MM::RenderSystem::AllocatedImage::GetCopy(
       new_name,         GetRenderResourceDataID(), render_engine_,
       image_data_info_, wrapper_.GetAllocator(),   new_image,
       new_allocation};
+
+  return ExecuteResult ::SUCCESS;
+}
+
+MM::Utils::ExecuteResult MM::RenderSystem::AllocatedImage::GetCopy(
+    const std::vector<std::string>& new_names,
+    std::vector<AllocatedImage>& new_allocated_images) const {
+  if ((new_names.empty()) ||
+      (new_names.size() != new_allocated_images.size())) {
+    MM_LOG_ERROR("The size of input parameters are error.");
+    return MM::Utils::ExecuteResult::INPUT_PARAMETERS_ARE_NOT_SUITABLE;
+  }
+
+  if (IsValid()) {
+    return MM::Utils::ExecuteResult::OBJECT_IS_INVALID;
+  }
+  QueueIndex transform_queue_index = render_engine_->GetTransformQueueIndex();
+
+  std::vector<VkImage> new_images(new_allocated_images.size());
+  std::vector<VmaAllocation> new_allocations(new_allocated_images.size());
+
+  VkImageCreateInfo image_create_info{
+      MM::RenderSystem::Utils::GetVkImageCreateInfo(
+          GetImageCreateInfo().next_, GetImageCreateInfo().flags_,
+          GetImageCreateInfo().image_type_, GetImageCreateInfo().format_,
+          GetImageCreateInfo().extent_, GetImageCreateInfo().miplevels_,
+          GetImageCreateInfo().array_levels_, GetImageCreateInfo().samples_,
+          GetImageCreateInfo().tiling_, GetImageCreateInfo().usage_,
+          GetImageCreateInfo().sharing_mode_, 1, &transform_queue_index,
+          GetImageCreateInfo().initial_layout_)};
+  image_data_info_.image_create_info_.GetVkImageCreateInfo();
+  VmaAllocationCreateInfo allocation_create_info =
+      image_data_info_.allocation_create_info_.GetVmaAllocationCreateInfo();
+  for (std::uint64_t i = 0; i != new_allocated_images.size(); ++i) {
+    MM_VK_CHECK(
+        vmaCreateImage(const_cast<VmaAllocator>(wrapper_.GetAllocator()),
+                       &image_create_info, &allocation_create_info,
+                       &new_images[i], &new_allocations[i], nullptr),
+        for (std::uint64_t j = 0; j != i; ++j) {
+          vmaDestroyImage(const_cast<VmaAllocator>(wrapper_.GetAllocator()),
+                          new_images[j], new_allocations[j]);
+        } MM_LOG_ERROR("Failed to create VkBuffer.");
+        return MM::RenderSystem::Utils::VkResultToMMResult(MM_VK_RESULT_CODE);)
+  }
+
+  MM_CHECK(render_engine_->RunSingleCommandAndWait(
+               CommandBufferType::TRANSFORM, 1,
+               [this_image = this, new_images](AllocatedCommandBuffer& cmd) {
+                 if (this_image->GetSubResourceAttributes().size() == 1) {
+                   return this_image->AddCopyImageCommandsWhenOneSubResource(
+                       cmd, new_images);
+                 } else {
+                   return this_image->AddCopyImagCommandseWhenMultSubResource(
+                       cmd, new_images);
+                 }
+               },
+               std::vector<RenderResourceDataID>{GetRenderResourceDataID()}),
+           MM_LOG_ERROR("Failed to copy data to new image.");
+           return MM_RESULT_CODE;)
+
+  for (std::uint64_t i = 0; i != new_allocated_images.size(); ++i) {
+    new_allocated_images[i] = AllocatedImage{
+        new_names[i],      GetRenderResourceDataID(), render_engine_,
+        image_data_info_,  wrapper_.GetAllocator(),   new_images[i],
+        new_allocations[i]};
+  }
 
   return ExecuteResult ::SUCCESS;
 }
@@ -794,6 +868,208 @@ MM::RenderSystem::AllocatedImage::AddCopyImagCommandseWhenMultSubResource(
         VK_ACCESS_2_TRANSFER_WRITE_BIT;
     barriers[i + sub_resource_count].oldLayout =
         barriers[i + sub_resource_count].newLayout;
+  }
+  vkCmdPipelineBarrier2(cmd.GetCommandBuffer(), &dependency_info);
+
+  MM_CHECK(MM::RenderSystem::Utils::EndCommandBuffer(cmd),
+           MM_LOG_FATAL("Failed to end command buffer");
+           return MM_RESULT_CODE;)
+
+  return ExecuteResult ::SUCCESS;
+}
+
+MM::ExecuteResult
+MM::RenderSystem::AllocatedImage::AddCopyImageCommandsWhenOneSubResource(
+    MM::RenderSystem::AllocatedCommandBuffer& cmd,
+    std::vector<VkImage> new_images) const {
+  QueueIndex transform_queue_index = render_engine_->GetTransformQueueIndex();
+
+  std::vector<VkImageMemoryBarrier2> barriers{};
+  barriers.reserve(1 + new_images.size());
+  const ImageSubResourceAttribute& sub_resource = GetSubResourceAttributes()[0];
+  VkImageAspectFlags aspect_flags{
+      MM::RenderSystem::Utils::ChooseImageAspectFlags(
+          sub_resource.GetImageLayout())};
+  VkImageSubresourceRange sub_resource_range{
+      MM::RenderSystem::Utils::GetVkImageSubresourceRange(
+          aspect_flags, sub_resource.GetBaseMipmapLevel(),
+          sub_resource.GetMipmapCount(), sub_resource.GetBaseArrayLevel(),
+          sub_resource.GetArrayCount())};
+
+  // old image barrier
+  barriers.emplace_back(MM::RenderSystem::Utils::GetVkImageMemoryBarrier2(
+      VK_PIPELINE_STAGE_2_TRANSFER_BIT, 0, VK_PIPELINE_STAGE_2_TRANSFER_BIT,
+      VK_ACCESS_2_TRANSFER_READ_BIT, sub_resource.GetImageLayout(),
+      sub_resource.GetImageLayout(), sub_resource.GetQueueIndex(),
+      transform_queue_index, GetImage(), sub_resource_range));
+
+  // new image barrier
+  for (const auto& new_image : new_images) {
+    barriers.emplace_back(MM::RenderSystem::Utils::GetVkImageMemoryBarrier2(
+        VK_PIPELINE_STAGE_2_TRANSFER_BIT, 0, VK_PIPELINE_STAGE_2_TRANSFER_BIT,
+        VK_ACCESS_2_TRANSFER_WRITE_BIT,
+        image_data_info_.image_create_info_.initial_layout_,
+        sub_resource.GetImageLayout(), transform_queue_index,
+        transform_queue_index, new_image, sub_resource_range));
+  }
+
+  VkDependencyInfo dependency_info{MM::RenderSystem::Utils::GetVkDependencyInfo(
+      0, nullptr, 0, nullptr, barriers.size(), barriers.data(), 0)};
+
+  MM_CHECK(MM::RenderSystem::Utils::BeginCommandBuffer(cmd),
+           MM_LOG_FATAL("Failed to begine command buffer.");
+           return MM_RESULT_CODE;)
+
+  vkCmdPipelineBarrier2(cmd.GetCommandBuffer(), &dependency_info);
+
+  std::vector<VkImageCopy2> image_copy_infos{GetMipmapLevels()};
+  image_copy_infos.reserve(GetMipmapLevels());
+  for (std::uint32_t i = 0; i != sub_resource.GetMipmapCount(); ++i) {
+    VkImageSubresourceLayers image_subresource_layers{
+        MM::RenderSystem::Utils::GetVkImageSubResourceLayers(
+            aspect_flags, sub_resource.GetBaseMipmapLevel() + i, 0, 1)};
+    image_copy_infos.emplace_back(MM::RenderSystem::Utils::GetVkImageCopy2(
+        image_subresource_layers, image_subresource_layers, VkOffset3D{0, 0, 0},
+        VkOffset3D{0, 0, 0}, GetImageExtent()));
+  }
+
+  for (const auto& new_image : new_images) {
+    VkCopyImageInfo2 copy_image_info{
+        MM::RenderSystem::Utils::GetVkCopyImageInfo2(
+            GetImage(), new_image, nullptr, sub_resource.GetImageLayout(),
+            sub_resource.GetImageLayout(), image_copy_infos.size(),
+            image_copy_infos.data())};
+    vkCmdCopyImage2(cmd.GetCommandBuffer(), &copy_image_info);
+  }
+
+  barriers[0].dstQueueFamilyIndex = barriers[0].srcQueueFamilyIndex;
+  barriers[0].srcQueueFamilyIndex = transform_queue_index;
+  barriers[0].srcAccessMask = VK_ACCESS_2_TRANSFER_WRITE_BIT;
+  barriers[0].dstAccessMask = VK_ACCESS_2_TRANSFER_WRITE_BIT;
+  for (std::uint64_t i = 0; i != new_images.size(); ++i) {
+    barriers[i + 1].dstQueueFamilyIndex = barriers[0].dstQueueFamilyIndex;
+    barriers[i + 1].srcAccessMask = VK_ACCESS_2_TRANSFER_WRITE_BIT;
+    barriers[i + 1].oldLayout = barriers[i + 1].newLayout;
+  }
+
+  vkCmdPipelineBarrier2(cmd.GetCommandBuffer(), &dependency_info);
+
+  MM_CHECK(MM::RenderSystem::Utils::EndCommandBuffer(cmd),
+           MM_LOG_FATAL("Failed to end command buffer");
+           return MM_RESULT_CODE;)
+
+  return ExecuteResult ::SUCCESS;
+}
+
+MM::ExecuteResult
+MM::RenderSystem::AllocatedImage::AddCopyImagCommandseWhenMultSubResource(
+    MM::RenderSystem::AllocatedCommandBuffer& cmd,
+    std::vector<VkImage> new_images) const {
+  QueueIndex transform_queue_index = render_engine_->GetTransformQueueIndex();
+
+  std::vector<VkImageMemoryBarrier2> barriers{};
+  barriers.reserve(GetSubResourceAttributes().size() * (1 + new_images.size()));
+  // old image barrier
+  for (const auto& sub_resource : GetSubResourceAttributes()) {
+    VkImageAspectFlags aspect_flags{
+        MM::RenderSystem::Utils::ChooseImageAspectFlags(
+            sub_resource.GetImageLayout())};
+    VkImageSubresourceRange sub_resource_range{
+        MM::RenderSystem::Utils::GetVkImageSubresourceRange(
+            aspect_flags, sub_resource.GetBaseMipmapLevel(),
+            sub_resource.GetMipmapCount(), sub_resource.GetBaseArrayLevel(),
+            sub_resource.GetArrayCount())};
+    barriers.emplace_back(MM::RenderSystem::Utils::GetVkImageMemoryBarrier2(
+        VK_PIPELINE_STAGE_2_TRANSFER_BIT, 0, VK_PIPELINE_STAGE_2_TRANSFER_BIT,
+        VK_ACCESS_2_TRANSFER_READ_BIT, sub_resource.GetImageLayout(),
+        sub_resource.GetImageLayout(), sub_resource.GetQueueIndex(),
+        transform_queue_index, GetImage(), sub_resource_range));
+  }
+  // new image barrier
+  for (const auto& sub_resource : GetSubResourceAttributes()) {
+    VkImageAspectFlags aspect_flags{
+        MM::RenderSystem::Utils::ChooseImageAspectFlags(
+            sub_resource.GetImageLayout())};
+    VkImageSubresourceRange sub_resource_range{
+        MM::RenderSystem::Utils::GetVkImageSubresourceRange(
+            aspect_flags, sub_resource.GetBaseMipmapLevel(),
+            sub_resource.GetMipmapCount(), sub_resource.GetBaseArrayLevel(),
+            sub_resource.GetArrayCount())};
+    for (auto& new_image : new_images) {
+      barriers.emplace_back(MM::RenderSystem::Utils::GetVkImageMemoryBarrier2(
+          VK_PIPELINE_STAGE_2_TRANSFER_BIT, 0, VK_PIPELINE_STAGE_2_TRANSFER_BIT,
+          VK_ACCESS_2_TRANSFER_WRITE_BIT, GetImageCreateInfo().initial_layout_,
+          sub_resource.GetImageLayout(),
+          GetImageCreateInfo().queue_family_indices_[0],
+          render_engine_->GetTransformQueueIndex(), new_image,
+          sub_resource_range));
+    }
+  }
+  VkDependencyInfo dependency_info{MM::RenderSystem::Utils::GetVkDependencyInfo(
+      0, nullptr, 0, nullptr, barriers.size(), barriers.data(), 0)};
+
+  MM_CHECK(MM::RenderSystem::Utils::BeginCommandBuffer(cmd),
+           MM_LOG_FATAL("Failed to begine command buffer.");
+           return MM_RESULT_CODE;)
+
+  vkCmdPipelineBarrier2(cmd.GetCommandBuffer(), &dependency_info);
+
+  std::vector<VkImageCopy2> image_copy_infos{};
+  image_copy_infos.reserve(GetMipmapLevels());
+  for (const auto& sub_resource : GetSubResourceAttributes()) {
+    VkImageAspectFlags aspect_flags =
+        MM::RenderSystem::Utils::ChooseImageAspectFlags(
+            sub_resource.GetImageLayout());
+    for (std::uint32_t i = 0; i != sub_resource.GetMipmapCount(); ++i) {
+      VkImageSubresourceLayers image_subresource_layers{
+          MM::RenderSystem::Utils::GetVkImageSubResourceLayers(
+              aspect_flags, sub_resource.GetBaseMipmapLevel() + i, 0, 1)};
+      image_copy_infos.emplace_back(MM::RenderSystem::Utils::GetVkImageCopy2(
+          image_subresource_layers, image_subresource_layers,
+          VkOffset3D{0, 0, 0}, VkOffset3D{0, 0, 0}, GetImageExtent()));
+    }
+  }
+
+  auto sub_resource_all = GetSubResourceAttributes();
+  std::uint32_t same_layout_count = 0;
+  std::uint64_t same_layout_offset = 0;
+  VkImageLayout current_layout = sub_resource_all[0].GetImageLayout();
+  for (std::uint64_t i = 0; i != sub_resource_all.size(); ++i) {
+    same_layout_count += sub_resource_all[i].GetMipmapCount();
+    if (i == sub_resource_all.size() - 1 ||
+        current_layout != sub_resource_all[i].GetImageLayout()) {
+      for (auto& new_image : new_images) {
+        VkCopyImageInfo2 copy_image_info{
+            MM::RenderSystem::Utils::GetVkCopyImageInfo2(
+                GetImage(), new_image, nullptr, current_layout, current_layout,
+                same_layout_count,
+                image_copy_infos.data() + same_layout_offset)};
+        vkCmdCopyImage2(cmd.GetCommandBuffer(), &copy_image_info);
+      }
+
+      same_layout_count = 0;
+      same_layout_offset = i + 1;
+      if (i != sub_resource_all.size() - 1) {
+        current_layout = sub_resource_all[i + 1].GetImageLayout();
+      }
+    }
+  }
+
+  std::uint64_t sub_resource_count = GetSubResourceAttributes().size();
+  std::uint64_t new_images_count = new_images.size();
+  for (std::uint64_t i = 0; i != sub_resource_count; ++i) {
+    std::swap(barriers[i].srcQueueFamilyIndex, barriers[i].dstQueueFamilyIndex);
+    barriers[i].srcAccessMask = VK_ACCESS_2_TRANSFER_WRITE_BIT;
+    barriers[i].dstAccessMask = VK_ACCESS_2_TRANSFER_WRITE_BIT;
+
+    for (std::uint64_t j = 0; j != new_images_count; ++j) {
+      barriers[i + sub_resource_count + j + i * new_images_count]
+          .dstQueueFamilyIndex = barriers[i].dstQueueFamilyIndex;
+      barriers[i + sub_resource_count + j + i * new_images_count]
+          .srcAccessMask = VK_ACCESS_2_TRANSFER_WRITE_BIT;
+      barriers[i + sub_resource_count + j + i * new_images_count].oldLayout =
+          barriers[i + sub_resource_count + j + i * new_images_count].newLayout;
+    }
   }
   vkCmdPipelineBarrier2(cmd.GetCommandBuffer(), &dependency_info);
 

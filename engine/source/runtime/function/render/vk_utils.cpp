@@ -1683,3 +1683,27 @@ bool MM::RenderSystem::Utils::IsValidPipelineCacheData(
   }
   return false;
 }
+
+VkImageCreateInfo MM::RenderSystem::Utils::GetVkImageCreateInfo(
+    const void* next, VkImageCreateFlags flags, VkImageType image_type,
+    VkFormat format, VkExtent3D extent, uint32_t mipmap_levels,
+    uint32_t array_layers, VkSampleCountFlags samples, VkImageTiling tiling,
+    VkImageUsageFlags usage, VkSharingMode sharing_mode,
+    uint32_t queue_family_index_count, const uint32_t* queue_family_indices,
+    VkImageLayout initial_layout) {
+  return VkImageCreateInfo{VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
+                           next,
+                           flags,
+                           image_type,
+                           format,
+                           extent,
+                           mipmap_levels,
+                           array_layers,
+                           static_cast<VkSampleCountFlagBits>(samples),
+                           tiling,
+                           usage,
+                           sharing_mode,
+                           queue_family_index_count,
+                           queue_family_indices,
+                           initial_layout};
+}

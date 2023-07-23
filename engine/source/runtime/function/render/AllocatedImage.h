@@ -99,6 +99,10 @@ class AllocatedImage final : public RenderResourceDataBase {
   MM::Utils::ExecuteResult GetCopy(const std::string& new_name,
                                    AllocatedImage& new_allocated_image) const;
 
+  MM::Utils::ExecuteResult GetCopy(
+      const std::vector<std::string>& new_names,
+      std::vector<AllocatedImage>& new_allocated_images) const;
+
   bool IsArray() const override;
 
   bool CanWrite() const override;
@@ -145,6 +149,12 @@ class AllocatedImage final : public RenderResourceDataBase {
 
   MM::ExecuteResult AddCopyImagCommandseWhenMultSubResource(
       AllocatedCommandBuffer& cmd, VkImage new_image) const;
+
+  MM::ExecuteResult AddCopyImageCommandsWhenOneSubResource(
+      AllocatedCommandBuffer& cmd, std::vector<VkImage> new_images) const;
+
+  MM::ExecuteResult AddCopyImagCommandseWhenMultSubResource(
+      AllocatedCommandBuffer& cmd, std::vector<VkImage> new_images) const;
 
   ExecuteResult CheckTransformInputParameter(
       const std::vector<ImageSubResourceAttribute>& new_sub_resource_attribute)

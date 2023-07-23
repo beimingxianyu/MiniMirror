@@ -154,6 +154,10 @@ class AllocatedBuffer : public RenderResourceDataBase {
   ExecuteResult GetCopy(const std::string& new_name,
                         AllocatedBuffer& new_allocated_buffer) const;
 
+  ExecuteResult GetCopy(
+      std::vector<std::string>& new_names,
+      std::vector<AllocatedBuffer>& new_allocated_buffers) const;
+
   void Release() override;
 
   bool IsValid() const override;
@@ -180,6 +184,12 @@ class AllocatedBuffer : public RenderResourceDataBase {
 
   ExecuteResult AddCopyBufferCommandseWhenMultSubResource(
       AllocatedCommandBuffer& cmd, VkBuffer new_buffer) const;
+
+  ExecuteResult AddCopyBufferCommandsWhenOneSubResource(
+      AllocatedCommandBuffer& cmd, std::vector<VkBuffer>& new_buffers) const;
+
+  ExecuteResult AddCopyBufferCommandseWhenMultSubResource(
+      AllocatedCommandBuffer& cmd, std::vector<VkBuffer>& new_buffers) const;
 
   ExecuteResult CheckTransformInputParameter(
       const std::vector<BufferSubResourceAttribute>& new_sub_resource_attribute)

@@ -437,6 +437,14 @@ VkSubmitInfo GetVkSubmitInfo(void* next, uint32_t wait_semaphore_info_count,
 bool IsValidPipelineCacheData(const std::string& filename, const char* buffer,
                               uint32_t size,
                               const VkPhysicalDeviceProperties& gpu_properties);
+
+VkImageCreateInfo GetVkImageCreateInfo(
+    const void* next, VkImageCreateFlags flags, VkImageType image_type,
+    VkFormat format, VkExtent3D extent, uint32_t mipmap_levels,
+    uint32_t array_layers, VkSampleCountFlags samples, VkImageTiling tiling,
+    VkImageUsageFlags usage, VkSharingMode sharing_mode,
+    uint32_t queue_family_index_count, const uint32_t* queue_family_indices,
+    VkImageLayout initial_layout);
 }  // namespace Utils
 }  // namespace RenderSystem
 }  // namespace MM
