@@ -129,6 +129,10 @@ if (NOT TARGET Taskflow::Taskflow)
     target_link_libraries(Taskflow_lib INTERFACE Taskflow::Taskflow)
 endif ()
 
+if (NOT TARGET shaderc)
+    add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/shaderc")
+endif ()
+
 if (enable_test)
     if (NOT TARGET gtest_main)
         add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/gtest")

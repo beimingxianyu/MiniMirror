@@ -57,4 +57,3 @@
 #*.PDF   diff=astextplain
 #*.rtf   diff=astextplain
 #*.RTF   diff=astextplain
-engine/3rd_party/VulkanSDK/bin/Linux/glslc filter=lfs diff=lfs merge=lfs -text
