@@ -20,34 +20,24 @@ MM::FileSystem::Path::Path(const std::string& other) {
   } else {
     new_path = other;
   }
-#ifdef WIN32
   // Determine whether it is a relative path.
   if (new_path[0] == '.') {
-    const std::string temp = g_bin_dir + PATH_SEPARATOR + new_path;
-    path_ = std::make_unique<std::filesystem::path>(RemoveDotAndDotDot(
-        std::filesystem::path(temp).make_preferred().string()));
+    const std::string temp = g_bin_dir + "/" + new_path;
+    path_ = RemoveDotAndDotDot(std::filesystem::path(temp).string());
     return;
   }
+#ifdef WIN32
   // Turn the drive letter of win to uppercase.
   if ((new_path[0] > 96 && new_path[0] < 123) ||
       (new_path[0] > 64 && new_path[0] < 91)) {
     std::string temp = other;
     temp[0] = temp[0] - 32;
-    path_ = std::make_unique<std::filesystem::path>(RemoveDotAndDotDot(
-        std::filesystem::path(temp).make_preferred().string()));
+    path_ = RemoveDotAndDotDot(std::filesystem::path(temp).string());
     return;
   }
 #else
-  // Determine whether it is a relative path.
-  if (new_path[0] == '.') {
-    const std::string temp = g_bin_dir + "/" + new_path;
-    path_ = RemoveDotAndDotDot(
-        std::filesystem::path(temp).make_preferred().string());
-    return;
-  }
   if (new_path[0] == '/') {
-    path_ = RemoveDotAndDotDot(
-        std::filesystem::path(new_path).make_preferred().string());
+    path_ = RemoveDotAndDotDot(std::filesystem::path(new_path).string());
   }
 #endif
 }
@@ -105,11 +95,37 @@ std::string MM::FileSystem::Path::GetFileName() const {
   return std::string{};
 }
 
+std::string_view MM::FileSystem::Path::GetFileNameView() const {
+  if (!IsDirectory()) {
+    auto string_view = StringView();
+    auto string_size = string_view.size();
+    auto dot_postion = string_view.rfind('/');
+    if (dot_postion == std::string_view::npos) {
+      return std::string_view{};
+    }
+    return std::string_view(CStr() + dot_postion, string_size - dot_postion);
+  }
+  return std::string_view{};
+}
+
 std::string MM::FileSystem::Path::GetExtension() const {
   if (!IsDirectory()) {
     return path_.extension().string();
   }
   return std::string{};
+}
+
+std::string_view MM::FileSystem::Path::GetExtensionView() const {
+  if (!IsDirectory()) {
+    auto string_view = StringView();
+    auto string_size = string_view.size();
+    auto dot_postion = string_view.rfind('.');
+    if (dot_postion == std::string_view::npos) {
+      return std::string_view{};
+    }
+    return std::string_view(CStr() + dot_postion, string_size - dot_postion);
+  }
+  return std::string_view{};
 }
 
 void MM::FileSystem::Path::Swap(Path& other) { std::swap(path_, other.path_); }
@@ -139,7 +155,7 @@ std::string MM::FileSystem::Path::GetRelativePath(const Path& root_path) const {
       break;
     }
 
-    if (original_path_string[index] == PATH_SEPARATOR) {
+    if (original_path_string[index] == '/') {
       original_path_parts.emplace_back(
           original_path_string.substr(last, index - last));
       last = index + 1;
@@ -153,7 +169,7 @@ std::string MM::FileSystem::Path::GetRelativePath(const Path& root_path) const {
       root_path_parts.emplace_back(root_path_string.substr(last, index - last));
       break;
     }
-    if (root_path_string[index] == PATH_SEPARATOR) {
+    if (root_path_string[index] == '/') {
       root_path_parts.emplace_back(root_path_string.substr(last, index - last));
       last = index + 1;
     }
@@ -170,22 +186,22 @@ std::string MM::FileSystem::Path::GetRelativePath(const Path& root_path) const {
       if (root_itr == root_path_parts.end()) {
         result += ".";
         if (original_itr == original_path_parts.end()) {
-          result += PATH_SEPARATOR;
+          result += '/';
           return result;
         }
         for (; original_itr != original_path_parts.end(); ++original_itr) {
-          result += PATH_SEPARATOR + *original_itr;
+          result += '/' + *original_itr;
         }
         return result;
       }
       if (*root_itr != *original_itr) {
         for (; root_itr != root_path_parts.end(); ++root_itr) {
-          result += std::string("..") + PATH_SEPARATOR;
+          result += std::string("..") + '/';
         }
         bool flag = false;
         for (; original_itr != original_path_parts.end(); ++original_itr) {
           if (flag) {
-            result += std::string() + PATH_SEPARATOR + *original_itr;
+            result += std::string() + '/' + *original_itr;
           } else {
             flag = true;
             result += *original_itr;
@@ -201,18 +217,18 @@ std::string MM::FileSystem::Path::GetRelativePath(const Path& root_path) const {
        ; ++original_itr, ++root_itr) {
     if (original_itr == original_path_parts.end()) {
       for (; root_itr != root_path_parts.end(); ++root_itr) {
-        result += std::string("..") + PATH_SEPARATOR;
+        result += std::string("..") + '/';
       }
       return result;
     }
     if (*original_itr != *root_itr) {
       for (; root_itr != root_path_parts.end(); ++root_itr) {
-        result += std::string("..") + PATH_SEPARATOR;
+        result += std::string("..") + '/';
       }
       bool flag = false;
       for (; original_itr != original_path_parts.end(); ++original_itr) {
         if (flag) {
-          result += std::string() + PATH_SEPARATOR + *original_itr;
+          result += std::string() + '/' + *original_itr;
         } else {
           flag = true;
           result += *original_itr;
@@ -520,7 +536,6 @@ MM::ExecuteResult MM::FileSystem::FileSystem::ReadFile(
     return ExecuteResult ::INPUT_PARAMETERS_ARE_NOT_SUITABLE;
   }
 
-  ;
   std::ifstream file(path.CStr(), std::ios::ate | std::ios::binary);
 
   if (!file.is_open()) {
@@ -566,7 +581,7 @@ std::string MM::FileSystem::Path::RemoveDotAndDotDot(
         break;
       }
     }
-    if (original_path[index] == PATH_SEPARATOR) {
+    if (original_path[index] == '/') {
       std::string sub_string{original_path.substr(last, index - last)};
       if (sub_string == std::string("..")) {
         path_parts.pop_back();
@@ -586,7 +601,7 @@ std::string MM::FileSystem::Path::RemoveDotAndDotDot(
   for (const auto& part : path_parts) {
     result += part;
     if (index != path_parts.size()) {
-      result += PATH_SEPARATOR;
+      result += '/';
     }
     ++index;
   }

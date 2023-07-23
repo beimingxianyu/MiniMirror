@@ -9,7 +9,7 @@
 #include <utility>
 #include <vector>
 
-#include "runtime/platform/base//cross_platform_header.h"
+#include "runtime/platform/base/cross_platform_header.h"
 #include "runtime/platform/base/error.h"
 
 namespace MM {
@@ -70,10 +70,22 @@ class Path {
   std::string GetFileName() const;
 
   /**
+   * \brief If the path is not a directory, get the file name.
+   * \return The file name.
+   */
+  std::string_view GetFileNameView() const;
+
+  /**
    * \brief If the path is not a directory, get the file extension.
    * \return The file extension.
    */
   std::string GetExtension() const;
+
+  /**
+   * \brief If the path is not a directory, get the file extension.
+   * \return The file extension.
+   */
+  std::string_view GetExtensionView() const;
 
   /**
    * \brief Exchange data of two objects.

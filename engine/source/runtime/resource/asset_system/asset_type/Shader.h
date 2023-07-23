@@ -6,6 +6,7 @@
 #include "runtime/platform/file_system/file_system.h"
 #include "runtime/resource/asset_system/asset_type/base/asset_base.h"
 #include "runtime/resource/asset_system/asset_type/base/asset_type_define.h"
+#include "utils/shaderc.h"
 
 namespace MM {
 namespace AssetSystem {
@@ -15,7 +16,7 @@ class Shader : public AssetBase {
  public:
   Shader() = default;
   ~Shader() = default;
-  Shader(const FileSystem::Path& shader_path);
+  explicit Shader(const FileSystem::Path& shader_path);
   Shader(const Shader& other) = delete;
   Shader(Shader&& other) noexcept;
   Shader& operator=(const Shader& other) = delete;
@@ -41,6 +42,10 @@ class Shader : public AssetBase {
   void Release() override;
 
  private:
+  static MM::Utils::ExecuteResult ChooseShaderKind(
+      const MM::FileSystem::Path& shader_path,
+      MM::Utils::ShadercShaderKind& output_kind);
+
   ExecuteResult LoadShader(const FileSystem::Path& shader_path);
 
  private:

@@ -5,6 +5,12 @@ MM::AssetSystem::AssetType::AssetBase::AssetBase(
     : Manager::ManagedObjectBase(asset_path.GetFileName()),
       asset_path_(asset_path),
       asset_path_and_last_editing_time_hash(0) {
+  if (asset_path.IsDirectory()) {
+    MM_LOG_ERROR(asset_path.String() + " is not a file.");
+    asset_path_ = FileSystem::Path("");
+    return;
+  }
+
   FileSystem::LastWriteTime last_write_time;
   MM_CHECK(MM_FILE_SYSTEM->GetLastWriteTime(asset_path, last_write_time),
            MM_LOG_ERROR(asset_path.String() + " is not exists.");

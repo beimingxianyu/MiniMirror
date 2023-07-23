@@ -52,10 +52,3 @@
 #else
 #define MM_ARCH_TYPE MM_ARCH_32
 #endif
-
-// path separator
-#if MM_PLATFORM == 1
-#define PATH_SEPARATOR '\\'
-#else
-#define PATH_SEPARATOR '/'
-#endif

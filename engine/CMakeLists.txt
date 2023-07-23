@@ -4,11 +4,6 @@ if (${CMAKE_BUILD_TYPE} STREQUAL "Debug")
     add_compile_definitions("CHECK_PARAMETERS")
 endif ()
 
-# hardware info
-add_compile_definitions(MM_HARDWARE_INFO_MAC_ADDRESS="${hardware_info_mac_address}"
-        MM_HARDWARE_INFO_MAC_ADDRESS_16=${hardware_info_mac_address_16})
-
-
 # shader config
 set(shader_config_version "430")
 set(shader_config_global_set "0")
