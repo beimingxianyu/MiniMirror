@@ -689,9 +689,9 @@ MM::RenderSystem::ImageDataInfo::GetRenderResourceDataAttributeID(
   attribute3 |= static_cast<std::uint64_t>(allocation_create_info_.flags_)
                 << 42;
 
-  render_image_data_attribute_ID.SetAttribute1(attribute1);
-  render_image_data_attribute_ID.SetAttribute2(attribute2);
-  render_image_data_attribute_ID.SetAttribute3(attribute3);
+  render_image_data_attribute_ID.SetSubID1(attribute1);
+  render_image_data_attribute_ID.SetSubID2(attribute2);
+  render_image_data_attribute_ID.SetSubID3(attribute3);
 
   return ExecuteResult ::SUCCESS;
 }
@@ -998,8 +998,8 @@ MM::RenderSystem::ImageViewCreateInfo::GetRenderImageViewAttributeID(
   attribute2 |= subresource_range_.aspectMask << 28;
   attribute2 |= reinterpret_cast<std::uint64_t>(image_) << 41;
 
-  render_image_view_attribute_ID.SetAttribute1(attribute1);
-  render_image_view_attribute_ID.SetAttribute2(attribute2);
+  render_image_view_attribute_ID.SetSubID1(attribute1);
+  render_image_view_attribute_ID.SetSubID2(attribute2);
 
   return ExecuteResult ::SUCCESS;
 }
@@ -1224,8 +1224,8 @@ MM::RenderSystem::SamplerCreateInfo::GetRenderSamplerAttributeID(
   attribute2 |= static_cast<std::uint64_t>(std::floor(max_anisotropy_)) << 21;
   attribute2 |= anisotropy_enable_ << 28;
 
-  render_sampler_attribute_ID.SetAttribute1(attribute1);
-  render_sampler_attribute_ID.SetAttribute2(attribute2);
+  render_sampler_attribute_ID.SetSubID1(attribute1);
+  render_sampler_attribute_ID.SetSubID2(attribute2);
 
   return ExecuteResult ::SUCCESS;
 }
@@ -1736,9 +1736,9 @@ MM::RenderSystem::BufferDataInfo::GetRenderResourceDataAttributeID(
   attribute3 |= static_cast<std::uint64_t>(allocation_create_info_.flags_)
                 << 42;
 
-  render_image_data_attribute_ID.SetAttribute1(attribute1);
-  render_image_data_attribute_ID.SetAttribute2(attribute2);
-  render_image_data_attribute_ID.SetAttribute3(attribute3);
+  render_image_data_attribute_ID.SetSubID1(attribute1);
+  render_image_data_attribute_ID.SetSubID2(attribute2);
+  render_image_data_attribute_ID.SetSubID3(attribute3);
 
   return ExecuteResult ::SUCCESS;
 }
@@ -2409,4 +2409,365 @@ bool MM::RenderSystem::MeshBufferSubResourceAttribute::IsValid() const {
 void MM::RenderSystem::MeshBufferSubResourceAttribute::Reset() {
   vertex_buffer_sub_resource_attribute_.Reset();
   index_buffer_sub_resource_attribute_.Reset();
+}
+
+MM::RenderSystem::RenderPassCreateInfo::~RenderPassCreateInfo() {
+  for (auto& subpasse : subpasses_) {
+    delete subpasse.pInputAttachments;
+    delete subpasse.pResolveAttachments;
+    delete subpasse.pColorAttachments;
+    delete subpasse.pDepthStencilAttachment;
+    delete subpasse.pPreserveAttachments;
+  }
+}
+
+MM::RenderSystem::RenderPassCreateInfo::RenderPassCreateInfo(
+    const void* next, VkRenderPassCreateFlags flags,
+    std::uint32_t attachments_count, const VkAttachmentDescription* attachments,
+    std::uint32_t subpasses_count, const VkSubpassDescription* subpasses,
+    std::uint32_t dependency_count, const VkSubpassDependency* dependencies)
+    : next_(next),
+      flags_(flags),
+      attachments_(attachments_count),
+      subpasses_(subpasses_count),
+      dependencies_(dependency_count) {
+  assert(attachments_count != 0 && attachments == nullptr);
+  assert(subpasses_count != 0 && subpasses == nullptr);
+  assert(dependency_count != 0 && dependencies == nullptr);
+  for (std::uint32_t i = 0; i != attachments_.size(); ++i) {
+    attachments_[i] = attachments[i];
+  }
+
+  for (std::uint32_t i = 0; i != subpasses_.size(); ++i) {
+    subpasses_[i] = subpasses[i];
+
+    VkAttachmentReference* input_attachment{nullptr};
+    if (subpasses[i].inputAttachmentCount != 0) {
+      assert(subpasses[i].pInputAttachments != nullptr);
+      input_attachment =
+          new VkAttachmentReference[subpasses[i].inputAttachmentCount]{};
+      for (std::uint32_t j = 0; j != subpasses[i].inputAttachmentCount; ++j) {
+        input_attachment[j] = subpasses[i].pInputAttachments[j];
+      }
+    }
+    VkAttachmentReference* color_or_resolve_attachment{nullptr};
+    if (subpasses[i].colorAttachmentCount != 0) {
+      color_or_resolve_attachment =
+          new VkAttachmentReference[subpasses[i].colorAttachmentCount]{};
+      if (subpasses[i].pResolveAttachments) {
+        for (std::uint32_t j = 0; j != subpasses[i].colorAttachmentCount; ++j) {
+          color_or_resolve_attachment[j] = subpasses[i].pResolveAttachments[j];
+        }
+      } else if (subpasses[i].pColorAttachments) {
+        for (std::uint32_t j = 0; j != subpasses[i].colorAttachmentCount; ++j) {
+          color_or_resolve_attachment[j] = subpasses[i].pColorAttachments[j];
+        }
+      } else {
+        assert(false);
+      }
+    }
+    const VkAttachmentReference* depth_attachment{nullptr};
+    if (subpasses[i].pDepthStencilAttachment) {
+      depth_attachment =
+          new VkAttachmentReference{*subpasses[i].pDepthStencilAttachment};
+    }
+    std::uint32_t* preserve_attachment{nullptr};
+    if (subpasses[i].preserveAttachmentCount != 0) {
+      assert(subpasses[i].pPreserveAttachments != nullptr);
+
+      preserve_attachment =
+          new std::uint32_t[subpasses[i].preserveAttachmentCount]{};
+
+      for (std::uint32_t j = 0; j != subpasses[i].preserveAttachmentCount;
+           ++j) {
+        preserve_attachment[j] = subpasses[i].pPreserveAttachments[j];
+      }
+    }
+  }
+
+  for (std::uint32_t i = 0; i != dependencies_.size(); ++i) {
+    dependencies_[i] = dependencies[i];
+  }
+}
+
+MM::RenderSystem::RenderPassCreateInfo::RenderPassCreateInfo(
+    const VkRenderPassCreateInfo& vk_render_pass_create_info)
+    : next_(vk_render_pass_create_info.pNext),
+      flags_(vk_render_pass_create_info.flags),
+      attachments_(vk_render_pass_create_info.attachmentCount),
+      subpasses_(vk_render_pass_create_info.subpassCount),
+      dependencies_(vk_render_pass_create_info.dependencyCount) {
+  assert(vk_render_pass_create_info.attachmentCount != 0 &&
+         vk_render_pass_create_info.pAttachments == nullptr);
+  assert(vk_render_pass_create_info.subpassCount != 0 &&
+         vk_render_pass_create_info.pSubpasses == nullptr);
+  assert(vk_render_pass_create_info.dependencyCount != 0 &&
+         vk_render_pass_create_info.pDependencies == nullptr);
+  for (std::uint32_t i = 0; i != attachments_.size(); ++i) {
+    attachments_[i] = vk_render_pass_create_info.pAttachments[i];
+  }
+
+  for (std::uint32_t i = 0; i != subpasses_.size(); ++i) {
+    subpasses_[i] = vk_render_pass_create_info.pSubpasses[i];
+
+    VkAttachmentReference* input_attachment{nullptr};
+    if (vk_render_pass_create_info.pSubpasses[i].inputAttachmentCount != 0) {
+      assert(vk_render_pass_create_info.pSubpasses[i].pInputAttachments !=
+             nullptr);
+      input_attachment =
+          new VkAttachmentReference[vk_render_pass_create_info.pSubpasses[i]
+                                        .inputAttachmentCount]{};
+      for (std::uint32_t j = 0;
+           j != vk_render_pass_create_info.pSubpasses[i].inputAttachmentCount;
+           ++j) {
+        input_attachment[j] =
+            vk_render_pass_create_info.pSubpasses[i].pInputAttachments[j];
+      }
+    }
+    VkAttachmentReference* color_or_resolve_attachment{nullptr};
+    if (vk_render_pass_create_info.pSubpasses[i].colorAttachmentCount != 0) {
+      color_or_resolve_attachment =
+          new VkAttachmentReference[vk_render_pass_create_info.pSubpasses[i]
+                                        .colorAttachmentCount]{};
+      if (vk_render_pass_create_info.pSubpasses[i].pResolveAttachments !=
+          nullptr) {
+        for (std::uint32_t j = 0;
+             j != vk_render_pass_create_info.pSubpasses[i].colorAttachmentCount;
+             ++j) {
+          color_or_resolve_attachment[j] =
+              vk_render_pass_create_info.pSubpasses[i].pResolveAttachments[j];
+        }
+      } else if (vk_render_pass_create_info.pSubpasses[i].pColorAttachments !=
+                 nullptr) {
+        for (std::uint32_t j = 0;
+             j != vk_render_pass_create_info.pSubpasses[i].colorAttachmentCount;
+             ++j) {
+          color_or_resolve_attachment[j] =
+              vk_render_pass_create_info.pSubpasses[i].pColorAttachments[j];
+        }
+      } else {
+        assert(false);
+      }
+    }
+    const VkAttachmentReference* depth_attachment{nullptr};
+    if (vk_render_pass_create_info.pSubpasses[i].pDepthStencilAttachment) {
+      depth_attachment = new VkAttachmentReference{
+          *vk_render_pass_create_info.pSubpasses[i].pDepthStencilAttachment};
+    }
+    std::uint32_t* preserve_attachment{nullptr};
+    if (vk_render_pass_create_info.pSubpasses[i].preserveAttachmentCount != 0) {
+      assert(vk_render_pass_create_info.pSubpasses[i].pPreserveAttachments !=
+             nullptr);
+
+      preserve_attachment =
+          new std::uint32_t[vk_render_pass_create_info.pSubpasses[i]
+                                .preserveAttachmentCount]{};
+
+      for (std::uint32_t j = 0;
+           j !=
+           vk_render_pass_create_info.pSubpasses[i].preserveAttachmentCount;
+           ++j) {
+        preserve_attachment[j] =
+            vk_render_pass_create_info.pSubpasses[i].pPreserveAttachments[j];
+      }
+    }
+  }
+
+  for (std::uint32_t i = 0; i != dependencies_.size(); ++i) {
+    dependencies_[i] = vk_render_pass_create_info.pDependencies[i];
+  }
+}
+
+MM::RenderSystem::RenderPassCreateInfo::RenderPassCreateInfo(
+    MM::RenderSystem::RenderPassCreateInfo&& other) noexcept
+    : next_(other.next_),
+      flags_(other.flags_),
+      attachments_(std::move(other.attachments_)),
+      subpasses_(),
+      dependencies_(std::move(other.dependencies_)) {
+  subpasses_ = std::move(other.subpasses_);
+
+  other.next_ = nullptr;
+  other.flags_ = VK_RENDER_PASS_CREATE_FLAG_BITS_MAX_ENUM;
+}
+
+MM::RenderSystem::RenderPassCreateInfo&
+MM::RenderSystem::RenderPassCreateInfo::operator=(
+    const MM::RenderSystem::RenderPassCreateInfo& other) {
+  if (std::addressof(other) == this) {
+    return *this;
+  }
+
+  next_ = other.next_;
+  flags_ = other.flags_;
+  attachments_ = other.attachments_;
+  subpasses_ = other.subpasses_;
+  dependencies_ = other.dependencies_;
+
+  return *this;
+}
+
+MM::RenderSystem::RenderPassCreateInfo&
+MM::RenderSystem::RenderPassCreateInfo::operator=(
+    MM::RenderSystem::RenderPassCreateInfo&& other) {
+  if (std::addressof(other) == this) {
+    return *this;
+  }
+
+  Reset();
+
+  next_ = other.next_;
+  flags_ = other.flags_;
+  attachments_ = std::move(other.attachments_);
+  subpasses_ = std::move(other.subpasses_);
+  dependencies_ = std::move(other.dependencies_);
+
+  other.next_ = nullptr;
+  other.flags_ = VK_RENDER_PASS_CREATE_FLAG_BITS_MAX_ENUM;
+
+  for (std::uint64_t i = 0; i != other.subpasses_.size(); ++i) {
+    if (other.subpasses_[i].pInputAttachments) {
+      VkAttachmentReference* input_attachments =
+          new VkAttachmentReference[other.subpasses_[i].inputAttachmentCount]{};
+      for (std::uint32_t j = 0; j != other.subpasses_[i].inputAttachmentCount;
+           ++j) {
+        input_attachments[j] = other.subpasses_[i].pInputAttachments[j];
+      }
+
+      subpasses_[i].pInputAttachments = input_attachments;
+    }
+
+    if (other.subpasses_[i].pColorAttachments) {
+      VkAttachmentReference* color_attachments =
+          new VkAttachmentReference[other.subpasses_[i].colorAttachmentCount]{};
+      if (other.subpasses_[i].pResolveAttachments) {
+        for (std::uint32_t j = 0; j != other.subpasses_[i].colorAttachmentCount;
+             ++j) {
+          color_attachments[j] = other.subpasses_[i].pResolveAttachments[j];
+        }
+
+        subpasses_[i].pResolveAttachments = color_attachments;
+      } else if (other.subpasses_[i].pColorAttachments) {
+        for (std::uint32_t j = 0; j != other.subpasses_[i].colorAttachmentCount;
+             ++j) {
+          color_attachments[j] = other.subpasses_[i].pColorAttachments[j];
+        }
+
+        subpasses_[i].pColorAttachments = color_attachments;
+      } else {
+        assert(false);
+      }
+    }
+
+    if (other.subpasses_[i].pDepthStencilAttachment) {
+      VkAttachmentReference* depth_attachment = new VkAttachmentReference{
+          *other.subpasses_[i].pDepthStencilAttachment};
+    }
+
+    if (other.subpasses_[i].pPreserveAttachments) {
+      std::uint32_t* preserve_attachments =
+          new std::uint32_t[other.subpasses_[i].preserveAttachmentCount]{};
+
+      for (std::uint32_t j = 0;
+           j != other.subpasses_[i].preserveAttachmentCount; ++j) {
+        preserve_attachments[j] = other.subpasses_[i].pPreserveAttachments[j];
+      }
+
+      subpasses_[i].pPreserveAttachments = preserve_attachments;
+    }
+  }
+
+  return *this;
+}
+
+bool MM::RenderSystem::RenderPassCreateInfo::IsValid() const {
+  return !subpasses_.empty();
+}
+
+void MM::RenderSystem::RenderPassCreateInfo::Reset() {
+  next_ = nullptr;
+  flags_ = VK_RENDER_PASS_CREATE_FLAG_BITS_MAX_ENUM;
+  attachments_.clear();
+  for (auto& subpasse : subpasses_) {
+    delete subpasse.pInputAttachments;
+    delete subpasse.pResolveAttachments;
+    delete subpasse.pColorAttachments;
+    delete subpasse.pDepthStencilAttachment;
+    delete subpasse.pPreserveAttachments;
+  }
+  subpasses_.clear();
+  dependencies_.clear();
+}
+
+VkRenderPassCreateInfo
+MM::RenderSystem::RenderPassCreateInfo::GetVkRenderPassCreateInfo() const {
+  return VkRenderPassCreateInfo{VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO,
+                                next_,
+                                flags_,
+                                static_cast<uint32_t>(attachments_.size()),
+                                attachments_.data(),
+                                static_cast<uint32_t>(subpasses_.size()),
+                                subpasses_.data(),
+                                static_cast<uint32_t>(dependencies_.size()),
+                                dependencies_.data()};
+}
+
+MM::RenderSystem::RenderPassCreateInfo::RenderPassCreateInfo(
+    const MM::RenderSystem::RenderPassCreateInfo& other)
+    : next_(other.next_),
+      flags_(other.flags_),
+      attachments_(other.attachments_),
+      subpasses_(other.subpasses_),
+      dependencies_(other.dependencies_) {
+  for (std::uint64_t i = 0; i != other.subpasses_.size(); ++i) {
+    if (other.subpasses_[i].pInputAttachments) {
+      VkAttachmentReference* input_attachments =
+          new VkAttachmentReference[other.subpasses_[i].inputAttachmentCount]{};
+      for (std::uint32_t j = 0; j != other.subpasses_[i].inputAttachmentCount;
+           ++j) {
+        input_attachments[j] = other.subpasses_[i].pInputAttachments[j];
+      }
+
+      subpasses_[i].pInputAttachments = input_attachments;
+    }
+
+    if (other.subpasses_[i].pColorAttachments) {
+      VkAttachmentReference* color_attachments =
+          new VkAttachmentReference[other.subpasses_[i].colorAttachmentCount]{};
+      if (other.subpasses_[i].pResolveAttachments) {
+        for (std::uint32_t j = 0; j != other.subpasses_[i].colorAttachmentCount;
+             ++j) {
+          color_attachments[j] = other.subpasses_[i].pResolveAttachments[j];
+        }
+
+        subpasses_[i].pResolveAttachments = color_attachments;
+      } else if (other.subpasses_[i].pColorAttachments) {
+        for (std::uint32_t j = 0; j != other.subpasses_[i].colorAttachmentCount;
+             ++j) {
+          color_attachments[j] = other.subpasses_[i].pColorAttachments[j];
+        }
+
+        subpasses_[i].pColorAttachments = color_attachments;
+      } else {
+        assert(false);
+      }
+    }
+
+    if (other.subpasses_[i].pDepthStencilAttachment) {
+      VkAttachmentReference* depth_attachment = new VkAttachmentReference{
+          *other.subpasses_[i].pDepthStencilAttachment};
+    }
+
+    if (other.subpasses_[i].pPreserveAttachments) {
+      std::uint32_t* preserve_attachments =
+          new std::uint32_t[other.subpasses_[i].preserveAttachmentCount]{};
+
+      for (std::uint32_t j = 0;
+           j != other.subpasses_[i].preserveAttachmentCount; ++j) {
+        preserve_attachments[j] = other.subpasses_[i].pPreserveAttachments[j];
+      }
+
+      subpasses_[i].pPreserveAttachments = preserve_attachments;
+    }
+  }
 }

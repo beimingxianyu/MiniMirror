@@ -1,6 +1,8 @@
 //
 // Created by beimingxianyu on 23-7-23.
 //
+#pragma once
+
 #include <cstdint>
 #include <cstring>
 #include <iostream>

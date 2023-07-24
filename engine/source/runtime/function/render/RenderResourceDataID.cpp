@@ -65,13 +65,13 @@ bool MM::RenderSystem::RenderResourceDataID::operator>=(
 
 void MM::RenderSystem::RenderResourceDataID::SetResourceAttributeIDAttribute1(
     std::uint64_t render_resource_data_attribute_ID_attribute1) {
-  resource_attribute_ID_.SetAttribute1(
+  resource_attribute_ID_.SetSubID1(
       render_resource_data_attribute_ID_attribute1);
 }
 
 void MM::RenderSystem::RenderResourceDataID::SetResourceAttributeIDAttribute2(
     std::uint64_t render_resource_data_attribute_ID_attribute2) {
-  resource_attribute_ID_.SetAttribute2(
+  resource_attribute_ID_.SetSubID2(
       render_resource_data_attribute_ID_attribute2);
 }
 

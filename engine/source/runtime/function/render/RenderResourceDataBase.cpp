@@ -77,6 +77,11 @@ MM::RenderSystem::RenderResourceDataBase::GetRenderResourceDataID() const {
   return render_resource_data_ID_;
 }
 
+const MM::RenderSystem::RenderResourceDataID&
+MM::RenderSystem::RenderResourceDataBase::GetRenderID() const {
+  return render_resource_data_ID_;
+}
+
 bool MM::RenderSystem::RenderResourceDataBase::operator==(
     const MM::RenderSystem::RenderResourceDataBase& rhs) const {
   return render_resource_data_ID_ == rhs.render_resource_data_ID_;

@@ -2210,7 +2210,7 @@ void MM::RenderSystem::CommandExecutor::ProcessRootTaskAndSubTask(
             GetSemaphore(
                 all_post_task_sub_task_number *
                 static_cast<std::uint32_t>(1 + (*iter)->sub_tasks_.size())),
-            std::move(post_task_sub_task_numbers));
+            std::move(post_task_sub_task_numbers));  // TODO why add 1?
         iter = command_task_flow->command_task_flow_.tasks_.erase(iter);
         continue;
       }

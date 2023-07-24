@@ -86,9 +86,9 @@
 	layout(STORAGE_TEXTURE3D_SET_AND_BINDING, STORAGE_TEXTURE_FORMAT) uniform image3D __STORAGE_TEXTURE3D_VECTOR_NAME__[];       \
 	layout(STORAGE_TEXTURECUBE_SET_AND_BINDING, STORAGE_TEXTURE_FORMAT) uniform imageCube __STORAGE_TEXTURECUBE_VECTOR_NAME__[]; \
 
-#define IMPORT_UNIFORM_BUFFER(type_name) type_name GET_UNIFORM_BUFFER_NAME(type_name);
+#define IMPORT_UNIFORM_BUFFER(type_name) uint64_t GET_UNIFORM_BUFFER_NAME(type_name);
 
-#define IMPORT_STORAGE_BUFFER(type_name) type_name GET_STORAGE_BUFFER_NAME(type_name);
+#define IMPORT_STORAGE_BUFFER(type_name) uint64_t GET_STORAGE_BUFFER_NAME(type_name);
 
 #define IMPORT_TEXTURE2D(variable_name) uint64_t GET_TEXTURE2D_NAME(variable_name);
 

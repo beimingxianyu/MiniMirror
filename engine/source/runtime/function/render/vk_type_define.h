@@ -907,5 +907,35 @@ class MeshBufferSubResourceAttribute {
   BufferSubResourceAttribute vertex_buffer_sub_resource_attribute_{};
   BufferSubResourceAttribute index_buffer_sub_resource_attribute_{};
 };
+
+struct RenderPassCreateInfo {
+  RenderPassCreateInfo() = default;
+  ~RenderPassCreateInfo();
+  RenderPassCreateInfo(const void* next, VkRenderPassCreateFlags flags,
+                       std::uint32_t attachments_count,
+                       const VkAttachmentDescription* attachments,
+                       std::uint32_t subpasses_count,
+                       const VkSubpassDescription* subpasses,
+                       std::uint32_t dependency_count,
+                       const VkSubpassDependency* dependencies);
+  explicit RenderPassCreateInfo(
+      const VkRenderPassCreateInfo& vk_render_pass_create_info);
+  RenderPassCreateInfo(const RenderPassCreateInfo& other);
+  RenderPassCreateInfo(RenderPassCreateInfo&& other) noexcept;
+  RenderPassCreateInfo& operator=(const RenderPassCreateInfo& other);
+  RenderPassCreateInfo& operator=(RenderPassCreateInfo&& other);
+
+  bool IsValid() const;
+
+  void Reset();
+
+  VkRenderPassCreateInfo GetVkRenderPassCreateInfo() const;
+
+  const void* next_;
+  VkRenderPassCreateFlags flags_;
+  std::vector<VkAttachmentDescription> attachments_;
+  std::vector<VkSubpassDescription> subpasses_;
+  std::vector<VkSubpassDependency> dependencies_;
+};
 }  // namespace RenderSystem
 }  // namespace MM

@@ -42,6 +42,8 @@ class RenderResourceDataBase : public Manager::ManagedObjectBase {
 
   const RenderResourceDataID& GetRenderResourceDataID() const;
 
+  const RenderResourceDataID& GetRenderID() const;
+
   bool IsUseForWrite() const;
 
   bool IsManaged() const;

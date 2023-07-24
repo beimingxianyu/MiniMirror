@@ -691,6 +691,8 @@ class ConcurrentHashTable {
   using SharedLockType = TrueType;
   using UniqueLockType = FalseType;
 
+  using FindResultType = ReturnType*;
+
  private:
   using MutexType = std::shared_mutex;
 
@@ -1284,6 +1286,32 @@ class ConcurrentHashTable {
 
   Node* Data() const { return data_; }
 
+  void LockAll() const {
+    std::lock(data_mutex0_, data_mutex1_, data_mutex2_, data_mutex3_,
+              data_mutex4_, data_mutex5_, data_mutex6_, data_mutex7_,
+              data_mutex8_, data_mutex9_, data_mutex10_, data_mutex11_,
+              data_mutex12_, data_mutex13_, data_mutex14_, data_mutex15_);
+  }
+
+  void UnlockAll() const {
+    data_mutex0_.unlock();
+    data_mutex1_.unlock();
+    data_mutex2_.unlock();
+    data_mutex3_.unlock();
+    data_mutex4_.unlock();
+    data_mutex5_.unlock();
+    data_mutex6_.unlock();
+    data_mutex7_.unlock();
+    data_mutex8_.unlock();
+    data_mutex9_.unlock();
+    data_mutex10_.unlock();
+    data_mutex11_.unlock();
+    data_mutex12_.unlock();
+    data_mutex13_.unlock();
+    data_mutex14_.unlock();
+    data_mutex15_.unlock();
+  }
+
  private:
   std::pair<ReturnType&, bool> Insert(const ObjectType& other, NotMulti) {
     RehashWhenNeed();
@@ -1497,32 +1525,6 @@ class ConcurrentHashTable {
         std::floor(bucket_count_ * load_factor_)) {
       ReHash(2 * bucket_count_);
     }
-  }
-
-  void LockAll() const {
-    std::lock(data_mutex0_, data_mutex1_, data_mutex2_, data_mutex3_,
-              data_mutex4_, data_mutex5_, data_mutex6_, data_mutex7_,
-              data_mutex8_, data_mutex9_, data_mutex10_, data_mutex11_,
-              data_mutex12_, data_mutex13_, data_mutex14_, data_mutex15_);
-  }
-
-  void UnlockAll() const {
-    data_mutex0_.unlock();
-    data_mutex1_.unlock();
-    data_mutex2_.unlock();
-    data_mutex3_.unlock();
-    data_mutex4_.unlock();
-    data_mutex5_.unlock();
-    data_mutex6_.unlock();
-    data_mutex7_.unlock();
-    data_mutex8_.unlock();
-    data_mutex9_.unlock();
-    data_mutex10_.unlock();
-    data_mutex11_.unlock();
-    data_mutex12_.unlock();
-    data_mutex13_.unlock();
-    data_mutex14_.unlock();
-    data_mutex15_.unlock();
   }
 
  private:

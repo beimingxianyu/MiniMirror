@@ -1,18 +1,18 @@
 #pragma once
 
-#include "utils/DataAttributeID.h"
+#include "utils/ID.h"
 
 namespace MM {
 namespace RenderSystem {
 // clang-format off
-/** resource_attribute1_
+/** sub_ID1_
  * | - - - - - - - - - - - - - - - - | - - - - - - - - - - - - - - - - | - - - - - - - | - - - | - - - - - - - - | - - - | - - - | - - - | - - - |
  * |           pNext                 |              flags              |      empty    | IType |      format     | comp.r| comp.g| comp.b| comp.a|
  * |           16bit                 |              18bits             |      empty    | 3bits |      8bits      | 3bits | 3bits | 3bits | 3bits |
  * |  The last 16 bits of pointer.   |              Bitmask            |      empty    | value |      value      | value | value | value | value |
  * | - - - - - - - - - - - - - - - - | - - - - - - - - - - - - - - - - | - - - - - - - | - - - | - - - - - - - - | - - - | - - - | - - - | - - - |
  *
- * resource_attribute2_
+ * sub_ID2_
  * | - - - - - - - | - - - - - - - - - - - - - - - - | - - - - - - - - - - - - - | - - - - - - - | - - - - - - - | - - - - - - - | - - - - - - - |
  * |    empty      |            image_               |     range.aspectMask      | range.MipLev  | range.LevCou  | range.ArrLey  | range.LayCou  |
  * |    empty      |            16bits               |         13bits            |    7bits      |    7bits      |    7bits      |    7bits      |
@@ -20,17 +20,17 @@ namespace RenderSystem {
  * | - - - - - - - | - - - - - - - - - - - - - - - - | - - - - - - - - - - - - - | - - - - - - - | - - - - - - - | - - - - - - - | - - - - - - - |
 **/
 // clang-format on
-using RenderImageViewAttributeID = Utils::DataAttributeID2;
+using RenderImageViewAttributeID = Utils::ID2;
 
 // clang-format off
-/** resource_attribute1_
+/** sub_ID1_
  * | - - - - - - - - - - - - - - - - | - -   | - - | - - | - - | - - - | - - - | - - - |- - - - - - - |  - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - |
  * |           pNext                 |flags  |manFi|minFi|mipMd| adMoU | adMoV | adMoW | mip_lod_bias |                          empty                                       |
  * |           16bit                 |2bits  |2bits|2bits|2bits| 3bits | 3bits | 3bits |    7bits     |                          empty                                       |
  * |  The last 16 bits of pointer.   |Bitmask|value|value|value| value | value | value |    value     |                          empty                                       |
  * | - - - - - - - - - - - - - - - - | - - - | - - | - - | - - | - - - | - - - | - - - |- - - - - - - |  - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - |
  *
- * resource_attribute2_
+ * sub_ID2_
  * | - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - | -  | - - - - - - - | -  | - - - | - - - - - - - | - - - - - - - | - - - | -  |
  * |                                     empty                                         |ae  |    max_ani    |ce  |comp_op|    max_lod    |    min_lod    |bod_col|uc  |
  * |                                     empty                                         |1bit|     7bits     |1bit| 3bits |     7bits     |     7bits     | 3bits |1bit|
@@ -38,26 +38,26 @@ using RenderImageViewAttributeID = Utils::DataAttributeID2;
  * | - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - | -  | - - - - - - - | -  | - - - | - - - - - - - | - - - - - - - | - - - | -  |
 **/
 // clang-format on
-using RenderSamplerAttributeID = Utils::DataAttributeID2;
+using RenderSamplerAttributeID = Utils::ID2;
 
-using RenderResourceDataAttributeID = Utils::DataAttributeID3;
+using RenderResourceDataAttributeID = Utils::ID3;
 
 // clang-format off
-/** resource_attribute1_
+/** sub_ID1_
  * | - - - - - - - - - - - - - - - - | - - - - - - - - - - - - - - - - - - - | - - | - - - - - - - - | - - - - - - | - - - - - - | - - - | - -  | - - |
  * |           pNext                 |              flags                    |IType|      format     |   mipLevels | arrayLayers |samples|tiling|SMod |
  * |           16bit                 |              19bits                   |2bits|      8bits      |     6bits   |    6bits    | 3bits |2bits |2bits|
  * |  The last 16 bits of pointer.   |              Bitmask                  |value|      value      |     value   |    value    | value |value |value|
  * | - - - - - - - - - - - - - - - - | - - - - - - - - - - - - - - - - - - - | - - | - - - - - - - - | - - - - - - | - - - - - - | - - - | - -  | - - |
  *
- * resource_attribute2_
+ * sub_ID2_
  * | - - - - - - - - - - - - - | - - - - - - - - - - - - - | - - - - - - - - - - - - - | - - - - - - - - - - - - - - - - - - - - | - - - - -  |
  * |        ext.width          |         ext.height        |          ext.depth        |                 usage                   |image_layout|
  * |         13bits            |           13bits          |           13bits          |                 20bits                  |    5bits   |
  * |         value             |           value           |           value           |                 Bitmask                 |    value   |
  * | - - - - - - - - - - - - - | - - - - - - - - - - - - - | - - - - - - - - - - - - - | - - - - - - - - - - - - - - - - - - - - | - - - - -  |
  *
- * resource_attribute3_
+ * sub_ID3_
  *  | - - - - - | - - - - - - - - - - - - - - - - - | - - - - | - - - - - - - - - - | - - - - - - - - - - | - - - - | - - - - - - - - - - - - - - |
  *  |   empty   |              flags                |  usage  |    requiredFlags    |    preferredFlags   | MemType |           priority          |                                                                                       |
  *  |   empty   |              17bits               |  4bits  |       10bits        |       10bits        |  4bits  |            14bits           |
@@ -68,21 +68,21 @@ using RenderResourceDataAttributeID = Utils::DataAttributeID3;
 using RenderImageDataAttributeID = RenderResourceDataAttributeID;
 
 // clang-format off
-/** resource_attribute1_
+/** sub_ID1_
  * | - - - - - - - - - - - - - | - - - - - - - - - - - - - - - - | - - | - - - - - - - - | - - - - - - - - - - - - - - - - - - - - - - - - - |
  * |               empty       |           pNext                 |sMod |      flags      |                     usage                         |
  * |               empty       |           16bit                 |2bits|      8bits      |                     25bits                        |
  * |               empty       |  the last 16 bits of pointer.   |value|      bitmask    |                     bitmask                       |
  * | - - - - - - - - - - - - - | - - - - - - - - - - - - - - - - | - - | - - - - - - - - | - - - - - - - - - - - - - - - - - - - - - - - - - |
  *
- * resource_attribute2_
+ * sub_ID2_
  * | - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - |
  * |                                                         size                                                                    |
  * |                                                         64bits                                                                  |
  * |                                                         value                                                                   |
  * | - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - |
  *
- * resource_attribute3_
+ * sub_ID3_
  *  | - - - - - - - - - - - - - - - | - - - - | - - - - - - - - - - | - - - - - - - | - - - - - - - - - - | - - - - | - - - - - - - - - - - - - - |
  *  |          flags                |  usage  |    requiredFlags    |     empty     |    preferredFlags   | memType |           priority          |                                                                                       |
  *  |          15bits               |  4bits  |       10bits        |     empty     |       10bits        |  4bits  |            14bits           |
@@ -93,21 +93,21 @@ using RenderImageDataAttributeID = RenderResourceDataAttributeID;
 using RenderBufferDataAttributeID = RenderResourceDataAttributeID;
 
 // clang-format off
-/** resource_attribute1_
+/** sub_ID1_
  * | - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - |
  * |                                                         empty
  * |                                                         64bits                                                                  |
  * |                                                         value                                                                   |
  * | - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - |
  *
- * resource_attribute2_
+ * sub_ID2_
  * | - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - |
  * |                                                         empty
  * |                                                         64bits                                                                  |
  * |                                                         value                                                                   |
  * | - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - |
  *
- * resource_attribute3_
+ * sub_ID3_
  * | - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - |
  * |                                                         empty
  * |                                                         64bits                                                                  |
