@@ -105,11 +105,11 @@ VmaAllocator MM::RenderSystem::AllocatedImage::GetAllocator() const {
   return wrapper_.GetAllocator();
 }
 
-VkImage MM::RenderSystem::AllocatedImage::GetImage() const {
+const VkImage_T* MM::RenderSystem::AllocatedImage::GetImage() const {
   return wrapper_.GetImage();
 }
 
-VmaAllocation MM::RenderSystem::AllocatedImage::GetAllocation() const {
+const VmaAllocation_T* MM::RenderSystem::AllocatedImage::GetAllocation() const {
   return wrapper_.GetAllocation();
 }
 
@@ -712,7 +712,8 @@ MM::RenderSystem::AllocatedImage::AddCopyImageCommandsWhenOneSubResource(
       VK_PIPELINE_STAGE_2_TRANSFER_BIT, 0, VK_PIPELINE_STAGE_2_TRANSFER_BIT,
       VK_ACCESS_2_TRANSFER_READ_BIT, sub_resource.GetImageLayout(),
       sub_resource.GetImageLayout(), sub_resource.GetQueueIndex(),
-      render_engine_->GetTransformQueueIndex(), GetImage(), sub_resource_range);
+      render_engine_->GetTransformQueueIndex(), const_cast<VkImage>(GetImage()),
+      sub_resource_range);
 
   // new image barrier
   barriers[1] = MM::RenderSystem::Utils::GetVkImageMemoryBarrier2(
@@ -743,9 +744,9 @@ MM::RenderSystem::AllocatedImage::AddCopyImageCommandsWhenOneSubResource(
   }
 
   VkCopyImageInfo2 copy_image_info{MM::RenderSystem::Utils::GetVkCopyImageInfo2(
-      GetImage(), new_image, nullptr, sub_resource.GetImageLayout(),
-      sub_resource.GetImageLayout(), image_copy_infos.size(),
-      image_copy_infos.data())};
+      const_cast<VkImage>(GetImage()), new_image, nullptr,
+      sub_resource.GetImageLayout(), sub_resource.GetImageLayout(),
+      image_copy_infos.size(), image_copy_infos.data())};
   vkCmdCopyImage2(cmd.GetCommandBuffer(), &copy_image_info);
 
   barriers[0].dstQueueFamilyIndex = barriers[0].srcQueueFamilyIndex;
@@ -786,8 +787,8 @@ MM::RenderSystem::AllocatedImage::AddCopyImagCommandseWhenMultSubResource(
         VK_PIPELINE_STAGE_2_TRANSFER_BIT, 0, VK_PIPELINE_STAGE_2_TRANSFER_BIT,
         VK_ACCESS_2_TRANSFER_READ_BIT, sub_resource.GetImageLayout(),
         sub_resource.GetImageLayout(), sub_resource.GetQueueIndex(),
-        render_engine_->GetTransformQueueIndex(), GetImage(),
-        sub_resource_range));
+        render_engine_->GetTransformQueueIndex(),
+        const_cast<VkImage>(GetImage()), sub_resource_range));
   }
   // new image barrier
   for (const auto& sub_resource : GetSubResourceAttributes()) {
@@ -842,8 +843,9 @@ MM::RenderSystem::AllocatedImage::AddCopyImagCommandseWhenMultSubResource(
         current_layout != sub_resource_all[i].GetImageLayout()) {
       VkCopyImageInfo2 copy_image_info{
           MM::RenderSystem::Utils::GetVkCopyImageInfo2(
-              GetImage(), new_image, nullptr, current_layout, current_layout,
-              same_layout_count, image_copy_infos.data() + same_layout_offset)};
+              const_cast<VkImage>(GetImage()), new_image, nullptr,
+              current_layout, current_layout, same_layout_count,
+              image_copy_infos.data() + same_layout_offset)};
       vkCmdCopyImage2(cmd.GetCommandBuffer(), &copy_image_info);
 
       same_layout_count = 0;
@@ -901,7 +903,8 @@ MM::RenderSystem::AllocatedImage::AddCopyImageCommandsWhenOneSubResource(
       VK_PIPELINE_STAGE_2_TRANSFER_BIT, 0, VK_PIPELINE_STAGE_2_TRANSFER_BIT,
       VK_ACCESS_2_TRANSFER_READ_BIT, sub_resource.GetImageLayout(),
       sub_resource.GetImageLayout(), sub_resource.GetQueueIndex(),
-      transform_queue_index, GetImage(), sub_resource_range));
+      transform_queue_index, const_cast<VkImage>(GetImage()),
+      sub_resource_range));
 
   // new image barrier
   for (const auto& new_image : new_images) {
@@ -936,9 +939,9 @@ MM::RenderSystem::AllocatedImage::AddCopyImageCommandsWhenOneSubResource(
   for (const auto& new_image : new_images) {
     VkCopyImageInfo2 copy_image_info{
         MM::RenderSystem::Utils::GetVkCopyImageInfo2(
-            GetImage(), new_image, nullptr, sub_resource.GetImageLayout(),
-            sub_resource.GetImageLayout(), image_copy_infos.size(),
-            image_copy_infos.data())};
+            const_cast<VkImage>(GetImage()), new_image, nullptr,
+            sub_resource.GetImageLayout(), sub_resource.GetImageLayout(),
+            image_copy_infos.size(), image_copy_infos.data())};
     vkCmdCopyImage2(cmd.GetCommandBuffer(), &copy_image_info);
   }
 
@@ -983,7 +986,8 @@ MM::RenderSystem::AllocatedImage::AddCopyImagCommandseWhenMultSubResource(
         VK_PIPELINE_STAGE_2_TRANSFER_BIT, 0, VK_PIPELINE_STAGE_2_TRANSFER_BIT,
         VK_ACCESS_2_TRANSFER_READ_BIT, sub_resource.GetImageLayout(),
         sub_resource.GetImageLayout(), sub_resource.GetQueueIndex(),
-        transform_queue_index, GetImage(), sub_resource_range));
+        transform_queue_index, const_cast<VkImage>(GetImage()),
+        sub_resource_range));
   }
   // new image barrier
   for (const auto& sub_resource : GetSubResourceAttributes()) {
@@ -1041,8 +1045,8 @@ MM::RenderSystem::AllocatedImage::AddCopyImagCommandseWhenMultSubResource(
       for (auto& new_image : new_images) {
         VkCopyImageInfo2 copy_image_info{
             MM::RenderSystem::Utils::GetVkCopyImageInfo2(
-                GetImage(), new_image, nullptr, current_layout, current_layout,
-                same_layout_count,
+                const_cast<VkImage>(GetImage()), new_image, nullptr,
+                current_layout, current_layout, same_layout_count,
                 image_copy_infos.data() + same_layout_offset)};
         vkCmdCopyImage2(cmd.GetCommandBuffer(), &copy_image_info);
       }
@@ -1344,6 +1348,14 @@ MM::RenderSystem::AllocatedImage::CheckTransformInputParameter(
   return ExecuteResult ::SUCCESS;
 }
 
+VkImage MM::RenderSystem::AllocatedImage::GetImage() {
+  return wrapper_.GetImage();
+}
+
+VmaAllocation MM::RenderSystem::AllocatedImage::GetAllocation() {
+  return wrapper_.GetAllocation();
+}
+
 // MM::ExecuteResult
 // MM::RenderSystem::AllocatedImage::TransformSubResourceAttribute(
 //     const std::vector<ImageSubResourceAttribute>&
@@ -1447,12 +1459,12 @@ MM::RenderSystem::AllocatedImage::AllocatedImageWrapper::GetAllocator() const {
   return allocator_;
 }
 
-VkImage MM::RenderSystem::AllocatedImage::AllocatedImageWrapper::GetImage()
-    const {
+const VkImage_T*
+MM::RenderSystem::AllocatedImage::AllocatedImageWrapper::GetImage() const {
   return image_;
 }
 
-VmaAllocation
+const VmaAllocation_T*
 MM::RenderSystem::AllocatedImage::AllocatedImageWrapper::GetAllocation() const {
   return allocation_;
 }
@@ -1471,4 +1483,13 @@ void MM::RenderSystem::AllocatedImage::AllocatedImageWrapper::Release() {
   allocator_ = nullptr;
   image_ = nullptr;
   allocation_ = nullptr;
+}
+
+VkImage MM::RenderSystem::AllocatedImage::AllocatedImageWrapper::GetImage() {
+  return image_;
+}
+
+VmaAllocation
+MM::RenderSystem::AllocatedImage::AllocatedImageWrapper::GetAllocation() {
+  return allocation_;
 }

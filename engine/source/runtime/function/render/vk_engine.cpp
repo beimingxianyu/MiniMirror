@@ -1161,24 +1161,23 @@ void MM::RenderSystem::RenderEngine::InitLogicalDevice() {
       VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES;
   device_vulkan12_features.runtimeDescriptorArray = VK_TRUE;
   device_vulkan12_features.descriptorIndexing = VK_TRUE;
-  device_vulkan12_features.descriptorBindingPartiallyBound = VK_TRUE;
-  device_vulkan12_features.shaderSampledImageArrayNonUniformIndexing = VK_TRUE;
-  device_vulkan12_features.descriptorBindingSampledImageUpdateAfterBind =
-      VK_TRUE;
   device_vulkan12_features.shaderStorageImageArrayNonUniformIndexing = VK_TRUE;
   device_vulkan12_features.descriptorBindingStorageImageUpdateAfterBind =
       VK_TRUE;
   device_vulkan12_features.bufferDeviceAddress = VK_TRUE;
   // Enable partially bound descriptor bindings
-  device_vulkan12_features.descriptorBindingPartiallyBound = true;
+  device_vulkan12_features.descriptorBindingPartiallyBound = VK_TRUE;
   // Enable non-uniform indexing and update after bind
   // binding flags for textures, uniforms, and buffers
-  device_vulkan12_features.shaderSampledImageArrayNonUniformIndexing = true;
-  device_vulkan12_features.descriptorBindingSampledImageUpdateAfterBind = true;
-  device_vulkan12_features.shaderUniformBufferArrayNonUniformIndexing = true;
-  device_vulkan12_features.descriptorBindingUniformBufferUpdateAfterBind = true;
-  device_vulkan12_features.shaderStorageBufferArrayNonUniformIndexing = true;
-  device_vulkan12_features.descriptorBindingStorageBufferUpdateAfterBind = true;
+  device_vulkan12_features.shaderSampledImageArrayNonUniformIndexing = VK_TRUE;
+  device_vulkan12_features.descriptorBindingSampledImageUpdateAfterBind =
+      VK_TRUE;
+  device_vulkan12_features.shaderUniformBufferArrayNonUniformIndexing = VK_TRUE;
+  device_vulkan12_features.descriptorBindingUniformBufferUpdateAfterBind =
+      VK_TRUE;
+  device_vulkan12_features.shaderStorageBufferArrayNonUniformIndexing = VK_TRUE;
+  device_vulkan12_features.descriptorBindingStorageBufferUpdateAfterBind =
+      VK_TRUE;
 
   physical_device_features.pNext = &device_vulkan12_features;
 

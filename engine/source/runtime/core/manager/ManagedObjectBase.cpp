@@ -16,6 +16,9 @@ namespace Manager {
 //   return ExecuteResult::UNDEFINED_ERROR;
 // }
 
+ManagedObjectBase::ManagedObjectBase()
+    : MMObject(), object_name_(GetObjectID().ToString()) {}
+
 ManagedObjectBase& ManagedObjectBase::operator=(
     ManagedObjectBase&& other) noexcept {
   if (&other == this) {

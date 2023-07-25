@@ -15,7 +15,7 @@ class RenderEngine;
 
 using RenderPassID = MM::Utils::ID5;
 
-class RenderPass : public MMObject {
+class RenderPassAttachmentDescription {
   friend class RenderEngine;
 
   class RenderPassWrapper;
@@ -25,16 +25,22 @@ class RenderPass : public MMObject {
       MM::Utils::ConcurrentMap<RenderPassID, RenderPassWrapper>;
 
  public:
-  RenderPass() = default;
-  ~RenderPass() = default;
-  explicit RenderPass(VkDevice device, VkAllocationCallbacks* allocator,
-                      const VkRenderPassCreateInfo& vk_render_pass_create_info);
-  explicit RenderPass(VkDevice device, VkAllocationCallbacks* allocator,
-                      const RenderPassCreateInfo& render_pass_create_info);
-  RenderPass(const RenderPass& other) = delete;
-  RenderPass(RenderPass&& other) noexcept;
-  RenderPass& operator=(const RenderPass& other) = default;
-  RenderPass& operator=(RenderPass&& other) noexcept;
+  RenderPassAttachmentDescription() = default;
+  ~RenderPassAttachmentDescription() = default;
+  explicit RenderPassAttachmentDescription(
+      VkDevice device, VkAllocationCallbacks* allocator,
+      const VkRenderPassCreateInfo& vk_render_pass_create_info);
+  explicit RenderPassAttachmentDescription(
+      VkDevice device, VkAllocationCallbacks* allocator,
+      const RenderPassCreateInfo& render_pass_create_info);
+  RenderPassAttachmentDescription(
+      const RenderPassAttachmentDescription& other) = delete;
+  RenderPassAttachmentDescription(
+      RenderPassAttachmentDescription&& other) noexcept;
+  RenderPassAttachmentDescription& operator=(
+      const RenderPassAttachmentDescription& other) = default;
+  RenderPassAttachmentDescription& operator=(
+      RenderPassAttachmentDescription&& other) noexcept;
 
  public:
   const RenderPassCreateInfo& GetRenderPassCreateInfo() const;
@@ -54,9 +60,11 @@ class RenderPass : public MMObject {
 
   const VkRenderPass_T* GetRenderPass() const;
 
-  bool IsValid() const override;
+  RenderPassID GetRenderPassID() const;
 
-  void Reset() override;
+  bool IsValid() const;
+
+  void Reset();
 
   static RenderPassID GetRenderPassID(
       const RenderPassCreateInfo& render_pass_create_info);

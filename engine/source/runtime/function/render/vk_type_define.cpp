@@ -2771,3 +2771,119 @@ MM::RenderSystem::RenderPassCreateInfo::RenderPassCreateInfo(
     }
   }
 }
+
+MM::RenderSystem::FrameBufferCreateInfo::FrameBufferCreateInfo(
+    const void* next, VkFramebufferCreateFlags flags, VkRenderPass render_pass,
+    std::uint32_t attachments_count, const VkImageView* attachments,
+    uint32_t width, uint32_t height, uint32_t layers)
+    : next_(next),
+      flags_(flags),
+      render_pass_(render_pass),
+      attachments_(attachments_count),
+      width_(width),
+      height_(height),
+      layers_(layers) {
+  if (!attachments_.empty()) {
+    assert(attachments != nullptr);
+    for (std::uint32_t i = 0; i != attachments_count; ++i) {
+      attachments_[i] = attachments[i];
+    }
+  }
+}
+
+MM::RenderSystem::FrameBufferCreateInfo::FrameBufferCreateInfo(
+    const VkFramebufferCreateInfo& frame_buffer_create_info)
+
+    : next_(frame_buffer_create_info.pNext),
+      flags_(frame_buffer_create_info.flags),
+      render_pass_(frame_buffer_create_info.renderPass),
+      attachments_(frame_buffer_create_info.attachmentCount),
+      width_(frame_buffer_create_info.width),
+      height_(frame_buffer_create_info.height),
+      layers_(frame_buffer_create_info.layers) {
+  if (!attachments_.empty()) {
+    assert(frame_buffer_create_info.pAttachments != nullptr);
+    for (std::uint32_t i = 0; i != frame_buffer_create_info.attachmentCount;
+         ++i) {
+      attachments_[i] = frame_buffer_create_info.pAttachments[i];
+    }
+  }
+}
+
+MM::RenderSystem::FrameBufferCreateInfo::FrameBufferCreateInfo(
+    MM::RenderSystem::FrameBufferCreateInfo&& other) noexcept
+    : next_(other.next_),
+      flags_(other.flags_),
+      render_pass_(other.render_pass_),
+      attachments_(std::move(other.attachments_)),
+      width_(other.width_),
+      height_(other.height_),
+      layers_(other.layers_) {
+  other.Reset();
+}
+
+MM::RenderSystem::FrameBufferCreateInfo&
+MM::RenderSystem::FrameBufferCreateInfo::operator=(
+    const MM::RenderSystem::FrameBufferCreateInfo& other) {
+  if (std::addressof(other) == this) {
+    return *this;
+  }
+
+  next_ = other.next_;
+  flags_ = other.flags_;
+  render_pass_ = other.render_pass_;
+  attachments_ = other.attachments_;
+  width_ = other.width_;
+  height_ = other.height_;
+  layers_ = other.layers_;
+
+  return *this;
+}
+
+MM::RenderSystem::FrameBufferCreateInfo&
+MM::RenderSystem::FrameBufferCreateInfo::operator=(
+    MM::RenderSystem::FrameBufferCreateInfo&& other) noexcept {
+  if (std::addressof(other) == this) {
+    return *this;
+  }
+
+  next_ = other.next_;
+  flags_ = other.flags_;
+  render_pass_ = other.render_pass_;
+  attachments_ = std::move(other.attachments_);
+  width_ = other.width_;
+  height_ = other.height_;
+  layers_ = other.layers_;
+
+  other.Reset();
+
+  return *this;
+}
+
+bool MM::RenderSystem::FrameBufferCreateInfo::IsValid() const {
+  return render_pass_ != nullptr;
+}
+
+void MM::RenderSystem::FrameBufferCreateInfo::Reset() {
+  next_ = nullptr;
+  flags_ = 0x7FFFFFFF;
+  render_pass_ = nullptr;
+  attachments_.clear();
+  width_ = 0;
+  height_ = 0;
+  layers_ = 0;
+}
+
+VkFramebufferCreateInfo
+MM::RenderSystem::FrameBufferCreateInfo::GetVkFrameBufferCreateInfo() const {
+  return VkFramebufferCreateInfo{
+      VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO,
+      next_,
+      flags_,
+      render_pass_,
+      static_cast<std::uint32_t>(attachments_.size()),
+      attachments_.data(),
+      width_,
+      height_,
+      layers_};
+}

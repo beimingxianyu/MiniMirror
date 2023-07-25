@@ -32,13 +32,11 @@ class AllocatedBufferWrapper {
   AllocatedBufferWrapper& operator=(AllocatedBufferWrapper&& other) noexcept;
 
  public:
-  VmaAllocator GetAllocator();
+  VmaAllocator GetAllocator() const;
 
   VkBuffer GetBuffer();
 
   VmaAllocation GetAllocation();
-
-  const VmaAllocator_T* GetAllocator() const;
 
   const VkBuffer_T* GetBuffer() const;
 
@@ -98,13 +96,11 @@ class AllocatedBuffer : public RenderResourceDataBase {
 
   const BufferDataInfo& GetBufferInfo() const;
 
-  VmaAllocator GetAllocator();
+  VmaAllocator GetAllocator() const;
 
   VkBuffer GetBuffer();
 
   VmaAllocation GetAllocation();
-
-  const VmaAllocator_T* GetAllocator() const;
 
   const VkBuffer_T* GetBuffer() const;
 

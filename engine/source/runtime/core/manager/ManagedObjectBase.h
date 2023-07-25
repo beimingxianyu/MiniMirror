@@ -12,7 +12,7 @@ using ManagedObjectID = MM::Utils::GUID;
 
 class ManagedObjectBase : public MMObject {
  public:
-  ManagedObjectBase() = default;
+  ManagedObjectBase();
   virtual ~ManagedObjectBase() = default;
   explicit ManagedObjectBase(const std::string& object_name);
   ManagedObjectBase(const ManagedObjectBase& other) = default;

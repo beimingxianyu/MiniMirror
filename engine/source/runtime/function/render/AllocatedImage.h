@@ -82,9 +82,13 @@ class AllocatedImage final : public RenderResourceDataBase {
 
   VmaAllocator GetAllocator() const;
 
-  VkImage GetImage() const;
+  VkImage GetImage();
 
-  VmaAllocation GetAllocation() const;
+  VmaAllocation GetAllocation();
+
+  const VkImage_T* GetImage() const;
+
+  const VmaAllocation_T* GetAllocation() const;
 
   const std::vector<ImageSubResourceAttribute>& GetQueueIndexes() const;
 
@@ -176,9 +180,13 @@ class AllocatedImage final : public RenderResourceDataBase {
    public:
     VmaAllocator GetAllocator() const;
 
-    VkImage GetImage() const;
+    VkImage GetImage();
 
-    VmaAllocation GetAllocation() const;
+    const VkImage_T* GetImage() const;
+
+    VmaAllocation GetAllocation();
+
+    const VmaAllocation_T* GetAllocation() const;
 
     bool IsValid() const;
 

@@ -5,9 +5,6 @@
 namespace MM {
 namespace RenderSystem {
 
-
-class RenderPass {
-  
-};
-}
-}
+class RenderPassAttachmentDescription {};
+}  // namespace RenderSystem
+}  // namespace MM

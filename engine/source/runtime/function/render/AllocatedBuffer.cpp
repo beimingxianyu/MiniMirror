@@ -29,11 +29,6 @@ MM::RenderSystem::AllocatedBufferWrapper::AllocatedBufferWrapper(
   }
 }
 
-const VmaAllocator_T* MM::RenderSystem::AllocatedBufferWrapper::GetAllocator()
-    const {
-  return allocator_;
-}
-
 const VkBuffer_T* MM::RenderSystem::AllocatedBufferWrapper::GetBuffer() const {
   return buffer_;
 }
@@ -47,7 +42,7 @@ bool MM::RenderSystem::AllocatedBufferWrapper::IsValid() const {
   return allocator_ != nullptr && buffer_ != nullptr && allocation_ != nullptr;
 }
 
-VmaAllocator MM::RenderSystem::AllocatedBufferWrapper::GetAllocator() {
+VmaAllocator MM::RenderSystem::AllocatedBufferWrapper::GetAllocator() const {
   return allocator_;
 }
 
@@ -218,7 +213,7 @@ MM::ExecuteResult MM::RenderSystem::AllocatedBuffer::InitBuffer(
   return ExecuteResult ::SUCCESS;
 }
 
-VmaAllocator MM::RenderSystem::AllocatedBuffer::GetAllocator() {
+VmaAllocator MM::RenderSystem::AllocatedBuffer::GetAllocator() const {
   return wrapper_.GetAllocator();
 }
 
@@ -254,10 +249,6 @@ const VmaAllocation_T* MM::RenderSystem::AllocatedBuffer::GetAllocation()
 
 const VkBuffer_T* MM::RenderSystem::AllocatedBuffer::GetBuffer() const {
   return wrapper_.GetBuffer();
-}
-
-const VmaAllocator_T* MM::RenderSystem::AllocatedBuffer::GetAllocator() const {
-  return wrapper_.GetAllocator();
 }
 
 const MM::RenderSystem::BufferDataInfo&

@@ -41,9 +41,7 @@ class AllocatedMeshBuffer : public MMObject {
 
   const AllocationCreateInfo& GetIndexAllocationCreateInfo() const;
 
-  VmaAllocator GetAllocator();
-
-  const VmaAllocator_T* GetAllocator() const;
+  VmaAllocator GetAllocator() const;
 
   VkBuffer GetVertexBuffer();
 

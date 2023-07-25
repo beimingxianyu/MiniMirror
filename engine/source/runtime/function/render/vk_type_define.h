@@ -937,5 +937,36 @@ struct RenderPassCreateInfo {
   std::vector<VkSubpassDescription> subpasses_;
   std::vector<VkSubpassDependency> dependencies_;
 };
+
+struct FrameBufferCreateInfo {
+  FrameBufferCreateInfo() = default;
+  ~FrameBufferCreateInfo() = default;
+  FrameBufferCreateInfo(const void* next, VkFramebufferCreateFlags flags,
+                        VkRenderPass render_pass,
+                        std::uint32_t attachment_count,
+                        const VkImageView* attachments, uint32_t width,
+                        uint32_t height, uint32_t layers);
+  explicit FrameBufferCreateInfo(
+      const VkFramebufferCreateInfo& frame_buffer_create_info);
+  FrameBufferCreateInfo(const FrameBufferCreateInfo& other) = default;
+  FrameBufferCreateInfo(FrameBufferCreateInfo&& other) noexcept;
+  FrameBufferCreateInfo& operator=(const FrameBufferCreateInfo& other);
+  FrameBufferCreateInfo& operator=(FrameBufferCreateInfo&& other) noexcept;
+
+  bool IsValid() const;
+
+  void Reset();
+
+  VkFramebufferCreateInfo GetVkFrameBufferCreateInfo() const;
+
+  const void* next_;
+  VkFramebufferCreateFlags flags_;
+  VkRenderPass render_pass_;
+  std::vector<VkImageView> attachments_;
+  uint32_t width_;
+  uint32_t height_;
+  uint32_t layers_;
+};
+
 }  // namespace RenderSystem
 }  // namespace MM

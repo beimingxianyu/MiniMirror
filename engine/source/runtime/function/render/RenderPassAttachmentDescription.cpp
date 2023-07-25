@@ -2,11 +2,12 @@
 // Created by beimingxianyu on 23-7-23.
 //
 
-#include "runtime/function/render/RenderPass.h"
+#include "runtime/function/render/RenderPassAttachmentDescription.h"
 
-MM::RenderSystem::RenderPass::RenderPass(
-    VkDevice device, VkAllocationCallbacks* allocator,
-    const VkRenderPassCreateInfo& vk_render_pass_create_info)
+MM::RenderSystem::RenderPassAttachmentDescription::
+    RenderPassAttachmentDescription(
+        VkDevice device, VkAllocationCallbacks* allocator,
+        const VkRenderPassCreateInfo& vk_render_pass_create_info)
     : render_pass_create_info_(vk_render_pass_create_info), wrapper_(nullptr) {
 #ifdef CHECK_PARAMETERS
   MM_CHECK(CheckInitParameters(device, render_pass_create_info_),
@@ -19,9 +20,10 @@ MM::RenderSystem::RenderPass::RenderPass(
       MM_LOG_ERROR("Failed to initialization MM::RenderSystem::RenderPass.");)
 }
 
-MM::RenderSystem::RenderPass::RenderPass(
-    VkDevice device, VkAllocationCallbacks* allocator,
-    const MM::RenderSystem::RenderPassCreateInfo& render_pass_create_info)
+MM::RenderSystem::RenderPassAttachmentDescription::
+    RenderPassAttachmentDescription(
+        VkDevice device, VkAllocationCallbacks* allocator,
+        const MM::RenderSystem::RenderPassCreateInfo& render_pass_create_info)
     : render_pass_create_info_(render_pass_create_info), wrapper_(nullptr) {
 #ifdef CHECK_PARAMETERS
   MM_CHECK(CheckInitParameters(device, render_pass_create_info_),
@@ -37,7 +39,8 @@ MM::RenderSystem::RenderPass::RenderPass(
       MM_LOG_ERROR("Failed to initialization MM::RenderSystem::RenderPass.");)
 }
 
-MM::ExecuteResult MM::RenderSystem::RenderPass::CheckInitParameters(
+MM::ExecuteResult
+MM::RenderSystem::RenderPassAttachmentDescription::CheckInitParameters(
     VkDevice device,
     const MM::RenderSystem::RenderPassCreateInfo& render_pass_create_info)
     const {
@@ -86,7 +89,8 @@ MM::ExecuteResult MM::RenderSystem::RenderPass::CheckInitParameters(
   }
 }
 
-MM::ExecuteResult MM::RenderSystem::RenderPass::InitRenderPass(
+MM::ExecuteResult
+MM::RenderSystem::RenderPassAttachmentDescription::InitRenderPass(
     VkDevice device, VkAllocationCallbacks* allocator,
     const VkRenderPassCreateInfo& vk_render_pass_create_info) {
   RenderPassID render_pass_ID = GetRenderPassID(render_pass_create_info_);
@@ -133,15 +137,17 @@ MM::ExecuteResult MM::RenderSystem::RenderPass::InitRenderPass(
   }
 }
 
-MM::RenderSystem::RenderPass::RenderPass(
-    MM::RenderSystem::RenderPass&& other) noexcept
+MM::RenderSystem::RenderPassAttachmentDescription::
+    RenderPassAttachmentDescription(
+        MM::RenderSystem::RenderPassAttachmentDescription&& other) noexcept
     : render_pass_create_info_(std::move(other.render_pass_create_info_)),
       wrapper_(other.wrapper_) {
   other.wrapper_ = nullptr;
 }
 
-MM::RenderSystem::RenderPass& MM::RenderSystem::RenderPass::operator=(
-    MM::RenderSystem::RenderPass&& other) noexcept {
+MM::RenderSystem::RenderPassAttachmentDescription&
+MM::RenderSystem::RenderPassAttachmentDescription::operator=(
+    MM::RenderSystem::RenderPassAttachmentDescription&& other) noexcept {
   if (std::addressof(other) == this) {
     return *this;
   }
@@ -155,51 +161,58 @@ MM::RenderSystem::RenderPass& MM::RenderSystem::RenderPass::operator=(
 }
 
 const MM::RenderSystem::RenderPassCreateInfo&
-MM::RenderSystem::RenderPass::GetRenderPassCreateInfo() const {
+MM::RenderSystem::RenderPassAttachmentDescription::GetRenderPassCreateInfo()
+    const {
   return render_pass_create_info_;
 }
 
 const std::vector<VkAttachmentDescription>&
-MM::RenderSystem::RenderPass::GetVkAttachmentDescriptions() const {
+MM::RenderSystem::RenderPassAttachmentDescription::GetVkAttachmentDescriptions()
+    const {
   return render_pass_create_info_.attachments_;
 }
 
 const std::vector<VkSubpassDescription>&
-MM::RenderSystem::RenderPass::GetSubpassDescriptions() const {
+MM::RenderSystem::RenderPassAttachmentDescription::GetSubpassDescriptions()
+    const {
   return render_pass_create_info_.subpasses_;
 }
 
 const std::vector<VkSubpassDependency>&
-MM::RenderSystem::RenderPass::GetVkDependencyInfos() const {
+MM::RenderSystem::RenderPassAttachmentDescription::GetVkDependencyInfos()
+    const {
   return render_pass_create_info_.dependencies_;
 }
 
-VkDevice MM::RenderSystem::RenderPass::GetDevice() const {
+VkDevice MM::RenderSystem::RenderPassAttachmentDescription::GetDevice() const {
   return wrapper_->GetDevice();
 }
 
-VkAllocationCallbacks* MM::RenderSystem::RenderPass::GetAllocator() const {
+VkAllocationCallbacks*
+MM::RenderSystem::RenderPassAttachmentDescription::GetAllocator() const {
   return wrapper_->GetAllocator();
 }
 
-VkRenderPass MM::RenderSystem::RenderPass::GetRenderPass() {
+VkRenderPass
+MM::RenderSystem::RenderPassAttachmentDescription::GetRenderPass() {
   wrapper_->GetRenderPass();
 }
 
-const VkRenderPass_T* MM::RenderSystem::RenderPass::GetRenderPass() const {
+const VkRenderPass_T*
+MM::RenderSystem::RenderPassAttachmentDescription::GetRenderPass() const {
   return wrapper_->GetRenderPass();
 }
 
-bool MM::RenderSystem::RenderPass::IsValid() const {
+bool MM::RenderSystem::RenderPassAttachmentDescription::IsValid() const {
   return wrapper_ != nullptr;
 }
-void MM::RenderSystem::RenderPass::Reset() {
-  MMObject::Reset();
+void MM::RenderSystem::RenderPassAttachmentDescription::Reset() {
   render_pass_create_info_.Reset();
   wrapper_ = nullptr;
 }
 
-MM::RenderSystem::RenderPassID MM::RenderSystem::RenderPass::GetRenderPassID(
+MM::RenderSystem::RenderPassID
+MM::RenderSystem::RenderPassAttachmentDescription::GetRenderPassID(
     const MM::RenderSystem::RenderPassCreateInfo& render_pass_create_info) {
   RenderPassID render_pass_ID{0, 0, 0, 0, 0};
 
@@ -354,25 +367,36 @@ MM::RenderSystem::RenderPassID MM::RenderSystem::RenderPass::GetRenderPassID(
   return render_pass_ID;
 }
 
-MM::RenderSystem::RenderPass::RenderPassWrapper::~RenderPassWrapper() {
+MM::RenderSystem::RenderPassID
+MM::RenderSystem::RenderPassAttachmentDescription::GetRenderPassID() const {
+  return RenderPassAttachmentDescription::GetRenderPassID(
+      render_pass_create_info_);
+}
+
+MM::RenderSystem::RenderPassAttachmentDescription::RenderPassWrapper::
+    ~RenderPassWrapper() {
   if (IsValid()) {
     vkDestroyRenderPass(device_, render_pass_, allocator_);
   }
 }
 
-MM::RenderSystem::RenderPass::RenderPassWrapper::RenderPassWrapper(
-    VkDevice device, VkAllocationCallbacks* allocator, VkRenderPass render_pass)
+MM::RenderSystem::RenderPassAttachmentDescription::RenderPassWrapper::
+    RenderPassWrapper(VkDevice device, VkAllocationCallbacks* allocator,
+                      VkRenderPass render_pass)
     : device_(device), allocator_(allocator), render_pass_(render_pass) {}
 
-MM::RenderSystem::RenderPass::RenderPassWrapper::RenderPassWrapper(
-    MM::RenderSystem::RenderPass::RenderPassWrapper&& other) noexcept
+MM::RenderSystem::RenderPassAttachmentDescription::RenderPassWrapper::
+    RenderPassWrapper(
+        MM::RenderSystem::RenderPassAttachmentDescription::RenderPassWrapper&&
+            other) noexcept
     : device_(other.device_),
       allocator_(other.allocator_),
       render_pass_(other.render_pass_) {}
 
-MM::RenderSystem::RenderPass::RenderPassWrapper&
-MM::RenderSystem::RenderPass::RenderPassWrapper::operator=(
-    MM::RenderSystem::RenderPass::RenderPassWrapper&& other) noexcept {
+MM::RenderSystem::RenderPassAttachmentDescription::RenderPassWrapper&
+MM::RenderSystem::RenderPassAttachmentDescription::RenderPassWrapper::operator=(
+    MM::RenderSystem::RenderPassAttachmentDescription::RenderPassWrapper&&
+        other) noexcept {
   if (std::addressof(other) == this) {
     return *this;
   }
@@ -388,29 +412,33 @@ MM::RenderSystem::RenderPass::RenderPassWrapper::operator=(
   return *this;
 }
 
-VkDevice MM::RenderSystem::RenderPass::RenderPassWrapper::GetDevice() const {
+VkDevice MM::RenderSystem::RenderPassAttachmentDescription::RenderPassWrapper::
+    GetDevice() const {
   return device_;
 }
 
-VkAllocationCallbacks*
-MM::RenderSystem::RenderPass::RenderPassWrapper::GetAllocator() const {
+VkAllocationCallbacks* MM::RenderSystem::RenderPassAttachmentDescription::
+    RenderPassWrapper::GetAllocator() const {
   return allocator_;
 }
 
-VkRenderPass MM::RenderSystem::RenderPass::RenderPassWrapper::GetRenderPass() {
+VkRenderPass MM::RenderSystem::RenderPassAttachmentDescription::
+    RenderPassWrapper::GetRenderPass() {
   return render_pass_;
 }
 
-const VkRenderPass_T*
-MM::RenderSystem::RenderPass::RenderPassWrapper::GetRenderPass() const {
+const VkRenderPass_T* MM::RenderSystem::RenderPassAttachmentDescription::
+    RenderPassWrapper::GetRenderPass() const {
   return render_pass_;
 }
 
-bool MM::RenderSystem::RenderPass::RenderPassWrapper::IsValid() const {
+bool MM::RenderSystem::RenderPassAttachmentDescription::RenderPassWrapper::
+    IsValid() const {
   return device_ != nullptr && allocator_ != nullptr && render_pass_ != nullptr;
 }
 
-void MM::RenderSystem::RenderPass::RenderPassWrapper::Release() {
+void MM::RenderSystem::RenderPassAttachmentDescription::RenderPassWrapper::
+    Release() {
   if (IsValid()) {
     vkDestroyRenderPass(device_, render_pass_, allocator_);
   }

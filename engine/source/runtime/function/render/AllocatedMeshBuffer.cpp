@@ -141,12 +141,7 @@ const AllocationCreateInfo &AllocatedMeshBuffer::GetIndexAllocationCreateInfo()
   return GetMeshIndexInfo().allocation_create_info_;
 }
 
-VmaAllocator AllocatedMeshBuffer::GetAllocator() {
-  return vertex_buffer_.GetAllocator();
-  // or return index_buffer_.GetAllocator();
-}
-
-const VmaAllocator_T *AllocatedMeshBuffer::GetAllocator() const {
+VmaAllocator AllocatedMeshBuffer::GetAllocator() const {
   return vertex_buffer_.GetAllocator();
   // or return index_buffer_.GetAllocator();
 }
