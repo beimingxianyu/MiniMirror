@@ -2,6 +2,36 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include "runtime/resource/asset_system/asset_type/Image.h"
 
+std::uint32_t MM::AssetSystem::AssetType::GetImageFormatSize(
+    MM::AssetSystem::AssetType::ImageFormat image_format) {
+  switch (image_format) {
+    case ImageFormat::UNDEFINED:
+      return 0;
+    case ImageFormat::GREY:
+      return 8;
+    case ImageFormat::GREY_ALPHA:
+      return 16;
+    case ImageFormat::RGB:
+      return 24;
+    case ImageFormat::RGB_ALPHA:
+      return 32;
+  }
+}
+
+void MM::AssetSystem::AssetType::Image::StbiImageFree::operator()(
+    void* retval_from_stbi_load) const {
+  stbi_image_free(retval_from_stbi_load);
+}
+
+void MM::AssetSystem::AssetType::Image::ImageInfo::Reset() {
+  image_width_ = 0;
+  image_height_ = 0;
+  original_image_channels_ = 0;
+  image_channels_ = 0;
+  image_size_ = 0;
+  image_format_ = ImageFormat::UNDEFINED;
+}
+
 MM::AssetSystem::AssetType::Image::Image(const FileSystem::Path& image_path,
                                          std::uint32_t desired_channels)
     : AssetBase(image_path) {
@@ -85,6 +115,8 @@ std::uint32_t MM::AssetSystem::AssetType::Image::GetImageWidth() const {
 std::uint32_t MM::AssetSystem::AssetType::Image::GetImageHeight() const {
   return image_info_.image_height_;
 }
+
+std::uint32_t MM::AssetSystem::AssetType::Image::GetDepth() const { return 1; }
 
 std::uint32_t MM::AssetSystem::AssetType::Image::GetImageChannels() const {
   return image_info_.image_channels_;
@@ -173,8 +205,7 @@ MM::ExecuteResult MM::AssetSystem::AssetType::Image::GetJson(
   document.AddMember("image size", GetImageSize(), allocator);
   switch (GetImageFormat()) {
     case ImageFormat::UNDEFINED:
-      assert(false);
-      break;
+      return ExecuteResult ::OBJECT_IS_INVALID;
     case ImageFormat::GREY:
       document.AddMember("image format", "GREY", allocator);
       break;
@@ -225,4 +256,8 @@ MM::AssetSystem::AssetType::Image::GetDatas() const {
 
 std::uint64_t MM::AssetSystem::AssetType::Image::GetSize() const {
   return GetImageSize();
+}
+
+std::uint32_t MM::AssetSystem::AssetType::Image::GetImageFormatSize() const {
+  return MM::AssetSystem::AssetType::GetImageFormatSize(GetImageFormat());
 }

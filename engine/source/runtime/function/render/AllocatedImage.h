@@ -30,6 +30,11 @@ class AllocatedImage final : public RenderResourceDataBase {
                  VkImageLayout image_layout,
                  const VkImageCreateInfo* vk_image_create_info,
                  const VmaAllocationCreateInfo* vma_allocation_create_info);
+  AllocatedImage(const std::string& name,
+                 MM::RenderSystem::RenderEngine* render_engine,
+                 VkImageLayout image_layout,
+                 const VkImageCreateInfo* vk_image_create_info,
+                 const VmaAllocationCreateInfo* vma_allocation_create_info);
   AllocatedImage(const AllocatedImage& other) = delete;
   AllocatedImage(AllocatedImage&& other) noexcept;
   AllocatedImage& operator=(const AllocatedImage& other) = delete;
@@ -143,7 +148,7 @@ class AllocatedImage final : public RenderResourceDataBase {
   void AddQueueIndexAndLayoutTransformCommands(
       MM::RenderSystem::AllocatedCommandBuffer& cmd, VkImage created_image);
 
-  MM::ExecuteResult InitImage(
+  MM::ExecuteResult InitImageFromAsset(
       MM::RenderSystem::AllocatedBuffer& stage_allocated_buffer,
       const VkImageCreateInfo* vk_image_create_info,
       const VmaAllocationCreateInfo* vma_allocation_create_info);

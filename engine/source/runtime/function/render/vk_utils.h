@@ -445,6 +445,11 @@ VkImageCreateInfo GetVkImageCreateInfo(
     VkImageUsageFlags usage, VkSharingMode sharing_mode,
     uint32_t queue_family_index_count, const uint32_t* queue_family_indices,
     VkImageLayout initial_layout);
+
+std::uint32_t GetVkFormatSize(VkFormat vk_format);
+
+VkFormat GetVkFormatFromImageFormat(
+    AssetSystem::AssetType::ImageFormat image_format);
 }  // namespace Utils
 }  // namespace RenderSystem
 }  // namespace MM

@@ -92,7 +92,24 @@ void MM::AssetSystem::AssetType::Shader::Release() {
 
 MM::ExecuteResult MM::AssetSystem::AssetType::Shader::LoadShader(
     const MM::FileSystem::Path &shader_path) {
-  MM_CHECK(MM_FILE_SYSTEM->ReadFile(shader_path, data_),
+  FileSystem::LastWriteTime last_write_time;
+  MM_CHECK(MM_FILE_SYSTEM->GetLastWriteTime(shader_path, last_write_time),
+           MM_LOG_ERROR("Failed to get shader file last write time.");
+           return MM_RESULT_CODE;)
+
+  FileSystem::Path compiled_shader_path(
+      std::string(MM_STR(MM_RELATIVE_ASSET_DIR_CACHE)) + "/" +
+      shader_path.GetFileName() +
+      std::to_string(last_write_time.time_since_epoch().count() << 26));
+  if (compiled_shader_path.IsExists()) {
+    MM_CHECK(MM_FILE_SYSTEM->ReadFile(compiled_shader_path, data_),
+             MM_LOG_ERROR("Failed to read shader data.");
+             return MM_RESULT_CODE;)
+    return ExecuteResult ::SUCCESS;
+  }
+
+  std::vector<char> shader_data;
+  MM_CHECK(MM_FILE_SYSTEM->ReadFile(shader_path, shader_data),
            MM_LOG_ERROR("Failed to read shader data.");
            return MM_RESULT_CODE;)
 
@@ -102,8 +119,8 @@ MM::ExecuteResult MM::AssetSystem::AssetType::Shader::LoadShader(
            return MM_RESULT_CODE;)
 
   MM_CHECK(Utils::CompileShader(data_, shader_path.CStr(), std::string("main"),
-                                kind, data_.data(), data_.size(), true,
-                                shaderc_optimization_level_performance),
+                                kind, shader_data.data(), shader_data.size(),
+                                true, shaderc_optimization_level_performance),
            MM_LOG_ERROR("Failed to compile shader.");
            return MM_RESULT_CODE;)
 

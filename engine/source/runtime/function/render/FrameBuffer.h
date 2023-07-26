@@ -8,8 +8,6 @@
 namespace MM {
 namespace RenderSystem {
 
-using FrameBufferID = MM::Utils::ID2;
-
 class FrameBuffer {
  public:
   FrameBuffer() = default;
@@ -38,10 +36,7 @@ class FrameBuffer {
 
   const VkFramebuffer_T* GetFrameBuffer() const;
 
-  FrameBufferID GetFrameBUfferID() const;
-
-  static FrameBufferID GetFrameBUfferID(
-      const FrameBufferCreateInfo& frame_buffer_create_info);
+  ExecuteResult GetFrameBufferID(FrameBufferID& frame_buffer_ID) const;
 
  private:
   ExecuteResult CheckInitParameters(

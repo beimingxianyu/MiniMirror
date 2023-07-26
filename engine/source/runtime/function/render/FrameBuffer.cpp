@@ -132,43 +132,9 @@ const VkFramebuffer_T* MM::RenderSystem::FrameBuffer::GetFrameBuffer() const {
   return frame_buffer_;
 }
 
-MM::RenderSystem::FrameBufferID
-MM::RenderSystem::FrameBuffer::GetFrameBUfferID() const {
-  return FrameBuffer::GetFrameBUfferID(frame_buffer_create_info_);
-}
-
-MM::RenderSystem::FrameBufferID MM::RenderSystem::FrameBuffer::GetFrameBUfferID(
-    const MM::RenderSystem::FrameBufferCreateInfo& frame_buffer_create_info) {
-  FrameBufferID frame_buffer_ID{0, 0};
-
-  std::uint64_t sub_ID = 0;
-
-  // sub_ID1
-  sub_ID |=
-      reinterpret_cast<std::uint64_t>(frame_buffer_create_info.next_) & 0xFFFF;
-  sub_ID |= frame_buffer_create_info.flags_ << 16;
-  sub_ID |=
-      (reinterpret_cast<std::uint64_t>(frame_buffer_create_info.render_pass_) &
-       0xFFFF)
-      << 17;
-  sub_ID |= frame_buffer_create_info.attachments_.size() << 33;
-  sub_ID |= static_cast<std::uint64_t>(frame_buffer_create_info.width_) << 38;
-  sub_ID |= static_cast<std::uint64_t>(frame_buffer_create_info.height_) << 51;
-  frame_buffer_ID.SetSubID1(sub_ID);
-  sub_ID = 0;
-
-  std::uint32_t cycle_offset = 6;
-  // sub_ID2
-  sub_ID |= frame_buffer_create_info.layers_;
-  for (auto* attachment : frame_buffer_create_info.attachments_) {
-    sub_ID |= (reinterpret_cast<std::uint64_t>(attachment) & 0xFFFF)
-              << cycle_offset;
-    cycle_offset += 16;
-    if (cycle_offset > 63) cycle_offset -= 64;
-  }
-  frame_buffer_ID.SetSubID2(sub_ID);
-
-  return frame_buffer_ID;
+MM::ExecuteResult MM::RenderSystem::FrameBuffer::GetFrameBufferID(
+    FrameBufferID& frame_buffer_ID) const {
+  return frame_buffer_create_info_.GetRenderFrameID(frame_buffer_ID);
 }
 
 MM::ExecuteResult MM::RenderSystem::FrameBuffer::CheckInitParameters(

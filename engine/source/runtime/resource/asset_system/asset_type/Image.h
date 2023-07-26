@@ -12,12 +12,12 @@
 namespace MM {
 namespace AssetSystem {
 namespace AssetType {
+std::uint32_t GetImageFormatSize(ImageFormat image_format);
+
 class Image : public AssetBase {
  public:
   struct StbiImageFree {
-    void operator()(void* retval_from_stbi_load) const {
-      stbi_image_free(retval_from_stbi_load);
-    }
+    void operator()(void* retval_from_stbi_load) const;
   };
 
   struct ImageInfo {
@@ -28,14 +28,7 @@ class Image : public AssetBase {
     std::uint64_t image_size_{0};
     ImageFormat image_format_{ImageFormat::UNDEFINED};
 
-    void Reset() {
-      image_width_ = 0;
-      image_height_ = 0;
-      original_image_channels_ = 0;
-      image_channels_ = 0;
-      image_size_ = 0;
-      image_format_ = ImageFormat::UNDEFINED;
-    }
+    void Reset();
   };
 
  public:
@@ -55,6 +48,8 @@ class Image : public AssetBase {
 
   std::uint32_t GetImageHeight() const;
 
+  std::uint32_t GetDepth() const;
+
   std::uint32_t GetImageChannels() const;
 
   std::uint32_t GetOriginalImageChannels() const;
@@ -64,6 +59,8 @@ class Image : public AssetBase {
   const stbi_uc& GetImagePixels() const;
 
   ImageFormat GetImageFormat() const;
+
+  std::uint32_t GetImageFormatSize() const;
 
   std::string GetAssetTypeString() const override;
 

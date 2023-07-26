@@ -908,6 +908,8 @@ class MeshBufferSubResourceAttribute {
   BufferSubResourceAttribute index_buffer_sub_resource_attribute_{};
 };
 
+using RenderPassID = MM::Utils::ID5;
+
 struct RenderPassCreateInfo {
   RenderPassCreateInfo() = default;
   ~RenderPassCreateInfo();
@@ -929,7 +931,13 @@ struct RenderPassCreateInfo {
 
   void Reset();
 
+  ExecuteResult GetRenderPassID(RenderPassID& render_pass_ID) const;
+
   VkRenderPassCreateInfo GetVkRenderPassCreateInfo() const;
+
+  static ExecuteResult GetRenderPassID(
+      const RenderPassCreateInfo& render_pass_create_info,
+      RenderPassID& render_pass_ID);
 
   const void* next_;
   VkRenderPassCreateFlags flags_;
@@ -937,6 +945,8 @@ struct RenderPassCreateInfo {
   std::vector<VkSubpassDescription> subpasses_;
   std::vector<VkSubpassDependency> dependencies_;
 };
+
+using FrameBufferID = MM::Utils::ID2;
 
 struct FrameBufferCreateInfo {
   FrameBufferCreateInfo() = default;
@@ -957,7 +967,13 @@ struct FrameBufferCreateInfo {
 
   void Reset();
 
+  ExecuteResult GetRenderFrameID(FrameBufferID& frame_buffer_ID) const;
+
   VkFramebufferCreateInfo GetVkFrameBufferCreateInfo() const;
+
+  static ExecuteResult GetRenderFrameID(
+      const MM::RenderSystem::FrameBufferCreateInfo& frame_buffer_create_info,
+      MM::RenderSystem::FrameBufferID& frame_buffer_ID);
 
   const void* next_;
   VkFramebufferCreateFlags flags_;

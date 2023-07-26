@@ -93,7 +93,10 @@ MM::ExecuteResult
 MM::RenderSystem::RenderPassAttachmentDescription::InitRenderPass(
     VkDevice device, VkAllocationCallbacks* allocator,
     const VkRenderPassCreateInfo& vk_render_pass_create_info) {
-  RenderPassID render_pass_ID = GetRenderPassID(render_pass_create_info_);
+  RenderPassID render_pass_ID;
+  MM_CHECK(GetRenderPassID(render_pass_ID),
+           MM_LOG_ERROR("MM::RenderSystem::RenderPassCreateInfo is invalid.");
+           return ExecuteResult::INITIALIZATION_FAILED;);
 
   RenderPassContainerType ::FindResultType find_result =
       render_pass_container_.Find(render_pass_ID);
@@ -211,166 +214,10 @@ void MM::RenderSystem::RenderPassAttachmentDescription::Reset() {
   wrapper_ = nullptr;
 }
 
-MM::RenderSystem::RenderPassID
+MM::ExecuteResult
 MM::RenderSystem::RenderPassAttachmentDescription::GetRenderPassID(
-    const MM::RenderSystem::RenderPassCreateInfo& render_pass_create_info) {
-  RenderPassID render_pass_ID{0, 0, 0, 0, 0};
-
-  std::uint64_t sub_ID1 = 0;
-  std::uint32_t cycle_offset1 = 0;
-
-  // sub_ID1
-  sub_ID1 |= render_pass_create_info.dependencies_.size();
-  sub_ID1 |= render_pass_create_info.subpasses_.size() << 5;
-  sub_ID1 |= render_pass_create_info.attachments_.size() << 10;
-  sub_ID1 |= render_pass_create_info.flags_ << 15;
-  sub_ID1 |= reinterpret_cast<std::uint64_t>(render_pass_create_info.next_)
-             << 17;
-  render_pass_ID.SetSubID1(sub_ID1);
-  sub_ID1 = 0;
-
-  // sub_ID2
-  cycle_offset1 = 13;
-  for (const auto& attachment : render_pass_create_info.attachments_) {
-    sub_ID1 |= attachment.flags << cycle_offset1;
-    cycle_offset1 += 1;
-    if (cycle_offset1 > 63) cycle_offset1 -= 64;
-    sub_ID1 |= attachment.format << cycle_offset1;
-    cycle_offset1 += 8;
-    if (cycle_offset1 > 63) cycle_offset1 -= 64;
-    sub_ID1 |= attachment.loadOp << cycle_offset1;
-    cycle_offset1 += 4;
-    if (cycle_offset1 > 63) cycle_offset1 -= 64;
-    sub_ID1 |= attachment.stencilLoadOp << cycle_offset1;
-    cycle_offset1 += 4;
-    if (cycle_offset1 > 63) cycle_offset1 -= 64;
-    sub_ID1 |= attachment.storeOp << cycle_offset1;
-    cycle_offset1 += 3;
-    if (cycle_offset1 > 63) cycle_offset1 -= 64;
-    sub_ID1 |= attachment.stencilStoreOp << cycle_offset1;
-    cycle_offset1 += 3;
-    if (cycle_offset1 > 63) cycle_offset1 -= 64;
-    sub_ID1 |= attachment.initialLayout << cycle_offset1;
-    cycle_offset1 += 5;
-    if (cycle_offset1 > 63) cycle_offset1 -= 64;
-    sub_ID1 |= attachment.finalLayout << cycle_offset1;
-    cycle_offset1 += 5;
-    if (cycle_offset1 > 63) cycle_offset1 -= 64;
-  }
-  render_pass_ID.SetSubID2(sub_ID1);
-  sub_ID1 = 0;
-  cycle_offset1 = 0;
-
-  for (const auto& subpass : render_pass_create_info.subpasses_) {
-    sub_ID1 |= subpass.flags << cycle_offset1;
-    cycle_offset1 += 7;
-    if (cycle_offset1 > 63) cycle_offset1 -= 64;
-    sub_ID1 |= subpass.pipelineBindPoint << cycle_offset1;
-    cycle_offset1 += 4;
-    if (cycle_offset1 > 63) cycle_offset1 -= 64;
-    sub_ID1 |= subpass.inputAttachmentCount << cycle_offset1;
-    cycle_offset1 += 5;
-    if (cycle_offset1 > 63) cycle_offset1 -= 64;
-    sub_ID1 |= subpass.colorAttachmentCount << cycle_offset1;
-    cycle_offset1 += 5;
-    if (cycle_offset1 > 63) cycle_offset1 -= 64;
-    sub_ID1 |= subpass.preserveAttachmentCount << cycle_offset1;
-    cycle_offset1 += 5;
-    if (cycle_offset1 > 63) cycle_offset1 -= 64;
-    for (std::uint64_t i = 0; i != subpass.inputAttachmentCount; ++i) {
-      sub_ID1 |= subpass.pInputAttachments[i].attachment << cycle_offset1;
-      cycle_offset1 += 5;
-      if (cycle_offset1 > 63) cycle_offset1 -= 64;
-      sub_ID1 |= subpass.pInputAttachments[i].layout << cycle_offset1;
-      cycle_offset1 += 5;
-      if (cycle_offset1 > 63) cycle_offset1 -= 64;
-    }
-    if (subpass.pColorAttachments) {
-      for (std::uint64_t i = 0; i != subpass.colorAttachmentCount; ++i) {
-        sub_ID1 |= subpass.pColorAttachments[i].attachment << cycle_offset1;
-        cycle_offset1 += 5;
-        if (cycle_offset1 > 63) cycle_offset1 -= 64;
-        sub_ID1 |= subpass.pColorAttachments[i].layout << cycle_offset1;
-        cycle_offset1 += 5;
-        if (cycle_offset1 > 63) cycle_offset1 -= 64;
-      }
-    } else if (subpass.pResolveAttachments) {
-      for (std::uint64_t i = 0; i != subpass.colorAttachmentCount; ++i) {
-        sub_ID1 |= subpass.pResolveAttachments[i].attachment << cycle_offset1;
-        cycle_offset1 += 5;
-        if (cycle_offset1 > 63) cycle_offset1 -= 64;
-        sub_ID1 |= subpass.pResolveAttachments[i].layout << cycle_offset1;
-        cycle_offset1 += 5;
-        if (cycle_offset1 > 63) cycle_offset1 -= 64;
-      }
-    } else {
-      sub_ID1 |= static_cast<std::uint64_t>(0) << cycle_offset1;
-      cycle_offset1 += 10;
-      if (cycle_offset1 > 63) cycle_offset1 -= 64;
-    }
-    for (std::uint64_t i = 0; i != subpass.colorAttachmentCount; ++i) {
-    }
-    cycle_offset1 += 5;
-    if (cycle_offset1 > 63) cycle_offset1 -= 64;
-    if (subpass.pDepthStencilAttachment) {
-      sub_ID1 |= subpass.pDepthStencilAttachment->attachment << cycle_offset1;
-      cycle_offset1 += 5;
-      if (cycle_offset1 > 63) cycle_offset1 -= 64;
-      sub_ID1 |= subpass.pDepthStencilAttachment->layout << cycle_offset1;
-      cycle_offset1 += 5;
-      if (cycle_offset1 > 63) cycle_offset1 -= 64;
-    } else {
-      sub_ID1 |= static_cast<std::uint64_t>(0) << cycle_offset1;
-      cycle_offset1 += 10;
-      if (cycle_offset1 > 63) cycle_offset1 -= 64;
-    }
-    for (std::uint64_t i = 0; i != subpass.preserveAttachmentCount; ++i) {
-      sub_ID1 |= static_cast<std::uint64_t>(subpass.pPreserveAttachments[i])
-                 << cycle_offset1;
-      cycle_offset1 += 5;
-      if (cycle_offset1 > 63) cycle_offset1 -= 64;
-    }
-  }
-  render_pass_ID.SetSubID3(sub_ID1);
-  sub_ID1 = 0;
-  cycle_offset1 = 0;
-
-  std::uint64_t sub_ID2 = 0;
-  std::uint64_t cycle_offset2 = 0;
-  for (const auto& dependency : render_pass_create_info.dependencies_) {
-    sub_ID1 |= dependency.srcSubpass << cycle_offset1;
-    cycle_offset1 += 5;
-    if (cycle_offset1 > 63) cycle_offset1 -= 64;
-    sub_ID1 |= dependency.dstSubpass << cycle_offset1;
-    cycle_offset1 += 5;
-    if (cycle_offset1 > 63) cycle_offset1 -= 64;
-    sub_ID1 |= dependency.srcStageMask << cycle_offset1;
-    cycle_offset1 += 26;
-    if (cycle_offset1 > 63) cycle_offset1 -= 64;
-    sub_ID1 |= dependency.dstStageMask << cycle_offset1;
-    cycle_offset1 += 26;
-    if (cycle_offset1 > 63) cycle_offset1 -= 64;
-
-    sub_ID2 |= dependency.dependencyFlags << cycle_offset2;
-    cycle_offset2 += 3;
-    if (cycle_offset1 > 63) cycle_offset1 -= 64;
-    sub_ID2 |= dependency.srcAccessMask << cycle_offset2;
-    cycle_offset2 += 28;
-    if (cycle_offset1 > 63) cycle_offset1 -= 64;
-    sub_ID2 |= dependency.dstAccessMask << cycle_offset2;
-    cycle_offset2 += 28;
-    if (cycle_offset1 > 63) cycle_offset1 -= 64;
-  }
-  render_pass_ID.SetSubID4(sub_ID1);
-  render_pass_ID.SetSubID5(sub_ID2);
-
-  return render_pass_ID;
-}
-
-MM::RenderSystem::RenderPassID
-MM::RenderSystem::RenderPassAttachmentDescription::GetRenderPassID() const {
-  return RenderPassAttachmentDescription::GetRenderPassID(
-      render_pass_create_info_);
+    MM::RenderSystem::RenderPassID& render_pass_ID) const {
+  return render_pass_create_info_.GetRenderPassID(render_pass_ID);
 }
 
 MM::RenderSystem::RenderPassAttachmentDescription::RenderPassWrapper::

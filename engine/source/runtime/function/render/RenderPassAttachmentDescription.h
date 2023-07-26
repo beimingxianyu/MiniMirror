@@ -13,8 +13,6 @@ namespace MM {
 namespace RenderSystem {
 class RenderEngine;
 
-using RenderPassID = MM::Utils::ID5;
-
 class RenderPassAttachmentDescription {
   friend class RenderEngine;
 
@@ -60,14 +58,11 @@ class RenderPassAttachmentDescription {
 
   const VkRenderPass_T* GetRenderPass() const;
 
-  RenderPassID GetRenderPassID() const;
+  ExecuteResult GetRenderPassID(RenderPassID& render_pass_ID) const;
 
   bool IsValid() const;
 
   void Reset();
-
-  static RenderPassID GetRenderPassID(
-      const RenderPassCreateInfo& render_pass_create_info);
 
  private:
   ExecuteResult CheckInitParameters(

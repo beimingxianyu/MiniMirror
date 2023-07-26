@@ -199,12 +199,69 @@ MM::RenderSystem::AllocatedImage::AllocatedImage(
   SetRenderResourceDataID(RenderResourceDataID{
       image->GetAssetID(), render_resource_data_attribute_ID});
 
-  MM_CHECK(InitImage(stage_allocated_buffer, vk_image_create_info,
-                     vma_allocation_create_info),
+  MM_CHECK(InitImageFromAsset(stage_allocated_buffer, vk_image_create_info,
+                              vma_allocation_create_info),
            RenderResourceDataBase::Release();
            render_engine_ = nullptr; image_data_info_.Reset(); return;)
 
-  MarkThisIsManaged();
+  MarkThisIsAssetResource();
+}
+
+MM::RenderSystem::AllocatedImage::AllocatedImage(
+    const std::string& name, MM::RenderSystem::RenderEngine* render_engine,
+    VkImageLayout image_layout, const VkImageCreateInfo* vk_image_create_info,
+    const VmaAllocationCreateInfo* vma_allocation_create_info)
+    : RenderResourceDataBase(name, RenderResourceDataID()),
+      render_engine_(render_engine),
+      image_data_info_(),
+      wrapper_() {
+#ifdef CHECK_PARAMETERS
+  MM_CHECK(
+      CheckInitParameters(render_engine, image_layout, vk_image_create_info,
+                          vma_allocation_create_info),
+      render_engine_ = nullptr;
+      return;)
+#endif
+  const std::uint32_t recommend_mipmap_level =
+      static_cast<uint32_t>(std::floor(
+          std::log2(MM::Utils::Max(vk_image_create_info->extent.width,
+                                   vk_image_create_info->extent.height,
+                                   vk_image_create_info->extent.depth)))) +
+      1;
+
+  image_data_info_.SetImageCreateInfo(image->GetImageSize(), image_layout,
+                                      *vk_image_create_info);
+  if (recommend_mipmap_level < vk_image_create_info->mipLevels) {
+    image_data_info_.image_create_info_.miplevels_ = recommend_mipmap_level;
+  }
+  image_data_info_.SetAllocationCreateInfo(*vma_allocation_create_info);
+  image_data_info_.image_sub_resource_attributes_.emplace_back(
+      ImageSubresourceRangeInfo{
+          0, image_data_info_.image_create_info_.miplevels_, 0,
+          image_data_info_.image_create_info_.array_levels_},
+      image_data_info_.image_create_info_.queue_family_indices_[0],
+      image_data_info_.image_create_info_.image_layout_);
+
+  AllocatedBuffer stage_allocated_buffer;
+  MM_CHECK(LoadImageDataToStageBuffer(image, stage_allocated_buffer),
+           RenderResourceDataBase::Release();
+           render_engine_ = nullptr; image_data_info_.Reset(); return;)
+
+  RenderResourceDataAttributeID render_resource_data_attribute_ID;
+  MM_CHECK(image_data_info_.GetRenderResourceDataAttributeID(
+               render_resource_data_attribute_ID),
+           MM_LOG_ERROR("Failed to get RenderResourceDataAttributeID.");
+           RenderResourceDataBase::Release(); render_engine_ = nullptr;
+           image_data_info_.Reset(); return;)
+  SetRenderResourceDataID(RenderResourceDataID{
+      image->GetAssetID(), render_resource_data_attribute_ID});
+
+  MM_CHECK(InitImageFromAsset(stage_allocated_buffer, vk_image_create_info,
+                              vma_allocation_create_info),
+           RenderResourceDataBase::Release();
+           render_engine_ = nullptr; image_data_info_.Reset(); return;)
+
+  MarkThisIsAssetResource();
 }
 
 MM::ExecuteResult MM::RenderSystem::AllocatedImage::CheckImageHandler(
@@ -236,6 +293,17 @@ MM::RenderSystem::AllocatedImage::CheckInitParametersWhenInitFromAnAsset(
                        return MM_RESULT_CODE;)
 
   if (!(vk_image_create_info->usage & VK_IMAGE_USAGE_TRANSFER_DST_BIT)) {
+    MM_LOG_ERROR("This image can not initialization from a image asset.");
+    return ExecuteResult::INITIALIZATION_FAILED;
+  }
+
+  const AssetSystem::AssetType::Image& image =
+      static_cast<const AssetSystem::AssetType::Image&>(
+          image_handler.GetAsset());
+
+  if (vk_image_create_info->extent.height != image.GetImageHeight() ||
+      vk_image_create_info->extent.width != image.GetImageWidth() ||
+      vk_image_create_info->extent.depth != image.GetDepth()) {
     MM_LOG_ERROR("This image can not initialization from a image asset.");
     return ExecuteResult::INITIALIZATION_FAILED;
   }
@@ -282,7 +350,7 @@ MM::ExecuteResult MM::RenderSystem::AllocatedImage::LoadImageDataToStageBuffer(
   return ExecuteResult::SUCCESS;
 }
 
-MM::ExecuteResult MM::RenderSystem::AllocatedImage::InitImage(
+MM::ExecuteResult MM::RenderSystem::AllocatedImage::InitImageFromAsset(
     MM::RenderSystem::AllocatedBuffer& stage_allocated_buffer,
     const VkImageCreateInfo* vk_image_create_info,
     const VmaAllocationCreateInfo* vma_allocation_create_info) {

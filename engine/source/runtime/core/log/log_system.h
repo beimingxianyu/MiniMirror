@@ -94,10 +94,6 @@ class LogSystem {
   ExecuteResult CheckResult(ExecuteResult result, const std::string& log_prefix,
                             LogLevel log_level = LogLevel::ERROR) const;
 
-  MM::ExecuteResult CheckMultipleResult(ExecuteResult result,
-                                        const std::string& log_prefix,
-                                        LogLevel log_level) const;
-
  private:
   /**
    * \brief Destroy the instance. If it is successfully destroyed, it returns
