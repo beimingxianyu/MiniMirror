@@ -123,62 +123,75 @@ MM::RenderSystem::RenderResourceTexture::operator=(
 
 const MM::RenderSystem::ImageDataInfo&
 MM::RenderSystem::RenderResourceTexture::GetImageDataInfo() const {
+  assert(IsValid());
   return allocated_image_->GetImageDataInfo();
 }
 
 const MM::RenderSystem::SamplerCreateInfo&
 MM::RenderSystem::RenderResourceTexture::GetSamplerCreateInfo() const {
+  assert(IsValid());
   return sampler_.GetSamplerCreateInfo();
 }
 
 const MM::RenderSystem::ImageViewCreateInfo&
 MM::RenderSystem::RenderResourceTexture::GetImageViewCreateInfo() const {
+  assert(IsValid());
   return image_view_.GetImageViewCreateInfo();
 }
 
 MM::RenderSystem::AllocatedImage&
 MM::RenderSystem::RenderResourceTexture::GetAllocatedImage() {
+  assert(IsValid());
   return *allocated_image_;
 }
 
 const MM::RenderSystem::AllocatedImage&
 MM::RenderSystem::RenderResourceTexture::GetAllocatedImage() const {
+  assert(IsValid());
   return *allocated_image_;
 }
 
 MM::RenderSystem::Sampler& MM::RenderSystem::RenderResourceTexture::GetSampler()
     const {
+  assert(IsValid());
   return sampler_;
 }
 
 MM::RenderSystem::ImageView&
 MM::RenderSystem::RenderResourceTexture::GetImageView() {
+  assert(IsValid());
   return image_view_;
 }
 
 const MM::RenderSystem::ImageView&
 MM::RenderSystem::RenderResourceTexture::GetImageView() const {
+  assert(IsValid());
   return image_view_;
 }
 
 VkImage MM::RenderSystem::RenderResourceTexture::GetImage() {
+  assert(IsValid());
   return allocated_image_->GetImage();
 }
 
 const VkImage_T* MM::RenderSystem::RenderResourceTexture::GetImage() const {
+  assert(IsValid());
   return allocated_image_->GetImage();
 }
 
 VkSampler MM::RenderSystem::RenderResourceTexture::GetVkSampler() const {
+  assert(IsValid());
   return sampler_.GetVkSampler();
 }
 
 VkImageView MM::RenderSystem::RenderResourceTexture::GetVkImageView() {
+  assert(IsValid());
   return image_view_.GetVkImageView();
 }
 
 const VkImageView_T* MM::RenderSystem::RenderResourceTexture::GetVkImageView()
     const {
+  assert(IsValid());
   return image_view_.GetVkImageView();
 }
 
