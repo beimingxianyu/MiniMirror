@@ -124,6 +124,8 @@ MM::ExecuteResult MM::AssetSystem::AssetType::Shader::LoadShader(
            MM_LOG_ERROR("Failed to compile shader.");
            return MM_RESULT_CODE;)
 
+  SaveCompiledShaderToFile(compiled_shader_path);
+
   return MM::ExecuteResult::SUCCESS;
 }
 
@@ -161,4 +163,33 @@ MM::Utils::ExecuteResult MM::AssetSystem::AssetType::Shader::ChooseShaderKind(
   }
 
   return ExecuteResult ::FILE_OPERATION_ERROR;
+}
+
+MM::ExecuteResult MM::AssetSystem::AssetType::Shader::SaveCompiledShaderToFile(
+    MM::FileSystem::Path compiled_path) const {
+  static std::uint8_t rand = 0;
+  ++rand;
+  FileSystem::Path temp_path{compiled_path + std::to_string(rand)};
+
+  MM_CHECK(MM_FILE_SYSTEM->Create(temp_path),
+           MM_LOG_ERROR("Failed to create temp file to save compiled shader.");
+           return MM_RESULT_CODE;)
+
+  std::ofstream file(temp_path.CStr(), std::ios::out | std::ios::binary);
+
+  if (!file.is_open()) {
+    return ExecuteResult ::FILE_OPERATION_ERROR;
+  }
+
+  file.seekp(0);
+  file.write(data_.data(), data_.size());
+
+  file.close();
+
+  MM_CHECK(MM_FILE_SYSTEM->Rename(temp_path, compiled_path),
+           MM_LOG_ERROR(
+               "Failed to rename temp shader failed to target compiled path.");
+           MM_FILE_SYSTEM->Delete(temp_path); return MM_RESULT_CODE;)
+
+  return ExecuteResult ::SUCCESS;
 }

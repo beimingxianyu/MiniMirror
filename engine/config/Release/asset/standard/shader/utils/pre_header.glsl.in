@@ -1,4 +1,4 @@
-#version 430
+#version @shader_config_version@
 
 #extension GL_EXT_buffer_reference : require
 
@@ -86,9 +86,9 @@
 	layout(STORAGE_TEXTURE3D_SET_AND_BINDING, STORAGE_TEXTURE_FORMAT) uniform image3D __STORAGE_TEXTURE3D_VECTOR_NAME__[];       \
 	layout(STORAGE_TEXTURECUBE_SET_AND_BINDING, STORAGE_TEXTURE_FORMAT) uniform imageCube __STORAGE_TEXTURECUBE_VECTOR_NAME__[]; \
 
-#define IMPORT_UNIFORM_BUFFER(type_name) type_name GET_UNIFORM_BUFFER_NAME(type_name);
+#define IMPORT_UNIFORM_BUFFER(type_name, variable_name) type_name GET_UNIFORM_BUFFER_NAME(type_name, variable_name);
 
-#define IMPORT_STORAGE_BUFFER(type_name) type_name GET_STORAGE_BUFFER_NAME(type_name);
+#define IMPORT_STORAGE_BUFFER(type_name, variable_name) type_name GET_STORAGE_BUFFER_NAME(type_name, variable_name);
 
 #define IMPORT_TEXTURE2D(variable_name) uint64_t GET_TEXTURE2D_NAME(variable_name);
 
@@ -118,9 +118,9 @@
 //
 //#define REGISTER_STORAGE_TEXTURECUBE(buffer_accsess, variable_name) uniform buffer_accsess imageCube GET_STORAGE_TEXTURECUBE_NAME(variable_name)
 
-#define GET_UNIFORM_BUFFER(type_name) __CONSTANT_VARIABLE_NAME__.GET_UNIFORM_BUFFER_NAME(type_name)
+#define GET_UNIFORM_BUFFER(variable_name) __CONSTANT_VARIABLE_NAME__.GET_UNIFORM_BUFFER_NAME(variable_name)
 
-#define GET_STORAGE_BUFFER(type_name) __CONSTANT_VARIABLE_NAME__.GET_STORAGE_BUFFER_NAME(type_name)
+#define GET_STORAGE_BUFFER(variable_name) __CONSTANT_VARIABLE_NAME__.GET_STORAGE_BUFFER_NAME(variable_name)
 
 #define GET_TEXTURE2D(variable_name) __SAMPLER_TEXTURE2D_VECTOR_NAME__[uint(__CONSTANT_VARIABLE_NAME__.GET_TEXTURE2D(variable_name))]
 

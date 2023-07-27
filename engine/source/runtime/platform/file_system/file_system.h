@@ -323,6 +323,14 @@ class FileSystem {
   ExecuteResult Rename(const Path& path, const std::string& new_name) const;
 
   /**
+   * \brief Rename file or directory.
+   * \param path The file or directory you want to rename.
+   * \param new_name The new name will be set.
+   * \return Returns error code.
+   */
+  ExecuteResult Rename(const Path& path, const Path& new_path) const;
+
+  /**
    * \brief Check whether the specified file or directory is empty.
    * \param path The path you want to check.
    * \return Returns false if the operation is fail or the directory does not

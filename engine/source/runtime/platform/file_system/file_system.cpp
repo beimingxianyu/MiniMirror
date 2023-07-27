@@ -526,6 +526,15 @@ MM::ExecuteResult MM::FileSystem::FileSystem::Rename(
   return RenameFile(path, new_name);
 }
 
+MM::ExecuteResult MM::FileSystem::FileSystem::Rename(
+    const MM::FileSystem::Path& path,
+    const MM::FileSystem::Path& new_path) const {
+  if (path.IsDirectory()) {
+    return RenameDirectory(path, new_path.String());
+  }
+  return RenameFile(path, new_path.String());
+}
+
 bool MM::FileSystem::FileSystem::IsEmpty(const Path& path) const {
   if (path.IsDirectory()) {
     return DirectoryIsEmpty(path);

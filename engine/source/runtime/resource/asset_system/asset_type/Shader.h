@@ -48,6 +48,9 @@ class Shader : public AssetBase {
 
   ExecuteResult LoadShader(const FileSystem::Path& shader_path);
 
+  MM::ExecuteResult SaveCompiledShaderToFile(
+      MM::FileSystem::Path compiled_path) const;
+
  private:
   std::uint64_t size_{0};
   std::vector<char> data_{};
