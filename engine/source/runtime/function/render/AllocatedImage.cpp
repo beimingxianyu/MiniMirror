@@ -229,11 +229,17 @@ MM::RenderSystem::AllocatedImage::AllocatedImage(
                                    vk_image_create_info->extent.depth)))) +
       1;
 
-  image_data_info_.SetImageCreateInfo(image->GetImageSize(), image_layout,
+  std::uint64_t format_size =
+      MM::RenderSystem::Utils::GetVkFormatSize(vk_image_create_info->format);
+  std::uint64_t image_size = format_size * vk_image_create_info->extent.width *
+                             vk_image_create_info->extent.height *
+                             vk_image_create_info->extent.depth;
+  image_data_info_.SetImageCreateInfo(image_size, image_layout,
                                       *vk_image_create_info);
   if (recommend_mipmap_level < vk_image_create_info->mipLevels) {
     image_data_info_.image_create_info_.miplevels_ = recommend_mipmap_level;
   }
+
   image_data_info_.SetAllocationCreateInfo(*vma_allocation_create_info);
   image_data_info_.image_sub_resource_attributes_.emplace_back(
       ImageSubresourceRangeInfo{
@@ -242,11 +248,6 @@ MM::RenderSystem::AllocatedImage::AllocatedImage(
       image_data_info_.image_create_info_.queue_family_indices_[0],
       image_data_info_.image_create_info_.image_layout_);
 
-  AllocatedBuffer stage_allocated_buffer;
-  MM_CHECK(LoadImageDataToStageBuffer(image, stage_allocated_buffer),
-           RenderResourceDataBase::Release();
-           render_engine_ = nullptr; image_data_info_.Reset(); return;)
-
   RenderResourceDataAttributeID render_resource_data_attribute_ID;
   MM_CHECK(image_data_info_.GetRenderResourceDataAttributeID(
                render_resource_data_attribute_ID),
@@ -254,14 +255,7 @@ MM::RenderSystem::AllocatedImage::AllocatedImage(
            RenderResourceDataBase::Release(); render_engine_ = nullptr;
            image_data_info_.Reset(); return;)
   SetRenderResourceDataID(RenderResourceDataID{
-      image->GetAssetID(), render_resource_data_attribute_ID});
-
-  MM_CHECK(InitImageFromAsset(stage_allocated_buffer, vk_image_create_info,
-                              vma_allocation_create_info),
-           RenderResourceDataBase::Release();
-           render_engine_ = nullptr; image_data_info_.Reset(); return;)
-
-  MarkThisIsAssetResource();
+      GetObjectID().GetHash(), render_resource_data_attribute_ID});
 }
 
 MM::ExecuteResult MM::RenderSystem::AllocatedImage::CheckImageHandler(

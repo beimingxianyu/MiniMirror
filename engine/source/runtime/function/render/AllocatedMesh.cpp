@@ -61,6 +61,8 @@ MM::RenderSystem::AllocatedMesh::AllocatedMesh(
            mesh_buffer_manager_ = nullptr;
            sub_vertex_buffer_info_ptr_ = nullptr;
            sub_index_buffer_info_ptr_ = nullptr; return;)
+
+  MarkThisIsAssetResource();
 }
 
 MM::RenderSystem::AllocatedMesh::AllocatedMesh(
@@ -91,10 +93,12 @@ MM::RenderSystem::AllocatedMesh::AllocatedMesh(
     : RenderResourceDataBase(std::move(other)),
       mesh_buffer_manager_(other.mesh_buffer_manager_),
       sub_vertex_buffer_info_ptr_(other.sub_vertex_buffer_info_ptr_),
-      sub_index_buffer_info_ptr_(other.sub_index_buffer_info_ptr_) {
+      sub_index_buffer_info_ptr_(other.sub_index_buffer_info_ptr_),
+      index_count_(other.index_count_) {
   other.mesh_buffer_manager_ = nullptr;
   other.sub_vertex_buffer_info_ptr_ = nullptr;
   other.sub_index_buffer_info_ptr_ = nullptr;
+  other.index_count_ = 0;
 }
 
 MM::RenderSystem::AllocatedMesh& MM::RenderSystem::AllocatedMesh::operator=(
@@ -113,6 +117,7 @@ MM::RenderSystem::AllocatedMesh& MM::RenderSystem::AllocatedMesh::operator=(
   other.mesh_buffer_manager_ = nullptr;
   other.sub_vertex_buffer_info_ptr_ = nullptr;
   other.sub_index_buffer_info_ptr_ = nullptr;
+  other.index_count_ = 0;
 
   return *this;
 }
@@ -175,6 +180,10 @@ const MM::RenderSystem::BufferChunkInfo&
 MM::RenderSystem::AllocatedMesh::GetIndexChunkInfo() const {
   assert(sub_index_buffer_info_ptr_ != nullptr);
   return sub_index_buffer_info_ptr_->GetChunkInfo();
+}
+
+std::uint32_t MM::RenderSystem::AllocatedMesh::GetIndexCount() const {
+  return index_count_;
 }
 
 VkDeviceSize MM::RenderSystem::AllocatedMesh::GetIndexOffset() const {
@@ -333,6 +342,8 @@ MM::ExecuteResult MM::RenderSystem::AllocatedMesh::CopyAssetDataToBuffer(
       MM_LOG_ERROR("Failed to record commands.");
       return MM_RESULT_CODE;)
 
+  index_count_ = asset_mesh.GetIndexesCount();
+
   return MM::ExecuteResult::SUCCESS;
 }
 
@@ -357,7 +368,7 @@ bool MM::RenderSystem::AllocatedMesh::CanWrite() const { return true; }
 bool MM::RenderSystem::AllocatedMesh::IsValid() const {
   return mesh_buffer_manager_ != nullptr &&
          sub_vertex_buffer_info_ptr_ != nullptr &&
-         sub_index_buffer_info_ptr_ != nullptr;
+         sub_index_buffer_info_ptr_ != nullptr && index_count_ != 0;
 }
 
 void MM::RenderSystem::AllocatedMesh::Release() {
@@ -369,5 +380,6 @@ void MM::RenderSystem::AllocatedMesh::Release() {
     mesh_buffer_manager_ = nullptr;
     sub_vertex_buffer_info_ptr_ = nullptr;
     sub_index_buffer_info_ptr_ = nullptr;
+    index_count_ = 0;
   }
 }

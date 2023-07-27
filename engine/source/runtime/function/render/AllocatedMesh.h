@@ -50,6 +50,8 @@ class AllocatedMesh : public RenderResourceDataBase {
 
   const BufferChunkInfo& GetIndexChunkInfo() const;
 
+  std::uint32_t GetIndexCount() const;
+
   VkDeviceSize GetIndexOffset() const;
 
   VkDeviceSize GetIndexSize() const;
@@ -75,6 +77,8 @@ class AllocatedMesh : public RenderResourceDataBase {
   MeshBufferManager* mesh_buffer_manager_{nullptr};
   BufferSubResourceAttribute* sub_vertex_buffer_info_ptr_{nullptr};
   BufferSubResourceAttribute* sub_index_buffer_info_ptr_{nullptr};
+
+  std::uint32_t index_count_{0};
 };
 }  // namespace RenderSystem
 }  // namespace MM
