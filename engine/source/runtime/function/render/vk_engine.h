@@ -237,19 +237,6 @@ class RenderEngine {
                                  const VkDeviceSize& copy_offset,
                                  const VkDeviceSize& copy_size);
 
-  //  ExecuteResult RemoveBufferFragmentation(
-  //      AllocatedBuffer& buffer,
-  //      std::vector<BufferSubResourceAttribute>& buffer_chunks_info);
-  //
-  //  ExecuteResult RemoveBufferFragmentation(
-  //      AllocatedBuffer& buffer,
-  //      std::list<BufferSubResourceAttribute>& buffer_chunks_info);
-
-  MM::ExecuteResult RemoveBufferFragmentation(
-      MM::RenderSystem::AllocatedMeshBuffer& buffer,
-      std::list<BufferSubResourceAttribute>& vertex_buffer_chunks_info,
-      std::list<BufferSubResourceAttribute>& index_buffet_chunks_info);
-
   const VkPhysicalDeviceFeatures& GetPhysicalDeviceFeatures() const;
 
   const VkPhysicalDeviceProperties& GetPhysicalDeviceProperties() const;
@@ -261,6 +248,8 @@ class RenderEngine {
   VkSampleCountFlagBits GetMultiSampleCount() const;
 
   bool SupportMultiDrawIndirect() const;
+
+  bool FormatSupportStore(VkFormat format, VkImageTiling tiling);
 
  private:
   void InitGlfw();
@@ -278,6 +267,7 @@ class RenderEngine {
   void InitSwapChain();
   void InitSwapChainImageView();
   void InitCommandExecutor();
+  void FindSupportStorageImageFormat();
 
   std::vector<VkExtensionProperties> GetExtensionProperties();
   bool CheckExtensionSupport(const std::string& extension_name);
@@ -343,6 +333,9 @@ class RenderEngine {
   VkPhysicalDevice physical_device_{nullptr};
   VkPhysicalDeviceProperties gpu_properties_;
   VkPhysicalDeviceFeatures gpu_features_;
+  std::unordered_set<VkFormat> support_storage_format_linear_;
+  std::unordered_set<VkFormat> support_storage_format_optimal_;
+
   VkDevice device_{nullptr};
   VmaAllocator allocator_{nullptr};
   VkQueue graphics_queue_{nullptr};

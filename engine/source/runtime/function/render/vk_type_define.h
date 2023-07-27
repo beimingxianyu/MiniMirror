@@ -663,6 +663,8 @@ class ImageView {
   ~ImageView() = default;
   ImageView(VkDevice device, VkAllocationCallbacks* allocator,
             const VkImageViewCreateInfo& vk_image_view_create_info);
+  ImageView(VkDevice device, VkAllocationCallbacks* allocator,
+            const ImageViewCreateInfo& image_view_create_info);
   ImageView(const ImageView& other) = delete;
   ImageView(ImageView&& other) noexcept;
   ImageView& operator=(const ImageView& other) = delete;
@@ -724,6 +726,8 @@ class Sampler {
   ~Sampler() = default;
   Sampler(VkDevice device, VkAllocationCallbacks* allocator,
           const VkSamplerCreateInfo& vk_sampler_create_info);
+  Sampler(VkDevice device, VkAllocationCallbacks* allocator,
+          const SamplerCreateInfo& sampler_create_info);
   Sampler(const Sampler& other) = delete;
   Sampler(Sampler&& other) noexcept;
   Sampler& operator=(const Sampler& other) = delete;
@@ -983,6 +987,5 @@ struct FrameBufferCreateInfo {
   uint32_t height_;
   uint32_t layers_;
 };
-
 }  // namespace RenderSystem
 }  // namespace MM

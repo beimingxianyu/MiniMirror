@@ -5,7 +5,7 @@ if (${CMAKE_BUILD_TYPE} STREQUAL "Debug")
 endif ()
 
 # shader config
-set(shader_config_version "430")
+set(shader_config_version "450")
 set(shader_config_global_set "0")
 set(shader_config_material_set "1")
 set(shader_config_sampler_texture2D_binding "0")

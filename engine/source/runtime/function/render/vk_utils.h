@@ -446,10 +446,13 @@ VkImageCreateInfo GetVkImageCreateInfo(
     uint32_t queue_family_index_count, const uint32_t* queue_family_indices,
     VkImageLayout initial_layout);
 
-std::uint32_t GetVkFormatSize(VkFormat vk_format);
+std::uint64_t GetVkFormatSize(VkFormat vk_format);
 
 VkFormat GetVkFormatFromImageFormat(
     AssetSystem::AssetType::ImageFormat image_format);
+
+bool LayoutSupportImageSamplerCombine(VkImageLayout layout);
+
 }  // namespace Utils
 }  // namespace RenderSystem
 }  // namespace MM

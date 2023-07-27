@@ -1714,7 +1714,7 @@ VkImageCreateInfo MM::RenderSystem::Utils::GetVkImageCreateInfo(
                            initial_layout};
 }
 
-std::uint32_t MM::RenderSystem::Utils::GetVkFormatSize(VkFormat vk_format) {
+std::uint64_t MM::RenderSystem::Utils::GetVkFormatSize(VkFormat vk_format) {
   switch (vk_format) {
     case VK_FORMAT_UNDEFINED:
       return 0;
@@ -1990,5 +1990,24 @@ VkFormat MM::RenderSystem::Utils::GetVkFormatFromImageFormat(
       return VK_FORMAT_R8G8B8_UINT;
     case AssetSystem::AssetType::ImageFormat::RGB_ALPHA:
       return VK_FORMAT_R8G8B8A8_UINT;
+  }
+}
+
+bool MM::RenderSystem::Utils::LayoutSupportImageSamplerCombine(
+    VkImageLayout layout) {
+  switch (layout) {
+    case VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL:
+    case VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL:
+    case VK_IMAGE_LAYOUT_GENERAL:
+    case VK_IMAGE_LAYOUT_SHARED_PRESENT_KHR:
+    case VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_STENCIL_ATTACHMENT_OPTIMAL:
+    case VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_STENCIL_READ_ONLY_OPTIMAL:
+    case VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_OPTIMAL:
+    case VK_IMAGE_LAYOUT_STENCIL_READ_ONLY_OPTIMAL:
+    case VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL_KHR:
+      // case VK_IMAGE_LAYOUT_ATTACHMENT_FEEDBACK_LOOP_OPTIMAL_EXT:
+      return true;
+    default:
+      return false;
   }
 }

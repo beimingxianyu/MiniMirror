@@ -81,7 +81,7 @@ namespace Utils {
 
 #define MM_CHECK(executor, failed_callback)                                  \
   {                                                                          \
-    if (ExecuteResult MM_RESULT_CODE = executor;                             \
+    if (ExecuteResult MM_RESULT_CODE = (executor);                           \
         MM_RESULT_CODE != MM::ExecuteResult::SUCCESS) {                      \
       MM_LOG_SYSTEM->CheckResult(MM_RESULT_CODE, MM_CODE_LOCATION,           \
                                  MM::LogSystem::LogSystem::LogLevel::ERROR); \
@@ -91,7 +91,7 @@ namespace Utils {
 
 #define MM_CHECK_LOG_TRACE(executor, failed_callback)                        \
   {                                                                          \
-    if (ExecuteResult MM_RESULT_CODE = executor;                             \
+    if (ExecuteResult MM_RESULT_CODE = (executor);                           \
         MM_RESULT_CODE != MM::ExecuteResult::SUCCESS) {                      \
       MM_LOG_SYSTEM->CheckResult(MM_RESULT_CODE, MM_CODE_LOCATION,           \
                                  MM::LogSystem::LogSystem::LogLevel::TRACE); \
@@ -101,7 +101,7 @@ namespace Utils {
 
 #define MM_CHECK_LOG_INFO(executor, failed_callback)                        \
   {                                                                         \
-    if (ExecuteResult MM_RESULT_CODE = executor;                            \
+    if (ExecuteResult MM_RESULT_CODE = (executor);                          \
         MM_RESULT_CODE != MM::ExecuteResult::SUCCESS) {                     \
       MM_LOG_SYSTEM->CheckResult(MM_RESULT_CODE, MM_CODE_LOCATION,          \
                                  MM::LogSystem::LogSystem::LogLevel::INFO); \
@@ -111,7 +111,7 @@ namespace Utils {
 
 #define MM_CHECK_LOG_DEBUG(executor, failed_callback)                        \
   {                                                                          \
-    if (ExecuteResult MM_RESULT_CODE = executor;                             \
+    if (ExecuteResult MM_RESULT_CODE = (executor);                           \
         MM_RESULT_CODE != MM::ExecuteResult::SUCCESS) {                      \
       MM_LOG_SYSTEM->CheckResult(MM_RESULT_CODE, MM_CODE_LOCATION,           \
                                  MM::LogSystem::LogSystem::LogLevel::DEBUG); \
@@ -121,7 +121,7 @@ namespace Utils {
 
 #define MM_CHECK_LOG_WARN(executor, failed_callback)                        \
   {                                                                         \
-    if (ExecuteResult MM_RESULT_CODE = executor;                            \
+    if (ExecuteResult MM_RESULT_CODE = (executor);                          \
         MM_RESULT_CODE != MM::ExecuteResult::SUCCESS) {                     \
       MM_LOG_SYSTEM->CheckResult(MM_RESULT_CODE, MM_CODE_LOCATION,          \
                                  MM::LogSystem::LogSystem::LogLevel::WARN); \
@@ -131,7 +131,7 @@ namespace Utils {
 
 #define MM_CHECK_LOG_ERROR(executor, failed_callback)                        \
   {                                                                          \
-    if (ExecuteResult MM_RESULT_CODE = executor;                             \
+    if (ExecuteResult MM_RESULT_CODE = (executor);                           \
         MM_RESULT_CODE != MM::ExecuteResult::SUCCESS) {                      \
       MM_LOG_SYSTEM->CheckResult(MM_RESULT_CODE, MM_CODE_LOCATION,           \
                                  MM::LogSystem::LogSystem::LogLevel::ERROR); \
@@ -141,7 +141,7 @@ namespace Utils {
 
 #define MM_CHECK_LOG_FATAL(executor, failed_callback)                        \
   {                                                                          \
-    if (ExecuteResult MM_RESULT_CODE = executor;                             \
+    if (ExecuteResult MM_RESULT_CODE = (executor);                           \
         MM_RESULT_CODE != MM::ExecuteResult::SUCCESS) {                      \
       MM_LOG_SYSTEM->CheckResult(MM_RESULT_CODE, MM_CODE_LOCATION,           \
                                  MM::LogSystem::LogSystem::LogLevel::FATAL); \
@@ -151,7 +151,7 @@ namespace Utils {
 
 #define MM_CHECK_WITHOUT_LOG(executor, failed_callback) \
   {                                                     \
-    if (ExecuteResult MM_RESULT_CODE = executor;        \
+    if (ExecuteResult MM_RESULT_CODE = (executor);      \
         MM_RESULT_CODE != MM::ExecuteResult::SUCCESS) { \
       failed_callback                                   \
     }                                                   \
@@ -170,13 +170,13 @@ namespace Utils {
 #define MM_VK_RESULT_CODE __MM_vk_result_code_name
 
 // TODO 添加对各种情况的警告（如内存不足）
-#define MM_VK_CHECK(vk_executor, failed_callback) \
-  {                                               \
-    if (VkResult MM_VK_RESULT_CODE = vk_executor; \
-        MM_VK_RESULT_CODE != VK_SUCCESS) {        \
-      MM_LOG_ERROR("Vulkan runtime error.");      \
-      failed_callback;                            \
-    }                                             \
+#define MM_VK_CHECK(vk_executor, failed_callback)   \
+  {                                                 \
+    if (VkResult MM_VK_RESULT_CODE = (vk_executor); \
+        MM_VK_RESULT_CODE != VK_SUCCESS) {          \
+      MM_LOG_ERROR("Vulkan runtime error.");        \
+      failed_callback;                              \
+    }                                               \
   }
 
 #define MM_VK_CHECK_WITHOUT_LOG(vk_executor, failed_callback) \

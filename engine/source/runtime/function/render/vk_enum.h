@@ -22,5 +22,14 @@ enum class ResourceType {
 enum class MemoryOperate { READ, WRITE, READ_AND_WRITE, UNDEFINED };
 
 enum class CommandBufferType { GRAPH, COMPUTE, TRANSFORM, UNDEFINED };
+
+enum class DescriptorType {
+  SAMPLER_TEXTURE2D,
+  SAMPLER_TEXTURE3D,
+  SAMPLER_TEXTURECUBE,
+  STORAGE_TEXTURE2D,
+  STORAGE_TEXTURE3D,
+  STORAGE_TEXTURECUBE,
+};
 }  // namespace RenderSystem
 }  // namespace MM

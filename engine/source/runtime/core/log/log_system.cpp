@@ -125,6 +125,9 @@ MM::ExecuteResult MM::LogSystem::LogSystem::CheckResult(
     case ExecuteResult::SYNCHRONIZE_FAILED:
       Log(log_level, log_prefix + "Synchronize failed.");
       break;
+    case ExecuteResult::NO_AVAILABLE_ELEMENT:
+      Log(log_level, log_prefix + "No available element.");
+      break;
     case ExecuteResult::CUSTOM_ERROR:
       Log(log_level, log_prefix + "Custom error.");
       break;

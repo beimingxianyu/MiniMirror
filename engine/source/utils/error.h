@@ -29,6 +29,7 @@ enum class ExecuteResult : std::uint32_t {
   // rename/delete/create/remove/etc.
   FILE_OPERATION_ERROR,
   SYNCHRONIZE_FAILED,
+  NO_AVAILABLE_ELEMENT,
   CUSTOM_ERROR
 };
 

@@ -1250,6 +1250,26 @@ MM::RenderSystem::ImageView::ImageView(
 }
 
 MM::RenderSystem::ImageView::ImageView(
+    VkDevice device, VkAllocationCallbacks* allocator,
+    const MM::RenderSystem::ImageViewCreateInfo& image_view_create_info)
+    : image_view_wrapper_(), image_view_create_info_(image_view_create_info) {
+  VkImageViewCreateInfo vk_image_view_create_info =
+      image_view_create_info.GetVkImageViewCreateInfo();
+#ifdef CHECK_PARAMETERS
+  MM_CHECK(CheckInitParameters(device, vk_image_view_create_info),
+           image_view_create_info_.Reset();
+           return;)
+#endif
+  VkImageView image_view;
+  MM_VK_CHECK(vkCreateImageView(device, &vk_image_view_create_info, allocator,
+                                &image_view),
+              MM_LOG_ERROR("Failed to create MM::Render::ImageView.");
+              image_view_create_info_.Reset(); return;)
+
+  image_view_wrapper_ = ImageViewWrapper(device, allocator, image_view);
+}
+
+MM::RenderSystem::ImageView::ImageView(
     MM::RenderSystem::ImageView&& other) noexcept
     : image_view_wrapper_(std::move(other.image_view_wrapper_)),
       image_view_create_info_(std::move(other.image_view_create_info_)) {}
@@ -1373,6 +1393,7 @@ MM::RenderSystem::Sampler::Sampler(
       sampler_container_.Find(render_sampler_attribute_ID);
   if (find_resource) {
     sampler_wrapper_ = &(find_resource->second);
+    return;
   }
 
   VkSampler sampler;
@@ -1385,6 +1406,83 @@ MM::RenderSystem::Sampler::Sampler(
       render_sampler_attribute_ID, SamplerWrapper{device, allocator, sampler}));
 
   if (!insert_result.second) {
+    std::uint32_t insert_count = 0;
+    while (insert_count != 3) {
+      std::pair<const RenderSamplerAttributeID, SamplerWrapper>*
+          find_resource2 = sampler_container_.Find(render_sampler_attribute_ID);
+      if (find_resource2) {
+        sampler_wrapper_ = &(find_resource2->second);
+        return;
+      }
+      auto insert_result2 = sampler_container_.Emplace(
+          std::make_pair(render_sampler_attribute_ID,
+                         SamplerWrapper{device, allocator, sampler}));
+      if (insert_result.second) {
+        sampler_wrapper_ = &insert_result.first.second;
+        return;
+      }
+    }
+
+    sampler_create_info_.Reset();
+    vkDestroySampler(device, sampler, allocator);
+    MM_LOG_ERROR("Sampler insert error.");
+    return;
+  }
+
+  sampler_wrapper_ = &insert_result.first.second;
+}
+
+MM::RenderSystem::Sampler::Sampler(
+    VkDevice device, VkAllocationCallbacks* allocator,
+    const MM::RenderSystem::SamplerCreateInfo& sampler_create_info)
+    : sampler_wrapper_(nullptr), sampler_create_info_(sampler_create_info) {
+  VkSamplerCreateInfo vk_sampler_create_info =
+      sampler_create_info.GetVkSamplerCreateInfo();
+#ifdef CHECK_PARAMETERS
+  MM_CHECK(CheckInitParameters(device, vk_sampler_create_info),
+           device = nullptr;
+           allocator = nullptr; sampler_create_info_.Reset(); return;)
+#endif
+  RenderSamplerAttributeID render_sampler_attribute_ID{};
+  MM_CHECK(sampler_create_info_.GetRenderSamplerAttributeID(
+               render_sampler_attribute_ID),
+           sampler_create_info_.Reset();
+           return;)
+
+  std::pair<const RenderSamplerAttributeID, SamplerWrapper>* find_resource =
+      sampler_container_.Find(render_sampler_attribute_ID);
+  if (find_resource) {
+    sampler_wrapper_ = &(find_resource->second);
+    return;
+  }
+
+  VkSampler sampler;
+  MM_VK_CHECK(
+      vkCreateSampler(device, &vk_sampler_create_info, allocator, &sampler),
+      MM_LOG_ERROR("Failed to create MM::Render::Sampler.");
+      sampler_create_info_.Reset(); return;)
+
+  auto insert_result = sampler_container_.Emplace(std::make_pair(
+      render_sampler_attribute_ID, SamplerWrapper{device, allocator, sampler}));
+
+  if (!insert_result.second) {
+    std::uint32_t insert_count = 0;
+    while (insert_count != 3) {
+      std::pair<const RenderSamplerAttributeID, SamplerWrapper>*
+          find_resource2 = sampler_container_.Find(render_sampler_attribute_ID);
+      if (find_resource2) {
+        sampler_wrapper_ = &(find_resource2->second);
+        return;
+      }
+      auto insert_result2 = sampler_container_.Emplace(
+          std::make_pair(render_sampler_attribute_ID,
+                         SamplerWrapper{device, allocator, sampler}));
+      if (insert_result.second) {
+        sampler_wrapper_ = &insert_result.first.second;
+        return;
+      }
+    }
+
     sampler_create_info_.Reset();
     vkDestroySampler(device, sampler, allocator);
     MM_LOG_ERROR("Sampler insert error.");
