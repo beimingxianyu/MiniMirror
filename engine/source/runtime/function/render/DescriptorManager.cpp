@@ -1095,3 +1095,13 @@ void MM::RenderSystem::DescriptorManager::Release() {
     render_engine_ = nullptr;
   }
 }
+
+VkDescriptorSetLayout
+MM::RenderSystem::DescriptorManager::GetGlobalDescriptorSetLayout() const {
+  return global_set_layout_;
+}
+
+VkDescriptorSetLayout
+MM::RenderSystem::DescriptorManager::GetMaterialDescriptorSetLayout() const {
+  return material_set_layout_;
+}

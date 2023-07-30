@@ -1089,5 +1089,6 @@ class ComputePipelineDataInfo {
   VkPipelineCreateFlags flags_;
   VkPipelineLayout layout_;
 };
+
 }  // namespace RenderSystem
 }  // namespace MM

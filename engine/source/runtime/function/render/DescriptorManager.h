@@ -118,6 +118,10 @@ class DescriptorManager {
   void FreeSlot(const std::vector<std::uint32_t>& free_slots,
                 DescriptorType descriptor_type, bool is_global);
 
+  VkDescriptorSetLayout GetGlobalDescriptorSetLayout() const;
+
+  VkDescriptorSetLayout GetMaterialDescriptorSetLayout() const;
+
   bool IsValid() const;
 
   void Release();

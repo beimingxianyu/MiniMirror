@@ -10,8 +10,8 @@ namespace RenderSystem {
 class RenderPipeline {
  public:
   RenderPipeline() = default;
-  ~RenderPipeline() = default;
-  explicit RenderPipeline(VkPipeline pipeline);
+  ~RenderPipeline();
+  RenderPipeline(RenderEngine* render_engine, VkPipeline pipeline);
   RenderPipeline(const RenderPipeline& other) = delete;
   RenderPipeline(RenderPipeline&& other) noexcept;
   RenderPipeline& operator=(const RenderPipeline& other) = delete;
@@ -22,14 +22,20 @@ class RenderPipeline {
 
   VkPipeline GetPipeline() const;
 
+  VkDevice GetDevice() const;
+
+  VkPipelineLayout GetPipelineLayout() const;
+
+  bool IsValid() const;
+
+  void Releasse();
+
  private:
   static ExecuteResult CreatePipelineCache();
 
  private:
+  RenderEngine* render_engine_{nullptr};
   VkPipeline pipeline_{nullptr};
-
-  static VkPipelineCache pipeline_cache_;
-  static std::mutex sync_flag_;
 };
 
 class GraphicsPipeline : public RenderPipeline {

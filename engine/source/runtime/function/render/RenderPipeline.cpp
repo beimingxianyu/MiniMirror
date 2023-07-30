@@ -3,14 +3,22 @@
 //
 
 #include "runtime/function/render/RenderPipeline.h"
-MM::RenderSystem::RenderPipeline::RenderPipeline(VkPipeline pipeline)
-    : pipeline_(pipeline) {
+
+#include "runtime/function/render/vk_engine.h"
+
+MM::RenderSystem::RenderPipeline::~RenderPipeline() { Releasse(); }
+
+MM::RenderSystem::RenderPipeline::RenderPipeline(RenderEngine* render_engine,
+                                                 VkPipeline pipeline)
+    : render_engine_(render_engine), pipeline_(pipeline) {
+  assert(render_engine_ != nullptr);
   assert(pipeline_ != nullptr);
 }
 
 MM::RenderSystem::RenderPipeline::RenderPipeline(
     MM::RenderSystem::RenderPipeline&& other) noexcept
-    : pipeline_(other.pipeline_) {
+    : render_engine_(other.render_engine_), pipeline_(other.pipeline_) {
+  other.render_engine_ = nullptr;
   other.pipeline_ = nullptr;
 }
 
@@ -20,29 +28,27 @@ MM::RenderSystem::RenderPipeline& MM::RenderSystem::RenderPipeline::operator=(
     return *this;
   }
 
+  render_engine_ = other.render_engine_;
   pipeline_ = other.pipeline_;
 
+  other.render_engine_ = nullptr;
   other.pipeline_ = nullptr;
 
   return *this;
 }
 
 VkPipelineCache MM::RenderSystem::RenderPipeline::GetPipelineCache() const {
-  if (pipeline_cache_) {
-  } else {
-    std::lock_guard guard{sync_flag_};
-    if (!pipeline_cache_) {
-      std::vector<char> cache_data;
-      MM_CHECK(MM_FILE_SYSTEM->ReadFile(
-                   MM_FILE_SYSTEM->GetAssetDirCache() + "./.pipeline_cache",
-                   cache_data),
-               MM_CHECK(CreatePipelineCache(),
-                        MM_LOG_FATAL("Failed to create VkPipelineCache.");
-                        return nullptr;))
+  return render_engine_->GetPipelineCache();
+}
 
-      MM::RenderSystem::Utils::IsValidPipelineCacheData()
-    }
-  }
+VkPipeline MM::RenderSystem::RenderPipeline::GetPipeline() const {
+  return pipeline_;
+}
 
-  return pipeline_cache_;
+VkDevice MM::RenderSystem::RenderPipeline::GetDevice() const {
+  return render_engine_->GetDevice();
+}
+
+VkPipelineLayout MM::RenderSystem::RenderPipeline::GetPipelineLayout() const {
+  return render_engine_->GetDescriptorManager().;
 }
