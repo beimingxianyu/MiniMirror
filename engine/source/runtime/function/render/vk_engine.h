@@ -4,8 +4,6 @@
 #include <vulkan/vulkan.h>
 #include <vulkan/vulkan_core.h>
 
-#include "runtime/function/render/RenderResourceDataID.h"
-#include "runtime/platform/base/error.h"
 #define VK_USE_PLATFORM_WIN32_KHR
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
@@ -21,9 +19,12 @@
 #include "runtime/function/render/AllocatedBuffer.h"
 #include "runtime/function/render/AllocatedImage.h"
 #include "runtime/function/render/AllocatedMeshBuffer.h"
+#include "runtime/function/render/DescriptorManager.h"
+#include "runtime/function/render/RenderResourceDataID.h"
 #include "runtime/function/render/import_other_system.h"
 #include "runtime/function/render/vk_command.h"
 #include "runtime/function/render/vk_utils.h"
+#include "runtime/platform/base/error.h"
 #include "runtime/platform/config_system/config_system.h"
 #include "runtime/platform/file_system/file_system.h"
 #include "utils/utils.h"
@@ -251,6 +252,12 @@ class RenderEngine {
 
   bool FormatSupportStore(VkFormat format, VkImageTiling tiling);
 
+  VkPipelineCache GetPipelineCache() const;
+
+  DescriptorManager& GetDescriptorManager();
+
+  const DescriptorManager& GetDescriptorManager() const;
+
  private:
   void InitGlfw();
   void InitVulkan();
@@ -268,6 +275,8 @@ class RenderEngine {
   void InitSwapChainImageView();
   void InitCommandExecutor();
   void FindSupportStorageImageFormat();
+  void InitDescriptorManager();
+  void InitPipelineCache();
 
   std::vector<VkExtensionProperties> GetExtensionProperties();
   bool CheckExtensionSupport(const std::string& extension_name);
@@ -331,10 +340,11 @@ class RenderEngine {
   GLFWwindow* window_{nullptr};
   VkInstance instance_{nullptr};
   VkPhysicalDevice physical_device_{nullptr};
-  VkPhysicalDeviceProperties gpu_properties_;
-  VkPhysicalDeviceFeatures gpu_features_;
-  std::unordered_set<VkFormat> support_storage_format_linear_;
-  std::unordered_set<VkFormat> support_storage_format_optimal_;
+  VkPhysicalDeviceProperties gpu_properties_{};
+  VkPhysicalDeviceFeatures gpu_features_{};
+  std::unordered_set<VkFormat> support_storage_format_linear_{};
+  std::unordered_set<VkFormat> support_storage_format_optimal_{};
+  VkPipelineCache pipeline_cache_{nullptr};
 
   VkDevice device_{nullptr};
   VmaAllocator allocator_{nullptr};
@@ -347,6 +357,7 @@ class RenderEngine {
   VkSwapchainKHR swapchain_{nullptr};
   std::uint64_t rendered_frame_count_{0};
   std::unique_ptr<CommandExecutor> command_executor_{nullptr};
+  DescriptorManager descriptor_manager_{};
 
   RenderEngineInfo render_engine_info_{};
 };

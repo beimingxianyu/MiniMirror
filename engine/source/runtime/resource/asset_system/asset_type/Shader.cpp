@@ -97,9 +97,11 @@ MM::ExecuteResult MM::AssetSystem::AssetType::Shader::LoadShader(
            MM_LOG_ERROR("Failed to get shader file last write time.");
            return MM_RESULT_CODE;)
 
+  const FileSystem::Path &cache_dir(MM_FILE_SYSTEM->GetAssetDirCache());
+  std::string asset_relative_path =
+      shader_path.GetRelativePath(MM_FILE_SYSTEM->GetAssetDir());
   FileSystem::Path compiled_shader_path(
-      std::string(MM_STR(MM_RELATIVE_ASSET_DIR_CACHE)) + "/" +
-      shader_path.GetFileName() +
+      cache_dir + asset_relative_path +
       std::to_string(last_write_time.time_since_epoch().count() << 26));
   if (compiled_shader_path.IsExists()) {
     MM_CHECK(MM_FILE_SYSTEM->ReadFile(compiled_shader_path, data_),

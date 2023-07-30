@@ -11,12 +11,14 @@
 
 #include "runtime/platform/base/cross_platform_header.h"
 #include "runtime/platform/base/error.h"
+#include "utils/marco.h"
 
 namespace MM {
 namespace FileSystem {
 using LastWriteTime = std::filesystem::file_time_type;
 
 class FileSystem;
+class Path;
 
 const std::string g_bin_dir = std::filesystem::current_path().string();
 
@@ -364,6 +366,14 @@ class FileSystem {
 
   ExecuteResult ReadFile(const MM::FileSystem::Path& path,
                          std::vector<char>& output_data) const;
+
+  const Path& GetAssetDir() const;
+
+  const Path& GetAssetDirStd() const;
+
+  const Path& GetAssetDirUser() const;
+
+  const Path& GetAssetDirCache() const;
 
  private:
   /**

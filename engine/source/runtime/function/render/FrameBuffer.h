@@ -12,11 +12,11 @@ class FrameBuffer {
  public:
   FrameBuffer() = default;
   ~FrameBuffer();
-  FrameBuffer(VkDevice device, VkAllocationCallbacks* allocator,
+  FrameBuffer(RenderEngine* render_engine, VkAllocationCallbacks* allocator,
               const VkFramebufferCreateInfo& vk_frame_buffer_create_parameters);
-  FrameBuffer(VkDevice device, VkAllocationCallbacks* allocator,
+  FrameBuffer(RenderEngine* render_engine, VkAllocationCallbacks* allocator,
               const FrameBufferCreateInfo& frame_buffer_create_parameters);
-  FrameBuffer(VkDevice device, VkAllocationCallbacks* allocator,
+  FrameBuffer(RenderEngine* render_Engine, VkAllocationCallbacks* allocator,
               FrameBufferCreateInfo&& frame_buffer_create_parameters);
   FrameBuffer(const FrameBuffer& other) = delete;
   FrameBuffer(FrameBuffer&& other) noexcept;
@@ -40,12 +40,13 @@ class FrameBuffer {
 
  private:
   ExecuteResult CheckInitParameters(
-      VkDevice device, const FrameBufferCreateInfo& frame_buffer_create_info);
+      RenderEngine* render_engine,
+      const FrameBufferCreateInfo& frame_buffer_create_info);
 
  private:
   FrameBufferCreateInfo frame_buffer_create_info_{};
 
-  VkDevice device_{nullptr};
+  RenderEngine* render_engine_{nullptr};
   VkAllocationCallbacks* allocator_{nullptr};
   VkFramebuffer frame_buffer_{nullptr};
 };

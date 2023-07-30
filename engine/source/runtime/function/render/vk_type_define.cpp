@@ -1231,42 +1231,44 @@ MM::RenderSystem::SamplerCreateInfo::GetRenderSamplerAttributeID(
 }
 
 MM::RenderSystem::ImageView::ImageView(
-    VkDevice device, VkAllocationCallbacks* allocator,
+    RenderEngine* render_engine, VkAllocationCallbacks* allocator,
     const VkImageViewCreateInfo& vk_image_view_create_info)
     : image_view_wrapper_(),
       image_view_create_info_(vk_image_view_create_info) {
 #ifdef CHECK_PARAMETERS
-  MM_CHECK(CheckInitParameters(device, vk_image_view_create_info),
+  MM_CHECK(CheckInitParameters(render_engine, vk_image_view_create_info),
            image_view_create_info_.Reset();
            return;)
 #endif
   VkImageView image_view;
-  MM_VK_CHECK(vkCreateImageView(device, &vk_image_view_create_info, allocator,
-                                &image_view),
-              MM_LOG_ERROR("Failed to create MM::Render::ImageView.");
-              image_view_create_info_.Reset(); return;)
+  MM_VK_CHECK(
+      vkCreateImageView(render_engine->GetDevice(), &vk_image_view_create_info,
+                        allocator, &image_view),
+      MM_LOG_ERROR("Failed to create MM::Render::ImageView.");
+      image_view_create_info_.Reset(); return;)
 
-  image_view_wrapper_ = ImageViewWrapper(device, allocator, image_view);
+  image_view_wrapper_ = ImageViewWrapper(render_engine, allocator, image_view);
 }
 
 MM::RenderSystem::ImageView::ImageView(
-    VkDevice device, VkAllocationCallbacks* allocator,
-    const MM::RenderSystem::ImageViewCreateInfo& image_view_create_info)
+    RenderEngine* render_engine, VkAllocationCallbacks* allocator,
+    const ImageViewCreateInfo& image_view_create_info)
     : image_view_wrapper_(), image_view_create_info_(image_view_create_info) {
   VkImageViewCreateInfo vk_image_view_create_info =
       image_view_create_info.GetVkImageViewCreateInfo();
 #ifdef CHECK_PARAMETERS
-  MM_CHECK(CheckInitParameters(device, vk_image_view_create_info),
+  MM_CHECK(CheckInitParameters(render_engine, vk_image_view_create_info),
            image_view_create_info_.Reset();
            return;)
 #endif
   VkImageView image_view;
-  MM_VK_CHECK(vkCreateImageView(device, &vk_image_view_create_info, allocator,
-                                &image_view),
-              MM_LOG_ERROR("Failed to create MM::Render::ImageView.");
-              image_view_create_info_.Reset(); return;)
+  MM_VK_CHECK(
+      vkCreateImageView(render_engine->GetDevice(), &vk_image_view_create_info,
+                        allocator, &image_view),
+      MM_LOG_ERROR("Failed to create MM::Render::ImageView.");
+      image_view_create_info_.Reset(); return;)
 
-  image_view_wrapper_ = ImageViewWrapper(device, allocator, image_view);
+  image_view_wrapper_ = ImageViewWrapper(render_engine, allocator, image_view);
 }
 
 MM::RenderSystem::ImageView::ImageView(
@@ -1287,7 +1289,7 @@ MM::RenderSystem::ImageView& MM::RenderSystem::ImageView::operator=(
 }
 
 const VkDevice_T* MM::RenderSystem::ImageView::GetDevice() const {
-  return image_view_wrapper_.device_;
+  return image_view_wrapper_.render_engine_->GetDevice();
 }
 
 const VkAllocationCallbacks* MM::RenderSystem::ImageView::GetAllocator() const {
@@ -1313,9 +1315,10 @@ void MM::RenderSystem::ImageView::Release() {
 }
 
 MM::ExecuteResult MM::RenderSystem::ImageView::CheckInitParameters(
-    VkDevice device, const VkImageViewCreateInfo& vk_image_view_create_info) {
-  if (device == nullptr) {
-    MM_LOG_ERROR("The incoming engine parameter pointer is null.");
+    RenderEngine* render_engine,
+    const VkImageViewCreateInfo& vk_image_view_create_info) {
+  if (render_engine == nullptr || !render_engine->IsValid()) {
+    MM_LOG_ERROR("The incoming render_engine parameter pointer is null.");
     return ExecuteResult ::INITIALIZATION_FAILED;
   }
 
@@ -1359,7 +1362,7 @@ MM::ExecuteResult MM::RenderSystem::ImageView::CheckInitParameters(
 }
 
 VkDevice MM::RenderSystem::ImageView::GetDevice() {
-  return image_view_wrapper_.device_;
+  return image_view_wrapper_.render_engine_->GetDevice();
 }
 
 VkAllocationCallbacks* MM::RenderSystem::ImageView::GetAllocator() {
@@ -1375,12 +1378,12 @@ MM::Utils::ConcurrentMap<MM::RenderSystem::RenderSamplerAttributeID,
     MM::RenderSystem::Sampler::sampler_container_(512);
 
 MM::RenderSystem::Sampler::Sampler(
-    VkDevice device, VkAllocationCallbacks* allocator,
+    RenderEngine* render_engine, VkAllocationCallbacks* allocator,
     const VkSamplerCreateInfo& vk_sampler_create_info)
     : sampler_wrapper_(nullptr), sampler_create_info_(vk_sampler_create_info) {
 #ifdef CHECK_PARAMETERS
-  MM_CHECK(CheckInitParameters(device, vk_sampler_create_info),
-           device = nullptr;
+  MM_CHECK(CheckInitParameters(render_engine, vk_sampler_create_info),
+           render_engine = nullptr;
            allocator = nullptr; sampler_create_info_.Reset(); return;)
 #endif
   RenderSamplerAttributeID render_sampler_attribute_ID{};
@@ -1397,13 +1400,14 @@ MM::RenderSystem::Sampler::Sampler(
   }
 
   VkSampler sampler;
-  MM_VK_CHECK(
-      vkCreateSampler(device, &vk_sampler_create_info, allocator, &sampler),
-      MM_LOG_ERROR("Failed to create MM::Render::Sampler.");
-      sampler_create_info_.Reset(); return;)
+  MM_VK_CHECK(vkCreateSampler(render_engine->GetDevice(),
+                              &vk_sampler_create_info, allocator, &sampler),
+              MM_LOG_ERROR("Failed to create MM::Render::Sampler.");
+              sampler_create_info_.Reset(); return;)
 
-  auto insert_result = sampler_container_.Emplace(std::make_pair(
-      render_sampler_attribute_ID, SamplerWrapper{device, allocator, sampler}));
+  auto insert_result = sampler_container_.Emplace(
+      std::make_pair(render_sampler_attribute_ID,
+                     SamplerWrapper{render_engine, allocator, sampler}));
 
   if (!insert_result.second) {
     std::uint32_t insert_count = 0;
@@ -1416,7 +1420,7 @@ MM::RenderSystem::Sampler::Sampler(
       }
       auto insert_result2 = sampler_container_.Emplace(
           std::make_pair(render_sampler_attribute_ID,
-                         SamplerWrapper{device, allocator, sampler}));
+                         SamplerWrapper{render_engine, allocator, sampler}));
       if (insert_result.second) {
         sampler_wrapper_ = &insert_result.first.second;
         return;
@@ -1424,7 +1428,7 @@ MM::RenderSystem::Sampler::Sampler(
     }
 
     sampler_create_info_.Reset();
-    vkDestroySampler(device, sampler, allocator);
+    vkDestroySampler(render_engine->GetDevice(), sampler, allocator);
     MM_LOG_ERROR("Sampler insert error.");
     return;
   }
@@ -1432,15 +1436,15 @@ MM::RenderSystem::Sampler::Sampler(
   sampler_wrapper_ = &insert_result.first.second;
 }
 
-MM::RenderSystem::Sampler::Sampler(
-    VkDevice device, VkAllocationCallbacks* allocator,
-    const MM::RenderSystem::SamplerCreateInfo& sampler_create_info)
+MM::RenderSystem::Sampler::Sampler(RenderEngine* render_engine,
+                                   VkAllocationCallbacks* allocator,
+                                   const SamplerCreateInfo& sampler_create_info)
     : sampler_wrapper_(nullptr), sampler_create_info_(sampler_create_info) {
   VkSamplerCreateInfo vk_sampler_create_info =
       sampler_create_info.GetVkSamplerCreateInfo();
 #ifdef CHECK_PARAMETERS
-  MM_CHECK(CheckInitParameters(device, vk_sampler_create_info),
-           device = nullptr;
+  MM_CHECK(CheckInitParameters(render_engine, vk_sampler_create_info),
+           render_engine = nullptr;
            allocator = nullptr; sampler_create_info_.Reset(); return;)
 #endif
   RenderSamplerAttributeID render_sampler_attribute_ID{};
@@ -1457,13 +1461,14 @@ MM::RenderSystem::Sampler::Sampler(
   }
 
   VkSampler sampler;
-  MM_VK_CHECK(
-      vkCreateSampler(device, &vk_sampler_create_info, allocator, &sampler),
-      MM_LOG_ERROR("Failed to create MM::Render::Sampler.");
-      sampler_create_info_.Reset(); return;)
+  MM_VK_CHECK(vkCreateSampler(render_engine->GetDevice(),
+                              &vk_sampler_create_info, allocator, &sampler),
+              MM_LOG_ERROR("Failed to create MM::Render::Sampler.");
+              sampler_create_info_.Reset(); return;)
 
-  auto insert_result = sampler_container_.Emplace(std::make_pair(
-      render_sampler_attribute_ID, SamplerWrapper{device, allocator, sampler}));
+  auto insert_result = sampler_container_.Emplace(
+      std::make_pair(render_sampler_attribute_ID,
+                     SamplerWrapper{render_engine, allocator, sampler}));
 
   if (!insert_result.second) {
     std::uint32_t insert_count = 0;
@@ -1476,7 +1481,7 @@ MM::RenderSystem::Sampler::Sampler(
       }
       auto insert_result2 = sampler_container_.Emplace(
           std::make_pair(render_sampler_attribute_ID,
-                         SamplerWrapper{device, allocator, sampler}));
+                         SamplerWrapper{render_engine, allocator, sampler}));
       if (insert_result.second) {
         sampler_wrapper_ = &insert_result.first.second;
         return;
@@ -1484,7 +1489,7 @@ MM::RenderSystem::Sampler::Sampler(
     }
 
     sampler_create_info_.Reset();
-    vkDestroySampler(device, sampler, allocator);
+    vkDestroySampler(render_engine->GetDevice(), sampler, allocator);
     MM_LOG_ERROR("Sampler insert error.");
     return;
   }
@@ -1513,7 +1518,7 @@ MM::RenderSystem::Sampler& MM::RenderSystem::Sampler::operator=(
 }
 
 const VkDevice_T* MM::RenderSystem::Sampler::GetDevice() const {
-  return sampler_wrapper_->device_;
+  return sampler_wrapper_->render_engine_->GetDevice();
 }
 
 const VkAllocationCallbacks* MM::RenderSystem::Sampler::GetAllocator() const {
@@ -1543,9 +1548,10 @@ void MM::RenderSystem::Sampler::Reset() {
 }
 
 MM::ExecuteResult MM::RenderSystem::Sampler::CheckInitParameters(
-    VkDevice device, const VkSamplerCreateInfo& vk_sampler_create_info) {
-  if (device == nullptr) {
-    MM_LOG_ERROR("The incoming engine parameter pointer is null.");
+    RenderEngine* render_engine,
+    const VkSamplerCreateInfo& vk_sampler_create_info) {
+  if (render_engine == nullptr || !render_engine->IsValid()) {
+    MM_LOG_ERROR("The incoming render_engine parameter pointer is null.");
     return ExecuteResult ::INITIALIZATION_FAILED;
   }
 
@@ -1597,7 +1603,7 @@ MM::ExecuteResult MM::RenderSystem::Sampler::CheckInitParameters(
 }
 
 VkDevice MM::RenderSystem::Sampler::GetDevice() {
-  return sampler_wrapper_->device_;
+  return sampler_wrapper_->render_engine_->GetDevice();
 }
 
 VkAllocationCallbacks* MM::RenderSystem::Sampler::GetAllocator() {
@@ -1609,7 +1615,7 @@ VkSampler MM::RenderSystem::Sampler::GetVkSampler() {
 }
 
 bool MM::RenderSystem::Sampler::SamplerWrapper::IsValid() const {
-  return device_ != nullptr && sampler_ != nullptr;
+  return render_engine_ != nullptr && sampler_ != nullptr;
 }
 
 void MM::RenderSystem::Sampler::SamplerWrapper::Release() {
@@ -1617,19 +1623,20 @@ void MM::RenderSystem::Sampler::SamplerWrapper::Release() {
     return;
   }
 
-  vkDestroySampler(device_, sampler_, allocator_);
+  vkDestroySampler(render_engine_->GetDevice(), sampler_, allocator_);
 
-  device_ = nullptr;
+  render_engine_ = nullptr;
   sampler_ = nullptr;
   allocator_ = nullptr;
 }
 
 MM::RenderSystem::Sampler::SamplerWrapper::SamplerWrapper(
-    VkDevice device, VkAllocationCallbacks* allocator, VkSampler sampler)
-    : device_(device), allocator_(allocator), sampler_(sampler) {}
+    RenderEngine* render_engine, VkAllocationCallbacks* allocator,
+    VkSampler sampler)
+    : render_engine_(render_engine), allocator_(allocator), sampler_(sampler) {}
 
 bool MM::RenderSystem::ImageView::ImageViewWrapper::IsValid() const {
-  return device_ != nullptr && image_view_ != nullptr;
+  return render_engine_ != nullptr && image_view_ != nullptr;
 }
 
 void MM::RenderSystem::ImageView::ImageViewWrapper::Release() {
@@ -1637,16 +1644,23 @@ void MM::RenderSystem::ImageView::ImageViewWrapper::Release() {
     return;
   }
 
-  vkDestroyImageView(device_, image_view_, allocator_);
+  vkDestroyImageView(render_engine_->GetDevice(), image_view_, allocator_);
 
-  device_ = nullptr;
+  render_engine_ = nullptr;
   image_view_ = nullptr;
   allocator_ = nullptr;
 }
 
 MM::RenderSystem::ImageView::ImageViewWrapper::ImageViewWrapper(
-    VkDevice device, VkAllocationCallbacks* allocator, VkImageView image_view)
-    : device_(device), allocator_(allocator), image_view_(image_view) {}
+    RenderEngine* render_engine, VkAllocationCallbacks* allocator,
+    VkImageView image_view)
+    : render_engine_(render_engine),
+      allocator_(allocator),
+      image_view_(image_view) {}
+
+MM::RenderSystem::ImageView::ImageViewWrapper::~ImageViewWrapper() {
+  Release();
+}
 
 MM::RenderSystem::ImageBindData::ImageBindData(
     const MM::RenderSystem::DescriptorSetLayoutBinding& bind,
@@ -3037,6 +3051,221 @@ MM::RenderSystem::RenderPassCreateInfo::RenderPassCreateInfo(
       subpasses_[i].pPreserveAttachments = preserve_attachments;
     }
   }
+}
+
+MM::ExecuteResult MM::RenderSystem::RenderPassCreateInfo::GetRenderPassID(
+    const VkRenderPassCreateInfo& vk_render_pass_create_info,
+    MM::RenderSystem::RenderPassID& render_pass_ID) {
+  render_pass_ID = RenderPassID{0, 0, 0, 0, 0};
+
+  std::uint64_t sub_ID1 = 0;
+  std::uint32_t cycle_offset1 = 0;
+
+  // sub_ID1
+  sub_ID1 |= vk_render_pass_create_info.dependencyCount;
+  sub_ID1 |= vk_render_pass_create_info.subpassCount << 5;
+  sub_ID1 |= vk_render_pass_create_info.attachmentCount << 10;
+  sub_ID1 |= vk_render_pass_create_info.flags << 15;
+  sub_ID1 |= reinterpret_cast<std::uint64_t>(vk_render_pass_create_info.pNext)
+             << 17;
+  render_pass_ID.SetSubID1(sub_ID1);
+  sub_ID1 = 0;
+
+  // sub_ID2
+  cycle_offset1 = 13;
+  for (std::uint32_t i = 0; i != vk_render_pass_create_info.attachmentCount;
+       ++i) {
+    sub_ID1 |= vk_render_pass_create_info.pAttachments[i].flags
+               << cycle_offset1;
+    cycle_offset1 += 1;
+    if (cycle_offset1 > 63) cycle_offset1 -= 64;
+    sub_ID1 |= vk_render_pass_create_info.pAttachments[i].format
+               << cycle_offset1;
+    cycle_offset1 += 8;
+    if (cycle_offset1 > 63) cycle_offset1 -= 64;
+    sub_ID1 |= vk_render_pass_create_info.pAttachments[i].samples
+               << cycle_offset1;
+    cycle_offset1 += 7;
+    if (cycle_offset1 > 63) cycle_offset1 -= 64;
+    sub_ID1 |= vk_render_pass_create_info.pAttachments[i].loadOp
+               << cycle_offset1;
+    cycle_offset1 += 4;
+    if (cycle_offset1 > 63) cycle_offset1 -= 64;
+    sub_ID1 |= vk_render_pass_create_info.pAttachments[i].stencilLoadOp
+               << cycle_offset1;
+    cycle_offset1 += 4;
+    if (cycle_offset1 > 63) cycle_offset1 -= 64;
+    sub_ID1 |= vk_render_pass_create_info.pAttachments[i].storeOp
+               << cycle_offset1;
+    cycle_offset1 += 3;
+    if (cycle_offset1 > 63) cycle_offset1 -= 64;
+    sub_ID1 |= vk_render_pass_create_info.pAttachments[i].stencilStoreOp
+               << cycle_offset1;
+    cycle_offset1 += 3;
+    if (cycle_offset1 > 63) cycle_offset1 -= 64;
+    sub_ID1 |= vk_render_pass_create_info.pAttachments[i].initialLayout
+               << cycle_offset1;
+    cycle_offset1 += 5;
+    if (cycle_offset1 > 63) cycle_offset1 -= 64;
+    sub_ID1 |= vk_render_pass_create_info.pAttachments[i].finalLayout
+               << cycle_offset1;
+    cycle_offset1 += 5;
+    if (cycle_offset1 > 63) cycle_offset1 -= 64;
+  }
+  render_pass_ID.SetSubID2(sub_ID1);
+  sub_ID1 = 0;
+  cycle_offset1 = 0;
+
+  for (std::uint32_t i = 0; i != vk_render_pass_create_info.subpassCount; ++i) {
+    sub_ID1 |= vk_render_pass_create_info.pSubpasses[i].flags << cycle_offset1;
+    cycle_offset1 += 7;
+    if (cycle_offset1 > 63) cycle_offset1 -= 64;
+    sub_ID1 |= vk_render_pass_create_info.pSubpasses[i].pipelineBindPoint
+               << cycle_offset1;
+    cycle_offset1 += 4;
+    if (cycle_offset1 > 63) cycle_offset1 -= 64;
+    sub_ID1 |= vk_render_pass_create_info.pSubpasses[i].inputAttachmentCount
+               << cycle_offset1;
+    cycle_offset1 += 5;
+    if (cycle_offset1 > 63) cycle_offset1 -= 64;
+    sub_ID1 |= vk_render_pass_create_info.pSubpasses[i].colorAttachmentCount
+               << cycle_offset1;
+    cycle_offset1 += 5;
+    if (cycle_offset1 > 63) cycle_offset1 -= 64;
+    sub_ID1 |= vk_render_pass_create_info.pSubpasses[i].preserveAttachmentCount
+               << cycle_offset1;
+    cycle_offset1 += 5;
+    if (cycle_offset1 > 63) cycle_offset1 -= 64;
+    for (std::uint64_t i = 0;
+         i != vk_render_pass_create_info.pSubpasses[i].inputAttachmentCount;
+         ++i) {
+      sub_ID1 |= vk_render_pass_create_info.pSubpasses[i]
+                     .pInputAttachments[i]
+                     .attachment
+                 << cycle_offset1;
+      cycle_offset1 += 5;
+      if (cycle_offset1 > 63) cycle_offset1 -= 64;
+      sub_ID1 |=
+          vk_render_pass_create_info.pSubpasses[i].pInputAttachments[i].layout
+          << cycle_offset1;
+      cycle_offset1 += 5;
+      if (cycle_offset1 > 63) cycle_offset1 -= 64;
+    }
+    if (vk_render_pass_create_info.pSubpasses[i].pColorAttachments) {
+      for (std::uint64_t i = 0;
+           i != vk_render_pass_create_info.pSubpasses[i].colorAttachmentCount;
+           ++i) {
+        sub_ID1 |= vk_render_pass_create_info.pSubpasses[i]
+                       .pColorAttachments[i]
+                       .attachment
+                   << cycle_offset1;
+        cycle_offset1 += 5;
+        if (cycle_offset1 > 63) cycle_offset1 -= 64;
+        sub_ID1 |=
+            vk_render_pass_create_info.pSubpasses[i].pColorAttachments[i].layout
+            << cycle_offset1;
+        cycle_offset1 += 5;
+        if (cycle_offset1 > 63) cycle_offset1 -= 64;
+      }
+    } else if (vk_render_pass_create_info.pSubpasses[i].pResolveAttachments) {
+      for (std::uint64_t i = 0;
+           i != vk_render_pass_create_info.pSubpasses[i].colorAttachmentCount;
+           ++i) {
+        sub_ID1 |= vk_render_pass_create_info.pSubpasses[i]
+                       .pResolveAttachments[i]
+                       .attachment
+                   << cycle_offset1;
+        cycle_offset1 += 5;
+        if (cycle_offset1 > 63) cycle_offset1 -= 64;
+        sub_ID1 |= vk_render_pass_create_info.pSubpasses[i]
+                       .pResolveAttachments[i]
+                       .layout
+                   << cycle_offset1;
+        cycle_offset1 += 5;
+        if (cycle_offset1 > 63) cycle_offset1 -= 64;
+      }
+    } else {
+      sub_ID1 |= static_cast<std::uint64_t>(0) << cycle_offset1;
+      cycle_offset1 += 10;
+      if (cycle_offset1 > 63) cycle_offset1 -= 64;
+    }
+    for (std::uint64_t i = 0;
+         i != vk_render_pass_create_info.pSubpasses[i].colorAttachmentCount;
+         ++i) {
+    }
+    cycle_offset1 += 5;
+    if (cycle_offset1 > 63) cycle_offset1 -= 64;
+    if (vk_render_pass_create_info.pSubpasses[i].pDepthStencilAttachment) {
+      sub_ID1 |= vk_render_pass_create_info.pSubpasses[i]
+                     .pDepthStencilAttachment->attachment
+                 << cycle_offset1;
+      cycle_offset1 += 5;
+      if (cycle_offset1 > 63) cycle_offset1 -= 64;
+      sub_ID1 |= vk_render_pass_create_info.pSubpasses[i]
+                     .pDepthStencilAttachment->layout
+                 << cycle_offset1;
+      cycle_offset1 += 5;
+      if (cycle_offset1 > 63) cycle_offset1 -= 64;
+    } else {
+      sub_ID1 |= static_cast<std::uint64_t>(0) << cycle_offset1;
+      cycle_offset1 += 10;
+      if (cycle_offset1 > 63) cycle_offset1 -= 64;
+    }
+
+    for (std::uint64_t i = 0;
+         i != vk_render_pass_create_info.pSubpasses[i].preserveAttachmentCount;
+         ++i) {
+      sub_ID1 |=
+          static_cast<std::uint64_t>(
+              vk_render_pass_create_info.pSubpasses[i].pPreserveAttachments[i])
+          << cycle_offset1;
+      cycle_offset1 += 5;
+      if (cycle_offset1 > 63) cycle_offset1 -= 64;
+    }
+  }
+  render_pass_ID.SetSubID3(sub_ID1);
+  sub_ID1 = 0;
+  cycle_offset1 = 0;
+
+  std::uint64_t sub_ID2 = 0;
+  std::uint64_t cycle_offset2 = 0;
+  for (std::uint32_t i = 0; i != vk_render_pass_create_info.dependencyCount;
+       ++i) {
+    sub_ID1 |= vk_render_pass_create_info.pDependencies->srcSubpass
+               << cycle_offset1;
+    cycle_offset1 += 5;
+
+    if (cycle_offset1 > 63) cycle_offset1 -= 64;
+    sub_ID1 |= vk_render_pass_create_info.pDependencies->dstSubpass
+               << cycle_offset1;
+    cycle_offset1 += 5;
+    if (cycle_offset1 > 63) cycle_offset1 -= 64;
+    sub_ID1 |= vk_render_pass_create_info.pDependencies->srcStageMask
+               << cycle_offset1;
+    cycle_offset1 += 26;
+    if (cycle_offset1 > 63) cycle_offset1 -= 64;
+    sub_ID1 |= vk_render_pass_create_info.pDependencies->dstStageMask
+               << cycle_offset1;
+    cycle_offset1 += 26;
+    if (cycle_offset1 > 63) cycle_offset1 -= 64;
+
+    sub_ID2 |= vk_render_pass_create_info.pDependencies->dependencyFlags
+               << cycle_offset2;
+    cycle_offset2 += 3;
+    if (cycle_offset1 > 63) cycle_offset1 -= 64;
+    sub_ID2 |= vk_render_pass_create_info.pDependencies->srcAccessMask
+               << cycle_offset2;
+    cycle_offset2 += 28;
+    if (cycle_offset1 > 63) cycle_offset1 -= 64;
+    sub_ID2 |= vk_render_pass_create_info.pDependencies->dstAccessMask
+               << cycle_offset2;
+    cycle_offset2 += 28;
+    if (cycle_offset1 > 63) cycle_offset1 -= 64;
+  }
+  render_pass_ID.SetSubID4(sub_ID1);
+  render_pass_ID.SetSubID5(sub_ID2);
+
+  return ExecuteResult::SUCCESS;
 }
 
 MM::RenderSystem::FrameBufferCreateInfo::FrameBufferCreateInfo(

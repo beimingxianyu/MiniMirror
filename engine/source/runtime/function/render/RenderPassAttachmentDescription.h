@@ -16,21 +16,25 @@ class RenderEngine;
 class RenderPassAttachmentDescription {
   friend class RenderEngine;
 
-  class RenderPassWrapper;
+  class RenderPassAttachmentDescriptionWrapper;
 
  public:
   using RenderPassContainerType =
-      MM::Utils::ConcurrentMap<RenderPassID, RenderPassWrapper>;
+      MM::Utils::ConcurrentMap<RenderPassID,
+                               RenderPassAttachmentDescriptionWrapper>;
 
  public:
   RenderPassAttachmentDescription() = default;
   ~RenderPassAttachmentDescription() = default;
-  explicit RenderPassAttachmentDescription(
-      VkDevice device, VkAllocationCallbacks* allocator,
+  RenderPassAttachmentDescription(
+      RenderEngine* render_engine, VkAllocationCallbacks* allocator,
       const VkRenderPassCreateInfo& vk_render_pass_create_info);
-  explicit RenderPassAttachmentDescription(
-      VkDevice device, VkAllocationCallbacks* allocator,
+  RenderPassAttachmentDescription(
+      RenderEngine* render_engine, VkAllocationCallbacks* allocator,
       const RenderPassCreateInfo& render_pass_create_info);
+  RenderPassAttachmentDescription(
+      RenderEngine* render_engine, VkAllocationCallbacks* allocator,
+      RenderPassCreateInfo&& render_pass_create_info);
   RenderPassAttachmentDescription(
       const RenderPassAttachmentDescription& other) = delete;
   RenderPassAttachmentDescription(
@@ -65,25 +69,43 @@ class RenderPassAttachmentDescription {
   void Reset();
 
  private:
-  ExecuteResult CheckInitParameters(
-      VkDevice device,
-      const RenderPassCreateInfo& render_pass_create_info) const;
+  static ExecuteResult CheckInitParameters(
+      RenderEngine* render_engine,
+      const RenderPassCreateInfo& render_pass_create_info);
+
+  static ExecuteResult CheckInitParameters(
+      RenderEngine* render_engine,
+      const VkRenderPassCreateInfo& render_pass_create_info);
 
   ExecuteResult InitRenderPass(
-      VkDevice device, VkAllocationCallbacks* allocator,
+      RenderEngine* render_engine, VkAllocationCallbacks* allocator,
       const VkRenderPassCreateInfo& vk_render_pass_create_info);
 
+  ExecuteResult InitRenderPass(
+      RenderEngine* render_engine, VkAllocationCallbacks* allocator,
+      const RenderPassCreateInfo& render_pass_create_info);
+
+  ExecuteResult InitRenderPass(RenderEngine* render_engine,
+                               VkAllocationCallbacks* allocator,
+                               RenderPassCreateInfo&& render_pass_create_info);
+
  private:
-  class RenderPassWrapper {
+  class RenderPassAttachmentDescriptionWrapper {
    public:
-    RenderPassWrapper() = default;
-    ~RenderPassWrapper();
-    RenderPassWrapper(VkDevice device, VkAllocationCallbacks* allocator,
-                      VkRenderPass render_pass);
-    RenderPassWrapper(const RenderPassWrapper& other) = delete;
-    RenderPassWrapper(RenderPassWrapper&& other) noexcept;
-    RenderPassWrapper& operator=(const RenderPassWrapper& other) = delete;
-    RenderPassWrapper& operator=(RenderPassWrapper&& other) noexcept;
+    RenderPassAttachmentDescriptionWrapper() = default;
+    ~RenderPassAttachmentDescriptionWrapper();
+    RenderPassAttachmentDescriptionWrapper(
+        RenderEngine* render_engine, VkAllocationCallbacks* allocator,
+        VkRenderPass render_pass,
+        RenderPassCreateInfo&& render_pass_attachment_description_create_info);
+    RenderPassAttachmentDescriptionWrapper(
+        const RenderPassAttachmentDescriptionWrapper& other) = delete;
+    RenderPassAttachmentDescriptionWrapper(
+        RenderPassAttachmentDescriptionWrapper&& other) noexcept;
+    RenderPassAttachmentDescriptionWrapper& operator=(
+        const RenderPassAttachmentDescriptionWrapper& other) = delete;
+    RenderPassAttachmentDescriptionWrapper& operator=(
+        RenderPassAttachmentDescriptionWrapper&& other) noexcept;
 
    public:
     VkDevice GetDevice() const;
@@ -94,14 +116,26 @@ class RenderPassAttachmentDescription {
 
     const VkRenderPass_T* GetRenderPass() const;
 
+    const RenderPassCreateInfo& GetRenderPassAttachmentDescriptorCreateInfo()
+        const;
+
+    const std::vector<VkAttachmentDescription>& GetVkAttachmentDescriptions()
+        const;
+
+    const std::vector<VkSubpassDescription>& GetSubpassDescriptions() const;
+
+    const std::vector<VkSubpassDependency>& GetVkDependencyInfos() const;
+
     bool IsValid() const;
 
     void Release();
 
    private:
-    VkDevice device_{nullptr};
+    RenderEngine* render_engine_{nullptr};
     VkAllocationCallbacks* allocator_{nullptr};
     VkRenderPass render_pass_{nullptr};
+
+    RenderPassCreateInfo render_pass_attachment_description_create_info_{};
   };
 
  private:
@@ -109,9 +143,7 @@ class RenderPassAttachmentDescription {
   static RenderPassContainerType render_pass_container_;
 
  private:
-  RenderPassCreateInfo render_pass_create_info_{};
-
-  RenderPassWrapper* wrapper_{nullptr};
+  RenderPassAttachmentDescriptionWrapper* wrapper_{nullptr};
 };
 
 }  // namespace RenderSystem

@@ -4,12 +4,14 @@
 
 #include "runtime/function/render/FrameBuffer.h"
 
+#include "runtime/function/render/vk_engine.h"
+
 MM::RenderSystem::FrameBuffer::~FrameBuffer() {
-  vkDestroyFramebuffer(device_, frame_buffer_, allocator_);
+  vkDestroyFramebuffer(render_engine_->GetDevice(), frame_buffer_, allocator_);
 }
 
 MM::RenderSystem::FrameBuffer::FrameBuffer(
-    VkDevice device, VkAllocationCallbacks* allocator,
+    RenderEngine* render_engine, VkAllocationCallbacks* allocator,
     const VkFramebufferCreateInfo& vk_frame_buffer_create_parameters)
     : frame_buffer_create_info_(
           vk_frame_buffer_create_parameters.pNext,
@@ -20,61 +22,64 @@ MM::RenderSystem::FrameBuffer::FrameBuffer(
           vk_frame_buffer_create_parameters.width,
           vk_frame_buffer_create_parameters.height,
           vk_frame_buffer_create_parameters.layers),
-      device_(device),
+      render_engine_(render_engine),
       allocator_(allocator),
       frame_buffer_(nullptr) {
 #ifdef CHECK_PARAMETERS
-  MM_CHECK(CheckInitParameters(device, frame_buffer_create_info_),
+  MM_CHECK(CheckInitParameters(render_engine, frame_buffer_create_info_),
+           render_engine_ = nullptr;
+           MM_LOG_ERROR("Input parameters is error."); return;)
+#endif
+
+  VkFramebufferCreateInfo temp_vk_frame_buffer_create_info =
+      frame_buffer_create_info_.GetVkFrameBufferCreateInfo();
+  MM_VK_CHECK(vkCreateFramebuffer(render_engine_->GetDevice(),
+                                  &temp_vk_frame_buffer_create_info, allocator,
+                                  &frame_buffer_),
+              MM_LOG_ERROR("Filed to create VkFramebuffer.");
+              return;)
+}
+
+MM::RenderSystem::FrameBuffer::FrameBuffer(
+    RenderEngine* render_engine, VkAllocationCallbacks* allocator,
+    const FrameBufferCreateInfo& frame_buffer_create_parameters)
+    : frame_buffer_create_info_(frame_buffer_create_parameters),
+      render_engine_(render_engine),
+      allocator_(allocator),
+      frame_buffer_(nullptr) {
+#ifdef CHECK_PARAMETERS
+  MM_CHECK(CheckInitParameters(render_engine, frame_buffer_create_info_),
            MM_LOG_ERROR("Input parameters is error.");
            return;)
 #endif
 
   VkFramebufferCreateInfo temp_vk_frame_buffer_create_info =
       frame_buffer_create_info_.GetVkFrameBufferCreateInfo();
-  MM_VK_CHECK(vkCreateFramebuffer(device_, &temp_vk_frame_buffer_create_info,
-                                  allocator, &frame_buffer_),
+  MM_VK_CHECK(vkCreateFramebuffer(render_engine_->GetDevice(),
+                                  &temp_vk_frame_buffer_create_info, allocator,
+                                  &frame_buffer_),
               MM_LOG_ERROR("Filed to create VkFramebuffer.");
               return;)
 }
 
 MM::RenderSystem::FrameBuffer::FrameBuffer(
-    VkDevice device, VkAllocationCallbacks* allocator,
-    const FrameBufferCreateInfo& frame_buffer_create_info)
-    : frame_buffer_create_info_(frame_buffer_create_info),
-      device_(device),
-      allocator_(allocator),
-      frame_buffer_(nullptr) {
-#ifdef CHECK_PARAMETERS
-  MM_CHECK(CheckInitParameters(device, frame_buffer_create_info_),
-           MM_LOG_ERROR("Input parameters is error.");
-           return;)
-#endif
-
-  VkFramebufferCreateInfo temp_vk_frame_buffer_create_info =
-      frame_buffer_create_info_.GetVkFrameBufferCreateInfo();
-  MM_VK_CHECK(vkCreateFramebuffer(device_, &temp_vk_frame_buffer_create_info,
-                                  allocator, &frame_buffer_),
-              MM_LOG_ERROR("Filed to create VkFramebuffer.");
-              return;)
-}
-
-MM::RenderSystem::FrameBuffer::FrameBuffer(
-    VkDevice device, VkAllocationCallbacks* allocator,
-    MM::RenderSystem::FrameBufferCreateInfo&& frame_buffer_create_parameters)
+    RenderEngine* render_Engine, VkAllocationCallbacks* allocator,
+    FrameBufferCreateInfo&& frame_buffer_create_parameters)
     : frame_buffer_create_info_(std::move(frame_buffer_create_parameters)),
-      device_(device),
+      render_engine_(render_Engine),
       allocator_(allocator),
       frame_buffer_(nullptr) {
 #ifdef CHECK_PARAMETERS
-  MM_CHECK(CheckInitParameters(device, frame_buffer_create_parameters),
+  MM_CHECK(CheckInitParameters(render_Engine, frame_buffer_create_parameters),
            MM_LOG_ERROR("Input parameters is error.");
            return;)
 #endif
 
   VkFramebufferCreateInfo temp_vk_frame_buffer_create_info =
       frame_buffer_create_info_.GetVkFrameBufferCreateInfo();
-  MM_VK_CHECK(vkCreateFramebuffer(device_, &temp_vk_frame_buffer_create_info,
-                                  allocator, &frame_buffer_),
+  MM_VK_CHECK(vkCreateFramebuffer(render_engine_->GetDevice(),
+                                  &temp_vk_frame_buffer_create_info, allocator,
+                                  &frame_buffer_),
               MM_LOG_ERROR("Filed to create VkFramebuffer.");
               return;)
 }
@@ -82,10 +87,10 @@ MM::RenderSystem::FrameBuffer::FrameBuffer(
 MM::RenderSystem::FrameBuffer::FrameBuffer(
     MM::RenderSystem::FrameBuffer&& other) noexcept
     : frame_buffer_create_info_(std::move(other.frame_buffer_create_info_)),
-      device_(other.device_),
+      render_engine_(other.render_engine_),
       allocator_(other.allocator_),
       frame_buffer_(other.frame_buffer_) {
-  other.device_ = nullptr;
+  other.render_engine_ = nullptr;
   other.allocator_ = nullptr;
   other.frame_buffer_ = nullptr;
 }
@@ -97,11 +102,11 @@ MM::RenderSystem::FrameBuffer& MM::RenderSystem::FrameBuffer::operator=(
   }
 
   frame_buffer_create_info_ = std::move(other.frame_buffer_create_info_);
-  device_ = other.device_;
+  render_engine_ = other.render_engine_;
   allocator_ = other.allocator_;
   frame_buffer_ = other.frame_buffer_;
 
-  other.device_ = nullptr;
+  other.render_engine_ = nullptr;
   other.allocator_ = nullptr;
   other.frame_buffer_ = nullptr;
 
@@ -118,7 +123,9 @@ const std::vector<VkImageView> MM::RenderSystem::FrameBuffer::GetImageVIew()
   return frame_buffer_create_info_.attachments_;
 }
 
-VkDevice MM::RenderSystem::FrameBuffer::GetDevice() const { return device_; }
+VkDevice MM::RenderSystem::FrameBuffer::GetDevice() const {
+  return render_engine_->GetDevice();
+}
 
 VkAllocationCallbacks* MM::RenderSystem::FrameBuffer::GetAlloctor() const {
   return allocator_;
@@ -138,10 +145,10 @@ MM::ExecuteResult MM::RenderSystem::FrameBuffer::GetFrameBufferID(
 }
 
 MM::ExecuteResult MM::RenderSystem::FrameBuffer::CheckInitParameters(
-    VkDevice device,
-    const MM::RenderSystem::FrameBufferCreateInfo& frame_buffer_create_info) {
-  if (device == nullptr) {
-    MM_LOG_ERROR("The input parameter device must invalid.");
+    RenderEngine* render_engine,
+    const FrameBufferCreateInfo& frame_buffer_create_info) {
+  if (render_engine == nullptr || render_engine->IsValid()) {
+    MM_LOG_ERROR("The input parameter render_engine must invalid.");
     return MM::ExecuteResult ::INITIALIZATION_FAILED;
   }
 

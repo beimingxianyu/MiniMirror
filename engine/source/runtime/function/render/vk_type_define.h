@@ -289,6 +289,8 @@ struct AllocationCreateInfo {
 };
 
 struct ImageCreateInfo {
+  friend class ImageDataInfo;
+
   ImageCreateInfo() = default;
   ~ImageCreateInfo() = default;
   ImageCreateInfo(uint64_t image_size, VkImageLayout image_layout,
@@ -307,9 +309,12 @@ struct ImageCreateInfo {
   ImageCreateInfo& operator=(const ImageCreateInfo& other);
   ImageCreateInfo& operator=(ImageCreateInfo&& other) noexcept;
 
+ private:
+  const void* next_{nullptr};
+
+ public:
   std::uint64_t image_size_{0};
   VkImageLayout image_layout_{VK_IMAGE_LAYOUT_MAX_ENUM};
-  const void* next_{nullptr};
   VkImageCreateFlags flags_{VK_IMAGE_CREATE_FLAG_BITS_MAX_ENUM};
   VkImageType image_type_{VK_IMAGE_TYPE_MAX_ENUM};
   VkFormat format_{VK_FORMAT_MAX_ENUM};
@@ -415,6 +420,9 @@ struct ImageDataInfo {
 };
 
 struct BufferCreateInfo {
+  friend class BufferDataInfo;
+  friend class MeshBufferInfoBase;
+
   BufferCreateInfo() = default;
   ~BufferCreateInfo() = default;
   BufferCreateInfo(const void* next, VkBufferCreateFlags flags,
@@ -427,7 +435,10 @@ struct BufferCreateInfo {
   BufferCreateInfo& operator=(const BufferCreateInfo& other);
   BufferCreateInfo& operator=(BufferCreateInfo&& other) noexcept;
 
+ private:
   const void* next_;
+
+ public:
   VkBufferCreateFlags flags_;
   VkDeviceSize size_;
   VkBufferUsageFlags usage_;
@@ -583,7 +594,10 @@ struct ImageViewCreateInfo {
   ImageViewCreateInfo& operator=(const ImageViewCreateInfo& other) = default;
   ImageViewCreateInfo& operator=(ImageViewCreateInfo&& other) noexcept;
 
+ private:
   const void* next_{nullptr};
+
+ public:
   VkImageCreateFlags flags_{VK_IMAGE_CREATE_FLAG_BITS_MAX_ENUM};
   VkImage image_{nullptr};
   VkImageViewType view_type_{VK_IMAGE_VIEW_TYPE_MAX_ENUM};
@@ -626,7 +640,10 @@ struct SamplerCreateInfo {
   SamplerCreateInfo& operator=(const SamplerCreateInfo& other) = default;
   SamplerCreateInfo& operator=(SamplerCreateInfo&& other) noexcept;
 
+ private:
   const void* next_{nullptr};
+
+ public:
   VkSamplerCreateFlags flags_{VK_SAMPLER_CREATE_FLAG_BITS_MAX_ENUM};
   VkFilter mag_filter_{VK_FILTER_MAX_ENUM};
   VkFilter min_filter_{VK_FILTER_MAX_ENUM};
@@ -661,9 +678,9 @@ class ImageView {
  public:
   ImageView() = default;
   ~ImageView() = default;
-  ImageView(VkDevice device, VkAllocationCallbacks* allocator,
+  ImageView(RenderEngine* render_engine, VkAllocationCallbacks* allocator,
             const VkImageViewCreateInfo& vk_image_view_create_info);
-  ImageView(VkDevice device, VkAllocationCallbacks* allocator,
+  ImageView(RenderEngine* render_engine, VkAllocationCallbacks* allocator,
             const ImageViewCreateInfo& image_view_create_info);
   ImageView(const ImageView& other) = delete;
   ImageView(ImageView&& other) noexcept;
@@ -691,20 +708,21 @@ class ImageView {
 
  private:
   static ExecuteResult CheckInitParameters(
-      VkDevice device, const VkImageViewCreateInfo& vk_image_view_create_info);
+      RenderEngine* render_engine,
+      const VkImageViewCreateInfo& vk_image_view_create_info);
 
  private:
   struct ImageViewWrapper {
     ImageViewWrapper() = default;
-    ~ImageViewWrapper() { Release(); }
-    ImageViewWrapper(VkDevice device, VkAllocationCallbacks* allocator,
-                     VkImageView image_view);
+    ~ImageViewWrapper();
+    ImageViewWrapper(RenderEngine* render_engine,
+                     VkAllocationCallbacks* allocator, VkImageView image_view);
     ImageViewWrapper(const ImageViewWrapper& other) = default;
     ImageViewWrapper(ImageViewWrapper&& other) noexcept = default;
     ImageViewWrapper& operator=(const ImageViewWrapper& other) = default;
     ImageViewWrapper& operator=(ImageViewWrapper&& other) noexcept = default;
 
-    VkDevice device_{nullptr};
+    RenderEngine* render_engine_{nullptr};
     VkAllocationCallbacks* allocator_{nullptr};
     VkImageView image_view_{nullptr};
 
@@ -724,9 +742,9 @@ class Sampler {
  public:
   Sampler() = default;
   ~Sampler() = default;
-  Sampler(VkDevice device, VkAllocationCallbacks* allocator,
+  Sampler(RenderEngine* render_engine, VkAllocationCallbacks* allocator,
           const VkSamplerCreateInfo& vk_sampler_create_info);
-  Sampler(VkDevice device, VkAllocationCallbacks* allocator,
+  Sampler(RenderEngine* render_engine, VkAllocationCallbacks* allocator,
           const SamplerCreateInfo& sampler_create_info);
   Sampler(const Sampler& other) = delete;
   Sampler(Sampler&& other) noexcept;
@@ -754,14 +772,15 @@ class Sampler {
 
  private:
   static ExecuteResult CheckInitParameters(
-      VkDevice device, const VkSamplerCreateInfo& vk_sampler_create_info);
+      RenderEngine* render_engine,
+      const VkSamplerCreateInfo& vk_sampler_create_info);
 
  private:
   struct SamplerWrapper {
     SamplerWrapper() = default;
     ~SamplerWrapper() { Release(); }
-    SamplerWrapper(VkDevice device, VkAllocationCallbacks* allocator,
-                   VkSampler sampler);
+    SamplerWrapper(RenderEngine* render_engine,
+                   VkAllocationCallbacks* allocator, VkSampler sampler);
     SamplerWrapper(const SamplerWrapper& other) = default;
     SamplerWrapper(SamplerWrapper&& other) noexcept = default;
     SamplerWrapper& operator=(const SamplerWrapper& other) = default;
@@ -771,7 +790,7 @@ class Sampler {
 
     void Release();
 
-    VkDevice device_{nullptr};
+    RenderEngine* render_engine_{nullptr};
     VkAllocationCallbacks* allocator_{nullptr};
     VkSampler sampler_{nullptr};
   };
@@ -943,7 +962,14 @@ struct RenderPassCreateInfo {
       const RenderPassCreateInfo& render_pass_create_info,
       RenderPassID& render_pass_ID);
 
-  const void* next_;
+  static ExecuteResult GetRenderPassID(
+      const VkRenderPassCreateInfo& vk_render_pass_create_info,
+      RenderPassID& render_pass_ID);
+
+ private:
+  const void* next_{nullptr};
+
+ public:
   VkRenderPassCreateFlags flags_;
   std::vector<VkAttachmentDescription> attachments_;
   std::vector<VkSubpassDescription> subpasses_;
@@ -979,13 +1005,89 @@ struct FrameBufferCreateInfo {
       const MM::RenderSystem::FrameBufferCreateInfo& frame_buffer_create_info,
       MM::RenderSystem::FrameBufferID& frame_buffer_ID);
 
+ private:
   const void* next_;
+
+ public:
   VkFramebufferCreateFlags flags_;
   VkRenderPass render_pass_;
   std::vector<VkImageView> attachments_;
   uint32_t width_;
   uint32_t height_;
   uint32_t layers_;
+};
+
+struct PipelineTessellationStateCreateInfo {
+  VkPipelineTessellationStateCreateFlags flags{};
+  uint32_t patchControlPoints{};
+};
+
+struct PipelineRasterizationStateCreateInfo {
+  VkPipelineRasterizationStateCreateFlags flags{};
+  bool depth_clamp_enable{};
+  bool rasterizer_discard_enable{};
+  VkPolygonMode polygon_mode{};
+  VkCullModeFlags cull_mode{};
+  VkFrontFace front_face{};
+  bool depth_bias_enable{};
+  float depth_bias_constant_factor{};
+  float depth_bias_clamp{};
+  float depth_bias_slope_factor{};
+  float line_idth{};
+};
+
+struct PipelineMultisampleStateCreateInfo {
+  VkPipelineMultisampleStateCreateFlags flags_{};
+  VkSampleCountFlagBits rasterization_samples_{};
+  bool sample_shading_enable_{};
+  float min_sample_shading_{};
+  VkSampleMask sample_mask_{};
+  bool alpha_to_coverage_enable_{};
+  bool alpha_to_one_enable_{};
+};
+
+struct PipelineDepthStencilStateCreateInfo {
+  VkPipelineDepthStencilStateCreateFlags flags_{};
+  bool depth_test_enable_{};
+  bool depth_write_enable_{};
+  VkCompareOp depth_compare_op_{};
+  bool depth_bounds_test_enable_{};
+  bool stencil_test_enable_{};
+  VkStencilOpState front_{};
+  VkStencilOpState back_{};
+  float min_depth_bounds_{};
+  float max_depth_bounds_{};
+};
+
+struct PipelineColorBlendStateCreateInfo {
+  VkPipelineColorBlendStateCreateFlags flags_{};
+  VkBool32 logic_op_enable_{};
+  VkLogicOp logic_op_{};
+  std::vector<VkPipelineColorBlendAttachmentState> attachments_{};
+  std::array<float, 4> blend_constants_{};
+};
+
+struct PipelineDynamicStateCreateInfo {
+  VkPipelineDynamicStateCreateFlags flags_{};
+  DynamicState dynamic_state_{};
+};
+
+struct GraphicsPipelineDataInfo {
+  VkPipelineCreateFlags flags_;
+  PipelineTessellationStateCreateInfo tessellation_state_;
+  PipelineRasterizationStateCreateInfo rasterization_state_;
+  PipelineMultisampleStateCreateInfo multisample_state_;
+  PipelineDepthStencilStateCreateInfo depth_stencil_state_;
+  PipelineColorBlendStateCreateInfo color_blend_state_;
+  PipelineDynamicStateCreateInfo dynamic_state_;
+  VkPipelineLayout layout_;
+  VkRenderPass render_pass_;
+  uint32_t subpass_;
+};
+
+class ComputePipelineDataInfo {
+  VkPipelineCreateFlags flags_;
+  VkPipelineLayout layout_;
 };
 }  // namespace RenderSystem
 }  // namespace MM

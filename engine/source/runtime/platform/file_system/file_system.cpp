@@ -157,8 +157,11 @@ std::string MM::FileSystem::Path::GetRelativePath(const Path& root_path) const {
     }
 
     if (original_path_string[index] == '/') {
-      original_path_parts.emplace_back(
-          original_path_string.substr(last, index - last));
+      std::size_t len = index - last;
+      if (len != 0) {
+        original_path_parts.emplace_back(
+            original_path_string.substr(last, len));
+      }
       last = index + 1;
     }
   }
@@ -171,7 +174,10 @@ std::string MM::FileSystem::Path::GetRelativePath(const Path& root_path) const {
       break;
     }
     if (root_path_string[index] == '/') {
-      root_path_parts.emplace_back(root_path_string.substr(last, index - last));
+      std::size_t len = index - last;
+      if (len != 0) {
+        root_path_parts.emplace_back(root_path_string.substr(last, len));
+      }
       last = index + 1;
     }
   }
@@ -687,4 +693,30 @@ MM::ExecuteResult MM::FileSystem::FileSystem::GetLastWriteTime(
   }
 
   return ExecuteResult::SUCCESS;
+}
+
+const MM::FileSystem::Path& MM::FileSystem::FileSystem::GetAssetDir() const {
+  static Path asset_path(MM_STR(MM_RELATIVE_ASSET_DIR));
+
+  return asset_path;
+}
+
+const MM::FileSystem::Path& MM::FileSystem::FileSystem::GetAssetDirStd() const {
+  static Path asset_std_path(MM_STR(MM_RELATIVE_ASSET_DIR_STD));
+
+  return asset_std_path;
+}
+
+const MM::FileSystem::Path& MM::FileSystem::FileSystem::GetAssetDirUser()
+    const {
+  static Path asset_user_path(MM_STR(MM_RELATIVE_ASSET_DIR_USER));
+
+  return asset_user_path;
+}
+
+const MM::FileSystem::Path& MM::FileSystem::FileSystem::GetAssetDirCache()
+    const {
+  static Path asset_cache_path(MM_STR(MM_RELATIVE_ASSET_DIR_CACHE));
+
+  return asset_cache_path;
 }

@@ -27,6 +27,9 @@ void MM::RenderSystem::RenderEngine::CleanUp() {
     // vkDestroyCommandPool(device_, compute_command_pool_, nullptr);
     // vkDestroyCommandPool(device_, graph_command_pool_, nullptr);
 
+    MM::RenderSystem::Utils::SavePiplineCache(GetDevice(), pipeline_cache_);
+    vkDestroyPipelineCache(device_, pipeline_cache_, nullptr);
+
     for (VkImageView swapchain_image_view : swapchain_image_views_) {
       vkDestroyImageView(device_, swapchain_image_view, nullptr);
     }
@@ -1438,6 +1441,7 @@ void MM::RenderSystem::RenderEngine::InitVulkan() {
   FindSupportStorageImageFormat();
   InitSwapChain();
   InitCommandExecutor();
+  InitPipelineCache();
 }
 
 void MM::RenderSystem::RenderEngine::InitInfo() { ChooseMultiSampleCount(); }
@@ -2349,6 +2353,31 @@ void MM::RenderSystem::RenderEngine::FindSupportStorageImageFormat() {
   }
 }
 
+void MM::RenderSystem::RenderEngine::InitPipelineCache() {
+  std::vector<char> cache_data;
+  bool valid = true;
+  FileSystem::Path pipeline_cache_path =
+      MM_FILE_SYSTEM->GetAssetDirCache() + "./.pipeline_cache";
+  MM_CHECK(MM_FILE_SYSTEM->ReadFile(pipeline_cache_path, cache_data),
+           valid = false;)
+  if (valid) {
+    valid &= MM::RenderSystem::Utils::IsValidPipelineCacheData(
+        pipeline_cache_path.String(), cache_data.data(), cache_data.size(),
+        GetPhysicalDeviceProperties());
+  }
+
+  VkPipelineCacheCreateInfo pipeline_cache_create_info{};
+  pipeline_cache_create_info.sType =
+      VK_STRUCTURE_TYPE_PIPELINE_CACHE_CREATE_INFO;
+  pipeline_cache_create_info.pNext = nullptr;
+  pipeline_cache_create_info.initialDataSize = valid ? cache_data.size() : 0;
+  pipeline_cache_create_info.pInitialData = valid ? cache_data.data() : nullptr;
+
+  MM_VK_CHECK(vkCreatePipelineCache(GetDevice(), &pipeline_cache_create_info,
+                                    nullptr, &pipeline_cache_),
+              MM_LOG_FATAL("Failed to create VkPipelineCache.");)
+}
+
 bool MM::RenderSystem::RenderEngine::FormatSupportStore(VkFormat format,
                                                         VkImageTiling tiling) {
   if (tiling == VK_IMAGE_TILING_LINEAR) {
@@ -2359,4 +2388,24 @@ bool MM::RenderSystem::RenderEngine::FormatSupportStore(VkFormat format,
   }
 
   return false;
+}
+
+VkPipelineCache MM::RenderSystem::RenderEngine::GetPipelineCache() const {
+  return pipeline_cache_;
+}
+
+void MM::RenderSystem::RenderEngine::InitDescriptorManager() {
+  descriptor_manager_ =
+      std::move(DescriptorManager(this, nullptr, 1024, 1024, 1024, 1024, 1024,
+                                  1024, 8192, 8192, 8192, 8192, 8192, 8192));
+}
+
+MM::RenderSystem::DescriptorManager&
+MM::RenderSystem::RenderEngine::GetDescriptorManager() {
+  return descriptor_manager_;
+}
+
+const MM::RenderSystem::DescriptorManager&
+MM::RenderSystem::RenderEngine::GetDescriptorManager() const {
+  return descriptor_manager_;
 }
