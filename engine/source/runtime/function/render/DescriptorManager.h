@@ -122,6 +122,40 @@ class DescriptorManager {
 
   VkDescriptorSetLayout GetMaterialDescriptorSetLayout() const;
 
+  VkPipelineLayout GetDefaultPipelineLayout0() const;
+
+  VkPipelineLayout GetDefaultPipelineLayout1() const;
+
+  VkPipelineLayout GetDefaultPipelineLayout2() const;
+
+  VkPipelineLayout GetDefaultPipelineLayout3() const;
+
+  VkPipelineLayout GetDefaultPipelineLayout4() const;
+
+  VkPipelineLayout GetDefaultPipelineLayout5() const;
+
+  VkPipelineLayout GetDefaultPipelineLayout6() const;
+
+  VkPipelineLayout GetDefaultPipelineLayout7() const;
+
+  VkPipelineLayout GetDefaultPipelineLayout8() const;
+
+  VkPipelineLayout GetDefaultPipelineLayout9() const;
+
+  VkPipelineLayout GetDefaultPipelineLayout10() const;
+
+  VkPipelineLayout GetDefaultPipelineLayout11() const;
+
+  VkPipelineLayout GetDefaultPipelineLayout12() const;
+
+  VkPipelineLayout GetDefaultPipelineLayout13() const;
+
+  VkPipelineLayout GetDefaultPipelineLayout14() const;
+
+  VkPipelineLayout GetDefaultPipelineLayout15() const;
+
+  VkPipelineLayout GetDefaultPipelineLayout16() const;
+
   bool IsValid() const;
 
   void Release();
@@ -140,6 +174,10 @@ class DescriptorManager {
       std::uint32_t storage_texture2D_descriptor_element_count,
       std::uint32_t storage_texture3D_descriptor_element_count,
       std::uint32_t storage_textureCUBE_descriptor_element_count);
+
+  ExecuteResult CreatePipelineLayout();
+
+  void CleanPipelineLayout();
 
   ExecuteResult AllocateSlot(std::uint32_t& free_slot,
                              std::atomic_uint32_t& last_use_index,
@@ -194,6 +232,24 @@ class DescriptorManager {
   std::atomic_uint32_t storage_texture2D_last_use_index_{};
   std::atomic_uint32_t storage_texture3D_last_use_index_{};
   std::atomic_uint32_t storage_textureCUBE_last_use_index_{};
+
+  VkPipelineLayout pipeline_layout0_{nullptr};
+  VkPipelineLayout pipeline_layout1_{nullptr};
+  VkPipelineLayout pipeline_layout2_{nullptr};
+  VkPipelineLayout pipeline_layout3_{nullptr};
+  VkPipelineLayout pipeline_layout4_{nullptr};
+  VkPipelineLayout pipeline_layout5_{nullptr};
+  VkPipelineLayout pipeline_layout6_{nullptr};
+  VkPipelineLayout pipeline_layout7_{nullptr};
+  VkPipelineLayout pipeline_layout8_{nullptr};
+  VkPipelineLayout pipeline_layout9_{nullptr};
+  VkPipelineLayout pipeline_layout10_{nullptr};
+  VkPipelineLayout pipeline_layout11_{nullptr};
+  VkPipelineLayout pipeline_layout12_{nullptr};
+  VkPipelineLayout pipeline_layout13_{nullptr};
+  VkPipelineLayout pipeline_layout14_{nullptr};
+  VkPipelineLayout pipeline_layout15_{nullptr};
+  VkPipelineLayout pipeline_layout16_{nullptr};
 };
 
 }  // namespace RenderSystem

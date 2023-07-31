@@ -42,7 +42,24 @@ MM::RenderSystem::DescriptorManager::DescriptorManager(
       sampler_textureCUBE_last_use_index_(),
       storage_texture2D_last_use_index_(),
       storage_texture3D_last_use_index_(),
-      storage_textureCUBE_last_use_index_() {
+      storage_textureCUBE_last_use_index_(),
+      pipeline_layout0_(nullptr),
+      pipeline_layout1_(nullptr),
+      pipeline_layout2_(nullptr),
+      pipeline_layout3_(nullptr),
+      pipeline_layout4_(nullptr),
+      pipeline_layout5_(nullptr),
+      pipeline_layout6_(nullptr),
+      pipeline_layout7_(nullptr),
+      pipeline_layout8_(nullptr),
+      pipeline_layout9_(nullptr),
+      pipeline_layout10_(nullptr),
+      pipeline_layout11_(nullptr),
+      pipeline_layout12_(nullptr),
+      pipeline_layout13_(nullptr),
+      pipeline_layout14_(nullptr),
+      pipeline_layout15_(nullptr),
+      pipeline_layout16_(nullptr) {
   if (render_engine_ == nullptr || !render_engine_->IsValid()) {
     MM_LOG_ERROR("The input parameter render_engine is invalid.");
     return;
@@ -103,7 +120,24 @@ MM::RenderSystem::DescriptorManager::DescriptorManager(
       sampler_textureCUBE_last_use_index_(),
       storage_texture2D_last_use_index_(),
       storage_texture3D_last_use_index_(),
-      storage_textureCUBE_last_use_index_() {
+      storage_textureCUBE_last_use_index_(),
+      pipeline_layout0_(nullptr),
+      pipeline_layout1_(nullptr),
+      pipeline_layout2_(nullptr),
+      pipeline_layout3_(nullptr),
+      pipeline_layout4_(nullptr),
+      pipeline_layout5_(nullptr),
+      pipeline_layout6_(nullptr),
+      pipeline_layout7_(nullptr),
+      pipeline_layout8_(nullptr),
+      pipeline_layout9_(nullptr),
+      pipeline_layout10_(nullptr),
+      pipeline_layout11_(nullptr),
+      pipeline_layout12_(nullptr),
+      pipeline_layout13_(nullptr),
+      pipeline_layout14_(nullptr),
+      pipeline_layout15_(nullptr),
+      pipeline_layout16_(nullptr) {
   if (render_engine_ == nullptr || !render_engine_->IsValid()) {
     MM_LOG_ERROR("The input parameter render_engine is invalid.");
     return;
@@ -288,6 +322,7 @@ MM::Utils::ExecuteResult MM::RenderSystem::DescriptorManager::
         std::uint32_t dest_array_element, std::uint32_t descriptor_count,
         const VkDescriptorImageInfo* image_info,
         VkWriteDescriptorSet& output) const {
+  assert(IsValid());
   output = VkWriteDescriptorSet{VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
                                 nullptr,
                                 global_set_,
@@ -307,6 +342,7 @@ MM::Utils::ExecuteResult MM::RenderSystem::DescriptorManager::
         std::uint32_t dest_array_element, std::uint32_t descriptor_count,
         const VkDescriptorImageInfo* image_info,
         VkWriteDescriptorSet& output) const {
+  assert(IsValid());
   output = VkWriteDescriptorSet{VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
                                 nullptr,
                                 global_set_,
@@ -326,6 +362,7 @@ MM::Utils::ExecuteResult MM::RenderSystem::DescriptorManager::
         std::uint32_t dest_array_element, std::uint32_t descriptor_count,
         const VkDescriptorImageInfo* image_info,
         VkWriteDescriptorSet& output) const {
+  assert(IsValid());
   output = VkWriteDescriptorSet{VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
                                 nullptr,
                                 global_set_,
@@ -345,6 +382,7 @@ MM::Utils::ExecuteResult MM::RenderSystem::DescriptorManager::
         std::uint32_t dest_array_element, std::uint32_t descriptor_count,
         const VkDescriptorImageInfo* image_info,
         VkWriteDescriptorSet& output) const {
+  assert(IsValid());
   output = VkWriteDescriptorSet{VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
                                 nullptr,
                                 global_set_,
@@ -364,6 +402,7 @@ MM::Utils::ExecuteResult MM::RenderSystem::DescriptorManager::
         std::uint32_t dest_array_element, std::uint32_t descriptor_count,
         const VkDescriptorImageInfo* image_info,
         VkWriteDescriptorSet& output) const {
+  assert(IsValid());
   output = VkWriteDescriptorSet{VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
                                 nullptr,
                                 global_set_,
@@ -383,6 +422,7 @@ MM::Utils::ExecuteResult MM::RenderSystem::DescriptorManager::
         std::uint32_t dest_array_element, std::uint32_t descriptor_count,
         const VkDescriptorImageInfo* image_info,
         VkWriteDescriptorSet& output) const {
+  assert(IsValid());
   output = VkWriteDescriptorSet{VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
                                 nullptr,
                                 global_set_,
@@ -402,6 +442,7 @@ MM::RenderSystem::DescriptorManager::GetSamplerTexture2DDescriptorWriteInfo(
     std::uint32_t dest_array_element, std::uint32_t descriptor_count,
     const VkDescriptorImageInfo* image_info,
     VkWriteDescriptorSet& output) const {
+  assert(IsValid());
   output = VkWriteDescriptorSet{VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
                                 nullptr,
                                 material_set_,
@@ -421,6 +462,7 @@ MM::RenderSystem::DescriptorManager::GetSamplerTexture3DDescriptorWriteInfo(
     std::uint32_t dest_array_element, std::uint32_t descriptor_count,
     const VkDescriptorImageInfo* image_info,
     VkWriteDescriptorSet& output) const {
+  assert(IsValid());
   output = VkWriteDescriptorSet{VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
                                 nullptr,
                                 material_set_,
@@ -440,6 +482,7 @@ MM::RenderSystem::DescriptorManager::GetSamplerTextureCUBEDescriptorWriteInfo(
     std::uint32_t dest_array_element, std::uint32_t descriptor_count,
     const VkDescriptorImageInfo* image_info,
     VkWriteDescriptorSet& output) const {
+  assert(IsValid());
   output = VkWriteDescriptorSet{VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
                                 nullptr,
                                 material_set_,
@@ -459,6 +502,7 @@ MM::RenderSystem::DescriptorManager::GetStorageTexture2DDescriptorWriteInfo(
     std::uint32_t dest_array_element, std::uint32_t descriptor_count,
     const VkDescriptorImageInfo* image_info,
     VkWriteDescriptorSet& output) const {
+  assert(IsValid());
   output = VkWriteDescriptorSet{VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
                                 nullptr,
                                 material_set_,
@@ -478,6 +522,7 @@ MM::RenderSystem::DescriptorManager::GetStorageTexture3DDescriptorWriteInfo(
     std::uint32_t dest_array_element, std::uint32_t descriptor_count,
     const VkDescriptorImageInfo* image_info,
     VkWriteDescriptorSet& output) const {
+  assert(IsValid());
   output = VkWriteDescriptorSet{VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
                                 nullptr,
                                 material_set_,
@@ -497,6 +542,7 @@ MM::RenderSystem::DescriptorManager::GetStorageTextureCUBEDescriptorWriteInfo(
     std::uint32_t dest_array_element, std::uint32_t descriptor_count,
     const VkDescriptorImageInfo* image_info,
     VkWriteDescriptorSet& output) const {
+  assert(IsValid());
   output = VkWriteDescriptorSet{VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
                                 nullptr,
                                 material_set_,
@@ -514,12 +560,14 @@ MM::RenderSystem::DescriptorManager::GetStorageTextureCUBEDescriptorWriteInfo(
 void MM::RenderSystem::DescriptorManager::UpdateDescriptorSet(
     std::uint32_t descriptor_write_count,
     const VkWriteDescriptorSet* write_descriptor_sets) {
+  assert(IsValid());
   vkUpdateDescriptorSets(render_engine_->GetDevice(), descriptor_write_count,
                          write_descriptor_sets, 0, nullptr);
 }
 
 MM::ExecuteResult MM::RenderSystem::DescriptorManager::AllocateSlot(
     std::uint32_t& free_slot, DescriptorType descriptor_type, bool is_global) {
+  assert(IsValid());
   switch (descriptor_type) {
     case DescriptorType::SAMPLER_TEXTURE2D:
       if (is_global) {
@@ -577,6 +625,7 @@ MM::ExecuteResult MM::RenderSystem::DescriptorManager::AllocateSlot(
 MM::ExecuteResult MM::RenderSystem::DescriptorManager::AllocateSlot(
     std::uint32_t& need_free_count, std::vector<std::uint32_t>& free_slots,
     DescriptorType descriptor_type, bool is_global) {
+  assert(IsValid());
   switch (descriptor_type) {
     case DescriptorType::SAMPLER_TEXTURE2D:
       if (is_global) {
@@ -644,6 +693,7 @@ MM::ExecuteResult MM::RenderSystem::DescriptorManager::AllocateSlot(
 void MM::RenderSystem::DescriptorManager::FreeSlot(
     std::uint32_t free_slot, MM::RenderSystem::DescriptorType descriptor_type,
     bool is_global) {
+  assert(IsValid());
   switch (descriptor_type) {
     case DescriptorType::SAMPLER_TEXTURE2D:
       if (is_global) {
@@ -687,6 +737,7 @@ void MM::RenderSystem::DescriptorManager::FreeSlot(
 void MM::RenderSystem::DescriptorManager::FreeSlot(
     std::uint32_t need_free_slot, std::uint32_t* free_slots,
     MM::RenderSystem::DescriptorType descriptor_type, bool is_global) {
+  assert(IsValid());
   switch (descriptor_type) {
     case DescriptorType::SAMPLER_TEXTURE2D:
       if (is_global) {
@@ -738,6 +789,7 @@ void MM::RenderSystem::DescriptorManager::FreeSlot(
 void MM::RenderSystem::DescriptorManager::FreeSlot(
     const std::vector<std::uint32_t>& free_slots,
     MM::RenderSystem::DescriptorType descriptor_type, bool is_global) {
+  assert(IsValid());
   switch (descriptor_type) {
     case DescriptorType::SAMPLER_TEXTURE2D:
       if (is_global) {
@@ -932,6 +984,16 @@ MM::ExecuteResult MM::RenderSystem::DescriptorManager::InitDescriptorManager(
   global_set_ = descriptor_sets_[0];
   material_set_ = descriptor_sets_[1];
 
+  MM_CHECK(CreatePipelineLayout(),
+           MM_LOG_ERROR("Failed create default pipeline layouts.");
+           vkDestroyDescriptorPool(render_engine_->GetDevice(),
+                                   descriptor_pool_, allocator_);
+           vkDestroyDescriptorSetLayout(render_engine_->GetDevice(),
+                                        global_set_layout_, allocator_);
+           vkDestroyDescriptorSetLayout(render_engine_->GetDevice(),
+                                        material_set_layout_, allocator_);
+           render_engine_ = nullptr; return MM_RESULT_CODE;)
+
   global_sampler_texture2D_array_use_info_ = std::vector<std::atomic_flag>(
       global_sampler_texture2D_descriptor_element_count);
   global_sampler_texture3D_array_use_info_ = std::vector<std::atomic_flag>(
@@ -1084,6 +1146,8 @@ void MM::RenderSystem::DescriptorManager::Release() {
     storage_texture3D_array_use_info_.clear();
     storage_textureCUBE_array_use_info_.clear();
 
+    CleanPipelineLayout();
+
     vkDestroyDescriptorSetLayout(render_engine_->GetDevice(),
                                  global_set_layout_, allocator_);
     vkDestroyDescriptorSetLayout(render_engine_->GetDevice(),
@@ -1098,10 +1162,383 @@ void MM::RenderSystem::DescriptorManager::Release() {
 
 VkDescriptorSetLayout
 MM::RenderSystem::DescriptorManager::GetGlobalDescriptorSetLayout() const {
+  assert(IsValid());
   return global_set_layout_;
 }
 
 VkDescriptorSetLayout
 MM::RenderSystem::DescriptorManager::GetMaterialDescriptorSetLayout() const {
+  assert(IsValid());
   return material_set_layout_;
+}
+
+VkPipelineLayout
+MM::RenderSystem::DescriptorManager::GetDefaultPipelineLayout0() const {
+  assert(IsValid());
+  return pipeline_layout0_;
+}
+
+VkPipelineLayout
+MM::RenderSystem::DescriptorManager::GetDefaultPipelineLayout1() const {
+  assert(IsValid());
+  return pipeline_layout1_;
+}
+
+VkPipelineLayout
+MM::RenderSystem::DescriptorManager::GetDefaultPipelineLayout2() const {
+  assert(IsValid());
+  return pipeline_layout2_;
+}
+
+VkPipelineLayout
+MM::RenderSystem::DescriptorManager::GetDefaultPipelineLayout3() const {
+  assert(IsValid());
+  return pipeline_layout3_;
+}
+
+VkPipelineLayout
+MM::RenderSystem::DescriptorManager::GetDefaultPipelineLayout4() const {
+  assert(IsValid());
+  return pipeline_layout4_;
+}
+
+VkPipelineLayout
+MM::RenderSystem::DescriptorManager::GetDefaultPipelineLayout5() const {
+  assert(IsValid());
+  return pipeline_layout5_;
+}
+
+VkPipelineLayout
+MM::RenderSystem::DescriptorManager::GetDefaultPipelineLayout6() const {
+  assert(IsValid());
+  return pipeline_layout6_;
+}
+
+VkPipelineLayout
+MM::RenderSystem::DescriptorManager::GetDefaultPipelineLayout7() const {
+  assert(IsValid());
+  return pipeline_layout7_;
+}
+
+VkPipelineLayout
+MM::RenderSystem::DescriptorManager::GetDefaultPipelineLayout8() const {
+  assert(IsValid());
+  return pipeline_layout8_;
+}
+
+VkPipelineLayout
+MM::RenderSystem::DescriptorManager::GetDefaultPipelineLayout9() const {
+  assert(IsValid());
+  return pipeline_layout9_;
+}
+
+VkPipelineLayout
+MM::RenderSystem::DescriptorManager::GetDefaultPipelineLayout10() const {
+  assert(IsValid());
+  return pipeline_layout10_;
+}
+
+VkPipelineLayout
+MM::RenderSystem::DescriptorManager::GetDefaultPipelineLayout11() const {
+  assert(IsValid());
+  return pipeline_layout11_;
+}
+
+VkPipelineLayout
+MM::RenderSystem::DescriptorManager::GetDefaultPipelineLayout12() const {
+  assert(IsValid());
+  return pipeline_layout12_;
+}
+
+VkPipelineLayout
+MM::RenderSystem::DescriptorManager::GetDefaultPipelineLayout13() const {
+  assert(IsValid());
+  return pipeline_layout13_;
+}
+
+VkPipelineLayout
+MM::RenderSystem::DescriptorManager::GetDefaultPipelineLayout14() const {
+  assert(IsValid());
+  return pipeline_layout14_;
+}
+
+VkPipelineLayout
+MM::RenderSystem::DescriptorManager::GetDefaultPipelineLayout15() const {
+  assert(IsValid());
+  return pipeline_layout15_;
+}
+
+VkPipelineLayout
+MM::RenderSystem::DescriptorManager::GetDefaultPipelineLayout16() const {
+  assert(IsValid());
+  return pipeline_layout16_;
+}
+
+MM::ExecuteResult MM::RenderSystem::DescriptorManager::CreatePipelineLayout() {
+  std::array<VkDescriptorSetLayout, 2> descriptor_set_layout{
+      global_set_layout_, material_set_layout_};
+
+  VkPushConstantRange range{VK_SHADER_STAGE_ALL, 0, 0};
+
+  VkPipelineLayoutCreateInfo vk_pipeline_layout_create_info{};
+  vk_pipeline_layout_create_info.sType =
+      VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+  vk_pipeline_layout_create_info.pNext = nullptr;
+  vk_pipeline_layout_create_info.flags = 0;
+  vk_pipeline_layout_create_info.setLayoutCount = descriptor_set_layout.size();
+  vk_pipeline_layout_create_info.pSetLayouts = descriptor_set_layout.data();
+  vk_pipeline_layout_create_info.pushConstantRangeCount = 0;
+  vk_pipeline_layout_create_info.pPushConstantRanges = nullptr;
+  MM_VK_CHECK(
+      vkCreatePipelineLayout(render_engine_->GetDevice(),
+                             &vk_pipeline_layout_create_info, allocator_,
+                             &pipeline_layout0_),
+      MM_LOG_ERROR("Failed to create VkPipelineLayout.");
+      CleanPipelineLayout();
+      return MM::RenderSystem::Utils::VkResultToMMResult(MM_VK_RESULT_CODE);)
+
+  vk_pipeline_layout_create_info.pushConstantRangeCount = 1;
+  vk_pipeline_layout_create_info.pPushConstantRanges = &range;
+
+  range.size = sizeof(PushData1);
+  MM_VK_CHECK(
+      vkCreatePipelineLayout(render_engine_->GetDevice(),
+                             &vk_pipeline_layout_create_info, allocator_,
+                             &pipeline_layout1_),
+      MM_LOG_ERROR("Failed to create VkPipelineLayout.");
+      CleanPipelineLayout();
+      return MM::RenderSystem::Utils::VkResultToMMResult(MM_VK_RESULT_CODE);)
+
+  range.size = sizeof(PushData2);
+  MM_VK_CHECK(
+      vkCreatePipelineLayout(render_engine_->GetDevice(),
+                             &vk_pipeline_layout_create_info, allocator_,
+                             &pipeline_layout2_),
+      MM_LOG_ERROR("Failed to create VkPipelineLayout.");
+      CleanPipelineLayout();
+      return MM::RenderSystem::Utils::VkResultToMMResult(MM_VK_RESULT_CODE);)
+
+  range.size = sizeof(PushData3);
+  MM_VK_CHECK(
+      vkCreatePipelineLayout(render_engine_->GetDevice(),
+                             &vk_pipeline_layout_create_info, allocator_,
+                             &pipeline_layout3_),
+      MM_LOG_ERROR("Failed to create VkPipelineLayout.");
+      CleanPipelineLayout();
+      return MM::RenderSystem::Utils::VkResultToMMResult(MM_VK_RESULT_CODE);)
+
+  range.size = sizeof(PushData4);
+  MM_VK_CHECK(
+      vkCreatePipelineLayout(render_engine_->GetDevice(),
+                             &vk_pipeline_layout_create_info, allocator_,
+                             &pipeline_layout4_),
+      MM_LOG_ERROR("Failed to create VkPipelineLayout.");
+      CleanPipelineLayout();
+      return MM::RenderSystem::Utils::VkResultToMMResult(MM_VK_RESULT_CODE);)
+
+  range.size = sizeof(PushData5);
+  MM_VK_CHECK(
+      vkCreatePipelineLayout(render_engine_->GetDevice(),
+                             &vk_pipeline_layout_create_info, allocator_,
+                             &pipeline_layout5_),
+      MM_LOG_ERROR("Failed to create VkPipelineLayout.");
+      CleanPipelineLayout();
+      return MM::RenderSystem::Utils::VkResultToMMResult(MM_VK_RESULT_CODE);)
+
+  range.size = sizeof(PushData6);
+  MM_VK_CHECK(
+      vkCreatePipelineLayout(render_engine_->GetDevice(),
+                             &vk_pipeline_layout_create_info, allocator_,
+                             &pipeline_layout6_),
+      MM_LOG_ERROR("Failed to create VkPipelineLayout.");
+      CleanPipelineLayout();
+      return MM::RenderSystem::Utils::VkResultToMMResult(MM_VK_RESULT_CODE);)
+
+  range.size = sizeof(PushData7);
+  MM_VK_CHECK(
+      vkCreatePipelineLayout(render_engine_->GetDevice(),
+                             &vk_pipeline_layout_create_info, allocator_,
+                             &pipeline_layout7_),
+      MM_LOG_ERROR("Failed to create VkPipelineLayout.");
+      CleanPipelineLayout();
+      return MM::RenderSystem::Utils::VkResultToMMResult(MM_VK_RESULT_CODE);)
+
+  range.size = sizeof(PushData8);
+  MM_VK_CHECK(
+      vkCreatePipelineLayout(render_engine_->GetDevice(),
+                             &vk_pipeline_layout_create_info, allocator_,
+                             &pipeline_layout8_),
+      MM_LOG_ERROR("Failed to create VkPipelineLayout.");
+      CleanPipelineLayout();
+      return MM::RenderSystem::Utils::VkResultToMMResult(MM_VK_RESULT_CODE);)
+
+  range.size = sizeof(PushData9);
+  MM_VK_CHECK(
+      vkCreatePipelineLayout(render_engine_->GetDevice(),
+                             &vk_pipeline_layout_create_info, allocator_,
+                             &pipeline_layout9_),
+      MM_LOG_ERROR("Failed to create VkPipelineLayout.");
+      CleanPipelineLayout();
+      return MM::RenderSystem::Utils::VkResultToMMResult(MM_VK_RESULT_CODE);)
+
+  range.size = sizeof(PushData10);
+  MM_VK_CHECK(
+      vkCreatePipelineLayout(render_engine_->GetDevice(),
+                             &vk_pipeline_layout_create_info, allocator_,
+                             &pipeline_layout10_),
+      MM_LOG_ERROR("Failed to create VkPipelineLayout.");
+      CleanPipelineLayout();
+      return MM::RenderSystem::Utils::VkResultToMMResult(MM_VK_RESULT_CODE);)
+
+  range.size = sizeof(PushData11);
+  MM_VK_CHECK(
+      vkCreatePipelineLayout(render_engine_->GetDevice(),
+                             &vk_pipeline_layout_create_info, allocator_,
+                             &pipeline_layout11_),
+      MM_LOG_ERROR("Failed to create VkPipelineLayout.");
+      CleanPipelineLayout();
+      return MM::RenderSystem::Utils::VkResultToMMResult(MM_VK_RESULT_CODE);)
+
+  range.size = sizeof(PushData12);
+  MM_VK_CHECK(
+      vkCreatePipelineLayout(render_engine_->GetDevice(),
+                             &vk_pipeline_layout_create_info, allocator_,
+                             &pipeline_layout12_),
+      MM_LOG_ERROR("Failed to create VkPipelineLayout.");
+      CleanPipelineLayout();
+      return MM::RenderSystem::Utils::VkResultToMMResult(MM_VK_RESULT_CODE);)
+
+  range.size = sizeof(PushData13);
+  MM_VK_CHECK(
+      vkCreatePipelineLayout(render_engine_->GetDevice(),
+                             &vk_pipeline_layout_create_info, allocator_,
+                             &pipeline_layout13_),
+      MM_LOG_ERROR("Failed to create VkPipelineLayout.");
+      CleanPipelineLayout();
+      return MM::RenderSystem::Utils::VkResultToMMResult(MM_VK_RESULT_CODE);)
+
+  range.size = sizeof(PushData14);
+  MM_VK_CHECK(
+      vkCreatePipelineLayout(render_engine_->GetDevice(),
+                             &vk_pipeline_layout_create_info, allocator_,
+                             &pipeline_layout14_),
+      MM_LOG_ERROR("Failed to create VkPipelineLayout.");
+      CleanPipelineLayout();
+      return MM::RenderSystem::Utils::VkResultToMMResult(MM_VK_RESULT_CODE);)
+
+  range.size = sizeof(PushData15);
+  MM_VK_CHECK(
+      vkCreatePipelineLayout(render_engine_->GetDevice(),
+                             &vk_pipeline_layout_create_info, allocator_,
+                             &pipeline_layout15_),
+      MM_LOG_ERROR("Failed to create VkPipelineLayout.");
+      CleanPipelineLayout();
+      return MM::RenderSystem::Utils::VkResultToMMResult(MM_VK_RESULT_CODE);)
+
+  range.size = sizeof(PushData15);
+  MM_VK_CHECK(
+      vkCreatePipelineLayout(render_engine_->GetDevice(),
+                             &vk_pipeline_layout_create_info, allocator_,
+                             &pipeline_layout15_),
+      MM_LOG_ERROR("Failed to create VkPipelineLayout.");
+      CleanPipelineLayout();
+      return MM::RenderSystem::Utils::VkResultToMMResult(MM_VK_RESULT_CODE);)
+
+  range.size = sizeof(PushData16);
+  MM_VK_CHECK(
+      vkCreatePipelineLayout(render_engine_->GetDevice(),
+                             &vk_pipeline_layout_create_info, allocator_,
+                             &pipeline_layout16_),
+      MM_LOG_ERROR("Failed to create VkPipelineLayout.");
+      CleanPipelineLayout();
+      return MM::RenderSystem::Utils::VkResultToMMResult(MM_VK_RESULT_CODE);)
+
+  return ExecuteResult ::SUCCESS;
+}
+
+void MM::RenderSystem::DescriptorManager::CleanPipelineLayout() {
+  if (pipeline_layout0_ != nullptr) {
+    vkDestroyPipelineLayout(render_engine_->GetDevice(), pipeline_layout0_,
+                            allocator_);
+  }
+
+  if (pipeline_layout1_ != nullptr) {
+    vkDestroyPipelineLayout(render_engine_->GetDevice(), pipeline_layout1_,
+                            allocator_);
+  }
+
+  if (pipeline_layout2_ != nullptr) {
+    vkDestroyPipelineLayout(render_engine_->GetDevice(), pipeline_layout2_,
+                            allocator_);
+  }
+
+  if (pipeline_layout3_ != nullptr) {
+    vkDestroyPipelineLayout(render_engine_->GetDevice(), pipeline_layout3_,
+                            allocator_);
+  }
+
+  if (pipeline_layout4_ != nullptr) {
+    vkDestroyPipelineLayout(render_engine_->GetDevice(), pipeline_layout4_,
+                            allocator_);
+  }
+
+  if (pipeline_layout5_ != nullptr) {
+    vkDestroyPipelineLayout(render_engine_->GetDevice(), pipeline_layout5_,
+                            allocator_);
+  }
+
+  if (pipeline_layout6_ != nullptr) {
+    vkDestroyPipelineLayout(render_engine_->GetDevice(), pipeline_layout6_,
+                            allocator_);
+  }
+
+  if (pipeline_layout7_ != nullptr) {
+    vkDestroyPipelineLayout(render_engine_->GetDevice(), pipeline_layout7_,
+                            allocator_);
+  }
+
+  if (pipeline_layout8_ != nullptr) {
+    vkDestroyPipelineLayout(render_engine_->GetDevice(), pipeline_layout8_,
+                            allocator_);
+  }
+
+  if (pipeline_layout9_ != nullptr) {
+    vkDestroyPipelineLayout(render_engine_->GetDevice(), pipeline_layout9_,
+                            allocator_);
+  }
+
+  if (pipeline_layout10_ != nullptr) {
+    vkDestroyPipelineLayout(render_engine_->GetDevice(), pipeline_layout10_,
+                            allocator_);
+  }
+
+  if (pipeline_layout11_ != nullptr) {
+    vkDestroyPipelineLayout(render_engine_->GetDevice(), pipeline_layout11_,
+                            allocator_);
+  }
+
+  if (pipeline_layout12_ != nullptr) {
+    vkDestroyPipelineLayout(render_engine_->GetDevice(), pipeline_layout12_,
+                            allocator_);
+  }
+
+  if (pipeline_layout13_ != nullptr) {
+    vkDestroyPipelineLayout(render_engine_->GetDevice(), pipeline_layout13_,
+                            allocator_);
+  }
+
+  if (pipeline_layout14_ != nullptr) {
+    vkDestroyPipelineLayout(render_engine_->GetDevice(), pipeline_layout14_,
+                            allocator_);
+  }
+
+  if (pipeline_layout15_ != nullptr) {
+    vkDestroyPipelineLayout(render_engine_->GetDevice(), pipeline_layout15_,
+                            allocator_);
+  }
+
+  if (pipeline_layout16_ != nullptr) {
+    vkDestroyPipelineLayout(render_engine_->GetDevice(), pipeline_layout16_,
+                            allocator_);
+  }
 }

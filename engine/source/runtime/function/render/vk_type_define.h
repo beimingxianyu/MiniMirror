@@ -1090,5 +1090,189 @@ class ComputePipelineDataInfo {
   VkPipelineLayout layout_;
 };
 
+struct PushData1 {
+  std::uint64_t slot1_;
+};
+
+struct PushData2 {
+  std::uint64_t slot1_;
+  std::uint64_t slot2_;
+};
+
+struct PushData3 {
+  std::uint64_t slot1_;
+  std::uint64_t slot2_;
+  std::uint64_t slot3_;
+};
+
+struct PushData4 {
+  std::uint64_t slot1_;
+  std::uint64_t slot2_;
+  std::uint64_t slot3_;
+  std::uint64_t slot4_;
+};
+
+struct PushData5 {
+  std::uint64_t slot1_;
+  std::uint64_t slot2_;
+  std::uint64_t slot3_;
+  std::uint64_t slot4_;
+  std::uint64_t slot5_;
+};
+
+struct PushData6 {
+  std::uint64_t slot1_;
+  std::uint64_t slot2_;
+  std::uint64_t slot3_;
+  std::uint64_t slot4_;
+  std::uint64_t slot5_;
+  std::uint64_t slot6_;
+};
+
+struct PushData7 {
+  std::uint64_t slot1_;
+  std::uint64_t slot2_;
+  std::uint64_t slot3_;
+  std::uint64_t slot4_;
+  std::uint64_t slot5_;
+  std::uint64_t slot6_;
+  std::uint64_t slot7_;
+};
+
+struct PushData8 {
+  std::uint64_t slot1_;
+  std::uint64_t slot2_;
+  std::uint64_t slot3_;
+  std::uint64_t slot4_;
+  std::uint64_t slot5_;
+  std::uint64_t slot6_;
+  std::uint64_t slot7_;
+  std::uint64_t slot8_;
+};
+
+struct PushData9 {
+  std::uint64_t slot1_;
+  std::uint64_t slot2_;
+  std::uint64_t slot3_;
+  std::uint64_t slot4_;
+  std::uint64_t slot5_;
+  std::uint64_t slot6_;
+  std::uint64_t slot7_;
+  std::uint64_t slot8_;
+  std::uint64_t slot9_;
+};
+
+struct PushData10 {
+  std::uint64_t slot1_;
+  std::uint64_t slot2_;
+  std::uint64_t slot3_;
+  std::uint64_t slot4_;
+  std::uint64_t slot5_;
+  std::uint64_t slot6_;
+  std::uint64_t slot7_;
+  std::uint64_t slot8_;
+  std::uint64_t slot9_;
+  std::uint64_t slot10_;
+};
+
+struct PushData11 {
+  std::uint64_t slot1_;
+  std::uint64_t slot2_;
+  std::uint64_t slot3_;
+  std::uint64_t slot4_;
+  std::uint64_t slot5_;
+  std::uint64_t slot6_;
+  std::uint64_t slot7_;
+  std::uint64_t slot8_;
+  std::uint64_t slot9_;
+  std::uint64_t slot10_;
+  std::uint64_t slot11_;
+};
+
+struct PushData12 {
+  std::uint64_t slot1_;
+  std::uint64_t slot2_;
+  std::uint64_t slot3_;
+  std::uint64_t slot4_;
+  std::uint64_t slot5_;
+  std::uint64_t slot6_;
+  std::uint64_t slot7_;
+  std::uint64_t slot8_;
+  std::uint64_t slot9_;
+  std::uint64_t slot10_;
+  std::uint64_t slot11_;
+  std::uint64_t slot12_;
+};
+
+struct PushData13 {
+  std::uint64_t slot1_;
+  std::uint64_t slot2_;
+  std::uint64_t slot3_;
+  std::uint64_t slot4_;
+  std::uint64_t slot5_;
+  std::uint64_t slot6_;
+  std::uint64_t slot7_;
+  std::uint64_t slot8_;
+  std::uint64_t slot9_;
+  std::uint64_t slot10_;
+  std::uint64_t slot11_;
+  std::uint64_t slot12_;
+  std::uint64_t slot13_;
+};
+
+struct PushData14 {
+  std::uint64_t slot1_;
+  std::uint64_t slot2_;
+  std::uint64_t slot3_;
+  std::uint64_t slot4_;
+  std::uint64_t slot5_;
+  std::uint64_t slot6_;
+  std::uint64_t slot7_;
+  std::uint64_t slot8_;
+  std::uint64_t slot9_;
+  std::uint64_t slot10_;
+  std::uint64_t slot11_;
+  std::uint64_t slot12_;
+  std::uint64_t slot13_;
+  std::uint64_t slot14_;
+};
+
+struct PushData15 {
+  std::uint64_t slot1_;
+  std::uint64_t slot2_;
+  std::uint64_t slot3_;
+  std::uint64_t slot4_;
+  std::uint64_t slot5_;
+  std::uint64_t slot6_;
+  std::uint64_t slot7_;
+  std::uint64_t slot8_;
+  std::uint64_t slot9_;
+  std::uint64_t slot10_;
+  std::uint64_t slot11_;
+  std::uint64_t slot12_;
+  std::uint64_t slot13_;
+  std::uint64_t slot14_;
+  std::uint64_t slot15_;
+};
+
+struct PushData16 {
+  std::uint64_t slot1_;
+  std::uint64_t slot2_;
+  std::uint64_t slot3_;
+  std::uint64_t slot4_;
+  std::uint64_t slot5_;
+  std::uint64_t slot6_;
+  std::uint64_t slot7_;
+  std::uint64_t slot8_;
+  std::uint64_t slot9_;
+  std::uint64_t slot10_;
+  std::uint64_t slot11_;
+  std::uint64_t slot12_;
+  std::uint64_t slot13_;
+  std::uint64_t slot14_;
+  std::uint64_t slot15_;
+  std::uint64_t slot16_;
+};
+
 }  // namespace RenderSystem
 }  // namespace MM

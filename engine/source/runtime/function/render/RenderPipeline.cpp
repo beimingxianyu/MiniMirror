@@ -50,5 +50,7 @@ VkDevice MM::RenderSystem::RenderPipeline::GetDevice() const {
 }
 
 VkPipelineLayout MM::RenderSystem::RenderPipeline::GetPipelineLayout() const {
-  return render_engine_->GetDescriptorManager().;
+  VkShaderStageFlagBits a;
+  return render_engine_->GetDescriptorManager();
+
 }
