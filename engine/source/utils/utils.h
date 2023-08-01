@@ -153,5 +153,10 @@ const T1& Min(const T1& lhs, const T2&... rhs) {
 
   return rhs_min;
 }
+
+template <typename EnumType>
+bool EnumBool(EnumType object) {
+  return static_cast<bool>(object);
+}
 }  // namespace Utils
 }  // namespace MM

@@ -7,8 +7,9 @@ MM::Utils::ExecuteResult MM::Utils::operator|(ExecuteResult l_result,
 
 MM::Utils::ExecuteResult MM::Utils::operator|=(ExecuteResult l_result,
                                                ExecuteResult r_result) {
-  return ExecuteResult{static_cast<std::uint32_t>(l_result) |
-                       static_cast<std::uint32_t>(r_result)};
+  l_result = ExecuteResult{static_cast<std::uint32_t>(l_result) |
+                           static_cast<std::uint32_t>(r_result)};
+  return l_result;
 }
 
 MM::Utils::ExecuteResult MM::Utils::operator&(ExecuteResult l_result,
@@ -18,6 +19,7 @@ MM::Utils::ExecuteResult MM::Utils::operator&(ExecuteResult l_result,
 
 MM::Utils::ExecuteResult MM::Utils::operator&=(ExecuteResult l_result,
                                                ExecuteResult r_result) {
-  return ExecuteResult{static_cast<std::uint32_t>(l_result) &
-                       static_cast<std::uint32_t>(r_result)};
+  l_result = ExecuteResult{static_cast<std::uint32_t>(l_result) &
+                           static_cast<std::uint32_t>(r_result)};
+  return l_result;
 }
