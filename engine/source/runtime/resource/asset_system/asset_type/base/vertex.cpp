@@ -129,23 +129,27 @@ void MM::AssetSystem::AssetType::Vertex::Reset() {
   bi_tangent_ = MathDefinition::VEC3_ZERO;
 }
 
-constexpr uint64_t MM::AssetSystem::AssetType::Vertex::GetOffsetOfPosition() {
+constexpr std::uint32_t
+MM::AssetSystem::AssetType::Vertex::GetOffsetOfPosition() {
   return OFFSET_OF(Vertex, position_);
 }
 
-constexpr uint64_t MM::AssetSystem::AssetType::Vertex::GetOffsetOfNormal() {
+constexpr std::uint32_t
+MM::AssetSystem::AssetType::Vertex::GetOffsetOfNormal() {
   return offsetof(Vertex, normal_);
 }
 
-constexpr uint64_t MM::AssetSystem::AssetType::Vertex::GetOffsetOfTangent() {
+constexpr std::uint32_t
+MM::AssetSystem::AssetType::Vertex::GetOffsetOfTangent() {
   return offsetof(Vertex, tangent_);
 }
 
-constexpr uint64_t MM::AssetSystem::AssetType::Vertex::GetOffsetOfBiTangent() {
+constexpr std::uint32_t
+MM::AssetSystem::AssetType::Vertex::GetOffsetOfBiTangent() {
   return offsetof(Vertex, bi_tangent_);
 }
 
-constexpr uint64_t
+constexpr std::uint32_t
 MM::AssetSystem::AssetType::Vertex::GetOffsetOfTextureCoord() {
   return offsetof(Vertex, texture_coord_);
 }

@@ -354,6 +354,9 @@ class RenderEngine {
   VkQueue transform_queue_{nullptr};
   VkSurfaceKHR surface_{nullptr};
   // TODO 添加重置swapchain的函数
+  // TODO 重置swapchain的函数也应该更新VkViewport
+  // MM::RenderSystem::DefaultViewportState::default_viewport_和VkRect2D
+  // MM::RenderSystem::DefaultViewportState::default_scissors_
   VkSwapchainKHR swapchain_{nullptr};
   std::uint64_t rendered_frame_count_{0};
   std::unique_ptr<CommandExecutor> command_executor_{nullptr};

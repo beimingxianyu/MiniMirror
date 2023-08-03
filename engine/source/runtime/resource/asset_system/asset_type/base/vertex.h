@@ -54,15 +54,15 @@ class Vertex {
 
   friend void swap(Vertex& lhs, Vertex& rhs) noexcept;
 
-  constexpr static uint64_t GetOffsetOfPosition();
+  constexpr static std::uint32_t GetOffsetOfPosition();
 
-  constexpr static uint64_t GetOffsetOfNormal();
+  constexpr static std::uint32_t GetOffsetOfNormal();
 
-  constexpr static uint64_t GetOffsetOfTangent();
+  constexpr static std::uint32_t GetOffsetOfTangent();
 
-  constexpr static uint64_t GetOffsetOfBiTangent();
+  constexpr static std::uint32_t GetOffsetOfBiTangent();
 
-  constexpr static uint64_t GetOffsetOfTextureCoord();
+  constexpr static std::uint32_t GetOffsetOfTextureCoord();
 
  private:
   // Memory alignment for shader reading.

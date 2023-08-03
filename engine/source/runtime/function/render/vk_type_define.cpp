@@ -3427,3 +3427,150 @@ MM::ExecuteResult MM::RenderSystem::FrameBufferCreateInfo::GetRenderFrameID(
 
   return ExecuteResult ::SUCCESS;
 }
+
+VkComputePipelineCreateInfo
+MM::RenderSystem::ComputePipelineDataInfo::GetVkComputePipelineCreateInfo()
+    const {
+  return VkComputePipelineCreateInfo{
+      VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO,
+      nullptr,
+      flags_,
+      stage_,
+      layout_,
+      nullptr,
+      0};
+}
+
+VkPipelineShaderStageCreateInfo MM::RenderSystem::
+    PipelineShaderStageCreateInfo::GetVkPipelineShaderStageCreateInfo() const {
+  return VkPipelineShaderStageCreateInfo{
+      VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
+      nullptr,
+      flags_,
+      stage_,
+      module_,
+      name_.c_str(),
+      nullptr};
+}
+
+VkPipelineTessellationStateCreateInfo
+MM::RenderSystem::PipelineTessellationStateCreateInfo::
+    GetVkPipelineTessellationStateCreateInfo() const {
+  return VkPipelineTessellationStateCreateInfo{
+      VK_STRUCTURE_TYPE_PIPELINE_TESSELLATION_STATE_CREATE_INFO, nullptr, flags,
+      patchControlPoints};
+}
+
+VkPipelineRasterizationStateCreateInfo
+MM::RenderSystem::PipelineRasterizationStateCreateInfo::
+    GetVkPipelineRasterizationStateCreateInfo() const {
+  return VkPipelineRasterizationStateCreateInfo{
+      VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO,
+      nullptr,
+      flags,
+      depth_clamp_enable,
+      rasterizer_discard_enable,
+      polygon_mode,
+      cull_mode,
+      front_face,
+      depth_bias_enable,
+      depth_bias_constant_factor,
+      depth_bias_clamp,
+      depth_bias_slope_factor,
+      line_width};
+}
+
+VkPipelineMultisampleStateCreateInfo
+MM::RenderSystem::PipelineMultisampleStateCreateInfo::
+    GetVkPipelineMultisampleStateCreateInfo() const {
+  return VkPipelineMultisampleStateCreateInfo{
+      VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO,
+      nullptr,
+      flags_,
+      rasterization_samples_,
+      sample_shading_enable_,
+      min_sample_shading_,
+      &sample_mask_,
+      alpha_to_coverage_enable_,
+      alpha_to_one_enable_};
+}
+
+VkPipelineDepthStencilStateCreateInfo
+MM::RenderSystem::PipelineDepthStencilStateCreateInfo::
+    GetVkPipelineDepthStencilStateCreateInfo() const {
+  return VkPipelineDepthStencilStateCreateInfo{
+      VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO,
+      nullptr,
+      flags_,
+      depth_test_enable_,
+      depth_write_enable_,
+      depth_compare_op_,
+      depth_bounds_test_enable_,
+      stencil_test_enable_,
+      front_,
+      back_,
+      min_depth_bounds_,
+      max_depth_bounds_};
+}
+
+VkPipelineColorBlendStateCreateInfo MM::RenderSystem::
+    PipelineColorBlendStateCreateInfo::GetVkPipelineColorBlendStateCreateInfo()
+        const {
+  return VkPipelineColorBlendStateCreateInfo{
+      VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO,
+      nullptr,
+      flags_,
+      logic_op_enable_,
+      logic_op_,
+      static_cast<std::uint32_t>(attachments_.size()),
+      attachments_.data(),
+      {blend_constants_[0], blend_constants_[1], blend_constants_[2],
+       blend_constants_[3]}};
+}
+
+VkPipelineDynamicStateCreateInfo MM::RenderSystem::
+    PipelineDynamicStateCreateInfo::GetVkPipelineDynamicStateCreateInfo()
+        const {
+  return VkPipelineDynamicStateCreateInfo{
+      VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO, nullptr, flags_,
+      static_cast<uint32_t>(dynamic_state_.size()), dynamic_state_.data()};
+}
+
+const std::array<VkVertexInputAttributeDescription, 5>
+    MM::RenderSystem::DefaultVertexInputStateDescription::
+        vertex_input_state_attribute_descriptions_{
+            VkVertexInputAttributeDescription{
+                0, 0, VK_FORMAT_R32G32B32_SFLOAT,
+                AssetSystem::AssetType::Vertex::GetOffsetOfPosition()},
+            VkVertexInputAttributeDescription{
+                1, 0, VK_FORMAT_R32G32_SFLOAT,
+                AssetSystem::AssetType::Vertex::GetOffsetOfTextureCoord()},
+            VkVertexInputAttributeDescription{
+                2, 0, VK_FORMAT_R32G32B32_SFLOAT,
+                AssetSystem::AssetType::Vertex::GetOffsetOfNormal()},
+            VkVertexInputAttributeDescription{
+                3, 0, VK_FORMAT_R32G32B32_SFLOAT,
+                AssetSystem::AssetType::Vertex::GetOffsetOfTangent()},
+            VkVertexInputAttributeDescription{
+                4, 0, VK_FORMAT_R32G32B32_SFLOAT,
+                AssetSystem::AssetType::Vertex::GetOffsetOfBiTangent()},
+        };
+
+VkViewport MM::RenderSystem::DefaultViewportState::default_viewport_{0, 0, 0,
+                                                                     0, 0, 1};
+
+VkRect2D MM::RenderSystem::DefaultViewportState::default_scissors_{{0, 0},
+                                                                   {0, 0}};
+
+VkPipelineViewportStateCreateInfo MM::RenderSystem::
+    PipelineViewportStateCreateInfo::GetVkPipelineViewportStateCreateInfo()
+        const {
+  return VkPipelineViewportStateCreateInfo{
+      VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO,
+      nullptr,
+      flags_,
+      static_cast<uint32_t>(viewports_.size()),
+      viewports_.data(),
+      static_cast<uint32_t>(scissors_.size()),
+      scissors_.data()};
+}

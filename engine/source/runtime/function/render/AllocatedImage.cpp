@@ -1505,6 +1505,8 @@ MM::RenderSystem::AllocatedImage::AllocatedImageWrapper::operator=(
     return *this;
   }
 
+  Release();
+
   allocator_ = other.allocator_;
   image_ = other.image_;
   allocation_ = other.allocation_;

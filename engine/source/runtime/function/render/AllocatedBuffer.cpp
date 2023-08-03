@@ -55,15 +55,13 @@ VmaAllocation MM::RenderSystem::AllocatedBufferWrapper::GetAllocation() {
 }
 
 void MM::RenderSystem::AllocatedBufferWrapper::Release() {
-  if (allocator_ == nullptr) {
-    return;
+  if (IsValid()) {
+    vmaDestroyBuffer(allocator_, buffer_, allocation_);
+
+    allocator_ = nullptr;
+    buffer_ = nullptr;
+    allocation_ = nullptr;
   }
-
-  vmaDestroyBuffer(allocator_, buffer_, allocation_);
-
-  allocator_ = nullptr;
-  buffer_ = nullptr;
-  allocation_ = nullptr;
 }
 
 void MM::RenderSystem::AllocatedBufferWrapper::SetAllocator(
@@ -96,6 +94,8 @@ MM::RenderSystem::AllocatedBufferWrapper::operator=(
   if (&other == this) {
     return *this;
   }
+
+  Release();
 
   allocator_ = other.allocator_;
   buffer_ = other.buffer_;

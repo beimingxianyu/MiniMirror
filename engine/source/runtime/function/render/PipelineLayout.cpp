@@ -123,6 +123,8 @@ MM::RenderSystem::PipelineLayout &MM::RenderSystem::PipelineLayout::operator=(
     return *this;
   }
 
+  Release();
+
   render_engine_ = other.render_engine_;
   pipeline_layout_type_ = other.pipeline_layout_type_;
   shader_slot_count_ = other.shader_slot_count_;
@@ -519,6 +521,10 @@ void MM::RenderSystem::PipelineLayout::Release() {
   if (IsValid() && !IsDefaultPipelineLayout()) {
     vkDestroyPipelineLayout(render_engine_->GetDevice(), pipeline_layout_,
                             nullptr);
+    render_engine_ == nullptr;
+    pipeline_layout_type_ = PipelineLayoutType::UNDEFINE;
+    shader_slot_count_ = ShaderSlotCount::UNDEFINE;
+    pipeline_layout_ = nullptr;
   }
 }
 

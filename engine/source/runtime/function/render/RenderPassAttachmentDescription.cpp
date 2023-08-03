@@ -178,6 +178,8 @@ MM::RenderSystem::RenderPassAttachmentDescription::operator=(
     return *this;
   }
 
+  wrapper_->Release();
+
   wrapper_ = other.wrapper_;
 
   other.wrapper_ = nullptr;
@@ -459,6 +461,8 @@ MM::RenderSystem::RenderPassAttachmentDescription::
     return *this;
   }
 
+  Release();
+
   render_engine_ = other.render_engine_;
   allocator_ = other.allocator_;
   render_pass_ = other.render_pass_;
@@ -502,11 +506,11 @@ void MM::RenderSystem::RenderPassAttachmentDescription::
     RenderPassAttachmentDescriptionWrapper::Release() {
   if (IsValid()) {
     vkDestroyRenderPass(render_engine_->GetDevice(), render_pass_, allocator_);
-  }
 
-  render_engine_ = nullptr;
-  allocator_ = nullptr;
-  render_pass_ = nullptr;
+    render_engine_ = nullptr;
+    allocator_ = nullptr;
+    render_pass_ = nullptr;
+  }
 }
 
 const MM::RenderSystem::RenderPassCreateInfo& MM::RenderSystem::

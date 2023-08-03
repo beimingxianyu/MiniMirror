@@ -290,6 +290,7 @@ struct AllocationCreateInfo {
 
 struct ImageCreateInfo {
   friend class ImageDataInfo;
+  friend class AllocatedImage;
 
   ImageCreateInfo() = default;
   ~ImageCreateInfo() = default;
@@ -422,6 +423,7 @@ struct ImageDataInfo {
 struct BufferCreateInfo {
   friend class BufferDataInfo;
   friend class MeshBufferInfoBase;
+  friend class AllocatedBuffer;
 
   BufferCreateInfo() = default;
   ~BufferCreateInfo() = default;
@@ -1017,9 +1019,43 @@ struct FrameBufferCreateInfo {
   uint32_t layers_;
 };
 
+struct PipelineShaderStageCreateInfo {
+  VkPipelineShaderStageCreateFlags flags_{};
+  VkShaderStageFlagBits stage_{};
+  VkShaderModule module_{nullptr};
+  std::string name_{};
+
+  VkPipelineShaderStageCreateInfo GetVkPipelineShaderStageCreateInfo() const;
+};
+
+struct PipelineShaderStageCreateInfoes {
+  std::vector<VkPipelineShaderStageCreateInfo> stages_{};
+};
+
+struct PipelineVertexInputStateCreateInfo {
+  VkPipelineVertexInputStateCreateFlags flags_{};
+  std::vector<VkVertexInputBindingDescription> vertex_binding_description_;
+  std::vector<VkVertexInputAttributeDescription> vertex_attribute_descriptions_;
+
+  VkPipelineVertexInputStateCreateInfo GetVkPipelineVertexInputStateCreateInfo()
+      const {
+    return VkPipelineVertexInputStateCreateInfo{
+        VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO,
+        nullptr,
+        flags_,
+        static_cast<uint32_t>(vertex_binding_description_.size()),
+        vertex_binding_description_.data(),
+        static_cast<uint32_t>(vertex_attribute_descriptions_.size()),
+        vertex_attribute_descriptions_.data()};
+  }
+};
+
 struct PipelineTessellationStateCreateInfo {
   VkPipelineTessellationStateCreateFlags flags{};
   uint32_t patchControlPoints{};
+
+  VkPipelineTessellationStateCreateInfo
+  GetVkPipelineTessellationStateCreateInfo() const;
 };
 
 struct PipelineRasterizationStateCreateInfo {
@@ -1033,7 +1069,10 @@ struct PipelineRasterizationStateCreateInfo {
   float depth_bias_constant_factor{};
   float depth_bias_clamp{};
   float depth_bias_slope_factor{};
-  float line_idth{};
+  float line_width{};
+
+  VkPipelineRasterizationStateCreateInfo
+  GetVkPipelineRasterizationStateCreateInfo() const;
 };
 
 struct PipelineMultisampleStateCreateInfo {
@@ -1044,6 +1083,9 @@ struct PipelineMultisampleStateCreateInfo {
   VkSampleMask sample_mask_{};
   bool alpha_to_coverage_enable_{};
   bool alpha_to_one_enable_{};
+
+  VkPipelineMultisampleStateCreateInfo GetVkPipelineMultisampleStateCreateInfo()
+      const;
 };
 
 struct PipelineDepthStencilStateCreateInfo {
@@ -1057,6 +1099,9 @@ struct PipelineDepthStencilStateCreateInfo {
   VkStencilOpState back_{};
   float min_depth_bounds_{};
   float max_depth_bounds_{};
+
+  VkPipelineDepthStencilStateCreateInfo
+  GetVkPipelineDepthStencilStateCreateInfo() const;
 };
 
 struct PipelineColorBlendStateCreateInfo {
@@ -1065,29 +1110,49 @@ struct PipelineColorBlendStateCreateInfo {
   VkLogicOp logic_op_{};
   std::vector<VkPipelineColorBlendAttachmentState> attachments_{};
   std::array<float, 4> blend_constants_{};
+
+  VkPipelineColorBlendStateCreateInfo GetVkPipelineColorBlendStateCreateInfo()
+      const;
 };
 
 struct PipelineDynamicStateCreateInfo {
   VkPipelineDynamicStateCreateFlags flags_{};
-  DynamicState dynamic_state_{};
+  std::vector<VkDynamicState> dynamic_state_{};
+
+  VkPipelineDynamicStateCreateInfo GetVkPipelineDynamicStateCreateInfo() const;
+};
+
+struct PipelineViewportStateCreateInfo {
+  VkPipelineViewportStateCreateFlags flags_;
+  std::vector<VkViewport> viewports_;
+  std::vector<VkRect2D> scissors_;
+
+  VkPipelineViewportStateCreateInfo GetVkPipelineViewportStateCreateInfo()
+      const;
 };
 
 struct GraphicsPipelineDataInfo {
   VkPipelineCreateFlags flags_;
-  PipelineTessellationStateCreateInfo tessellation_state_;
-  PipelineRasterizationStateCreateInfo rasterization_state_;
-  PipelineMultisampleStateCreateInfo multisample_state_;
-  PipelineDepthStencilStateCreateInfo depth_stencil_state_;
-  PipelineColorBlendStateCreateInfo color_blend_state_;
-  PipelineDynamicStateCreateInfo dynamic_state_;
-  VkPipelineLayout layout_;
-  VkRenderPass render_pass_;
-  uint32_t subpass_;
+  PipelineShaderStageCreateInfoes stage_{};
+  PipelineVertexInputStateCreateInfo vertex_input_state_;
+  PipelineTessellationStateCreateInfo tessellation_state_{};
+  PipelineViewportStateCreateInfo viewport_state_{};
+  PipelineRasterizationStateCreateInfo rasterization_state_{};
+  PipelineMultisampleStateCreateInfo multisample_state_{};
+  PipelineDepthStencilStateCreateInfo depth_stencil_state_{};
+  PipelineColorBlendStateCreateInfo color_blend_state_{};
+  PipelineDynamicStateCreateInfo dynamic_state_{};
+  VkPipelineLayout layout_{nullptr};
+  VkRenderPass render_pass_{nullptr};
+  uint32_t subpass_{0};
 };
 
-class ComputePipelineDataInfo {
-  VkPipelineCreateFlags flags_;
-  VkPipelineLayout layout_;
+struct ComputePipelineDataInfo {
+  VkPipelineCreateFlags flags_{};
+  VkPipelineShaderStageCreateInfo stage_{};
+  VkPipelineLayout layout_{nullptr};
+
+  VkComputePipelineCreateInfo GetVkComputePipelineCreateInfo() const;
 };
 
 struct PushData1 {
@@ -1272,6 +1337,28 @@ struct PushData16 {
   std::uint64_t slot14_;
   std::uint64_t slot15_;
   std::uint64_t slot16_;
+};
+
+struct DefaultVertexInputStateDescription {
+  constexpr static const VkVertexInputBindingDescription
+      vertex_input_state_bind_description_{
+          0, sizeof(AssetSystem::AssetType::Vertex),
+          VK_VERTEX_INPUT_RATE_VERTEX};
+  static const std::array<VkVertexInputAttributeDescription, 5>
+      vertex_input_state_attribute_descriptions_;
+};
+
+struct DefaultViewportState {
+  static VkViewport default_viewport_;
+  static VkRect2D default_scissors_;
+  constexpr static const VkPipelineViewportStateCreateInfo viewpore_state_{
+      VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO,
+      nullptr,
+      0,
+      1,
+      &default_viewport_,
+      1,
+      &default_scissors_};
 };
 
 }  // namespace RenderSystem

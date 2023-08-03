@@ -6,9 +6,7 @@
 
 #include "runtime/function/render/vk_engine.h"
 
-MM::RenderSystem::FrameBuffer::~FrameBuffer() {
-  vkDestroyFramebuffer(render_engine_->GetDevice(), frame_buffer_, allocator_);
-}
+MM::RenderSystem::FrameBuffer::~FrameBuffer() { Release(); }
 
 MM::RenderSystem::FrameBuffer::FrameBuffer(
     RenderEngine* render_engine, VkAllocationCallbacks* allocator,
@@ -186,4 +184,21 @@ MM::ExecuteResult MM::RenderSystem::FrameBuffer::CheckInitParameters(
   }
 
   return ExecuteResult ::SUCCESS;
+}
+
+bool MM::RenderSystem::FrameBuffer::IsValid() const {
+  return render_engine_ != nullptr && allocator_ != nullptr &&
+         frame_buffer_ != nullptr;
+}
+
+void MM::RenderSystem::FrameBuffer::Release() {
+  if (IsValid()) {
+    vkDestroyFramebuffer(render_engine_->GetDevice(), frame_buffer_,
+                         allocator_);
+
+    frame_buffer_create_info_.Reset();
+    render_engine_ = nullptr;
+    allocator_ = nullptr;
+    frame_buffer_ = nullptr;
+  }
 }

@@ -1291,6 +1291,9 @@ void MM::RenderSystem::RenderEngine::InitSwapChain() {
   vkGetSwapchainImagesKHR(device_, swapchain_, &image_count,
                           swapchain_images_.data());
   scissor_ = {{0, 0}, {swapchain_extent.width, swapchain_extent.height}};
+  DefaultViewportState::default_viewport_.width = swap_chain_extent.width;
+  DefaultViewportState::default_viewport_.height = swap_chain_extent.height;
+  DefaultViewportState::default_scissors_ = scissor_;
 }
 
 void MM::RenderSystem::RenderEngine::InitSwapChainImageView() {

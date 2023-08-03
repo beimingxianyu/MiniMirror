@@ -108,6 +108,14 @@ enum class DynamicState : std::uint64_t {
   DYNAMIC_STATE_MAX_ENUM = static_cast<std::uint64_t>(0x1) << 37
 };
 
+DynamicState operator|(const DynamicState& lhs, const DynamicState& rhs);
+
+DynamicState& operator|=(DynamicState& lhs, const DynamicState& rhs);
+
+DynamicState operator&(const DynamicState& lhs, const DynamicState& rhs);
+
+DynamicState& operator&=(DynamicState& lhs, const DynamicState& rhs);
+
 // DEFAULT == ALL, but if
 // MM::RenderSystem::PipelineLayout::pipeline_layout_type_ is DEFAULT, the
 // MM::RenderSystem::PipelineLayout::pipeline_layout_ managed by
@@ -150,13 +158,13 @@ enum class ShaderStage {
   SHADER_STAGE_ALL = 0x7FFFFFFF,
 };
 
-ShaderStage operator|(ShaderStage lhs, ShaderStage rhs);
+ShaderStage operator|(const ShaderStage& lhs, const ShaderStage& rhs);
 
-ShaderStage operator|=(ShaderStage lhs, ShaderStage rhs);
+ShaderStage& operator|=(ShaderStage& lhs, const ShaderStage& rhs);
 
-ShaderStage operator&(ShaderStage lhs, ShaderStage rhs);
+ShaderStage operator&(const ShaderStage& lhs, const ShaderStage& rhs);
 
-ShaderStage operator&=(ShaderStage lhs, ShaderStage rhs);
+ShaderStage& operator&=(ShaderStage& lhs, const ShaderStage& rhs);
 
 enum class ShaderSlotCount : std::uint64_t {
   UNDEFINE = 0,
@@ -597,12 +605,14 @@ enum class ShaderSlotCount : std::uint64_t {
   SHADER_STAGE_ALL_STAGE_16_SLOT_BIT = SHADER_STAGE_ALL_GRAPHICS_16_SLOT_BIT,
 };
 
-ShaderSlotCount operator|(ShaderSlotCount lhs, ShaderSlotCount rhs);
+ShaderSlotCount operator|(const ShaderSlotCount& lhs,
+                          const ShaderSlotCount& rhs);
 
-ShaderSlotCount operator|=(ShaderSlotCount lhs, ShaderSlotCount rhs);
+ShaderSlotCount& operator|=(ShaderSlotCount& lhs, const ShaderSlotCount& rhs);
 
-ShaderSlotCount operator&(ShaderSlotCount lhs, ShaderSlotCount rhs);
+ShaderSlotCount operator&(const ShaderSlotCount& lhs,
+                          const ShaderSlotCount& rhs);
 
-ShaderSlotCount operator&=(ShaderSlotCount lhs, ShaderSlotCount rhs);
+ShaderSlotCount& operator&=(ShaderSlotCount& lhs, const ShaderSlotCount& rhs);
 }  // namespace RenderSystem
 }  // namespace MM

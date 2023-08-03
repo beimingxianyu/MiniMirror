@@ -244,6 +244,8 @@ MM::RenderSystem::DescriptorManager::operator=(
     return *this;
   }
 
+  Release();
+
   render_engine_ = other.render_engine_;
   allocator_ = other.allocator_;
   descriptor_pool_ = other.descriptor_pool_;

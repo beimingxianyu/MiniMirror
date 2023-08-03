@@ -456,37 +456,23 @@ bool LayoutSupportImageSamplerCombine(VkImageLayout layout);
 DynamicState ConvertVkDynamicStateToDynamicState(
     VkDynamicState vk_dynamic_state);
 
-ExecuteResult SavePiplineCache(VkDevice device,
-                               VkPipelineCache pipeline_cache) {
-  size_t cacheSize = 0;
+ExecuteResult SavePiplineCache(VkDevice device, VkPipelineCache pipeline_cache);
 
-  if (vkGetPipelineCacheData(device, pipeline_cache, &cacheSize, nullptr) !=
-      VK_SUCCESS) {
-    MM_LOG_ERROR("Getting cache size fail from pipelinecache.");
-    return ExecuteResult ::UNDEFINED_ERROR;
-  }
+bool VkVertexInputBindingDescriptionIsEqual(
+    const VkVertexInputBindingDescription& lhs,
+    const VkVertexInputBindingDescription& rhs);
 
-  auto cache_data = std::vector<char>(sizeof(char) * cacheSize, 0);
+bool VkVertexInputAttributeDescriptionIsEqual(
+    const VkVertexInputAttributeDescription& lhs,
+    const VkVertexInputAttributeDescription& rhs);
 
-  if (vkGetPipelineCacheData(device, pipeline_cache, &cacheSize,
-                             &cache_data[0]) != VK_SUCCESS) {
-    MM_LOG_ERROR("getting cache fail from pipelinecache.");
-    return ExecuteResult ::UNDEFINED_ERROR;
-  }
+bool VkViewportIsEqual(const VkViewport& lhs, const VkViewport& rhs);
 
-  FileSystem::Path pipeline_cache_path =
-      MM_FILE_SYSTEM->GetAssetDirCache() + "./.pipeline_cache";
-  std::ofstream stream(pipeline_cache_path.CStr(), std::ios::binary);
-  if (stream.is_open()) {
-    stream.write(cache_data.data(), cache_data.size());
-    stream.close();
-  } else {
-    MM_LOG_ERROR("Open pipeline cache data target file failed.");
-    return ExecuteResult ::UNDEFINED_ERROR;
-  }
+bool VkRect2DIsEqual(const VkRect2D& lhs, const VkRect2D& rhs);
 
-  return ExecuteResult ::SUCCESS;
-}
+bool VkPipelineViewportStateCreateInfoIsEqual(
+    const VkPipelineViewportStateCreateInfo& lhs,
+    const VkPipelineViewportStateCreateInfo& rhs);
 }  // namespace Utils
 }  // namespace RenderSystem
 }  // namespace MM

@@ -2094,3 +2094,86 @@ MM::RenderSystem::Utils::ConvertVkDynamicStateToDynamicState(
       return DynamicState::DYNAMIC_STATE_MAX_ENUM;
   }
 }
+MM::ExecuteResult MM::RenderSystem::Utils::SavePiplineCache(
+    VkDevice device, VkPipelineCache pipeline_cache) {
+  size_t cacheSize = 0;
+
+  if (vkGetPipelineCacheData(device, pipeline_cache, &cacheSize, nullptr) !=
+      VK_SUCCESS) {
+    MM_LOG_ERROR("Getting cache size fail from pipelinecache.");
+    return ExecuteResult ::UNDEFINED_ERROR;
+  }
+
+  auto cache_data = std::vector<char>(sizeof(char) * cacheSize, 0);
+
+  if (vkGetPipelineCacheData(device, pipeline_cache, &cacheSize,
+                             &cache_data[0]) != VK_SUCCESS) {
+    MM_LOG_ERROR("getting cache fail from pipelinecache.");
+    return ExecuteResult ::UNDEFINED_ERROR;
+  }
+
+  FileSystem::Path pipeline_cache_path =
+      MM_FILE_SYSTEM->GetAssetDirCache() + "./.pipeline_cache";
+  std::ofstream stream(pipeline_cache_path.CStr(), std::ios::binary);
+  if (stream.is_open()) {
+    stream.write(cache_data.data(), cache_data.size());
+    stream.close();
+  } else {
+    MM_LOG_ERROR("Open pipeline cache data target file failed.");
+    return ExecuteResult ::UNDEFINED_ERROR;
+  }
+
+  return ExecuteResult ::SUCCESS;
+}
+
+bool MM::RenderSystem::Utils::VkVertexInputBindingDescriptionIsEqual(
+    const VkVertexInputBindingDescription& lhs,
+    const VkVertexInputBindingDescription& rhs) {
+  return lhs.binding == rhs.binding && lhs.stride == rhs.stride &&
+         lhs.inputRate == rhs.inputRate;
+}
+
+bool MM::RenderSystem::Utils::VkVertexInputAttributeDescriptionIsEqual(
+    const VkVertexInputAttributeDescription& lhs,
+    const VkVertexInputAttributeDescription& rhs) {
+  return lhs.binding == rhs.binding && lhs.location == rhs.location &&
+         lhs.format == rhs.format && lhs.offset == rhs.offset;
+}
+
+bool MM::RenderSystem::Utils::VkViewportIsEqual(const VkViewport& lhs,
+                                                const VkViewport& rhs) {
+  return lhs.x == rhs.x && lhs.y == rhs.y && lhs.width == rhs.width &&
+         lhs.height == rhs.height && lhs.minDepth == rhs.minDepth &&
+         lhs.maxDepth == rhs.maxDepth;
+}
+
+bool MM::RenderSystem::Utils::VkRect2DIsEqual(const VkRect2D& lhs,
+                                              const VkRect2D& rhs) {
+  return lhs.offset.x == rhs.offset.x && lhs.offset.y == rhs.offset.y &&
+         lhs.extent.width == rhs.extent.width &&
+         lhs.extent.height == rhs.extent.height;
+}
+
+bool MM::RenderSystem::Utils::VkPipelineViewportStateCreateInfoIsEqual(
+    const VkPipelineViewportStateCreateInfo& lhs,
+    const VkPipelineViewportStateCreateInfo& rhs) {
+  bool result = lhs.flags == rhs.flags &&
+                lhs.viewportCount == rhs.viewportCount &&
+                lhs.scissorCount == rhs.scissorCount;
+  if (!result) {
+    return false;
+  }
+
+  for (std::uint32_t i = 0; i != lhs.viewportCount; ++i) {
+    if (!VkViewportIsEqual(lhs.pViewports[i], rhs.pViewports[i])) {
+      return false;
+    }
+  }
+  for (std::uint32_t i = 0; i != lhs.scissorCount; ++i) {
+    if (!VkRect2DIsEqual(lhs.pScissors[i], rhs.pScissors[i])) {
+      return false;
+    }
+  }
+
+  return true;
+}

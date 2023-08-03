@@ -38,6 +38,10 @@ class FrameBuffer {
 
   ExecuteResult GetFrameBufferID(FrameBufferID& frame_buffer_ID) const;
 
+  bool IsValid() const;
+
+  void Release();
+
  private:
   ExecuteResult CheckInitParameters(
       RenderEngine* render_engine,
