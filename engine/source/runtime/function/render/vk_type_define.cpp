@@ -1235,7 +1235,7 @@ MM::RenderSystem::ImageView::ImageView(
     const VkImageViewCreateInfo& vk_image_view_create_info)
     : image_view_wrapper_(),
       image_view_create_info_(vk_image_view_create_info) {
-#ifdef CHECK_PARAMETERS
+#ifdef MM_CHECK_PARAMETERS
   MM_CHECK(CheckInitParameters(render_engine, vk_image_view_create_info),
            image_view_create_info_.Reset();
            return;)
@@ -1256,7 +1256,7 @@ MM::RenderSystem::ImageView::ImageView(
     : image_view_wrapper_(), image_view_create_info_(image_view_create_info) {
   VkImageViewCreateInfo vk_image_view_create_info =
       image_view_create_info.GetVkImageViewCreateInfo();
-#ifdef CHECK_PARAMETERS
+#ifdef MM_CHECK_PARAMETERS
   MM_CHECK(CheckInitParameters(render_engine, vk_image_view_create_info),
            image_view_create_info_.Reset();
            return;)
@@ -1381,7 +1381,7 @@ MM::RenderSystem::Sampler::Sampler(
     RenderEngine* render_engine, VkAllocationCallbacks* allocator,
     const VkSamplerCreateInfo& vk_sampler_create_info)
     : sampler_wrapper_(nullptr), sampler_create_info_(vk_sampler_create_info) {
-#ifdef CHECK_PARAMETERS
+#ifdef MM_CHECK_PARAMETERS
   MM_CHECK(CheckInitParameters(render_engine, vk_sampler_create_info),
            render_engine = nullptr;
            allocator = nullptr; sampler_create_info_.Reset(); return;)
@@ -1442,7 +1442,7 @@ MM::RenderSystem::Sampler::Sampler(RenderEngine* render_engine,
     : sampler_wrapper_(nullptr), sampler_create_info_(sampler_create_info) {
   VkSamplerCreateInfo vk_sampler_create_info =
       sampler_create_info.GetVkSamplerCreateInfo();
-#ifdef CHECK_PARAMETERS
+#ifdef MM_CHECK_PARAMETERS
   MM_CHECK(CheckInitParameters(render_engine, vk_sampler_create_info),
            render_engine = nullptr;
            allocator = nullptr; sampler_create_info_.Reset(); return;)

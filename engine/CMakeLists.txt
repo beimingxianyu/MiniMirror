@@ -1,9 +1,5 @@
 include("hardware_info")
 
-if (${CMAKE_BUILD_TYPE} STREQUAL "Debug")
-    add_compile_definitions("CHECK_PARAMETERS")
-endif ()
-
 # shader config
 set(shader_config_version "450")
 set(shader_config_global_set "0")

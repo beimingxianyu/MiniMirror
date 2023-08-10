@@ -165,7 +165,7 @@ MM::RenderSystem::AllocatedBuffer::AllocatedBuffer(
       render_engine_(render_engine),
       buffer_data_info_(),
       wrapper_() {
-#ifdef CHECK_PARAMETERS
+#ifdef MM_CHECK_PARAMETERS
   MM_CHECK(CheckInitParameters(render_engine, vk_buffer_create_info,
                                vma_allocation_create_info),
            return;)
@@ -623,7 +623,7 @@ MM::RenderSystem::AllocatedBuffer::AllocatedBuffer(
       render_engine_(render_engine),
       buffer_data_info_(),
       wrapper_() {
-#ifdef CHECK_PARAMETERS
+#ifdef MM_CHECK_PARAMETERS
   MM_CHECK(CheckInitParametersWhenInitFromAnAsset(render_engine, asset_handler,
                                                   vk_buffer_create_info,
                                                   vma_allocation_create_info),

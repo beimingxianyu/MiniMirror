@@ -83,7 +83,7 @@ MM::RenderSystem::GraphicsPipeline::GraphicsPipeline(
     MM::RenderSystem::RenderEngine* render_engine,
     const VkGraphicsPipelineCreateInfo& vk_graphics_pipeline_create_info)
     : RenderPipeline(), graphics_pipeline_data_info_() {
-#ifdef CHECK_PARAMETERS
+#ifdef MM_CHECK_PARAMETERS
   MM_CHECK(CheckInitParametes(render_engine, vk_graphics_pipeline_create_info),
            MM_LOG_ERROR("The input parameters are error.");
            return;)
@@ -228,7 +228,7 @@ MM::RenderSystem::GraphicsPipeline::GraphicsPipeline(
     MM::RenderSystem::RenderEngine* render_engine,
     const MM::RenderSystem::GraphicsPipelineDataInfo&
         graphics_pipeline_data_info) {
-#ifdef CHECK_PARAMETERS
+#ifdef MM_CHECK_PARAMETERS
   MM_CHECK(CheckInitParametes(render_engine, graphics_pipeline_data_info),
            MM_LOG_ERROR("The input parameters are error.");
            return;)
@@ -436,7 +436,7 @@ MM::ExecuteResult MM::RenderSystem::GraphicsPipeline::CheckInitParametes(
 MM::RenderSystem::GraphicsPipeline::GraphicsPipeline(
     MM::RenderSystem::RenderEngine* render_engine,
     MM::RenderSystem::GraphicsPipelineDataInfo&& graphics_pipeline_data_info) {
-#ifdef CHECK_PARAMETERS
+#ifdef MM_CHECK_PARAMETERS
   MM_CHECK(CheckInitParametes(render_engine, graphics_pipeline_data_info),
            MM_LOG_ERROR("The input parameters are error.");
            return;)

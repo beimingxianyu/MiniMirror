@@ -23,7 +23,7 @@ MM::RenderSystem::FrameBuffer::FrameBuffer(
       render_engine_(render_engine),
       allocator_(allocator),
       frame_buffer_(nullptr) {
-#ifdef CHECK_PARAMETERS
+#ifdef MM_CHECK_PARAMETERS
   MM_CHECK(CheckInitParameters(render_engine, frame_buffer_create_info_),
            render_engine_ = nullptr;
            MM_LOG_ERROR("Input parameters is error."); return;)
@@ -45,7 +45,7 @@ MM::RenderSystem::FrameBuffer::FrameBuffer(
       render_engine_(render_engine),
       allocator_(allocator),
       frame_buffer_(nullptr) {
-#ifdef CHECK_PARAMETERS
+#ifdef MM_CHECK_PARAMETERS
   MM_CHECK(CheckInitParameters(render_engine, frame_buffer_create_info_),
            MM_LOG_ERROR("Input parameters is error.");
            return;)
@@ -67,7 +67,7 @@ MM::RenderSystem::FrameBuffer::FrameBuffer(
       render_engine_(render_Engine),
       allocator_(allocator),
       frame_buffer_(nullptr) {
-#ifdef CHECK_PARAMETERS
+#ifdef MM_CHECK_PARAMETERS
   MM_CHECK(CheckInitParameters(render_Engine, frame_buffer_create_parameters),
            MM_LOG_ERROR("Input parameters is error.");
            return;)

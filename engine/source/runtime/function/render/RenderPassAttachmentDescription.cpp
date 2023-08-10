@@ -11,7 +11,7 @@ MM::RenderSystem::RenderPassAttachmentDescription::
         RenderEngine* render_engine, VkAllocationCallbacks* allocator,
         const VkRenderPassCreateInfo& vk_render_pass_create_info)
     : wrapper_(nullptr) {
-#ifdef CHECK_PARAMETERS
+#ifdef MM_CHECK_PARAMETERS
   MM_CHECK(CheckInitParameters(render_engine, vk_render_pass_create_info),
            MM_LOG_ERROR("Input parameters is error.");
            return;)
@@ -27,7 +27,7 @@ MM::RenderSystem::RenderPassAttachmentDescription::
         RenderEngine* render_engine, VkAllocationCallbacks* allocator,
         const RenderPassCreateInfo& render_pass_create_info)
     : wrapper_(nullptr) {
-#ifdef CHECK_PARAMETERS
+#ifdef MM_CHECK_PARAMETERS
   MM_CHECK(CheckInitParameters(render_engine, render_pass_create_info),
            MM_LOG_ERROR("Input parameters is error.");
            return;)
@@ -46,7 +46,7 @@ MM::RenderSystem::RenderPassAttachmentDescription::
         MM::RenderSystem::RenderEngine* render_engine,
         VkAllocationCallbacks* allocator,
         MM::RenderSystem::RenderPassCreateInfo&& render_pass_create_info) {
-#ifdef CHECK_PARAMETERS
+#ifdef MM_CHECK_PARAMETERS
   MM_CHECK(CheckInitParameters(render_engine, render_pass_create_info),
            MM_LOG_ERROR("Input parameters is error.");
            return;)

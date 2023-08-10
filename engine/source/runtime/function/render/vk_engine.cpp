@@ -171,7 +171,7 @@ MM::ExecuteResult MM::RenderSystem::RenderEngine::CopyBuffer(
     AllocatedBuffer& src_buffer, AllocatedBuffer& dest_buffer,
     const std::vector<VkBufferCopy2>& regions) {
   assert(IsValid());
-#ifdef CHECK_PARAMETERS
+#ifdef MM_CHECK_PARAMETERS
   MM_CHECK_WITHOUT_LOG(
       CopyBufferInputParametersCheck(src_buffer, dest_buffer, regions),
       return MM_RESULT_CODE;)
@@ -341,7 +341,7 @@ MM::ExecuteResult MM::RenderSystem::RenderEngine::CopyImage(
     AllocatedImage& src_image, AllocatedImage& dest_image,
     const std::vector<VkImageCopy2>& regions) {
   assert(IsValid());
-#ifdef CHECK_PARAMETERS
+#ifdef MM_CHECK_PARAMETERS
   MM_CHECK_WITHOUT_LOG(
       CopyImageInputParametersCheck(src_image, dest_image, regions),
       return MM_RESULT_CODE;)
@@ -561,7 +561,7 @@ MM::ExecuteResult MM::RenderSystem::RenderEngine::CopyDataToBuffer(
     AllocatedBuffer& dest_buffer, const void* data,
     const VkDeviceSize& copy_offset, const VkDeviceSize& copy_size) {
   assert(IsValid());
-#ifdef CHECK_PARAMETERS
+#ifdef MM_CHECK_PARAMETERS
   if (!dest_buffer.IsValid()) {
     MM_LOG_ERROR("Dest_buffer is invalid.");
     return ExecuteResult::OBJECT_IS_INVALID;
@@ -595,7 +595,7 @@ MM::ExecuteResult MM::RenderSystem::RenderEngine::CopyDataToBuffer(
 //     AllocatedBuffer& buffer,
 //     std::vector<BufferSubResourceAttribute>& buffer_chunks_info) {
 //   assert(IsValid());
-// #ifdef CHECK_PARAMETERS
+// #ifdef MM_CHECK_PARAMETERS
 //   if (!buffer.IsValid()) {
 //     LOG_ERROR("buffer is invalid.");
 //     return ExecuteResult::OBJECT_IS_INVALID;
@@ -761,7 +761,7 @@ MM::ExecuteResult MM::RenderSystem::RenderEngine::CopyDataToBuffer(
 //     AllocatedBuffer& buffer,
 //     std::list<BufferSubResourceAttribute>& buffer_chunks_info) {
 //   assert(IsValid());
-// #ifdef CHECK_PARAMETERS
+// #ifdef MM_CHECK_PARAMETERS
 //   if (!buffer.IsValid()) {
 //     LOG_ERROR("buffer is invalid.");
 //     return ExecuteResult::OBJECT_IS_INVALID;

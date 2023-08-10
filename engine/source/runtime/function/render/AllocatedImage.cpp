@@ -154,7 +154,7 @@ MM::RenderSystem::AllocatedImage::AllocatedImage(
       render_engine_(render_engine),
       image_data_info_(),
       wrapper_() {
-#ifdef CHECK_PARAMETERS
+#ifdef MM_CHECK_PARAMETERS
   MM_CHECK(CheckInitParametersWhenInitFromAnAsset(
                render_engine, image_handler, image_layout, vk_image_create_info,
                vma_allocation_create_info),
@@ -215,7 +215,7 @@ MM::RenderSystem::AllocatedImage::AllocatedImage(
       render_engine_(render_engine),
       image_data_info_(),
       wrapper_() {
-#ifdef CHECK_PARAMETERS
+#ifdef MM_CHECK_PARAMETERS
   MM_CHECK(
       CheckInitParameters(render_engine, image_layout, vk_image_create_info,
                           vma_allocation_create_info),
@@ -1429,7 +1429,7 @@ VmaAllocation MM::RenderSystem::AllocatedImage::GetAllocation() {
 //     return ExecuteResult::SUCCESS;
 //   }
 //
-// #ifdef CHECK_PARAMETERS
+// #ifdef MM_CHECK_PARAMETERS
 //   std::uint32_t check_queue_index =
 //       new_image_sub_resource_attribute[0].GetQueueIndex();
 //   for (std::uint64_t i = 1; i != new_image_sub_resource_attribute.size();

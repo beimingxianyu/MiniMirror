@@ -415,7 +415,7 @@ ExecuteResult MeshBufferManager::RemoveBufferFragmentationImp(
   RenderEngine* render_engine =
       managed_allocated_mesh_buffer_.GetRenderEnginePtr();
   assert(render_engine->IsValid());
-#ifdef CHECK_PARAMETERS
+#ifdef MM_CHECK_PARAMETERS
   if (!buffer.IsValid()) {
     MM_LOG_ERROR("buffer is invalid.");
     return ExecuteResult::OBJECT_IS_INVALID;

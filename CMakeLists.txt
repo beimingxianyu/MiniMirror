@@ -2,7 +2,14 @@
 
 project("MiniMirror")
 
-option(enable_test "Whether to open unit test." ON)
+option(MM_ENABLE_TEST "Whether to open unit test." ON)
+if (${CMAKE_BUILD_TYPE} STREQUAL "Debug")
+    option(MM_CHECK_PARAMETERS "Check some function parameters" ON)
+    option(MM_CHECK_ALL_EXCEPTION_PROCESS "Check all exception process" ON)
+else ()
+    option(MM_CHECK_PARAMETERS "Check some function parameters" OFF)
+    option(MM_CHECK_ALL_EXCEPTION_PROCESS "Check all exception process" OFF)
+endif ()
 
 if (WIN32)
     set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS on)
@@ -44,7 +51,7 @@ execute_process(COMMAND python3 ${script_dir}/python/config_cmake.py --cmake_con
 
 add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/engine")
 
-if (enable_test)
+if (MM_ENABLE_TEST)
     set(engine_dir_test "${engine_dir}")
     add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/test")
 endif ()

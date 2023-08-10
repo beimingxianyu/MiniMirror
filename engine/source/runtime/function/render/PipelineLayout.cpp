@@ -16,7 +16,7 @@ MM::RenderSystem::PipelineLayout::PipelineLayout(
       pipeline_layout_type_(pipeline_layout_type),
       shader_slot_count_(shader_slot_count),
       pipeline_layout_(nullptr) {
-#ifdef CHECK_PARAMETERS
+#ifdef MM_CHECK_PARAMETERS
   MM_CHECK(CheckInitParameters(), MM_LOG_ERROR("Input parameters are error.");
            render_engine_ = nullptr;
            pipeline_layout_type = PipelineLayoutType::UNDEFINE;

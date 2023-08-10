@@ -943,7 +943,7 @@ MM::ExecuteResult MM::RenderSystem::Utils::GetEndSizeAndOffset(
     const AllocatedBuffer& buffer,
     std::list<std::shared_ptr<BufferChunkInfo>>& buffer_chunks_info,
     VkDeviceSize& output_end_size, VkDeviceSize& output_offset) {
-#ifdef CHECK_PARAMETERS
+#ifdef MM_CHECK_PARAMETERS
   if (!buffer.IsValid()) {
     MM_LOG_ERROR("The buffer is invalid.");
     return ExecuteResult::OBJECT_IS_INVALID;
