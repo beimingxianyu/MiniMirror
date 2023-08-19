@@ -1573,7 +1573,7 @@ VkBufferMemoryBarrier2 MM::RenderSystem::Utils::GetVkBufferMemoryBarrier2(
 
 VkCopyBufferInfo2 MM::RenderSystem::Utils::GetVkCopyBufferInfo2(
     const AllocatedBuffer& src_buffer, AllocatedBuffer& dest_buffer,
-    std::uint32_t regions_count, VkBufferCopy2* regions) {
+    std::uint32_t regions_count, const VkBufferCopy2* regions) {
   return VkCopyBufferInfo2{VK_STRUCTURE_TYPE_COPY_BUFFER_INFO_2,
                            nullptr,
                            const_cast<VkBuffer>(src_buffer.GetBuffer()),
@@ -1584,7 +1584,7 @@ VkCopyBufferInfo2 MM::RenderSystem::Utils::GetVkCopyBufferInfo2(
 
 VkCopyBufferInfo2 MM::RenderSystem::Utils::GetVkCopyBufferInfo2(
     AllocatedBuffer& src_buffer, AllocatedBuffer& dest_buffer,
-    std::uint32_t regions_count, VkBufferCopy2* regions) {
+    std::uint32_t regions_count, const VkBufferCopy2* regions) {
   return VkCopyBufferInfo2{VK_STRUCTURE_TYPE_COPY_BUFFER_INFO_2,
                            nullptr,
                            src_buffer.GetBuffer(),
@@ -1595,7 +1595,7 @@ VkCopyBufferInfo2 MM::RenderSystem::Utils::GetVkCopyBufferInfo2(
 
 VkCopyBufferInfo2 MM::RenderSystem::Utils::GetVkCopyBufferInfo2(
     void* next, VkBuffer src_buffer, VkBuffer dest_buffer,
-    std::uint32_t regions_count, VkBufferCopy2* regions) {
+    std::uint32_t regions_count, const VkBufferCopy2* regions) {
   return VkCopyBufferInfo2{VK_STRUCTURE_TYPE_COPY_BUFFER_INFO_2,
                            next,
                            src_buffer,

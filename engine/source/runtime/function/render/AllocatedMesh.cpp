@@ -208,17 +208,17 @@ MM::ExecuteResult MM::RenderSystem::AllocatedMesh::CopyAssetDataToBuffer(
     return MM::Utils::ExecuteResult ::OBJECT_IS_INVALID;
   }
 
-  if (asset_handler.GetAsset().GetAssetType() !=
-      AssetSystem::AssetType::AssetType::MESH) {
-    MM_LOG_ERROR("");
-    return MM::Utils::ExecuteResult::OBJECT_IS_INVALID;
-  }
-
   if (IsAssetResource()) {
     MM_LOG_ERROR(
         "It is not supported to rewrite asset data to an AllocatedBuffer that "
         "has already written asset data.");
     return MM::Utils::ExecuteResult::OPERATION_NOT_SUPPORTED;
+  }
+
+  if (asset_handler.GetAsset().GetAssetType() !=
+      AssetSystem::AssetType::AssetType::MESH) {
+    MM_LOG_ERROR("Asset is not a mesh.");
+    return MM::Utils::ExecuteResult::OBJECT_IS_INVALID;
   }
 
   AssetSystem::AssetType::Mesh& asset_mesh =
@@ -247,14 +247,11 @@ MM::ExecuteResult MM::RenderSystem::AllocatedMesh::CopyAssetDataToBuffer(
            MM_LOG_ERROR("Failed to create stage buffer.");
            return MM_RESULT_CODE;)
   void* stage_data_void{nullptr};
-  char* stage_data_char{nullptr};
   vmaMapMemory(stage_buffer.GetAllocator(), stage_buffer.GetAllocation(),
                &stage_data_void);
-  stage_data_char = reinterpret_cast<char*>(stage_data_void);
-  memccpy(stage_data_char, asset_mesh.GetVertices().data(), 0,
-          asset_vertex_size);
-  memccpy(stage_data_char + asset_vertex_size, asset_mesh.GetIndexes().data(),
-          asset_vertex_size, asset_index_size);
+  memcpy(stage_data_void, asset_mesh.GetVertices().data(), asset_vertex_size);
+  memcpy(reinterpret_cast<char*>(stage_data_void) + asset_vertex_size,
+         asset_mesh.GetIndexes().data(), asset_index_size);
   vmaUnmapMemory(stage_buffer.GetAllocator(), stage_buffer.GetAllocation());
 
   MM_CHECK(

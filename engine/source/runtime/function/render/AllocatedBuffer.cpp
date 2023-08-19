@@ -312,7 +312,7 @@ MM::ExecuteResult MM::RenderSystem::AllocatedBuffer::CopyDataToBuffer(
 
     char* data_ptr = reinterpret_cast<char*>(data) + src_offset;
 
-    buffer_ptr = buffer_ptr + src_offset;
+    buffer_ptr = buffer_ptr + dest_offset;
     memcpy(buffer_ptr, data_ptr, size);
 
     vmaUnmapMemory(GetAllocator(), GetAllocation());
@@ -338,11 +338,9 @@ MM::ExecuteResult MM::RenderSystem::AllocatedBuffer::CopyDataToBuffer(
            MM_LOG_ERROR("Failed to create stage buffer.");
            return MM::Utils::ExecuteResult ::CREATE_OBJECT_FAILED;)
 
-  const auto buffer_copy_region =
-      Utils::GetVkBufferCopy2(size, src_offset, dest_offset);
-  std::vector<VkBufferCopy2> buffer_copy_regions{buffer_copy_region};
+  const auto buffer_copy_region = Utils::GetVkBufferCopy2(size, 0, dest_offset);
   auto buffer_copy_info =
-      Utils::GetVkCopyBufferInfo2(stage_buffer, *this, buffer_copy_regions);
+      Utils::GetVkCopyBufferInfo2(stage_buffer, *this, 1, &buffer_copy_region);
 
   void* stage_buffer_ptr{nullptr};
 
@@ -351,7 +349,7 @@ MM::ExecuteResult MM::RenderSystem::AllocatedBuffer::CopyDataToBuffer(
               MM_LOG_ERROR("Unable to obtain a pointer mapped to a buffer");
               return Utils::VkResultToMMResult(MM_VK_RESULT_CODE);)
 
-  memcpy(stage_buffer_ptr, data, size);
+  memcpy(stage_buffer_ptr, reinterpret_cast<char*>(data) + src_offset, size);
 
   vmaUnmapMemory(render_engine_->GetAllocator(), stage_buffer.GetAllocation());
 
@@ -1328,6 +1326,186 @@ MM::RenderSystem::AllocatedBuffer::CheckTransformInputParameter(
   }
 
   return ExecuteResult ::SUCCESS;
+}
+
+MM::ExecuteResult MM::RenderSystem::AllocatedBuffer::CopyDataToBuffer(
+    const std::tuple<std::uint64_t, void*, std::uint64_t, std::uint64_t>*
+        copy_info,
+    std::uint32_t count) {
+  if (!IsValid()) {
+    return MM::Utils::ExecuteResult ::OBJECT_IS_INVALID;
+  }
+
+  if (copy_info == nullptr) {
+    return ExecuteResult::INPUT_PARAMETERS_ARE_NOT_SUITABLE;
+  }
+
+  // The copied data cannot exceed the buffer range.
+  for (std::uint32_t index = 0; index != count; ++index) {
+    if (std::get<3>(copy_info[index]) >
+        buffer_data_info_.buffer_create_info_.size_ -
+            std::get<0>(copy_info[index])) {
+      return ExecuteResult ::INPUT_PARAMETERS_ARE_NOT_SUITABLE;
+    }
+  }
+
+  if (CanMapped()) {
+    char* buffer_ptr{nullptr};
+    MM_VK_CHECK_WITHOUT_LOG(
+        vmaMapMemory(GetAllocator(), GetAllocation(),
+                     reinterpret_cast<void**>(&buffer_ptr)),
+        MM_LOG_ERROR("Unable to obtain a pointer mapped to a buffer");
+        return ExecuteResult::UNDEFINED_ERROR;)
+
+    for (std::uint32_t index = 0; index != count; ++index) {
+      char* data_ptr = reinterpret_cast<char*>(std::get<1>(copy_info[index])) +
+                       std::get<2>(copy_info[index]);
+
+      char* new_buffer_ptr = buffer_ptr + std::get<0>(copy_info[index]);
+      memcpy(new_buffer_ptr, data_ptr, std::get<3>(copy_info[index]));
+    }
+
+    vmaUnmapMemory(GetAllocator(), GetAllocation());
+
+    if (IsAssetResource()) {
+      MarkThisUseForWrite();
+    }
+
+    return ExecuteResult::SUCCESS;
+  }
+
+  if (!IsTransformDest()) {
+    MM_LOG_ERROR(
+        "If you want to copy data into an unmapped AllocatedBuffer, it must be "
+        "an AllocatedBuffer that can be specified as the transform "
+        "destination.");
+    return MM::Utils::ExecuteResult ::OPERATION_NOT_SUPPORTED;
+  }
+
+  VkDeviceSize total_size = 0;
+  for (std::uint32_t index = 0; index != count; ++index) {
+    total_size += std::get<3>(copy_info[index]);
+  }
+
+  AllocatedBuffer stage_buffer{};
+  MM_CHECK(
+      GetRenderEnginePtr()->CreateStageBuffer(
+          total_size, render_engine_->GetTransformQueueIndex(), stage_buffer),
+      MM_LOG_ERROR("Failed to create stage buffer.");
+      return MM::Utils::ExecuteResult ::CREATE_OBJECT_FAILED;)
+
+  void* stage_buffer_ptr{nullptr};
+
+  MM_VK_CHECK(vmaMapMemory(render_engine_->GetAllocator(),
+                           stage_buffer.GetAllocation(), &stage_buffer_ptr),
+              MM_LOG_ERROR("Unable to obtain a pointer mapped to a buffer");
+              return Utils::VkResultToMMResult(MM_VK_RESULT_CODE);)
+
+  std::vector<VkBufferCopy2> buffer_copy_regions{};
+  buffer_copy_regions.reserve(count);
+
+  VkDeviceSize src_offset = 0;
+  for (std::uint32_t index = 0; index != count; ++index) {
+    buffer_copy_regions.emplace_back(
+        Utils::GetVkBufferCopy2(std::get<3>(copy_info[index]), src_offset,
+                                std::get<0>(copy_info[index])));
+    memcpy(reinterpret_cast<char*>(stage_buffer_ptr) + src_offset,
+           reinterpret_cast<char*>(std::get<1>(copy_info[index])) +
+               std::get<2>(copy_info[index]),
+           std::get<3>(copy_info[index]));
+    src_offset += std::get<3>(copy_info[index]);
+  }
+
+  vmaUnmapMemory(render_engine_->GetAllocator(), stage_buffer.GetAllocation());
+
+  auto buffer_copy_info =
+      Utils::GetVkCopyBufferInfo2(stage_buffer, *this, buffer_copy_regions);
+
+  MM_CHECK(
+      render_engine_->RunSingleCommandAndWait(
+          CommandBufferType::TRANSFORM, 1,
+          [&buffer_copy_info = buffer_copy_info, render_engine = render_engine_,
+           this_buffer = this](AllocatedCommandBuffer& cmd) {
+            if (buffer_copy_info.pRegions->size >
+                this_buffer->GetSize() - buffer_copy_info.pRegions->dstOffset) {
+              return ExecuteResult ::INPUT_PARAMETERS_ARE_NOT_SUITABLE;
+            }
+
+            MM_CHECK(Utils::BeginCommandBuffer(cmd),
+                     MM_LOG_FATAL("Failed to begin command buffer.");
+                     return MM_RESULT_CODE;)
+
+            std::vector<VkBufferMemoryBarrier2> barriers;
+            std::uint64_t affected_sub_resource_index = 0;
+            std::uint64_t affected_sub_resource_count = 0;
+            auto& sub_resource_attributes =
+                this_buffer->GetSubResourceAttributes();
+            for (std::uint64_t i = 0; i < sub_resource_attributes.size(); ++i) {
+              if (sub_resource_attributes[i].GetChunkInfo().GetOffset() <
+                  buffer_copy_info.pRegions->srcOffset) {
+                affected_sub_resource_index = i;
+                for (; i < sub_resource_attributes.size(); ++i) {
+                  if (sub_resource_attributes[i].GetChunkInfo().GetOffset() <
+                      buffer_copy_info.pRegions->srcOffset +
+                          buffer_copy_info.pRegions->size) {
+                    barriers.emplace_back(Utils::GetVkBufferMemoryBarrier2(
+                        VK_PIPELINE_STAGE_2_TRANSFER_BIT, 0,
+                        VK_PIPELINE_STAGE_2_TRANSFER_BIT,
+                        VK_ACCESS_2_TRANSFER_WRITE_BIT,
+                        sub_resource_attributes[i].GetQueueIndex(),
+                        render_engine->GetTransformQueueIndex(), *this_buffer,
+                        sub_resource_attributes[i].GetChunkInfo().GetOffset(),
+                        sub_resource_attributes[i].GetChunkInfo().GetSize()));
+                    ++affected_sub_resource_count;
+                  } else {
+                    break;
+                  }
+                }
+                break;
+              }
+            }
+
+            VkDependencyInfo dependency_info = Utils::GetVkDependencyInfo(
+                0, nullptr, barriers.size(), barriers.data(), 0, nullptr, 0);
+
+            vkCmdPipelineBarrier2(cmd.GetCommandBuffer(), &dependency_info);
+
+            vkCmdCopyBuffer2(cmd.GetCommandBuffer(), &buffer_copy_info);
+
+            for (std::uint64_t count = 0; count != affected_sub_resource_count;
+                 ++count) {
+              barriers[count].srcAccessMask = VK_ACCESS_2_TRANSFER_WRITE_BIT;
+              barriers[count].srcQueueFamilyIndex =
+                  render_engine->GetTransformQueueIndex();
+              barriers[count].dstQueueFamilyIndex =
+                  sub_resource_attributes[affected_sub_resource_index + count]
+                      .GetQueueIndex();
+            }
+
+            vkCmdPipelineBarrier2(cmd.GetCommandBuffer(), &dependency_info);
+
+            MM_CHECK(Utils::EndCommandBuffer(cmd),
+                     MM_LOG_FATAL("Failed to end command buffer.");
+                     return MM_RESULT_CODE;)
+
+            return ExecuteResult::SUCCESS;
+          },
+          std::vector<RenderResourceDataID>{
+              stage_buffer.GetRenderResourceDataID()}),
+      return MM_RESULT_CODE;)
+
+  if (IsAssetResource()) {
+    MarkThisUseForWrite();
+  }
+
+  return ExecuteResult::SUCCESS;
+}
+
+MM::ExecuteResult MM::RenderSystem::AllocatedBuffer::CopyDataToBuffer(
+    const std::vector<std::tuple<std::uint64_t, void*, std::uint64_t,
+                                 std::uint64_t>>& copy_info) {
+  return CopyDataToBuffer(copy_info.data(),
+                          static_cast<std::uint32_t>(copy_info.size()));
 }
 
 // MM::ExecuteResult MM::RenderSystem::AllocatedBuffer::TransformQueueFamily(

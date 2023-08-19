@@ -136,6 +136,15 @@ class AllocatedBuffer : public RenderResourceDataBase {
   ExecuteResult CopyDataToBuffer(std::uint64_t dest_offset, void* data,
                                  std::uint64_t src_offset, std::uint64_t size);
 
+  ExecuteResult CopyDataToBuffer(
+      const std::tuple<std::uint64_t, void*, std::uint64_t, std::uint64_t>*
+          copy_info,
+      std::uint32_t count);
+
+  ExecuteResult CopyDataToBuffer(
+      const std::vector<std::tuple<std::uint64_t, void*, std::uint64_t,
+                                   std::uint64_t>>& copy_info);
+
   MM::ExecuteResult CopyAssetDataToBuffer(
       MM::AssetSystem::AssetManager::HandlerType asset_handler,
       std::uint32_t queue_index);

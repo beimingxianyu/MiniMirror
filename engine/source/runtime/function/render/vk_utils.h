@@ -304,17 +304,17 @@ VkCopyBufferInfo2 GetVkCopyBufferInfo2(
 VkCopyBufferInfo2 GetVkCopyBufferInfo2(AllocatedBuffer& src_buffer,
                                        AllocatedBuffer& dest_buffer,
                                        std::uint32_t regions_count,
-                                       VkBufferCopy2* regions);
+                                       const VkBufferCopy2* regions);
 
 VkCopyBufferInfo2 GetVkCopyBufferInfo2(const AllocatedBuffer& src_buffer,
                                        AllocatedBuffer& dest_buffer,
                                        std::uint32_t regions_count,
-                                       VkBufferCopy2* regions);
+                                       const VkBufferCopy2* regions);
 
 VkCopyBufferInfo2 GetVkCopyBufferInfo2(void* next, VkBuffer src_buffer,
                                        VkBuffer dest_buffer,
                                        std::uint32_t regions_count,
-                                       VkBufferCopy2* regions);
+                                       const VkBufferCopy2* regions);
 
 bool IsTransformSrcBuffer(const VkBufferUsageFlags& flags);
 
