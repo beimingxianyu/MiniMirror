@@ -31,8 +31,7 @@ MM::Utils::UUID& MM::Utils::UUID::operator=(MM::Utils::UUID&& other) noexcept {
   return *this;
 }
 
-std::ostream& MM::Utils::operator<<(std::ostream& os,
-                                    const MM::Utils::UUID& uuid) {
+std::ostream& std::operator<<(std::ostream& os, const MM::Utils::UUID& uuid) {
   os << uuid.ToString();
   return os;
 }
@@ -104,7 +103,8 @@ MM::Utils::UUID::UUID(std::uint64_t clock, std::uint64_t mac_address)
 
 std::uint32_t MM::Utils::UUID::GetClockSequence() { return clock_sequence_; }
 
-void MM::Utils::Swap(MM::Utils::UUID& lhs, MM::Utils::UUID& rhs) noexcept {
+void MM::Utils::UUID::Swap(MM::Utils::UUID& lhs,
+                           MM::Utils::UUID& rhs) noexcept {
   using std::swap;
   if (&lhs == &rhs) {
     return;
@@ -114,7 +114,8 @@ void MM::Utils::Swap(MM::Utils::UUID& lhs, MM::Utils::UUID& rhs) noexcept {
   std::swap(lhs.second_part_, rhs.second_part_);
 }
 
-void MM::Utils::swap(MM::Utils::UUID& lhs, MM::Utils::UUID& rhs) noexcept {
+void MM::Utils::UUID::swap(MM::Utils::UUID& lhs,
+                           MM::Utils::UUID& rhs) noexcept {
   using std::swap;
   if (&lhs == &rhs) {
     return;
@@ -131,37 +132,30 @@ void MM::Utils::UUID::Reset() {
   second_part_ = 0;
 }
 
-bool MM::Utils::operator==(const MM::Utils::UUID& lhs,
-                           const MM::Utils::UUID& rhs) {
-  return lhs.first_part_ == rhs.first_part_ &&
-         lhs.second_part_ == rhs.second_part_;
+bool MM::Utils::UUID::operator==(const MM::Utils::UUID& rhs) const {
+  return first_part_ == rhs.first_part_ && second_part_ == rhs.second_part_;
 }
 
-bool MM::Utils::operator!=(const MM::Utils::UUID& lhs,
-                           const MM::Utils::UUID& rhs) {
-  return !(rhs == lhs);
+bool MM::Utils::UUID::operator!=(const MM::Utils::UUID& rhs) const {
+  return !(*this == rhs);
 }
 
-bool MM::Utils::operator<(const MM::Utils::UUID& lhs,
-                          const MM::Utils::UUID& rhs) {
-  if (lhs.first_part_ < rhs.first_part_) return true;
-  if (rhs.first_part_ < lhs.first_part_) return false;
-  return lhs.second_part_ < rhs.second_part_;
+bool MM::Utils::UUID::operator<(const MM::Utils::UUID& rhs) const {
+  if (first_part_ < rhs.first_part_) return true;
+  if (rhs.first_part_ < first_part_) return false;
+  return second_part_ < rhs.second_part_;
 }
 
-bool MM::Utils::operator>(const MM::Utils::UUID& lhs,
-                          const MM::Utils::UUID& rhs) {
-  return rhs < lhs;
+bool MM::Utils::UUID::operator>(const MM::Utils::UUID& rhs) const {
+  return rhs.operator<(*this);
 }
 
-bool MM::Utils::operator<=(const MM::Utils::UUID& lhs,
-                           const MM::Utils::UUID& rhs) {
-  return !(rhs < lhs);
+bool MM::Utils::UUID::operator<=(const MM::Utils::UUID& rhs) const {
+  return !(rhs.operator<(*this));
 }
 
-bool MM::Utils::operator>=(const MM::Utils::UUID& lhs,
-                           const MM::Utils::UUID& rhs) {
-  return !(lhs < rhs);
+bool MM::Utils::UUID::operator>=(const MM::Utils::UUID& rhs) const {
+  return !(*this < rhs);
 }
 
 MM::Utils::UUID::UUID(MM::Utils::UUID::UUIDEmptyInit)

@@ -136,9 +136,9 @@ class Path {
    */
   std::uint64_t GetHash() const;
 
-  friend void Swap(Path& lhs, Path& rhs) noexcept;
+  static void Swap(Path& lhs, Path& rhs) noexcept;
 
-  friend void swap(Path& lhs, Path& rhs) noexcept;
+  static void swap(Path& lhs, Path& rhs) noexcept;
 
  private:
   /**

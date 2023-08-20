@@ -13,14 +13,14 @@ class MMObject {
   MMObject& operator=(MMObject&& other) noexcept;
 
  public:
-  friend bool operator==(const MMObject& lhs, const MMObject& rhs);
-  friend bool operator!=(const MMObject& lhs, const MMObject& rhs);
-  friend bool operator<(const MMObject& lhs, const MMObject& rhs);
-  friend bool operator>(const MMObject& lhs, const MMObject& rhs);
-  friend bool operator<=(const MMObject& lhs, const MMObject& rhs);
-  friend bool operator>=(const MMObject& lhs, const MMObject& rhs);
-  friend void Swap(MMObject& lhs, MMObject& rhs) noexcept;
-  friend void swap(MMObject& lhs, MMObject& rhs) noexcept;
+  bool operator==(const MMObject& rhs) const;
+  bool operator!=(const MMObject& rhs) const;
+  bool operator<(const MMObject& rhs) const;
+  bool operator>(const MMObject& rhs) const;
+  bool operator<=(const MMObject& rhs) const;
+  bool operator>=(const MMObject& rhs) const;
+  static void Swap(MMObject& lhs, MMObject& rhs) noexcept;
+  static void swap(MMObject& lhs, MMObject& rhs) noexcept;
 
  public:
   virtual bool IsValid() const;

@@ -642,14 +642,14 @@ std::string MM::FileSystem::Path::RemoveDotAndDotDot(
   return result;
 }
 
-void MM::FileSystem::Swap(MM::FileSystem::Path& lhs,
-                          MM::FileSystem::Path& rhs) noexcept {
+void MM::FileSystem::Path::Swap(MM::FileSystem::Path& lhs,
+                                MM::FileSystem::Path& rhs) noexcept {
   using std::swap;
   swap(lhs.path_, rhs.path_);
 }
 
-void MM::FileSystem::swap(MM::FileSystem::Path& lhs,
-                          MM::FileSystem::Path& rhs) noexcept {
+void MM::FileSystem::Path::swap(MM::FileSystem::Path& lhs,
+                                MM::FileSystem::Path& rhs) noexcept {
   using std::swap;
   swap(lhs.path_, rhs.path_);
 }

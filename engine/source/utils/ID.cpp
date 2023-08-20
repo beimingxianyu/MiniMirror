@@ -33,14 +33,14 @@ bool MM::Utils::ID2::operator>=(const MM::Utils::ID2& rhs) const {
   return !(*this < rhs);
 }
 
-void MM::Utils::Swap(MM::Utils::ID2& lhs, MM::Utils::ID2& rhs) noexcept {
+void MM::Utils::ID2::Swap(MM::Utils::ID2& lhs, MM::Utils::ID2& rhs) noexcept {
   using std::swap;
 
   std::swap(lhs.sub_ID1_, rhs.sub_ID1_);
   std::swap(lhs.sub_ID2_, rhs.sub_ID2_);
 }
 
-void MM::Utils::swap(MM::Utils::ID2& lhs, MM::Utils::ID2& rhs) noexcept {
+void MM::Utils::ID2::swap(MM::Utils::ID2& lhs, MM::Utils::ID2& rhs) noexcept {
   using std::swap;
 
   std::swap(lhs.sub_ID1_, rhs.sub_ID1_);
@@ -119,7 +119,7 @@ void MM::Utils::ID3::SetSubID3(std::uint64_t new_sub_ID3) {
   sub_ID3_ = new_sub_ID3;
 }
 
-void MM::Utils::swap(MM::Utils::ID3& lhs, MM::Utils::ID3& rhs) noexcept {
+void MM::Utils::ID3::swap(MM::Utils::ID3& lhs, MM::Utils::ID3& rhs) noexcept {
   using std::swap;
 
   if (&lhs == &rhs) {
@@ -131,7 +131,7 @@ void MM::Utils::swap(MM::Utils::ID3& lhs, MM::Utils::ID3& rhs) noexcept {
   swap(lhs.sub_ID3_, rhs.sub_ID3_);
 }
 
-void MM::Utils::Swap(MM::Utils::ID3& lhs, MM::Utils::ID3& rhs) noexcept {
+void MM::Utils::ID3::Swap(MM::Utils::ID3& lhs, MM::Utils::ID3& rhs) noexcept {
   using std::swap;
 
   if (&lhs == &rhs) {
@@ -190,7 +190,7 @@ bool MM::Utils::ID4::operator<=(const MM::Utils::ID4& rhs) const {
 bool MM::Utils::ID4::operator>=(const MM::Utils::ID4& rhs) const {
   return !(*this < rhs);
 }
-void MM::Utils::Swap(MM::Utils::ID4& lhs, MM::Utils::ID4& rhs) noexcept {
+void MM::Utils::ID4::Swap(MM::Utils::ID4& lhs, MM::Utils::ID4& rhs) noexcept {
   using std::swap;
 
   if (&lhs == &rhs) {
@@ -203,7 +203,7 @@ void MM::Utils::Swap(MM::Utils::ID4& lhs, MM::Utils::ID4& rhs) noexcept {
   swap(lhs.sub_ID4_, rhs.sub_ID4_);
 }
 
-void MM::Utils::swap(MM::Utils::ID4& lhs, MM::Utils::ID4& rhs) noexcept {
+void MM::Utils::ID4::swap(MM::Utils::ID4& lhs, MM::Utils::ID4& rhs) noexcept {
   Swap(lhs, rhs);
 }
 
@@ -285,7 +285,7 @@ bool MM::Utils::ID5::operator>=(const MM::Utils::ID5& rhs) const {
   return !(*this < rhs);
 }
 
-void MM::Utils::Swap(MM::Utils::ID5& lhs, MM::Utils::ID5& rhs) noexcept {
+void MM::Utils::ID5::Swap(MM::Utils::ID5& lhs, MM::Utils::ID5& rhs) noexcept {
   using std::swap;
 
   if (&lhs == &rhs) {
@@ -299,7 +299,7 @@ void MM::Utils::Swap(MM::Utils::ID5& lhs, MM::Utils::ID5& rhs) noexcept {
   swap(lhs.sub_ID5_, rhs.sub_ID5_);
 }
 
-void MM::Utils::swap(MM::Utils::ID5& lhs, MM::Utils::ID5& rhs) noexcept {
+void MM::Utils::ID5::swap(MM::Utils::ID5& lhs, MM::Utils::ID5& rhs) noexcept {
   Swap(lhs, rhs);
 }
 
@@ -391,7 +391,7 @@ bool MM::Utils::ID6::operator>=(const MM::Utils::ID6& rhs) const {
   return !(*this < rhs);
 }
 
-void MM::Utils::Swap(MM::Utils::ID6& lhs, MM::Utils::ID6& rhs) noexcept {
+void MM::Utils::ID6::Swap(MM::Utils::ID6& lhs, MM::Utils::ID6& rhs) noexcept {
   using std::swap;
 
   if (&lhs == &rhs) {
@@ -406,7 +406,7 @@ void MM::Utils::Swap(MM::Utils::ID6& lhs, MM::Utils::ID6& rhs) noexcept {
   swap(lhs.sub_ID6_, rhs.sub_ID6_);
 }
 
-void MM::Utils::swap(MM::Utils::ID6& lhs, MM::Utils::ID6& rhs) noexcept {
+void MM::Utils::ID6::swap(MM::Utils::ID6& lhs, MM::Utils::ID6& rhs) noexcept {
   Swap(lhs, rhs);
 }
 
@@ -498,7 +498,7 @@ bool MM::Utils::ID7::operator>=(const MM::Utils::ID7& rhs) const {
   return !(*this < rhs);
 }
 
-void MM::Utils::Swap(MM::Utils::ID7& lhs, MM::Utils::ID7& rhs) noexcept {
+void MM::Utils::ID7::Swap(MM::Utils::ID7& lhs, MM::Utils::ID7& rhs) noexcept {
   using std::swap;
 
   if (&lhs == &rhs) {
@@ -514,7 +514,7 @@ void MM::Utils::Swap(MM::Utils::ID7& lhs, MM::Utils::ID7& rhs) noexcept {
   swap(lhs.sub_ID7_, rhs.sub_ID7_);
 }
 
-void MM::Utils::swap(MM::Utils::ID7& lhs, MM::Utils::ID7& rhs) noexcept {
+void MM::Utils::ID7::swap(MM::Utils::ID7& lhs, MM::Utils::ID7& rhs) noexcept {
   Swap(lhs, rhs);
 }
 
@@ -615,7 +615,7 @@ bool MM::Utils::ID8::operator>=(const MM::Utils::ID8& rhs) const {
   return !(*this < rhs);
 }
 
-void MM::Utils::Swap(MM::Utils::ID8& lhs, MM::Utils::ID8& rhs) noexcept {
+void MM::Utils::ID8::Swap(MM::Utils::ID8& lhs, MM::Utils::ID8& rhs) noexcept {
   using std::swap;
 
   if (&lhs == &rhs) {
@@ -632,7 +632,7 @@ void MM::Utils::Swap(MM::Utils::ID8& lhs, MM::Utils::ID8& rhs) noexcept {
   swap(lhs.sub_ID8_, rhs.sub_ID8_);
 }
 
-void MM::Utils::swap(MM::Utils::ID8& lhs, MM::Utils::ID8& rhs) noexcept {
+void MM::Utils::ID8::swap(MM::Utils::ID8& lhs, MM::Utils::ID8& rhs) noexcept {
   Swap(lhs, rhs);
 }
 

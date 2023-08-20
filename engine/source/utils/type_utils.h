@@ -191,5 +191,7 @@ bool CheckAllTrue(bool arg1, BoolTypes... args) {
   static_assert(IsAllSameV<bool, BoolTypes...>);
   return arg1 && (args && ...);
 }
+
+struct Nil {};
 }  // namespace Utils
 }  // namespace MM

@@ -16,6 +16,8 @@ std::uint32_t MM::AssetSystem::AssetType::GetImageFormatSize(
     case ImageFormat::RGB_ALPHA:
       return 32;
   }
+
+  return 0;
 }
 
 void MM::AssetSystem::AssetType::Image::StbiImageFree::operator()(
@@ -150,14 +152,14 @@ void MM::AssetSystem::AssetType::Image::Release() {
   AssetBase::Release();
 }
 
-void MM::AssetSystem::AssetType::Swap(Image& lhs, Image& rhs) noexcept {
+void MM::AssetSystem::AssetType::Image::Swap(Image& lhs, Image& rhs) noexcept {
   using std::swap;
   swap(static_cast<AssetBase&>(lhs), static_cast<AssetBase&>(rhs));
   swap(lhs.image_info_, rhs.image_info_);
   swap(lhs.image_pixels_, rhs.image_pixels_);
 }
 
-void MM::AssetSystem::AssetType::swap(Image& lhs, Image& rhs) noexcept {
+void MM::AssetSystem::AssetType::Image::swap(Image& lhs, Image& rhs) noexcept {
   using std::swap;
   swap(static_cast<AssetBase&>(lhs), static_cast<AssetBase&>(rhs));
   swap(lhs.image_info_, rhs.image_info_);

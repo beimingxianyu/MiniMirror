@@ -86,7 +86,7 @@ MM::ExecuteResult MM::LogSystem::LogSystem::CheckResult(
     case ExecuteResult::TYPE_CONVERSION_FAILED:
       Log(log_level, log_prefix + "Type conversion failed");
       break;
-    // case ExecuteResult::INITIALIZATION_FAILED:
+      //    case ExecuteResult::INITIALIZATION_FAILED:
     case ExecuteResult::CREATE_OBJECT_FAILED:
       Log(log_level, log_prefix + "Create object/initialization failed.");
       break;

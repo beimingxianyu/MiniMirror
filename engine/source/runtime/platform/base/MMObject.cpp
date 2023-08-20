@@ -6,7 +6,7 @@
 
 MM::Utils::GUID MM::MMObject::GetGuid() const { return guid_; }
 
-void MM::Swap(MM::MMObject& lhs, MM::MMObject& rhs) noexcept {
+void MM::MMObject::Swap(MM::MMObject& lhs, MM::MMObject& rhs) noexcept {
   using std::swap;
   if (&lhs == &rhs) {
     return;
@@ -15,7 +15,7 @@ void MM::Swap(MM::MMObject& lhs, MM::MMObject& rhs) noexcept {
   std::swap(lhs.guid_, rhs.guid_);
 }
 
-void MM::swap(MM::MMObject& lhs, MM::MMObject& rhs) noexcept {
+void MM::MMObject::swap(MM::MMObject& lhs, MM::MMObject& rhs) noexcept {
   using std::swap;
   if (&lhs == &rhs) {
     return;
@@ -45,28 +45,28 @@ MM::MMObject& MM::MMObject::operator=(MM::MMObject&& other) noexcept {
 }
 bool MM::MMObject::IsValid() const { return guid_.IsValid(); }
 
-bool MM::operator==(const MM::MMObject& lhs, const MM::MMObject& rhs) {
-  return lhs.guid_ == rhs.guid_;
+bool MM::MMObject::operator==(const MM::MMObject& rhs) const {
+  return guid_ == rhs.guid_;
 }
 
-bool MM::operator!=(const MM::MMObject& lhs, const MM::MMObject& rhs) {
-  return !(rhs == lhs);
+bool MM::MMObject::operator!=(const MM::MMObject& rhs) const {
+  return !(*this == rhs);
 }
 
-bool MM::operator<(const MM::MMObject& lhs, const MM::MMObject& rhs) {
-  return lhs.guid_ < rhs.guid_;
+bool MM::MMObject::operator<(const MM::MMObject& rhs) const {
+  return guid_ < rhs.guid_;
 }
 
-bool MM::operator>(const MM::MMObject& lhs, const MM::MMObject& rhs) {
-  return rhs < lhs;
+bool MM::MMObject::operator>(const MM::MMObject& rhs) const {
+  return rhs < *this;
 }
 
-bool MM::operator<=(const MM::MMObject& lhs, const MM::MMObject& rhs) {
-  return !(rhs < lhs);
+bool MM::MMObject::operator<=(const MM::MMObject& rhs) const {
+  return !(rhs < *this);
 }
 
-bool MM::operator>=(const MM::MMObject& lhs, const MM::MMObject& rhs) {
-  return !(lhs < rhs);
+bool MM::MMObject::operator>=(const MM::MMObject& rhs) const {
+  return !(*this < rhs);
 }
 
 void MM::MMObject::Reset() { guid_.Reset(); }

@@ -25,17 +25,16 @@ class UUID {
 
   // for unit test,
   UUID(std::uint64_t clock, std::uint64_t mac_address);
- 
+
  public:
-  friend bool operator==(const UUID& lhs, const UUID& rhs);
-  friend bool operator!=(const UUID& lhs, const UUID& rhs);
-  friend bool operator<(const UUID& lhs, const UUID& rhs);
-  friend bool operator>(const UUID& lhs, const UUID& rhs);
-  friend bool operator<=(const UUID& lhs, const UUID& rhs);
-  friend bool operator>=(const UUID& lhs, const UUID& rhs);
-  friend std::ostream& operator<<(std::ostream& os, const UUID& uuid);
-  friend void Swap(UUID& lhs, UUID& rhs) noexcept;
-  friend void swap(UUID& lhs, UUID& rhs) noexcept;
+  bool operator==(const UUID& rhs) const;
+  bool operator!=(const UUID& rhs) const;
+  bool operator<(const UUID& rhs) const;
+  bool operator>(const UUID& rhs) const;
+  bool operator<=(const UUID& rhs) const;
+  bool operator>=(const UUID& rhs) const;
+  static void Swap(UUID& lhs, UUID& rhs) noexcept;
+  static void swap(UUID& lhs, UUID& rhs) noexcept;
 
  public:
   bool IsValid() const;
@@ -61,6 +60,8 @@ using GUID = UUID;
 }  // namespace MM
 
 namespace std {
+std::ostream& operator<<(std::ostream& os, const MM::Utils::UUID& uuid);
+
 template <>
 struct hash<MM::Utils::UUID> {
   size_t operator()(const MM::Utils::UUID& uuid) const {

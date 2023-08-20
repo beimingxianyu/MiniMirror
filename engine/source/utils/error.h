@@ -17,7 +17,7 @@ enum class ExecuteResult : std::uint32_t {
   LOAD_CONFIG_FROM_FILE_FAILED,
   FILE_IS_NOT_EXIST,
   CREATE_OBJECT_FAILED,
-  INITIALIZATION_FAILED,
+  INITIALIZATION_FAILED = CREATE_OBJECT_FAILED,
   DESTROY_FAILED,
   // Such as child "class A", parent "class B", B have a member std::set<A>
   // A_set. The instance of class B b_instance and the instance of class A
@@ -74,6 +74,13 @@ class ErrorNil final : public ErrorTypeBase {
   ErrorNil& operator=(ErrorNil&& other) noexcept;
 
  public:
+  bool operator==(const ErrorNil& rhs) const;
+
+  bool operator!=(const ErrorNil& rhs) const;
+
+  explicit operator bool() const;
+
+ public:
   void Exception() override;
 
   void Exception() const override;
@@ -102,6 +109,13 @@ class ExecuteResultWrapperBase final : public ErrorTypeBase {
       ExecuteResultWrapperBase&& other) noexcept;
 
  public:
+  bool operator==(const ExecuteResultWrapperBase& rhs) const;
+
+  bool operator!=(const ExecuteResultWrapperBase& rhs) const;
+
+  explicit operator bool() const;
+
+ public:
   void Exception() override;
 
   void Exception() const override;
@@ -113,7 +127,7 @@ class ExecuteResultWrapperBase final : public ErrorTypeBase {
   ErrorCode GetErrorCode() const;
 
  private:
-  ErrorCode error_code_{ErrorCode ::UNDEFINED_ERROR};
+  ErrorCode error_code_{ErrorCode ::SUCCESS};
 };
 
 namespace ResultTrait {
@@ -124,9 +138,12 @@ struct Error {};
 static ResultTrait::Success g_execute_success;
 static ResultTrait::Error g_execute_error;
 
-template <typename ResultType, typename ErrorType>
+template <typename ResultTypeArg, typename ErrorTypeArg>
 class Result {
  public:
+  using ResultType = ResultTypeArg;
+  using ErrorType = ErrorTypeArg;
+
  public:
   Result() = delete;
   ~Result() = default;
@@ -195,15 +212,15 @@ class Result {
     return *this;
   }
 
-  template <typename CallBackType>
-  Result& Exception(CallBackType&& callback) {
+  template <typename CallbackType>
+  Result& Exception(CallbackType&& callback) {
     result_wrapper_.Exception(callback);
 
     return *this;
   }
 
-  template <typename CallBackType>
-  const Result& Exception(CallBackType&& callback) const {
+  template <typename CallbackType>
+  const Result& Exception(CallbackType&& callback) const {
     result_wrapper_.Exception(callback);
 
     return *this;
@@ -338,12 +355,20 @@ class Result {
 
     const ResultTypeIn& GetResult() const { return result_; }
 
+    void IgnoreException() {
+#ifdef MM_CHECK_ALL_EXCEPTION_PROCESS
+      exception_processed_ = true;
+#endif
+    }
+
     void Exception() {
       if (error_.Success()) {
         return;
       }
 
       error_.Exception();
+
+      IgnoreException();
     }
 
     void Exception() const {
@@ -352,6 +377,8 @@ class Result {
       }
 
       error_.Exception();
+
+      IgnoreException();
     }
 
     void Exception(void callback(ResultType&, const ErrorType&)) {
@@ -361,6 +388,8 @@ class Result {
 
       error_.Exception();
       callback(result_, error_);
+
+      IgnoreException();
     }
 
     void Exception(void callback(ErrorType&)) {
@@ -370,6 +399,8 @@ class Result {
 
       error_.Exception();
       callback(error_);
+
+      IgnoreException();
     }
 
     void Exception(void callback(const ErrorType&)) {
@@ -379,6 +410,8 @@ class Result {
 
       error_.Exception();
       callback(error_);
+
+      IgnoreException();
     }
 
     void Exception(void callback(const ErrorType&)) const {
@@ -388,32 +421,44 @@ class Result {
 
       error_.Exception();
       callback(error_);
+
+      IgnoreException();
     }
 
-    template <typename CallBackType>
-    void Exception(CallBackType&& callback) {
+    template <typename CallbackType>
+    void Exception(CallbackType&& callback) {
       constexpr bool callback_signature1 =
-          std::is_invocable_r_v<void, CallBackType, ResultType&,
+          std::is_invocable_r_v<void, CallbackType, ResultType&,
                                 const ErrorType&>;
       constexpr bool callback_signature2 =
-          std::is_invocable_r_v<void, CallBackType, ErrorType&>;
+          std::is_invocable_r_v<void, CallbackType, ErrorType&>;
       constexpr bool callback_signature3 =
-          std::is_invocable_r_v<void, CallBackType, const ErrorType&>;
+          std::is_invocable_r_v<void, CallbackType, const ErrorType&>;
 
       static_assert(
           callback_signature1 || callback_signature2 || callback_signature3,
           "Callback signature is invalid.");
 
+      if (error_.Success()) {
+        return;
+      }
+
       error_.Exception();
 
       if constexpr (callback_signature1) {
         callback(result_, error_);
+
+        IgnoreException();
         return;
       } else if constexpr (callback_signature2) {
         callback(error_);
+
+        IgnoreException();
         return;
       } else if constexpr (callback_signature3) {
         callback(error_);
+
+        IgnoreException();
         return;
       }
     }
@@ -426,9 +471,9 @@ class Result {
 
       error_.Exception();
       callback(error_);
-    }
 
-    void IgnoreException() { exception_processed_ = true; }
+      IgnoreException();
+    }
 
     bool Success() const { return error_.Success(); }
 

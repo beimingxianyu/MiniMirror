@@ -84,7 +84,7 @@ ManagedObjectList<ObjectType, Equal, Allocator>::~ManagedObjectList() {
 template <typename ObjectType, typename Equal, typename Allocator>
 ExecuteResult ManagedObjectList<ObjectType, Equal, Allocator>::GetUseCount(
     const ObjectType& key, std::vector<std::uint32_t>& use_counts) const {
-  if (!ThisType::TestMovedWhenGetUseCount()) {
+  if (!BaseType ::TestMovedWhenGetUseCount()) {
     return ExecuteResult::OBJECT_IS_INVALID;
   }
 
@@ -108,7 +108,7 @@ ExecuteResult ManagedObjectList<ObjectType, Equal, Allocator>::GetUseCount(
 template <typename ObjectType, typename Equal, typename Allocator>
 std::uint32_t ManagedObjectList<ObjectType, Equal, Allocator>::GetUseCount(
     const ObjectType& key, const std::atomic_uint32_t* use_count_ptr) const {
-  if (!ThisType::TestMovedWhenGetUseCount()) {
+  if (!BaseType::TestMovedWhenGetUseCount()) {
     return 0;
   }
 
@@ -229,7 +229,7 @@ ExecuteResult ManagedObjectList<ObjectType, Equal, Allocator>::GetObject(
 template <typename ObjectType, typename Equal, typename Allocator>
 ExecuteResult ManagedObjectList<ObjectType, Equal, Allocator>::AddObject(
     ObjectType&& managed_object, HandlerType& handle) {
-  if (!ThisType::TestMovedWhenAddObject()) {
+  if (!BaseType ::TestMovedWhenAddObject()) {
     return ExecuteResult::OBJECT_IS_INVALID;
   }
 
@@ -247,7 +247,7 @@ template <typename ObjectType, typename Equal, typename Allocator>
 ExecuteResult ManagedObjectList<ObjectType, Equal, Allocator>::RemoveObjectImp(
     const ObjectType&, const std::atomic_uint32_t* use_count_ptr, ListTrait) {
   std::unique_lock<std::shared_mutex> guard{data_mutex_};
-  if (ThisType::this_ptr_ptr_ == nullptr) {
+  if (BaseType ::this_ptr_ptr_ == nullptr) {
     return ExecuteResult::CUSTOM_ERROR;
   }
 

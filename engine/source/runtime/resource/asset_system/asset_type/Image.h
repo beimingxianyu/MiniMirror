@@ -66,9 +66,9 @@ class Image : public AssetBase {
 
   ExecuteResult GetJson(rapidjson::Document& document) const override;
 
-  friend void Swap(Image& lhs, Image& rhs) noexcept;
+  static void Swap(Image& lhs, Image& rhs) noexcept;
 
-  friend void swap(Image& lhs, Image& rhs) noexcept;
+  static void swap(Image& lhs, Image& rhs) noexcept;
 
   std::uint64_t GetSize() const override;
 

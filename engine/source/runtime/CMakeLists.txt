@@ -60,3 +60,13 @@ target_link_libraries(asset_system PUBLIC file_system config_system log_system m
 ##########  render  ##########
 AddModule("render" "${CMAKE_CURRENT_SOURCE_DIR}/function/render")
 target_link_libraries(render PUBLIC math color log_system config_system file_system asset_system vulkan_lib glfw task_system)
+target_compile_definitions(render PUBLIC
+        "MM_SHADER_VERSION=${shader_config_version}"
+        "MM_SHADER_GLOBAL_SET=${shader_config_global_set}"
+        "MM_SHADER_MATERIAL_SET=${shader_config_material_set}"
+        "MM_SHADER_SAMPLER_TEXTURE2D_BINDING=${shader_config_sampler_texture2D_binding}"
+        "MM_SHADER_SAMPLER_TEXTURE3D_BINDING=${shader_config_sampler_texture3D_binding}"
+        "MM_SHADER_SAMPLER_TEXTURECUBE_BINDING=${shader_config_sampler_textureCube_binding}"
+        "MM_SHADER_STORAGE_TEXTURE2D_BINDING=${shader_config_storage_texture2D_binding}"
+        "MM_SHADER_STORAGE_TEXTURE3D_BINDING=${shader_config_storage_texture3D_binding}"
+        "MM_SHADER_STORAGE_TEXTURECUBE_BINDING=${shader_config_storage_textureCube_binding}")

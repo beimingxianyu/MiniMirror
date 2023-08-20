@@ -29,9 +29,9 @@ class ID2 {
 
   bool operator>=(const ID2& rhs) const;
 
-  friend void Swap(ID2& lhs, ID2& rhs) noexcept;
+  static void Swap(ID2& lhs, ID2& rhs) noexcept;
 
-  friend void swap(ID2& lhs, ID2& rhs) noexcept;
+  static void swap(ID2& lhs, ID2& rhs) noexcept;
 
  public:
   std::uint64_t GetSubID1() const;
@@ -73,9 +73,9 @@ class ID3 {
 
   bool operator>=(const ID3& rhs) const;
 
-  friend void Swap(ID3& lhs, ID3& rhs) noexcept;
+  static void Swap(ID3& lhs, ID3& rhs) noexcept;
 
-  friend void swap(ID3& lhs, ID3& rhs) noexcept;
+  static void swap(ID3& lhs, ID3& rhs) noexcept;
 
  public:
   std::uint64_t GetSubID1() const;
@@ -123,9 +123,9 @@ class ID4 {
 
   bool operator>=(const ID4& rhs) const;
 
-  friend void Swap(ID4& lhs, ID4& rhs) noexcept;
+  static void Swap(ID4& lhs, ID4& rhs) noexcept;
 
-  friend void swap(ID4& lhs, ID4& rhs) noexcept;
+  static void swap(ID4& lhs, ID4& rhs) noexcept;
 
  public:
   std::uint64_t GetSubID1() const;
@@ -178,9 +178,9 @@ class ID5 {
 
   bool operator>=(const ID5& rhs) const;
 
-  friend void Swap(ID5& lhs, ID5& rhs) noexcept;
+  static void Swap(ID5& lhs, ID5& rhs) noexcept;
 
-  friend void swap(ID5& lhs, ID5& rhs) noexcept;
+  static void swap(ID5& lhs, ID5& rhs) noexcept;
 
  public:
   std::uint64_t GetSubID1() const;
@@ -238,9 +238,9 @@ class ID6 {
 
   bool operator>=(const ID6& rhs) const;
 
-  friend void Swap(ID6& lhs, ID6& rhs) noexcept;
+  static void Swap(ID6& lhs, ID6& rhs) noexcept;
 
-  friend void swap(ID6& lhs, ID6& rhs) noexcept;
+  static void swap(ID6& lhs, ID6& rhs) noexcept;
 
  public:
   std::uint64_t GetSubID1() const;
@@ -304,9 +304,9 @@ class ID7 {
 
   bool operator>=(const ID7& rhs) const;
 
-  friend void Swap(ID7& lhs, ID7& rhs) noexcept;
+  static void Swap(ID7& lhs, ID7& rhs) noexcept;
 
-  friend void swap(ID7& lhs, ID7& rhs) noexcept;
+  static void swap(ID7& lhs, ID7& rhs) noexcept;
 
  public:
   std::uint64_t GetSubID1() const;
@@ -375,9 +375,9 @@ class ID8 {
 
   bool operator>=(const ID8& rhs) const;
 
-  friend void Swap(ID8& lhs, ID8& rhs) noexcept;
+  static void Swap(ID8& lhs, ID8& rhs) noexcept;
 
-  friend void swap(ID8& lhs, ID8& rhs) noexcept;
+  static void swap(ID8& lhs, ID8& rhs) noexcept;
 
  public:
   std::uint64_t GetSubID1() const;
