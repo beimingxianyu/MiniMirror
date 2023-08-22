@@ -24,7 +24,7 @@ CopyDir("${source_test_file_dir_test}/file_system" "${test_file_dir_test}")
 AddExecutable("manager_test" "${CMAKE_CURRENT_SOURCE_DIR}/core/manager")
 # add_executable(manager_test "${CMAKE_CURRENT_SOURCE_DIR}/core/manager/set_test.cpp")
 target_link_libraries(manager_test PRIVATE gtest_main manager)
-CopySharedLibraryToDestDirPostBuild(manager_test ${engine_dir}/bin manager ${engine_dir_test}/bin)
+# CopySharedLibraryToDestDirPostBuild(manager_test ${engine_dir}/bin manager ${engine_dir_test}/bin)
 
 ##########  asset_system ##########
 AddExecutable("asset_system_test" "${CMAKE_CURRENT_SOURCE_DIR}/resource/asset_system")
@@ -33,7 +33,7 @@ target_compile_definitions(asset_system_test PRIVATE "MM_TEST_FILE_DIR_TEST=\"${
 CopyDir("${source_test_file_dir_test}/asset_system" "${test_file_dir_test}")
 
 include(GoogleTest)
-gtest_discover_tests(config_system_test)
-gtest_discover_tests(file_system_test)
-gtest_discover_tests(manager_test)
-gtest_discover_tests(asset_system_test WORKING_DIRECTORY ${bin_dir})
+gtest_add_tests(TARGET config_system_test WORKING_DIRECTORY ${bin_dir})
+gtest_add_tests(TARGET file_system_test   WORKING_DIRECTORY ${bin_dir})
+gtest_add_tests(TARGET manager_test       WORKING_DIRECTORY ${bin_dir})
+gtest_add_tests(TARGET asset_system_test  WORKING_DIRECTORY ${bin_dir})

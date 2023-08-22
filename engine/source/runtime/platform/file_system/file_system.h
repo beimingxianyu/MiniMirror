@@ -8,6 +8,7 @@
 #include <mutex>
 #include <utility>
 #include <vector>
+#include <locale>
 
 #include "runtime/platform/base/cross_platform_header.h"
 #include "runtime/platform/base/error.h"
@@ -20,8 +21,9 @@ using LastWriteTime = std::filesystem::file_time_type;
 class FileSystem;
 class Path;
 
-const std::string g_bin_dir = std::filesystem::current_path().string();
+std::string __GetCurrentPath__();
 
+const std::string g_bin_dir = __GetCurrentPath__();
 class Path {
   friend FileSystem;
   friend std::hash<Path>;

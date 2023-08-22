@@ -3,6 +3,25 @@
 std::mutex MM::FileSystem::FileSystem::sync_flag_{};
 MM::FileSystem::FileSystem* MM::FileSystem::FileSystem::file_system_{nullptr};
 
+std::string MM::FileSystem::__GetCurrentPath__() {
+#ifdef WIN32 
+  const std::string win_format_path = std::filesystem::current_path().string();
+  std::string new_string{};
+  new_string.reserve(win_format_path.size());
+  for (std::size_t index = 0; index < win_format_path.size(); ++index) {
+    if (win_format_path[index] == '\\') {
+      new_string.append(1, '/');
+      continue;
+    }
+    new_string.append(1, win_format_path[index]);
+  }
+  new_string.shrink_to_fit();
+  return new_string;
+#   else
+  return std::filesystem::current_path().string();
+#endif
+}
+
 MM::FileSystem::Path::Path(const Path& other) : path_(other.path_) {}
 
 MM::FileSystem::Path::Path(Path&& other) noexcept
@@ -23,21 +42,21 @@ MM::FileSystem::Path::Path(const std::string& other) {
   // Determine whether it is a relative path.
   if (new_path[0] == '.') {
     const std::string temp = g_bin_dir + "/" + new_path;
-    path_ = RemoveDotAndDotDot(std::filesystem::path(temp).string());
+    path_ = RemoveDotAndDotDot(temp);
     return;
   }
 #ifdef WIN32
   // Turn the drive letter of win to uppercase.
-  if ((new_path[0] > 96 && new_path[0] < 123) ||
-      (new_path[0] > 64 && new_path[0] < 91)) {
+  if (new_path[0] > 96 && new_path[0] < 123) {
     std::string temp = other;
     temp[0] = temp[0] - 32;
-    path_ = RemoveDotAndDotDot(std::filesystem::path(temp).string());
+    path_ = RemoveDotAndDotDot(temp);
     return;
   }
+  path_ = RemoveDotAndDotDot(other);
 #else
   if (new_path[0] == '/') {
-    path_ = RemoveDotAndDotDot(std::filesystem::path(new_path).string());
+    path_ = RemoveDotAndDotDot(new_path);
   }
 #endif
 }
@@ -660,10 +679,12 @@ std::uint64_t MM::FileSystem::Path::GetHash() const {
 }
 
 std::string_view MM::FileSystem::Path::StringView() const {
-  return std::string_view(path_.c_str());
+  return std::string_view(CStr());
 }
 
-const char* MM::FileSystem::Path::CStr() const { return path_.c_str(); }
+const char* MM::FileSystem::Path::CStr() const {
+    return reinterpret_cast<const char*>(path_.c_str());
+}
 
 MM::FileSystem::Path MM::FileSystem::Path::GetParentDirPath() const {
   if (!IsExists()) {
@@ -673,7 +694,7 @@ MM::FileSystem::Path MM::FileSystem::Path::GetParentDirPath() const {
     return *this;
   }
 
-  return Path{path_.parent_path()};
+  return Path{path_.parent_path().string()};
 }
 
 MM::FileSystem::FileSystem::~FileSystem() { file_system_ = nullptr; }

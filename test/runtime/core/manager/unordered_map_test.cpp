@@ -235,7 +235,6 @@ void MultiInsertString(
         map_data,
     std::uint32_t start) {
   for (std::uint32_t i = start; i != start + INSERT_COUNT; ++i) {
-    std::uint32_t temp;
     handlers.emplace_back();
     map_data.AddObject(std::to_string(i), std::move(i), handlers.back());
     EXPECT_EQ(map_data.Have(std::to_string(i)), true);

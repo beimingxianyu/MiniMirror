@@ -7,6 +7,7 @@
 #include <mutex>
 #include <shared_mutex>
 
+#include "runtime/platform/base/cross_platform_header.h"
 #include "utils.h"
 #include "utils/error.h"
 #include "utils/type_utils.h"
@@ -716,8 +717,12 @@ class ConcurrentHashTable {
   ConcurrentHashTable(const ConcurrentHashTable& other)
       : data_(nullptr), load_factor_(0.75), size_(0), bucket_count_(0) {
     other.LockAll();
-    std::shared_lock<std::shared_mutex> guard0{other.data_mutex0_,
-                                               std::adopt_lock},
+#if MM_COMPILER == MM_COMPILER_MSVC
+    std::lock_guard<std::shared_mutex>
+#else
+    std::shared_lock<std::shared_mutex>
+#endif
+       guard0{other.data_mutex0_, std::adopt_lock},
         guard1{other.data_mutex1_, std::adopt_lock},
         guard2{other.data_mutex2_, std::adopt_lock},
         guard3{other.data_mutex3_, std::adopt_lock},
@@ -794,8 +799,12 @@ class ConcurrentHashTable {
               other.data_mutex12_, other.data_mutex13_, other.data_mutex14_,
               other.data_mutex15_);
     LockAllGuard main_guard{*this, std::adopt_lock};
-    std::shared_lock<std::shared_mutex> guard0{other.data_mutex0_,
-                                               std::adopt_lock},
+#if MM_COMPILER == MM_COMPILER_MSVC
+      std::lock_guard<std::shared_mutex>
+#else
+      std::shared_lock<std::shared_mutex>
+#endif
+        guard0{other.data_mutex0_, std::adopt_lock},
         guard1{other.data_mutex1_, std::adopt_lock},
         guard2{other.data_mutex2_, std::adopt_lock},
         guard3{other.data_mutex3_, std::adopt_lock},

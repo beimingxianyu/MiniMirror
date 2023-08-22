@@ -50,7 +50,7 @@ class ManagedObjectUnorderedMap
           "access error.");
     }
   }
-  explicit ManagedObjectUnorderedMap(std::uint32_t size)
+  explicit ManagedObjectUnorderedMap(std::uint64_t size)
       : ManagedObjectTableBase<KeyType, ValueType, HashMapTrait>(this),
         data_(size) {
     // Prevent automatic rehash.
@@ -271,7 +271,7 @@ class ManagedObjectUnorderedMap
  private:
   void ResizeWhenNeeded() {
     if (data_.BucketCount() - size_.load(std::memory_order_acquire) < 128) {
-      std::uint32_t new_size = data_.BucketCount() * 2;
+      std::uint64_t new_size = data_.BucketCount() * 2;
       if (new_size < 2048) {
         new_size = 2048;
       }
@@ -349,7 +349,7 @@ class ManagedObjectUnorderedMultiMap
           "access error.");
     }
   }
-  explicit ManagedObjectUnorderedMultiMap(std::uint32_t size)
+  explicit ManagedObjectUnorderedMultiMap(std::uint64_t size)
       : ManagedObjectTableBase<KeyType, ValueType, HashMapTrait>(this),
         data_(size) {
     // Prevent automatic rehash.
@@ -731,7 +731,7 @@ class ManagedObjectUnorderedMultiMap
  private:
   void ResizeWhenNeeded() {
     if (data_.BucketCount() - size_.load(std::memory_order_acquire) < 128) {
-      std::uint32_t new_size = data_.BucketCount() * 2;
+      std::uint64_t new_size = data_.BucketCount() * 2;
       if (new_size < 2048) {
         new_size = 2048;
       }
