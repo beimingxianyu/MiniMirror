@@ -187,7 +187,7 @@ ReturnCodeFailedNoCopy() {
 MM::Utils::Result<UtilsErrorCustomStructNoMove, MM::Utils::ErrorNil>
 ReturnNilSuccessNoMove() {
   return MM::Utils::Result<UtilsErrorCustomStructNoMove, MM::Utils::ErrorNil>(
-      MM::Utils::g_execute_success, std::string("ReturnNilSuccessNoMove"));
+          MM::Utils::c_execute_success, std::string("ReturnNilSuccessNoMove"));
 }
 
 MM::Utils::Result<UtilsErrorCustomStructNoMove, MM::Utils::ErrorNil>
@@ -201,7 +201,7 @@ MM::Utils::Result<UtilsErrorCustomStructNoMove,
 ReturnCodeSuccessNoMove() {
   return MM::Utils::Result<UtilsErrorCustomStructNoMove,
                            MM::Utils::ExecuteResultWrapperBase>(
-      MM::Utils::g_execute_success, std::string("ReturnCodeSuccessNoMove"));
+          MM::Utils::c_execute_success, std::string("ReturnCodeSuccessNoMove"));
 }
 
 MM::Utils::Result<UtilsErrorCustomStructNoMove,
@@ -225,26 +225,26 @@ MM::Utils::Result<UtilsErrorCustomStruct, NewError> ReturnNewErrorFailed() {
 MM::Utils::Result<UtilsErrorCustomStruct, NewError>
 ReturnUtilsErrorCustomErrorConstructor1(const std::string& s1) {
   return MM::Utils::Result<UtilsErrorCustomStruct, NewError>(
-      MM::Utils::g_execute_success, s1);
+          MM::Utils::c_execute_success, s1);
 }
 
 MM::Utils::Result<UtilsErrorCustomStruct, NewError>
 ReturnUtilsErrorCustomErrorConstructor2(const std::string& s1,
                                         const std::string& s2) {
   return MM::Utils::Result<UtilsErrorCustomStruct, NewError>(
-      MM::Utils::g_execute_success, s1, s2);
+          MM::Utils::c_execute_success, s1, s2);
 }
 
 MM::Utils::Result<UtilsErrorCustomStruct, NewError>
 ReturnUtilsErrorCustomErrorConstructor3(const std::vector<std::string>& vs) {
   return MM::Utils::Result<UtilsErrorCustomStruct, NewError>(
-      MM::Utils::g_execute_success, vs);
+          MM::Utils::c_execute_success, vs);
 }
 
 MM::Utils::Result<UtilsErrorCustomStruct, NewError> ReturnNewErrorConstructor(
     std::uint32_t num) {
   return MM::Utils::Result<UtilsErrorCustomStruct, NewError>(
-      MM::Utils::g_execute_error, num);
+          MM::Utils::c_execute_error, num);
 }
 
 TEST(Utils, error) {

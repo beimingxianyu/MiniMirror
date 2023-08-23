@@ -4,6 +4,12 @@
 #include <memory>
 
 namespace MM {
+
+namespace ConstructTrait {
+    struct Success {};
+    struct Error {};
+}  // namespace ResultTrait
+
 namespace Utils {
 // TODO rename to ErrorCode
 enum class ExecuteResult : std::uint32_t {
@@ -130,13 +136,9 @@ class ExecuteResultWrapperBase final : public ErrorTypeBase {
   ErrorCode error_code_{ErrorCode ::SUCCESS};
 };
 
-namespace ResultTrait {
-struct Success {};
-struct Error {};
-}  // namespace ResultTrait
 
-static ResultTrait::Success g_execute_success;
-static ResultTrait::Error g_execute_error;
+static ConstructTrait::Success c_execute_success;
+static ConstructTrait::Error c_execute_error;
 
 template <typename ResultTypeArg, typename ErrorTypeArg>
 class Result {
@@ -152,10 +154,10 @@ class Result {
   explicit Result(const ErrorType& error) : result_wrapper_(error) {}
   explicit Result(ErrorType&& error) : result_wrapper_(std::move(error)) {}
   template <typename... Args>
-  explicit Result(ResultTrait::Success success, Args... args)
+  explicit Result(ConstructTrait::Success success, Args... args)
       : result_wrapper_(success, std::forward<Args>(args)...) {}
   template <typename... Args>
-  explicit Result(ResultTrait::Error error, Args... args)
+  explicit Result(ConstructTrait::Error error, Args... args)
       : result_wrapper_(error, std::forward<Args>(args)...) {}
   Result(const Result& other) = default;
   Result(Result&& other) noexcept
@@ -285,7 +287,7 @@ class Result {
     {
     }
     template <typename... Args>
-    explicit ResultWrapper(ResultTrait::Success, Args... args)
+    explicit ResultWrapper(ConstructTrait::Success, Args... args)
         : result_(std::forward<Args>(args)...),
           error_()
 #ifdef MM_CHECK_ALL_EXCEPTION_PROCESS
@@ -295,7 +297,7 @@ class Result {
     {
     }
     template <typename... Args>
-    explicit ResultWrapper(ResultTrait::Error, Args... args)
+    explicit ResultWrapper(ConstructTrait::Error, Args... args)
         : result_(),
           error_(std::forward<Args>(args)...)
 #ifdef MM_CHECK_ALL_EXCEPTION_PROCESS
