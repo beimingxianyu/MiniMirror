@@ -239,5 +239,12 @@ void TaskSystem::RemoveObserver(const TaskType& task_type,
   auto& executor = ChooseExecutor(task_type);
   executor.remove_observer(observer);
 }
+
+#define MM_TASK_SYSTEM MM_task_system
+
+#define MM_IMPORT_TASK_SYSTEM                         \
+  inline MM::TaskSystem::TaskSystem* MM_TASK_SYSTEM { \
+    MM::TaskSystem::TaskSystem::GetInstance()         \
+  }
 }  // namespace TaskSystem
 }  // namespace MM

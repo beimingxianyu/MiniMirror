@@ -394,6 +394,13 @@ class FileSystem {
  private:
   static std::mutex sync_flag_;
 };
+
+#define MM_FILE_SYSTEM MM_file_system
+
+#define MM_IMPORT_FILE_SYSTEM                               \
+  inline const MM::FileSystem::FileSystem* MM_FILE_SYSTEM { \
+    MM::FileSystem::FileSystem::GetInstance()               \
+  }
 }  // namespace FileSystem
 }  // namespace MM
 

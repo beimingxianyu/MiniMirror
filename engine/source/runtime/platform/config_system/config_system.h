@@ -141,5 +141,12 @@ class ConfigSystem {
   static std::mutex sync_flag_;
   static std::unordered_map<std::string, std::string> config_data_base_;
 };
+
+#define MM_CONFIG_SYSTEM MM_config_system
+
+#define MM_IMPORT_CONFIG_SYSTEM                             \
+  inline MM::ConfigSystem::ConfigSystem* MM_CONFIG_SYSTEM { \
+    MM::ConfigSystem::ConfigSystem::GetInstance()           \
+  }
 }  // namespace ConfigSystem
 }  // namespace MM
