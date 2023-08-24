@@ -60,9 +60,9 @@ class ErrorTypeBase {
   ErrorTypeBase& operator=(ErrorTypeBase&& other) noexcept = default;
 
  public:
-  virtual void Exception() = 0;
+  virtual void Exception();
 
-  virtual void Exception() const = 0;
+  virtual void Exception() const;
 
   virtual bool Success() const = 0;
 
@@ -436,9 +436,13 @@ class Result {
           std::is_invocable_r_v<void, CallbackType, ErrorType&>;
       constexpr bool callback_signature3 =
           std::is_invocable_r_v<void, CallbackType, const ErrorType&>;
+    constexpr bool callback_signature4 =
+            std::is_invocable_r_v<void, CallbackType, ErrorType>;
+    constexpr bool callback_signature5 =
+            std::is_invocable_r_v<void, CallbackType, ResultType&, ErrorType>;
 
       static_assert(
-          callback_signature1 || callback_signature2 || callback_signature3,
+          callback_signature1 || callback_signature2 || callback_signature3 || callback_signature4 || callback_signature5,
           "Callback signature is invalid.");
 
       if (error_.Success()) {
@@ -447,7 +451,7 @@ class Result {
 
       error_.Exception();
 
-      if constexpr (callback_signature1) {
+      if constexpr (callback_signature1 || callback_signature5) {
         callback(result_, error_);
 
         IgnoreException();
@@ -457,7 +461,7 @@ class Result {
 
         IgnoreException();
         return;
-      } else if constexpr (callback_signature3) {
+      } else if constexpr (callback_signature3 || callback_signature4) {
         callback(error_);
 
         IgnoreException();
@@ -467,9 +471,11 @@ class Result {
 
     template <typename CallBackType>
     void Exception(CallBackType&& callback) const {
-      constexpr bool callback_signature =
+      constexpr bool callback_signature1 =
           std::is_invocable_r_v<void, CallBackType, const ErrorType&>;
-      static_assert(callback_signature, "Callback signature is invalid.");
+        constexpr bool callback_signature2 =
+                std::is_invocable_r_v<void, CallBackType, ErrorType>;
+      static_assert(callback_signature1 || callback_signature2, "Callback signature is invalid.");
 
       error_.Exception();
       callback(error_);

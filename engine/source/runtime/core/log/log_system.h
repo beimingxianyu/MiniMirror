@@ -91,7 +91,7 @@ class LogSystem {
     throw std::runtime_error(format_str);
   }
 
-  ExecuteResult CheckResult(ExecuteResult result, const std::string& log_prefix,
+  void CheckResult(ExecuteResult result, const std::string& description,
                             LogLevel log_level = LogLevel::ERROR) const;
 
  private:
@@ -139,88 +139,5 @@ class LogSystem {
 
 #define MM_LOG_FATAL(...) \
   MM_LOG(MM::LogSystem::LogSystem::LogLevel::FATAL, __VA_ARGS__)
-
-#define MM_RESULT_CODE __MM__result_code_name
-
-#define MM_CHECK(executor, failed_callback)                                  \
-  {                                                                          \
-    if (ExecuteResult MM_RESULT_CODE = (executor);                           \
-        MM_RESULT_CODE != MM::ExecuteResult::SUCCESS) {                      \
-      MM_LOG_SYSTEM->CheckResult(MM_RESULT_CODE, MM_CODE_LOCATION,           \
-                                 MM::LogSystem::LogSystem::LogLevel::ERROR); \
-      failed_callback                                                        \
-    }                                                                        \
-  }
-
-#define MM_CHECK_LOG_TRACE(executor, failed_callback)                        \
-  {                                                                          \
-    if (ExecuteResult MM_RESULT_CODE = (executor);                           \
-        MM_RESULT_CODE != MM::ExecuteResult::SUCCESS) {                      \
-      MM_LOG_SYSTEM->CheckResult(MM_RESULT_CODE, MM_CODE_LOCATION,           \
-                                 MM::LogSystem::LogSystem::LogLevel::TRACE); \
-      failed_callback                                                        \
-    }                                                                        \
-  }
-
-#define MM_CHECK_LOG_INFO(executor, failed_callback)                        \
-  {                                                                         \
-    if (ExecuteResult MM_RESULT_CODE = (executor);                          \
-        MM_RESULT_CODE != MM::ExecuteResult::SUCCESS) {                     \
-      MM_LOG_SYSTEM->CheckResult(MM_RESULT_CODE, MM_CODE_LOCATION,          \
-                                 MM::LogSystem::LogSystem::LogLevel::INFO); \
-      failed_callback                                                       \
-    }                                                                       \
-  }
-
-#define MM_CHECK_LOG_DEBUG(executor, failed_callback)                        \
-  {                                                                          \
-    if (ExecuteResult MM_RESULT_CODE = (executor);                           \
-        MM_RESULT_CODE != MM::ExecuteResult::SUCCESS) {                      \
-      MM_LOG_SYSTEM->CheckResult(MM_RESULT_CODE, MM_CODE_LOCATION,           \
-                                 MM::LogSystem::LogSystem::LogLevel::DEBUG); \
-      failed_callback                                                        \
-    }                                                                        \
-  }
-
-#define MM_CHECK_LOG_WARN(executor, failed_callback)                        \
-  {                                                                         \
-    if (ExecuteResult MM_RESULT_CODE = (executor);                          \
-        MM_RESULT_CODE != MM::ExecuteResult::SUCCESS) {                     \
-      MM_LOG_SYSTEM->CheckResult(MM_RESULT_CODE, MM_CODE_LOCATION,          \
-                                 MM::LogSystem::LogSystem::LogLevel::WARN); \
-      failed_callback                                                       \
-    }                                                                       \
-  }
-
-#define MM_CHECK_LOG_ERROR(executor, failed_callback)                        \
-  {                                                                          \
-    if (ExecuteResult MM_RESULT_CODE = (executor);                           \
-        MM_RESULT_CODE != MM::ExecuteResult::SUCCESS) {                      \
-      MM_LOG_SYSTEM->CheckResult(MM_RESULT_CODE, MM_CODE_LOCATION,           \
-                                 MM::LogSystem::LogSystem::LogLevel::ERROR); \
-      failed_callback                                                        \
-    }                                                                        \
-  }
-
-#define MM_CHECK_LOG_FATAL(executor, failed_callback)                        \
-  {                                                                          \
-    if (ExecuteResult MM_RESULT_CODE = (executor);                           \
-        MM_RESULT_CODE != MM::ExecuteResult::SUCCESS) {                      \
-      MM_LOG_SYSTEM->CheckResult(MM_RESULT_CODE, MM_CODE_LOCATION,           \
-                                 MM::LogSystem::LogSystem::LogLevel::FATAL); \
-      failed_callback                                                        \
-    }                                                                        \
-  }
-
-#define MM_CHECK_WITHOUT_LOG(executor, failed_callback) \
-  {                                                     \
-    if (ExecuteResult MM_RESULT_CODE = (executor);      \
-        MM_RESULT_CODE != MM::ExecuteResult::SUCCESS) { \
-      failed_callback                                   \
-    }                                                   \
-  }
-
-#define MM_RESULT_CODE_EQUAL(result, target_error_code) \
-  (result) == (target_error_code)
 }  // namespace LogSystem
 }  // namespace MM

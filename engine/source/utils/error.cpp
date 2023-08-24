@@ -24,6 +24,10 @@ MM::Utils::ExecuteResult MM::Utils::operator&=(ExecuteResult l_result,
   return l_result;
 }
 
+void MM::Utils::ErrorTypeBase::Exception() {}
+
+void MM::Utils::ErrorTypeBase::Exception() const {}
+
 MM::Utils::ErrorNil::ErrorNil(bool is_success) : success_(is_success) {}
 
 MM::Utils::ErrorNil::ErrorNil(MM::Utils::ErrorNil&& other) noexcept
@@ -135,3 +139,4 @@ bool MM::Utils::ExecuteResultWrapperBase::Success() const {
 void MM::Utils::ExecuteResultWrapperBase::Reset() {
   error_code_ = ErrorCode ::SUCCESS;
 }
+

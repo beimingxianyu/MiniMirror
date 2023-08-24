@@ -21,7 +21,7 @@ MM::LogSystem::LogSystem* MM::LogSystem::LogSystem::GetInstance() {
       auto console_sink =
           std::make_shared<spdlog::sinks::stdout_color_sink_mt>();
       console_sink->set_level(spdlog::level::trace);
-      console_sink->set_pattern("[%^%l%$] %v");
+      console_sink->set_pattern("[%Y-%m-%d %H:%M:%S] [%^%l%$] %v");
 
       const spdlog::sinks_init_list sink_list = {console_sink};
 
@@ -62,78 +62,75 @@ void MM::LogSystem::LogSystem::SetLevel(const LogLevel& level) {
   }
 }
 
-MM::ExecuteResult MM::LogSystem::LogSystem::CheckResult(
-    ExecuteResult result, const std::string& log_prefix,
+void MM::LogSystem::LogSystem::CheckResult(
+    ExecuteResult result, const std::string& description,
     LogLevel log_level) const {
   switch (result) {
     case ExecuteResult::SUCCESS:
       break;
     case ExecuteResult::UNDEFINED_ERROR:
-      Log(log_level, log_prefix + "Undefined error.");
+      Log(log_level, std::string("[Undefined error]    ") + description);
       break;
     case ExecuteResult::OUT_OF_HOST_MEMORY:
-      Log(log_level, log_prefix + "Out of host memory.");
+      Log(log_level, "[Out of host memory]    " + description);
       break;
     case ExecuteResult::OUT_OF_DEVICE_MEMORY:
-      Log(log_level, log_prefix + "Out of device memory.");
+      Log(log_level,"[Out of device memory]    " + description);
       break;
     case ExecuteResult::OBJECT_IS_INVALID:
-      Log(log_level, log_prefix + "Object is invalid");
+      Log(log_level,"[Object is invalid]    " + description);
       break;
     case ExecuteResult::NO_SUCH_CONFIG:
-      Log(log_level, log_prefix + "The desired setting does not exist.");
+      Log(log_level,"[The desired setting does not exist]    " + description);
       break;
     case ExecuteResult::TYPE_CONVERSION_FAILED:
-      Log(log_level, log_prefix + "Type conversion failed");
+      Log(log_level,"[Type conversion failed]    " + description);
       break;
       //    case ExecuteResult::INITIALIZATION_FAILED:
     case ExecuteResult::CREATE_OBJECT_FAILED:
-      Log(log_level, log_prefix + "Create object/initialization failed.");
+      Log(log_level,"[Create object/initialization failed]    " + description);
       break;
     case ExecuteResult::LOAD_CONFIG_FROM_FILE_FAILED:
-      Log(log_level, log_prefix + "Failed to load config from file.");
+      Log(log_level,"[Failed to load config from file]    " + description);
       break;
     case ExecuteResult::FILE_IS_NOT_EXIST:
-      Log(log_level, log_prefix + "File is not exist.");
+      Log(log_level,"[File is not exist]    " + description);
       break;
     case ExecuteResult::DESTROY_FAILED:
-      Log(log_level, log_prefix + "Failed to destroy object.");
+      Log(log_level,"[Failed to destroy object]    " + description);
       break;
     case ExecuteResult::PARENT_OBJECT_NOT_CONTAIN_SPECIFIC_CHILD_OBJECT:
       Log(log_level,
-          log_prefix +
-              "The parent object does not contain specific child objects.");
+          "[The parent object does not contain specific child objects]    " + description);
       break;
     case ExecuteResult::RENDER_COMMAND_RECORD_OR_SUBMIT_FAILED:
-      Log(log_level, log_prefix + "Failed to submit or record render command.");
+      Log(log_level,"[Failed to submit or record render command]    " + description);
       break;
     case ExecuteResult::INPUT_PARAMETERS_ARE_INCORRECT:
-      Log(log_level, log_prefix + "The input parameters are incorrect.");
+      Log(log_level,"[The input parameters are incorrect]    " + description);
       break;
     case ExecuteResult::TIMEOUT:
-      Log(log_level, log_prefix + "The operation timed out.");
+      Log(log_level,"[The operation timed out]    " + description);
       break;
     case ExecuteResult::OPERATION_NOT_SUPPORTED:
-      Log(log_level, log_prefix + "An unsupported operation was performed.");
+      Log(log_level,"[An unsupported operation was performed]    " + description);
       break;
     case ExecuteResult::INPUT_PARAMETERS_ARE_NOT_SUITABLE:
-      Log(log_level, log_prefix + "The input parameters are not suitable.");
+      Log(log_level,"[The input parameters are not suitable]    " + description);
       break;
     case ExecuteResult::FILE_OPERATION_ERROR:
-      Log(log_level, log_prefix + "File operation error.");
+      Log(log_level,"[File operation error]    " + description);
       break;
     case ExecuteResult::SYNCHRONIZE_FAILED:
-      Log(log_level, log_prefix + "Synchronize failed.");
+      Log(log_level,"[Synchronize failed]    " + description);
       break;
     case ExecuteResult::NO_AVAILABLE_ELEMENT:
-      Log(log_level, log_prefix + "No available element.");
+      Log(log_level,"[No available element]    " + description);
       break;
     case ExecuteResult::CUSTOM_ERROR:
-      Log(log_level, log_prefix + "Custom error.");
+      Log(log_level,"[Custom error]    " + description);
       break;
   }
-
-  return result;
 }
 
 bool MM::LogSystem::LogSystem::Destroy() {
