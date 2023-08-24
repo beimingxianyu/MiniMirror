@@ -130,24 +130,24 @@ ReturnNilFailed() {
       MM::Utils::ErrorNil{false});
 }
 
-MM::Utils::Result<UtilsErrorCustomStruct, MM::Utils::ExecuteResultWrapperBase>
+MM::Utils::Result<UtilsErrorCustomStruct, MM::Utils::ErrorResult>
 ReturnCodeSuccess() {
   return MM::Utils::Result<UtilsErrorCustomStruct,
-                           MM::Utils::ExecuteResultWrapperBase>(
+                           MM::Utils::ErrorResult>(
       UtilsErrorCustomStruct{});
 }
 
-MM::Utils::Result<UtilsErrorCustomStruct, MM::Utils::ExecuteResultWrapperBase>
+MM::Utils::Result<UtilsErrorCustomStruct, MM::Utils::ErrorResult>
 ReturnCodeFailed() {
   return MM::Utils::Result<UtilsErrorCustomStruct,
-                           MM::Utils::ExecuteResultWrapperBase>(
-      MM::Utils::ExecuteResultWrapperBase{
-          MM::Utils::ExecuteResult::UNDEFINED_ERROR});
+                           MM::Utils::ErrorResult>(
+      MM::Utils::ErrorResult{
+          MM::Utils::ErrorCode::UNDEFINED_ERROR});
 }
 
 void ReturnCodeExceptionCallback(
     UtilsErrorCustomStruct& result,
-    const MM::Utils::ExecuteResultWrapperBase& error) {
+    const MM::Utils::ErrorResult& error) {
   result = UtilsErrorCustomStruct("ReturnCodeExceptionCallback");
 }
 
@@ -168,20 +168,20 @@ void ReturnNilFailedNoCopyExceptionCallback(MM::Utils::ErrorNil& error) {
 }
 
 MM::Utils::Result<UtilsErrorCustomStructNoCopy,
-                  MM::Utils::ExecuteResultWrapperBase>
+                  MM::Utils::ErrorResult>
 ReturnCodeSuccessNoCopy() {
   return MM::Utils::Result<UtilsErrorCustomStructNoCopy,
-                           MM::Utils::ExecuteResultWrapperBase>(
+                           MM::Utils::ErrorResult>(
       UtilsErrorCustomStructNoCopy{});
 }
 
 MM::Utils::Result<UtilsErrorCustomStructNoCopy,
-                  MM::Utils::ExecuteResultWrapperBase>
+                  MM::Utils::ErrorResult>
 ReturnCodeFailedNoCopy() {
   return MM::Utils::Result<UtilsErrorCustomStructNoCopy,
-                           MM::Utils::ExecuteResultWrapperBase>(
-      MM::Utils::ExecuteResultWrapperBase{
-          MM::Utils::ExecuteResult::UNDEFINED_ERROR});
+                           MM::Utils::ErrorResult>(
+      MM::Utils::ErrorResult{
+          MM::Utils::ErrorCode::UNDEFINED_ERROR});
 }
 
 MM::Utils::Result<UtilsErrorCustomStructNoMove, MM::Utils::ErrorNil>
@@ -197,20 +197,20 @@ ReturnNilFailedNoMove() {
 }
 
 MM::Utils::Result<UtilsErrorCustomStructNoMove,
-                  MM::Utils::ExecuteResultWrapperBase>
+                  MM::Utils::ErrorResult>
 ReturnCodeSuccessNoMove() {
   return MM::Utils::Result<UtilsErrorCustomStructNoMove,
-                           MM::Utils::ExecuteResultWrapperBase>(
+                           MM::Utils::ErrorResult>(
           MM::Utils::c_execute_success, std::string("ReturnCodeSuccessNoMove"));
 }
 
 MM::Utils::Result<UtilsErrorCustomStructNoMove,
-                  MM::Utils::ExecuteResultWrapperBase>
+                  MM::Utils::ErrorResult>
 ReturnCodeFailedNoMove() {
   return MM::Utils::Result<UtilsErrorCustomStructNoMove,
-                           MM::Utils::ExecuteResultWrapperBase>(
-      MM::Utils::ExecuteResultWrapperBase(
-          MM::Utils::ExecuteResult::UNDEFINED_ERROR));
+                           MM::Utils::ErrorResult>(
+      MM::Utils::ErrorResult(
+          MM::Utils::ErrorCode::UNDEFINED_ERROR));
 }
 
 MM::Utils::Result<UtilsErrorCustomStruct, NewError> ReturnNewErrorSuccess() {
@@ -263,9 +263,9 @@ TEST(Utils, error) {
   NewError true_new_error{0};
 
   MM::Utils::ErrorNil true_nil(true), false_nil(false);
-  MM::Utils::ExecuteResultWrapperBase true_code{
-      MM::Utils::ExecuteResult::SUCCESS},
-      false_code{MM::Utils::ExecuteResult::UNDEFINED_ERROR};
+  MM::Utils::ErrorResult true_code{
+      MM::Utils::ErrorCode::SUCCESS},
+      false_code{MM::Utils::ErrorCode::UNDEFINED_ERROR};
   std::uint32_t expection_in = 0;
 
   auto return_nil_success = ReturnNilSuccess(),
@@ -310,7 +310,7 @@ TEST(Utils, error) {
        return_code_failed_no_copy = ReturnCodeFailedNoCopy();
   auto return_code_lambda =
       [&expection_in](UtilsErrorCustomStructNoCopy& result,
-                      const MM::Utils::ExecuteResultWrapperBase& error) {
+                      const MM::Utils::ErrorResult& error) {
         ++expection_in;
         return;
       };

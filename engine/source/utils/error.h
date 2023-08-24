@@ -5,14 +5,14 @@
 
 namespace MM {
 
-namespace ConstructTrait {
+namespace StaticTrait {
     struct Success {};
     struct Error {};
 }  // namespace ResultTrait
 
 namespace Utils {
 // TODO rename to ErrorCode
-enum class ExecuteResult : std::uint32_t {
+enum class ErrorCode: std::uint32_t {
   SUCCESS = 0,
   UNDEFINED_ERROR,
   OUT_OF_HOST_MEMORY,
@@ -42,13 +42,13 @@ enum class ExecuteResult : std::uint32_t {
   CUSTOM_ERROR
 };
 
-ExecuteResult operator|(ExecuteResult l_result, ExecuteResult r_result);
+ErrorCode operator|(ErrorCode l_result, ErrorCode r_result);
 
-ExecuteResult operator|=(ExecuteResult l_result, ExecuteResult r_result);
+ErrorCode operator|=(ErrorCode l_result, ErrorCode r_result);
 
-ExecuteResult operator&(ExecuteResult l_result, ExecuteResult r_result);
+ErrorCode operator&(ErrorCode l_result, ErrorCode r_result);
 
-ExecuteResult operator&=(ExecuteResult l_result, ExecuteResult r_result);
+ErrorCode operator&=(ErrorCode l_result, ErrorCode r_result);
 
 class ErrorTypeBase {
  public:
@@ -99,25 +99,21 @@ class ErrorNil final : public ErrorTypeBase {
   bool success_{true};
 };
 
-// TODO rename to ExecuteResultBae
-class ExecuteResultWrapperBase final : public ErrorTypeBase {
+class ErrorResult final : public ErrorTypeBase {
  public:
-  using ErrorCode = ExecuteResult;
+  ErrorResult() = default;
+  ~ErrorResult() = default;
+  explicit ErrorResult(ErrorCode error_code);
+  ErrorResult(const ErrorResult& other) = default;
+  ErrorResult(ErrorResult&& other) noexcept;
+  ErrorResult& operator=(const ErrorResult& other);
+  ErrorResult& operator=(
+          ErrorResult&& other) noexcept;
 
  public:
-  ExecuteResultWrapperBase() = default;
-  ~ExecuteResultWrapperBase() = default;
-  explicit ExecuteResultWrapperBase(ErrorCode error_code);
-  ExecuteResultWrapperBase(const ExecuteResultWrapperBase& other) = default;
-  ExecuteResultWrapperBase(ExecuteResultWrapperBase&& other) noexcept;
-  ExecuteResultWrapperBase& operator=(const ExecuteResultWrapperBase& other);
-  ExecuteResultWrapperBase& operator=(
-      ExecuteResultWrapperBase&& other) noexcept;
+  bool operator==(const ErrorResult& rhs) const;
 
- public:
-  bool operator==(const ExecuteResultWrapperBase& rhs) const;
-
-  bool operator!=(const ExecuteResultWrapperBase& rhs) const;
+  bool operator!=(const ErrorResult& rhs) const;
 
   explicit operator bool() const;
 
@@ -137,8 +133,8 @@ class ExecuteResultWrapperBase final : public ErrorTypeBase {
 };
 
 
-static ConstructTrait::Success c_execute_success;
-static ConstructTrait::Error c_execute_error;
+static StaticTrait::Success c_execute_success;
+static StaticTrait::Error c_execute_error;
 
 template <typename ResultTypeArg, typename ErrorTypeArg>
 class Result {
@@ -154,10 +150,10 @@ class Result {
   explicit Result(const ErrorType& error) : result_wrapper_(error) {}
   explicit Result(ErrorType&& error) : result_wrapper_(std::move(error)) {}
   template <typename... Args>
-  explicit Result(ConstructTrait::Success success, Args... args)
+  explicit Result(StaticTrait::Success success, Args... args)
       : result_wrapper_(success, std::forward<Args>(args)...) {}
   template <typename... Args>
-  explicit Result(ConstructTrait::Error error, Args... args)
+  explicit Result(StaticTrait::Error error, Args... args)
       : result_wrapper_(error, std::forward<Args>(args)...) {}
   Result(const Result& other) = default;
   Result(Result&& other) noexcept
@@ -287,7 +283,7 @@ class Result {
     {
     }
     template <typename... Args>
-    explicit ResultWrapper(ConstructTrait::Success, Args... args)
+    explicit ResultWrapper(StaticTrait::Success, Args... args)
         : result_(std::forward<Args>(args)...),
           error_()
 #ifdef MM_CHECK_ALL_EXCEPTION_PROCESS
@@ -297,7 +293,7 @@ class Result {
     {
     }
     template <typename... Args>
-    explicit ResultWrapper(ConstructTrait::Error, Args... args)
+    explicit ResultWrapper(StaticTrait::Error, Args... args)
         : result_(),
           error_(std::forward<Args>(args)...)
 #ifdef MM_CHECK_ALL_EXCEPTION_PROCESS
