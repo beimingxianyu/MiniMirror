@@ -301,12 +301,14 @@ bool MM::FileSystem::FileSystem::IsDirectory(const Path& path) const {
   return path.IsDirectory();
 }
 
-MM::ExecuteResult MM::FileSystem::FileSystem::DirectorySize(
+MM::Result<MM::Nil, MM::ErrorResult> MM::FileSystem::FileSystem::DirectorySize(
     const Path& dir_path, std::size_t& directory_sie) const {
   std::vector<Path> files;
-  ExecuteResult get_files_result = GetFiles(dir_path, files);
-  if (get_files_result != ExecuteResult::SUCCESS) {
-    return get_files_result;
+  Result<Nil, ErrorResult> get_files_result = GetFiles(dir_path, files);
+  if (!get_files_result.Success()) {
+     return get_files_result;
+  } else {
+      get_files_result.Exception();
   }
 
   std::error_code error_code;
@@ -315,64 +317,64 @@ MM::ExecuteResult MM::FileSystem::FileSystem::DirectorySize(
 
     if (error_code) {
       if (error_code.value() == 2) {
-        return ExecuteResult ::FILE_IS_NOT_EXIST;
+         return Result<Nil, ErrorResult>{st_execute_error, ErrorCode::FILE_IS_NOT_EXIST};
       }
 
-      return ExecuteResult ::FILE_OPERATION_ERROR;
+        return Result<Nil, ErrorResult>{st_execute_error, ErrorCode::FILE_OPERATION_ERROR};
     }
   }
 
-  return ExecuteResult::SUCCESS;
+    return Result<Nil, ErrorResult>{st_execute_success};
 }
 
-MM::ExecuteResult MM::FileSystem::FileSystem::CreateDirectory(
+MM::Result<MM::Nil, MM::ErrorResult> MM::FileSystem::FileSystem::CreateDirectory(
     const Path& dir_path) const {
   std::error_code error_code;
   if (std::filesystem::create_directory(dir_path.path_, error_code)) {
-    return ExecuteResult::SUCCESS;
+      return Result<Nil, ErrorResult>{st_execute_success};
   }
 
   if (error_code.value() == 2) {
-    return ExecuteResult ::FILE_IS_NOT_EXIST;
+      return Result<Nil, ErrorResult>{st_execute_error, ErrorCode::FILE_IS_NOT_EXIST};
   }
 
-  return ExecuteResult::FILE_OPERATION_ERROR;
+    return Result<Nil, ErrorResult>{st_execute_error, ErrorCode::FILE_OPERATION_ERROR};
 }
 
-MM::ExecuteResult MM::FileSystem::FileSystem::DeleteDirectory(
+MM::Result<MM::Nil, MM::ErrorResult> MM::FileSystem::FileSystem::DeleteDirectory(
     const Path& dir_path) const {
   std::error_code error_code;
   if (std::filesystem::remove_all(dir_path.path_, error_code)) {
-    return ExecuteResult::SUCCESS;
+      return Result<Nil, ErrorResult>{st_execute_success};
   }
 
   if (error_code.value() == 2) {
-    return ExecuteResult ::FILE_IS_NOT_EXIST;
+      return Result<Nil, ErrorResult>{st_execute_error, ErrorCode::FILE_IS_NOT_EXIST};
   }
 
-  return ExecuteResult::FILE_OPERATION_ERROR;
+    return Result<Nil, ErrorResult>{st_execute_error, ErrorCode::FILE_OPERATION_ERROR};
 }
 
-MM::ExecuteResult MM::FileSystem::FileSystem::CopyDirectory(
+MM::Result<MM::Nil, MM::ErrorResult> MM::FileSystem::FileSystem::CopyDirectory(
     const Path& dir_path, const Path& dest_dir) const {
   std::error_code error_code;
   std::filesystem::copy(dir_path.path_, dest_dir.path_, error_code);
 
   if (error_code) {
     if (error_code.value() == 2) {
-      return ExecuteResult ::FILE_IS_NOT_EXIST;
+        return Result<Nil, ErrorResult>{st_execute_error, ErrorCode::FILE_IS_NOT_EXIST};
     }
 
-    return ExecuteResult::FILE_OPERATION_ERROR;
+      return Result<Nil, ErrorResult>{st_execute_error, ErrorCode::FILE_OPERATION_ERROR};
   }
 
-  return ExecuteResult::SUCCESS;
+    return Result<Nil, ErrorResult>{st_execute_success};
 }
 
-MM::ExecuteResult MM::FileSystem::FileSystem::RenameDirectory(
+MM::Result<MM::Nil, MM::ErrorResult> MM::FileSystem::FileSystem::RenameDirectory(
     const Path& dir_path, const std::string& new_name) const {
   if (dir_path.StringView().compare(new_name.c_str()) == 0) {
-    return ExecuteResult::SUCCESS;
+      return Result<Nil, ErrorResult>{st_execute_success};
   }
 
   std::error_code error_code;
@@ -380,20 +382,20 @@ MM::ExecuteResult MM::FileSystem::FileSystem::RenameDirectory(
 
   if (error_code) {
     if (error_code.value() == 2) {
-      return ExecuteResult ::FILE_IS_NOT_EXIST;
+        return Result<Nil, ErrorResult>{st_execute_error, ErrorCode::FILE_IS_NOT_EXIST};
     }
 
-    return ExecuteResult::FILE_OPERATION_ERROR;
+      return Result<Nil, ErrorResult>{st_execute_error, ErrorCode::FILE_OPERATION_ERROR};
   }
 
-  return ExecuteResult::SUCCESS;
+    return Result<Nil, ErrorResult>{st_execute_success};
 }
 
 bool MM::FileSystem::FileSystem::DirectoryIsEmpty(const Path& dir_path) const {
   return std::filesystem::is_empty(dir_path.path_);
 }
 
-MM::ExecuteResult MM::FileSystem::FileSystem::GetDirectories(
+MM::Result<MM::Nil, MM::ErrorResult> MM::FileSystem::FileSystem::GetDirectories(
     const Path& dir_path, std::vector<Path>& directories) const {
   std::error_code error_code;
 
@@ -402,10 +404,10 @@ MM::ExecuteResult MM::FileSystem::FileSystem::GetDirectories(
 
   if (error_code) {
     if (error_code.value() == 2) {
-      return ExecuteResult ::FILE_IS_NOT_EXIST;
+        return Result<Nil, ErrorResult>{st_execute_error, ErrorCode::FILE_IS_NOT_EXIST};
     }
 
-    return ExecuteResult ::FILE_OPERATION_ERROR;
+      return Result<Nil, ErrorResult>{st_execute_error, ErrorCode::FILE_OPERATION_ERROR};
   }
 
   for (const auto& directory_or_file : directory_or_files) {
@@ -415,68 +417,68 @@ MM::ExecuteResult MM::FileSystem::FileSystem::GetDirectories(
     }
   }
 
-  return ExecuteResult::SUCCESS;
+    return Result<Nil, ErrorResult>{st_execute_success};
 }
 
-MM::ExecuteResult MM::FileSystem::FileSystem::FileSize(
+MM::Result<MM::Nil, MM::ErrorResult> MM::FileSystem::FileSystem::FileSize(
     const Path& file_path, std::size_t& file_size) const {
   std::error_code error_code;
   file_size = std::filesystem::file_size(file_path.path_, error_code);
 
   if (error_code) {
     if (error_code.value() == 2) {
-      return ExecuteResult ::FILE_IS_NOT_EXIST;
+        return Result<Nil, ErrorResult>{st_execute_error, ErrorCode::FILE_IS_NOT_EXIST};
     }
 
-    return ExecuteResult::FILE_OPERATION_ERROR;
+      return Result<Nil, ErrorResult>{st_execute_error, ErrorCode::FILE_OPERATION_ERROR};
   }
 
-  return ExecuteResult::SUCCESS;
+    return Result<Nil, ErrorResult>{st_execute_success};
 }
 
-MM::ExecuteResult MM::FileSystem::FileSystem::CreateFile(
+MM::Result<MM::Nil, MM::ErrorResult> MM::FileSystem::FileSystem::CreateFile(
     const Path& file_path) const {
   if (file_path.IsExists()) {
-    return ExecuteResult::FILE_OPERATION_ERROR;
+      return Result<Nil, ErrorResult>{st_execute_error, ErrorCode::FILE_OPERATION_ERROR};
   }
 
   std::fstream create_file;
   create_file.open(file_path.String(), std::ios_base::app);
   if (create_file.is_open()) {
     create_file.close();
-    return ExecuteResult::SUCCESS;
+      return Result<Nil, ErrorResult>{st_execute_success};
   }
-  return ExecuteResult::FILE_OPERATION_ERROR;
+    return Result<Nil, ErrorResult>{st_execute_error, ErrorCode::FILE_OPERATION_ERROR};
 }
 
-MM::ExecuteResult MM::FileSystem::FileSystem::DeleteFile(
+MM::Result<MM::Nil, MM::ErrorResult> MM::FileSystem::FileSystem::DeleteFile(
     const Path& file_path) const {
   std::error_code error_code;
   if (std::filesystem::remove(file_path.path_, error_code)) {
-    return ExecuteResult ::SUCCESS;
+      return Result<Nil, ErrorResult>{st_execute_success};
   }
 
-  return ExecuteResult::FILE_OPERATION_ERROR;
+    return Result<Nil, ErrorResult>{st_execute_error, ErrorCode::FILE_OPERATION_ERROR};
 }
 
-MM::ExecuteResult MM::FileSystem::FileSystem::CopyFile(
+MM::Result<MM::Nil, MM::ErrorResult> MM::FileSystem::FileSystem::CopyFile(
     const Path& file_path, const Path& dest_dir) const {
   std::error_code error_code;
   if (std::filesystem::copy_file(file_path.path_, dest_dir.path_, error_code)) {
-    return ExecuteResult::SUCCESS;
+      return Result<Nil, ErrorResult>{st_execute_success};
   }
 
   if (error_code.value() == 2) {
-    return ExecuteResult ::FILE_IS_NOT_EXIST;
+      return Result<Nil, ErrorResult>{st_execute_error, ErrorCode::FILE_IS_NOT_EXIST};
   }
 
-  return ExecuteResult::FILE_OPERATION_ERROR;
+    return Result<Nil, ErrorResult>{st_execute_error, ErrorCode::FILE_OPERATION_ERROR};
 }
 
-MM::ExecuteResult MM::FileSystem::FileSystem::RenameFile(
+MM::Result<MM::Nil, MM::ErrorResult> MM::FileSystem::FileSystem::RenameFile(
     const Path& file_path, const std::string& new_name) const {
   if (file_path.String() == new_name) {
-    return ExecuteResult::SUCCESS;
+      return Result<Nil, ErrorResult>{st_execute_success};
   }
 
   std::error_code error_code;
@@ -484,20 +486,20 @@ MM::ExecuteResult MM::FileSystem::FileSystem::RenameFile(
 
   if (error_code) {
     if (error_code.value() == 2) {
-      return ExecuteResult ::FILE_IS_NOT_EXIST;
+        return Result<Nil, ErrorResult>{st_execute_error, ErrorCode::FILE_IS_NOT_EXIST};
     }
 
-    return ExecuteResult::FILE_OPERATION_ERROR;
+      return Result<Nil, ErrorResult>{st_execute_error, ErrorCode::FILE_OPERATION_ERROR};
   }
 
-  return ExecuteResult::SUCCESS;
+    return Result<Nil, ErrorResult>{st_execute_success};
 }
 
 bool MM::FileSystem::FileSystem::FileIsEmpty(const Path& file_path) const {
   return std::filesystem::is_empty(file_path.path_);
 }
 
-MM::ExecuteResult MM::FileSystem::FileSystem::GetFiles(
+MM::Result<MM::Nil, MM::ErrorResult> MM::FileSystem::FileSystem::GetFiles(
     const Path& dir_path, std::vector<Path>& files) const {
   std::error_code error_code;
 
@@ -506,10 +508,10 @@ MM::ExecuteResult MM::FileSystem::FileSystem::GetFiles(
 
   if (error_code) {
     if (error_code.value() == 2) {
-      return ExecuteResult ::FILE_IS_NOT_EXIST;
+        return Result<Nil, ErrorResult>{st_execute_error, ErrorCode::FILE_IS_NOT_EXIST};
     }
 
-    return ExecuteResult ::FILE_OPERATION_ERROR;
+      return Result<Nil, ErrorResult>{st_execute_error, ErrorCode::FILE_OPERATION_ERROR};
   }
 
   for (const auto& directory_or_file : directory_or_files) {
@@ -518,24 +520,24 @@ MM::ExecuteResult MM::FileSystem::FileSystem::GetFiles(
     }
   }
 
-  return ExecuteResult::SUCCESS;
+    return Result<Nil, ErrorResult>{st_execute_success};
 }
 
-MM::ExecuteResult MM::FileSystem::FileSystem::Create(const Path& path) const {
+MM::Result<MM::Nil, MM::ErrorResult> MM::FileSystem::FileSystem::Create(const Path& path) const {
   if (path.IsDirectory()) {
     return CreateDirectory(path);
   }
   return CreateFile(path);
 }
 
-MM::ExecuteResult MM::FileSystem::FileSystem::Delete(const Path& path) const {
+MM::Result<MM::Nil, MM::ErrorResult> MM::FileSystem::FileSystem::Delete(const Path& path) const {
   if (path.IsDirectory()) {
     return DeleteDirectory(path);
   }
   return DeleteFile(path);
 }
 
-MM::ExecuteResult MM::FileSystem::FileSystem::Copy(
+MM::Result<MM::Nil, MM::ErrorResult> MM::FileSystem::FileSystem::Copy(
     const Path& path, const Path& dest_path) const {
   if (path.IsDirectory()) {
     return CopyDirectory(path, dest_path);
@@ -543,7 +545,7 @@ MM::ExecuteResult MM::FileSystem::FileSystem::Copy(
   return CopyFile(path, dest_path);
 }
 
-MM::ExecuteResult MM::FileSystem::FileSystem::Rename(
+MM::Result<MM::Nil, MM::ErrorResult> MM::FileSystem::FileSystem::Rename(
     const Path& path, const std::string& new_name) const {
   if (path.IsDirectory()) {
     return RenameDirectory(path, new_name);
@@ -551,7 +553,7 @@ MM::ExecuteResult MM::FileSystem::FileSystem::Rename(
   return RenameFile(path, new_name);
 }
 
-MM::ExecuteResult MM::FileSystem::FileSystem::Rename(
+MM::Result<MM::Nil, MM::ErrorResult> MM::FileSystem::FileSystem::Rename(
     const MM::FileSystem::Path& path,
     const MM::FileSystem::Path& new_path) const {
   if (path.IsDirectory()) {
@@ -567,7 +569,7 @@ bool MM::FileSystem::FileSystem::IsEmpty(const Path& path) const {
   return FileIsEmpty(path);
 }
 
-MM::ExecuteResult MM::FileSystem::FileSystem::Size(const Path& path,
+MM::Result<MM::Nil, MM::ErrorResult> MM::FileSystem::FileSystem::Size(const Path& path,
                                                    std::size_t& size) const {
   if (path.IsDirectory()) {
     return DirectorySize(path, size);
@@ -575,7 +577,7 @@ MM::ExecuteResult MM::FileSystem::FileSystem::Size(const Path& path,
   return FileSize(path, size);
 }
 
-MM::ExecuteResult MM::FileSystem::FileSystem::GetAll(
+MM::Result<MM::Nil, MM::ErrorResult> MM::FileSystem::FileSystem::GetAll(
     const Path& path, std::vector<Path>& sub_paths) const {
   if (path.IsDirectory()) {
     return GetDirectories(path, sub_paths);
@@ -583,16 +585,16 @@ MM::ExecuteResult MM::FileSystem::FileSystem::GetAll(
   return GetFiles(path, sub_paths);
 }
 
-MM::ExecuteResult MM::FileSystem::FileSystem::ReadFile(
+MM::Result<MM::Nil, MM::ErrorResult> MM::FileSystem::FileSystem::ReadFile(
     const MM::FileSystem::Path& path, std::vector<char>& output_data) const {
   if (!output_data.empty()) {
-    return ExecuteResult ::INPUT_PARAMETERS_ARE_NOT_SUITABLE;
+      return Result<Nil, ErrorResult>{st_execute_error, ErrorCode::INPUT_PARAMETERS_ARE_NOT_SUITABLE};
   }
 
   std::ifstream file(path.CStr(), std::ios::ate | std::ios::binary);
 
   if (!file.is_open()) {
-    return ExecuteResult ::FILE_OPERATION_ERROR;
+      return Result<Nil, ErrorResult>{st_execute_error, ErrorCode::FILE_OPERATION_ERROR};
   }
 
   std::size_t file_size = static_cast<std::size_t>(file.tellg());
@@ -602,7 +604,7 @@ MM::ExecuteResult MM::FileSystem::FileSystem::ReadFile(
 
   file.close();
 
-  return MM::ExecuteResult::SUCCESS;
+    return Result<Nil, ErrorResult>{st_execute_success};
 }
 
 bool MM::FileSystem::FileSystem::Destroy() {
@@ -699,7 +701,7 @@ MM::FileSystem::Path MM::FileSystem::Path::GetParentDirPath() const {
 
 MM::FileSystem::FileSystem::~FileSystem() { file_system_ = nullptr; }
 
-MM::ExecuteResult MM::FileSystem::FileSystem::GetLastWriteTime(
+MM::Result<MM::Nil, MM::ErrorResult> MM::FileSystem::FileSystem::GetLastWriteTime(
     const MM::FileSystem::Path& path,
     MM::FileSystem::LastWriteTime& last_write_time) const {
   std::error_code error_code;
@@ -707,13 +709,13 @@ MM::ExecuteResult MM::FileSystem::FileSystem::GetLastWriteTime(
 
   if (error_code) {
     if (error_code.value() == 2) {
-      return ExecuteResult ::FILE_IS_NOT_EXIST;
+        return Result<Nil, ErrorResult>{st_execute_error, ErrorCode::FILE_IS_NOT_EXIST};
     }
 
-    return ExecuteResult ::FILE_OPERATION_ERROR;
+      return Result<Nil, ErrorResult>{st_execute_error, ErrorCode::FILE_OPERATION_ERROR};
   }
 
-  return ExecuteResult::SUCCESS;
+    return Result<Nil, ErrorResult>{st_execute_success};
 }
 
 const MM::FileSystem::Path& MM::FileSystem::FileSystem::GetAssetDir() const {

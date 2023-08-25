@@ -4,32 +4,32 @@
 
 #include "utils/shaderc.h"
 
-MM::Utils::ExecuteResult MM::Utils::PreprocessShader(
-    std::string &preprocess_data, const char *source_name,
+MM::Result<std::string, MM::ErrorResult> MM::Utils::PreprocessShader(
+    const char *source_name,
     shaderc_shader_kind kind, const char *source, std::uint64_t source_size) {
-  shaderc::Compiler compiler;
-  shaderc::CompileOptions options;
+    shaderc::Compiler compiler;
+    shaderc::CompileOptions options;
 
-  shaderc::PreprocessedSourceCompilationResult result =
-      compiler.PreprocessGlsl(source, source_size, kind, source_name, options);
+    shaderc::PreprocessedSourceCompilationResult result =
+            compiler.PreprocessGlsl(source, source_size, kind, source_name, options);
 
-  if (result.GetCompilationStatus() != shaderc_compilation_status_success) {
-    return MM::Utils::ExecuteResult::UNDEFINED_ERROR;
-  }
+    if (result.GetCompilationStatus() != shaderc_compilation_status_success) {
+        return Result<std::string, MM::ErrorResult>{st_execute_error, ErrorCode::UNDEFINED_ERROR};
+    }
 
-  preprocess_data = std::string(result.cbegin(), result.cend());
-  return MM::Utils::ExecuteResult::SUCCESS;
+    return Result<std::string, MM::ErrorResult>{st_execute_success, std::string(result.cbegin(), result.cend())};
+
 }
 
-MM::Utils::ExecuteResult MM::Utils::PreprocessShader(
-    std::string &preprocess_data, const std::string &source_name,
+MM::Result<std::string, MM::ErrorResult> MM::Utils::PreprocessShader(
+    const std::string &source_name,
     shaderc_shader_kind kind, const char *source, std::uint64_t source_size) {
-  return PreprocessShader(preprocess_data, source_name.c_str(), kind, source,
+  return PreprocessShader(source_name.c_str(), kind, source,
                           source_size);
 }
 
-MM::Utils::ExecuteResult MM::Utils::CompileShaderToAssembly(
-    std::string &assembly_data, const char *source_name,
+MM::Result<std::string, MM::ErrorResult> MM::Utils::CompileShaderToAssembly(
+    const char *source_name,
     const std::string &entry_name, shaderc_shader_kind kind, const char *source,
     std::uint64_t source_size, bool optimize,
     shaderc_optimization_level optimization_level) {
@@ -46,25 +46,24 @@ MM::Utils::ExecuteResult MM::Utils::CompileShaderToAssembly(
       source, source_size, kind, source_name, entry_name.c_str(), options);
 
   if (result.GetCompilationStatus() != shaderc_compilation_status_success) {
-    return MM::Utils::ExecuteResult::UNDEFINED_ERROR;
+     return Result<std::string, MM::ErrorResult>{st_execute_error, MM::ErrorCode::UNDEFINED_ERROR};
   }
 
-  assembly_data = std::string(result.cbegin(), result.cend());
-  return MM::Utils::ExecuteResult::SUCCESS;
+  return Result<std::string, MM::ErrorResult>{st_execute_success, std::string(result.cbegin(), result.cend())};
 }
 
-MM::Utils::ExecuteResult MM::Utils::CompileShaderToAssembly(
-    std::string &assembly_data, const std::string &source_name,
+MM::Result<std::string, MM::ErrorResult> MM::Utils::CompileShaderToAssembly(
+    const std::string &source_name,
     const std::string &entry_name, shaderc_shader_kind kind, const char *source,
     std::uint64_t source_size, bool optimize,
     shaderc_optimization_level optimization_level) {
-  return CompileShaderToAssembly(assembly_data, source_name.c_str(), entry_name,
+  return CompileShaderToAssembly(source_name.c_str(), entry_name,
                                  kind, source, source_size, optimize,
                                  optimization_level);
 }
 
-MM::Utils::ExecuteResult MM::Utils::CompileShader(
-    std::vector<char> &spv_data, const char *source_name,
+MM::Result<std::vector<char>, MM::ErrorResult> MM::Utils::CompileShader(
+    const char *source_name,
     const std::string &entry_name, shaderc_shader_kind kind, const char *source,
     std::uint64_t source_size, bool optimize,
     shaderc_optimization_level optimization_level) {
@@ -81,21 +80,21 @@ MM::Utils::ExecuteResult MM::Utils::CompileShader(
       source, source_size, kind, source_name, entry_name.c_str(), options);
 
   if (module.GetCompilationStatus() != shaderc_compilation_status_success) {
-    return MM::Utils::ExecuteResult::UNDEFINED_ERROR;
+     return Result<std::vector<char>, ErrorResult>(st_execute_error, MM::ErrorCode::UNDEFINED_ERROR);
   }
 
   std::uint64_t module_size = (module.cend() - module.cbegin()) * 4;
-  spv_data.reserve(module_size);
+  std::vector<char> spv_data(module_size);
   memcpy(spv_data.data(), module.cbegin(), module_size);
 
-  return MM::Utils::ExecuteResult::SUCCESS;
+  return Result<std::vector<char>, ErrorResult>(st_execute_success, std::move(spv_data));
 }
 
-MM::Utils::ExecuteResult MM::Utils::CompileShader(
-    std::vector<char> &spv_data, const std::string &source_name,
+MM::Result<std::vector<char>, MM::ErrorResult>MM::Utils::CompileShader(
+    const std::string &source_name,
     const std::string &entry_name, shaderc_shader_kind kind, const char *source,
     std::uint64_t source_size, bool optimize,
     shaderc_optimization_level optimization_level) {
-  return CompileShader(spv_data, source_name.c_str(), entry_name, kind, source,
+  return CompileShader(source_name.c_str(), entry_name, kind, source,
                        source_size, optimize, optimization_level);
 }

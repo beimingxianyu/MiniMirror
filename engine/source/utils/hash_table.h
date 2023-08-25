@@ -184,16 +184,16 @@ class HashTable {
     return Emplace(MultiTrait{}, std::forward<Args>(args)...);
   }
 
-  ExecuteResult Erase(const ObjectType* object_ptr) {
+  Result<Nil, ErrorResult> Erase(const ObjectType* object_ptr) {
     if (object_ptr == nullptr) {
-      return ExecuteResult::INPUT_PARAMETERS_ARE_NOT_SUITABLE;
+       return Result<Nil, ErrorResult>(st_execute_error, ErrorCode::INPUT_PARAMETERS_ARE_NOT_SUITABLE);
     }
 
     std::uint64_t hash_code = GetObjectHash(*object_ptr);
 
     std::uint64_t data_offset = hash_code % bucket_count_;
     if (data_[data_offset].object_ == nullptr) {
-      return ExecuteResult::PARENT_OBJECT_NOT_CONTAIN_SPECIFIC_CHILD_OBJECT;
+        return Result<Nil, ErrorResult>(st_execute_error, ErrorCode::PARENT_OBJECT_NOT_CONTAIN_SPECIFIC_CHILD_OBJECT);
     }
 
     Node* first_node = &data_[data_offset];
@@ -207,7 +207,7 @@ class HashTable {
       }
       --size_;
 
-      return ExecuteResult::SUCCESS;
+      return Result<Nil, ErrorResult>{st_execute_success};
     }
 
     while (first_node->next_node_ != nullptr &&
@@ -222,13 +222,13 @@ class HashTable {
       delete old_next_node;
       --size_;
 
-      return ExecuteResult::SUCCESS;
+        return Result<Nil, ErrorResult>{st_execute_success};
     }
 
-    return ExecuteResult::PARENT_OBJECT_NOT_CONTAIN_SPECIFIC_CHILD_OBJECT;
+      return Result<Nil, ErrorResult>(st_execute_error, ErrorCode::PARENT_OBJECT_NOT_CONTAIN_SPECIFIC_CHILD_OBJECT);
   }
 
-  ExecuteResult Erase(ObjectType* object_ptr) {
+  Result<Nil, ErrorResult> Erase(ObjectType* object_ptr) {
     return Erase(const_cast<const ObjectType*>(object_ptr));
   }
 
@@ -926,9 +926,9 @@ class ConcurrentHashTable {
     return Emplace(MultiTrait{}, std::forward<Args>(args)...);
   }
 
-  ExecuteResult Erase(ObjectType* object_ptr) {
+  Result<Nil, ErrorResult> Erase(ObjectType* object_ptr) {
     if (object_ptr == nullptr) {
-      return ExecuteResult::INPUT_PARAMETERS_ARE_NOT_SUITABLE;
+       return Result<Nil, ErrorResult>(st_execute_error, ErrorCode::INPUT_PARAMETERS_ARE_NOT_SUITABLE);
     }
 
     std::uint64_t hash_code = GetObjectHash(*object_ptr);
@@ -942,7 +942,7 @@ class ConcurrentHashTable {
 
     std::uint64_t data_offset = hash_code % bucket_count_;
     if (data_[data_offset].object_ == nullptr) {
-      return ExecuteResult::PARENT_OBJECT_NOT_CONTAIN_SPECIFIC_CHILD_OBJECT;
+        return Result<Nil, ErrorResult>(st_execute_error, ErrorCode::PARENT_OBJECT_NOT_CONTAIN_SPECIFIC_CHILD_OBJECT);
     }
 
     Node* first_node = &data_[data_offset];
@@ -956,7 +956,7 @@ class ConcurrentHashTable {
       }
       size_.fetch_sub(1, std::memory_order_relaxed);
 
-      return ExecuteResult::SUCCESS;
+     return Result<Nil, ErrorResult>(st_execute_success);
     }
 
     while (first_node->next_node_ != nullptr &&
@@ -971,15 +971,16 @@ class ConcurrentHashTable {
       delete old_next_node;
       size_.fetch_sub(1, std::memory_order_relaxed);
 
-      return ExecuteResult::SUCCESS;
+        return Result<Nil, ErrorResult>(st_execute_success);
     }
 
-    return ExecuteResult::PARENT_OBJECT_NOT_CONTAIN_SPECIFIC_CHILD_OBJECT;
+
+      return Result<Nil, ErrorResult>(st_execute_error, ErrorCode::PARENT_OBJECT_NOT_CONTAIN_SPECIFIC_CHILD_OBJECT);
   }
 
-  ExecuteResult Erase(const ObjectType* object_ptr) {
+  Result<Nil, ErrorResult> Erase(const ObjectType* object_ptr) {
     if (object_ptr == nullptr) {
-      return ExecuteResult::INPUT_PARAMETERS_ARE_NOT_SUITABLE;
+        return Result<Nil, ErrorResult>(st_execute_error, ErrorCode::INPUT_PARAMETERS_ARE_NOT_SUITABLE);
     }
 
     std::uint64_t hash_code = GetObjectHash(*object_ptr);
@@ -993,7 +994,7 @@ class ConcurrentHashTable {
 
     std::uint64_t data_offset = hash_code % bucket_count_;
     if (data_[data_offset].object_ == nullptr) {
-      return ExecuteResult::PARENT_OBJECT_NOT_CONTAIN_SPECIFIC_CHILD_OBJECT;
+        return Result<Nil, ErrorResult>(st_execute_error, ErrorCode::PARENT_OBJECT_NOT_CONTAIN_SPECIFIC_CHILD_OBJECT);
     }
 
     Node* first_node = &data_[data_offset];
@@ -1007,7 +1008,7 @@ class ConcurrentHashTable {
       }
       size_.fetch_sub(1, std::memory_order_relaxed);
 
-      return ExecuteResult::SUCCESS;
+        return Result<Nil, ErrorResult>(st_execute_success);
     }
 
     while (first_node->next_node_ != nullptr &&
@@ -1022,10 +1023,10 @@ class ConcurrentHashTable {
       delete old_next_node;
       size_.fetch_sub(1, std::memory_order_relaxed);
 
-      return ExecuteResult::SUCCESS;
+        return Result<Nil, ErrorResult>(st_execute_success);
     }
 
-    return ExecuteResult::PARENT_OBJECT_NOT_CONTAIN_SPECIFIC_CHILD_OBJECT;
+      return Result<Nil, ErrorResult>(st_execute_error, ErrorCode::PARENT_OBJECT_NOT_CONTAIN_SPECIFIC_CHILD_OBJECT);
   }
 
   template <typename K>

@@ -238,11 +238,10 @@ TEST(Utils, HashTable_multi_map) {
 
   ASSERT_EQ(concurrent_multi_map.Erase("fffffff"), 0);
   auto insert_result = concurrent_multi_map.Emplace("ffff", TestClass{1, 1, 1});
-  ASSERT_EQ(concurrent_multi_map.Erase(&(insert_result.first)),
-            MM::Utils::ExecuteResult::SUCCESS);
+  ASSERT_EQ(concurrent_multi_map.Erase(&(insert_result.first)).Exception().Success(),
+            true);
   std::pair<const std::string, TestClass>* null_ptr = nullptr;
-  ASSERT_EQ(concurrent_multi_map.Erase(null_ptr),
-            MM::Utils::ExecuteResult::INPUT_PARAMETERS_ARE_NOT_SUITABLE);
+  ASSERT_EQ(concurrent_multi_map.Erase(null_ptr).GetError(), MM::ErrorResult(MM::ErrorCode::INPUT_PARAMETERS_ARE_NOT_SUITABLE));
 
   for (std::uint64_t i = 0; i != 100; ++i) {
     ASSERT_EQ(concurrent_multi_map.Erase(std::to_string(i)), i + 1);
@@ -304,10 +303,10 @@ void EraseElement2(
     std::vector<std::pair<const std::string, TestClass>*>& address_vector) {
   for (const auto* address : address_vector) {
     auto erase_result = data.Erase(address);
-    if (erase_result != MM::Utils::ExecuteResult::SUCCESS) {
-      auto erase_result2 = data.Erase(address);
-    }
-    ASSERT_EQ(erase_result, MM::Utils::ExecuteResult::SUCCESS);
+//    if (erase_result != MM::Utils::ExecuteResult::SUCCESS) {
+//      auto erase_result2 = data.Erase(address);
+//    }
+    ASSERT_EQ(erase_result.Exception().Success(), true);
   }
 }
 
@@ -541,8 +540,8 @@ TEST(Utils, ConcurrentHashTable_multi_map) {
 
   ASSERT_EQ(concurrent_multi_map.Erase("fffffff"), 0);
   auto insert_result = concurrent_multi_map.Emplace("ffff", TestClass{1, 1, 1});
-  ASSERT_EQ(concurrent_multi_map.Erase(&(insert_result.first)),
-            MM::Utils::ExecuteResult::SUCCESS);
+  ASSERT_EQ(concurrent_multi_map.Erase(&(insert_result.first)).Exception().Success(),
+            true);
 
   for (std::uint64_t i = 0; i != 100; ++i) {
     ASSERT_EQ(concurrent_multi_map.Erase(std::to_string(i)), i + 1);
@@ -605,10 +604,10 @@ void EraseElement2Thread(
     std::vector<std::pair<const std::string, TestClass>*>& address_vector) {
   for (auto* address : address_vector) {
     auto erase_result = data.Erase(address);
-    if (erase_result != MM::Utils::ExecuteResult::SUCCESS) {
-      auto erase_result2 = data.Erase(address);
-    }
-    ASSERT_EQ(erase_result, MM::Utils::ExecuteResult::SUCCESS);
+//    if (erase_result != MM::Utils::ExecuteResult::SUCCESS) {
+//      auto erase_result2 = data.Erase(address);
+//    }
+    ASSERT_EQ(erase_result.Exception().Success(), true);
   }
 }
 

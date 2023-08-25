@@ -79,9 +79,15 @@ MM::ConfigSystem::ConfigSystem* MM::ConfigSystem::ConfigSystem::GetInstance() {
           FileSystem::Path(MM_STR(MM_RELATIVE_CONFIG_DIR)).String();
       config_data_base_["config_dir"] =
           FileSystem::Path(MM_STR(MM_RELATIVE_CONFIG_DIR)).String();
-      ExecuteResult load_result =
+      Result<Nil, ErrorResult> load_result =
           config_system_->LoadConfigFromIni(FileSystem::Path(
-              config_data_base_["config_dir"] + "/init_config.ini"));
+              config_data_base_["config_dir"] + "/init_config.ini")).Exception([](){
+              std::cout << "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n"
+                        << "!!!!!!!!!!!! Failed to read init config !!!!!!!!!!!!\n"
+                        << "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+                        << std::endl;
+                  abort();
+              });
     }
     CheckInit();
   }
@@ -124,7 +130,7 @@ bool MM::ConfigSystem::ConfigSystem::LoadOneConfigFromIni(
   return false;
 }
 
-MM::ExecuteResult MM::ConfigSystem::ConfigSystem::LoadConfigFromIni(
+MM::Result<MM::Nil, MM::ErrorResult> MM::ConfigSystem::ConfigSystem::LoadConfigFromIni(
     const MM::FileSystem::Path& file_path) {
   std::fstream config_file{file_path.String()};
   if (config_file.is_open()) {
@@ -150,9 +156,10 @@ MM::ExecuteResult MM::ConfigSystem::ConfigSystem::LoadConfigFromIni(
       }
     }
     config_file.close();
-    return ExecuteResult::SUCCESS;
+     return Result<Nil, ErrorResult>{st_execute_success};
   }
-  return ExecuteResult::FILE_IS_NOT_EXIST;
+
+    return Result<Nil, ErrorResult>{st_execute_error, ErrorCode::FILE_IS_NOT_EXIST};
 }
 
 void MM::ConfigSystem::ConfigSystem::Clear() { config_data_base_.clear(); }
@@ -166,16 +173,17 @@ std::size_t MM::ConfigSystem::ConfigSystem::Size() {
   return config_data_base_.size();
 }
 
-MM::ExecuteResult MM::ConfigSystem::ConfigSystem::Destroy() {
+MM::Result<MM::Nil, MM::ErrorResult> MM::ConfigSystem::ConfigSystem::Destroy() {
   std::lock_guard<std::mutex> guard{sync_flag_};
   if (config_system_) {
     delete config_system_;
     config_data_base_.clear();
     config_system_ = nullptr;
 
-    return ExecuteResult::SUCCESS;
+      return Result<Nil, ErrorResult>{st_execute_success};
   }
-  return ExecuteResult::DESTROY_FAILED;
+
+    return Result<Nil, ErrorResult>{st_execute_error, ErrorCode::DESTROY_FAILED};
 }
 
 void MM::ConfigSystem::ConfigSystem::CheckInit() {
@@ -297,74 +305,75 @@ void MM::ConfigSystem::ConfigSystem::SetConfig(const std::string& key,
   config_data_base_[key] = std::to_string(data);
 }
 
-MM::ExecuteResult MM::ConfigSystem::ConfigSystem::GetConfig(
+MM::Result<MM::Nil, MM::ErrorResult> MM::ConfigSystem::ConfigSystem::GetConfig(
     const std::string& key, std::string& get_data) const {
   if (Have(key)) {
     get_data = config_data_base_[key];
-    return ExecuteResult::SUCCESS;
+      return Result<Nil, ErrorResult>{st_execute_success};
   }
-  return ExecuteResult::NO_SUCH_CONFIG;
+    return Result<Nil, ErrorResult>{st_execute_error, ErrorCode::NO_SUCH_CONFIG};
 }
 
-MM::ExecuteResult MM::ConfigSystem::ConfigSystem::GetConfig(
+MM::Result<MM::Nil, MM::ErrorResult> MM::ConfigSystem::ConfigSystem::GetConfig(
     const std::string& key, std::int32_t& get_data) const {
   if (Have(key)) {
     get_data = std::stoi(config_data_base_[key]);
-    return ExecuteResult::SUCCESS;
+      return Result<Nil, ErrorResult>{st_execute_success};
   }
-  return ExecuteResult::NO_SUCH_CONFIG;
+
+  return Result<Nil, ErrorResult>{st_execute_error, ErrorCode::NO_SUCH_CONFIG};
 }
 
-MM::ExecuteResult MM::ConfigSystem::ConfigSystem::GetConfig(
+MM::Result<MM::Nil, MM::ErrorResult> MM::ConfigSystem::ConfigSystem::GetConfig(
     const std::string& key, std::uint32_t& get_data) const {
   if (Have(key)) {
     get_data = static_cast<unsigned int>(std::stol(config_data_base_[key]));
-    return ExecuteResult::SUCCESS;
+      return Result<Nil, ErrorResult>{st_execute_success};
   }
-  return ExecuteResult::NO_SUCH_CONFIG;
+  return Result<Nil, ErrorResult>{st_execute_error, ErrorCode::NO_SUCH_CONFIG};
 }
 
-MM::ExecuteResult MM::ConfigSystem::ConfigSystem::GetConfig(
+MM::Result<MM::Nil, MM::ErrorResult> MM::ConfigSystem::ConfigSystem::GetConfig(
     const std::string& key, float& get_data) const {
   if (Have((key))) {
     get_data = std::stof(config_data_base_[key]);
-    return ExecuteResult::SUCCESS;
+      return Result<Nil, ErrorResult>{st_execute_success};
   }
-  return ExecuteResult::NO_SUCH_CONFIG;
+    return Result<Nil, ErrorResult>{st_execute_error, ErrorCode::NO_SUCH_CONFIG};
 }
 
-MM::ExecuteResult MM::ConfigSystem::ConfigSystem::GetConfig(
+MM::Result<MM::Nil, MM::ErrorResult> MM::ConfigSystem::ConfigSystem::GetConfig(
     const std::string& key, double& get_data) const {
   if (Have((key))) {
     get_data = std::stod(config_data_base_[key]);
-    return ExecuteResult::SUCCESS;
+      return Result<Nil, ErrorResult>{st_execute_success};
   }
-  return ExecuteResult::NO_SUCH_CONFIG;
+    return Result<Nil, ErrorResult>{st_execute_error, ErrorCode::NO_SUCH_CONFIG};
 }
 
-MM::ExecuteResult MM::ConfigSystem::ConfigSystem::GetConfig(
+MM::Result<MM::Nil, MM::ErrorResult> MM::ConfigSystem::ConfigSystem::GetConfig(
     const std::string& key, long double& get_data) const {
   if (Have((key))) {
     get_data = std::stold(config_data_base_[key]);
-    return ExecuteResult::SUCCESS;
+      return Result<Nil, ErrorResult>{st_execute_success};
   }
-  return ExecuteResult::NO_SUCH_CONFIG;
+    return Result<Nil, ErrorResult>{st_execute_error, ErrorCode::NO_SUCH_CONFIG};
 }
 
-MM::ExecuteResult MM::ConfigSystem::ConfigSystem::GetConfig(
+MM::Result<MM::Nil, MM::ErrorResult> MM::ConfigSystem::ConfigSystem::GetConfig(
     const std::string& key, std::int64_t& get_data) const {
   if (Have((key))) {
     get_data = std::stoull(config_data_base_[key]);
-    return ExecuteResult::SUCCESS;
+      return Result<Nil, ErrorResult>{st_execute_success};
   }
-  return ExecuteResult::NO_SUCH_CONFIG;
+    return Result<Nil, ErrorResult>{st_execute_error, ErrorCode::NO_SUCH_CONFIG};
 }
 
-MM::ExecuteResult MM::ConfigSystem::ConfigSystem::GetConfig(
+MM::Result<MM::Nil, MM::ErrorResult> MM::ConfigSystem::ConfigSystem::GetConfig(
     const std::string& key, std::uint64_t& get_data) const {
   if (Have((key))) {
     get_data = std::stoull(config_data_base_[key]);
-    return ExecuteResult::SUCCESS;
+      return Result<Nil, ErrorResult>{st_execute_success};
   }
-  return ExecuteResult::NO_SUCH_CONFIG;
+    return Result<Nil, ErrorResult>{st_execute_error, ErrorCode::NO_SUCH_CONFIG};
 }

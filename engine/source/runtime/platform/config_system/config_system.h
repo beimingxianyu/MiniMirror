@@ -56,16 +56,16 @@ class ConfigSystem {
    * \return If the desired setting does not exist, return false; Otherwise,
    * return true.
    */
-  ExecuteResult GetConfig(const std::string& key, std::string& get_data) const;
-  ExecuteResult GetConfig(const std::string& key, std::int32_t& get_data) const;
-  ExecuteResult GetConfig(const std::string& key,
+  Result<Nil, ErrorResult> GetConfig(const std::string& key, std::string& get_data) const;
+  Result<Nil, ErrorResult> GetConfig(const std::string& key, std::int32_t& get_data) const;
+  Result<Nil, ErrorResult> GetConfig(const std::string& key,
                           std::uint32_t& get_data) const;
-  ExecuteResult GetConfig(const std::string& key, std::int64_t& get_data) const;
-  ExecuteResult GetConfig(const std::string& key,
+  Result<Nil, ErrorResult> GetConfig(const std::string& key, std::int64_t& get_data) const;
+  Result<Nil, ErrorResult> GetConfig(const std::string& key,
                           std::uint64_t& get_data) const;
-  ExecuteResult GetConfig(const std::string& key, float& get_data) const;
-  ExecuteResult GetConfig(const std::string& key, double& get_data) const;
-  ExecuteResult GetConfig(const std::string& key, long double& get_data) const;
+  Result<Nil, ErrorResult> GetConfig(const std::string& key, float& get_data) const;
+  Result<Nil, ErrorResult> GetConfig(const std::string& key, double& get_data) const;
+  Result<Nil, ErrorResult> GetConfig(const std::string& key, long double& get_data) const;
   // void SetConfig(std::string key, std::string data);
 
   /**
@@ -91,7 +91,7 @@ class ConfigSystem {
    * \return Returns true if the settings were read successfully; otherwise
    * returns false.
    */
-  ExecuteResult LoadConfigFromIni(const MM::FileSystem::Path& file_path);
+  Result<Nil, ErrorResult> LoadConfigFromIni(const MM::FileSystem::Path& file_path);
 
   /**
    * \brief Clear all settings.
@@ -131,7 +131,7 @@ class ConfigSystem {
    * \return If it is successfully
    * destroyed, it returns true, otherwise it returns false.
    */
-  ExecuteResult Destroy();
+  Result<Nil, ErrorResult> Destroy();
 
   static void CheckInit();
 

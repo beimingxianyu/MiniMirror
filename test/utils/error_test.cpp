@@ -90,7 +90,7 @@ struct UtilsErrorCustomStructNoMove {
   std::vector<std::string> vs_{"string 3", "string 4"};
 };
 
-class NewError final : public MM::Utils::ErrorTypeBase {
+class NewError final : public MM::ErrorTypeBase {
  public:
   NewError() = default;
   ~NewError() = default;
@@ -118,133 +118,133 @@ class NewError final : public MM::Utils::ErrorTypeBase {
   std::uint32_t num_{0};
 };
 
-MM::Utils::Result<UtilsErrorCustomStruct, MM::Utils::ErrorNil>
+MM::Result<UtilsErrorCustomStruct, MM::ErrorNil>
 ReturnNilSuccess() {
-  return MM::Utils::Result<UtilsErrorCustomStruct, MM::Utils::ErrorNil>(
+  return MM::Result<UtilsErrorCustomStruct, MM::ErrorNil>(
       UtilsErrorCustomStruct{});
 }
 
-MM::Utils::Result<UtilsErrorCustomStruct, MM::Utils::ErrorNil>
+MM::Result<UtilsErrorCustomStruct, MM::ErrorNil>
 ReturnNilFailed() {
-  return MM::Utils::Result<UtilsErrorCustomStruct, MM::Utils::ErrorNil>(
-      MM::Utils::ErrorNil{false});
+  return MM::Result<UtilsErrorCustomStruct, MM::ErrorNil>(
+      MM::ErrorNil{false});
 }
 
-MM::Utils::Result<UtilsErrorCustomStruct, MM::Utils::ErrorResult>
+MM::Result<UtilsErrorCustomStruct, MM::ErrorResult>
 ReturnCodeSuccess() {
-  return MM::Utils::Result<UtilsErrorCustomStruct,
-                           MM::Utils::ErrorResult>(
+  return MM::Result<UtilsErrorCustomStruct,
+                           MM::ErrorResult>(
       UtilsErrorCustomStruct{});
 }
 
-MM::Utils::Result<UtilsErrorCustomStruct, MM::Utils::ErrorResult>
+MM::Result<UtilsErrorCustomStruct, MM::ErrorResult>
 ReturnCodeFailed() {
-  return MM::Utils::Result<UtilsErrorCustomStruct,
-                           MM::Utils::ErrorResult>(
-      MM::Utils::ErrorResult{
-          MM::Utils::ErrorCode::UNDEFINED_ERROR});
+  return MM::Result<UtilsErrorCustomStruct,
+                           MM::ErrorResult>(
+      MM::ErrorResult{
+          MM::ErrorCode::UNDEFINED_ERROR});
 }
 
 void ReturnCodeExceptionCallback(
     UtilsErrorCustomStruct& result,
-    const MM::Utils::ErrorResult& error) {
+    const MM::ErrorResult& error) {
   result = UtilsErrorCustomStruct("ReturnCodeExceptionCallback");
 }
 
-MM::Utils::Result<UtilsErrorCustomStructNoCopy, MM::Utils::ErrorNil>
+MM::Result<UtilsErrorCustomStructNoCopy, MM::ErrorNil>
 ReturnNilSuccessNoCopy() {
-  return MM::Utils::Result<UtilsErrorCustomStructNoCopy, MM::Utils::ErrorNil>(
+  return MM::Result<UtilsErrorCustomStructNoCopy, MM::ErrorNil>(
       UtilsErrorCustomStructNoCopy{});
 }
 
-MM::Utils::Result<UtilsErrorCustomStructNoCopy, MM::Utils::ErrorNil>
+MM::Result<UtilsErrorCustomStructNoCopy, MM::ErrorNil>
 ReturnNilFailedNoCopy() {
-  return MM::Utils::Result<UtilsErrorCustomStructNoCopy, MM::Utils::ErrorNil>(
-      MM::Utils::ErrorNil{false});
+  return MM::Result<UtilsErrorCustomStructNoCopy, MM::ErrorNil>(
+      MM::ErrorNil{false});
 }
 
-void ReturnNilFailedNoCopyExceptionCallback(MM::Utils::ErrorNil& error) {
+void ReturnNilFailedNoCopyExceptionCallback(MM::ErrorNil& error) {
   error.Reset();
 }
 
-MM::Utils::Result<UtilsErrorCustomStructNoCopy,
-                  MM::Utils::ErrorResult>
+MM::Result<UtilsErrorCustomStructNoCopy,
+                  MM::ErrorResult>
 ReturnCodeSuccessNoCopy() {
-  return MM::Utils::Result<UtilsErrorCustomStructNoCopy,
-                           MM::Utils::ErrorResult>(
+  return MM::Result<UtilsErrorCustomStructNoCopy,
+                           MM::ErrorResult>(
       UtilsErrorCustomStructNoCopy{});
 }
 
-MM::Utils::Result<UtilsErrorCustomStructNoCopy,
-                  MM::Utils::ErrorResult>
+MM::Result<UtilsErrorCustomStructNoCopy,
+                  MM::ErrorResult>
 ReturnCodeFailedNoCopy() {
-  return MM::Utils::Result<UtilsErrorCustomStructNoCopy,
-                           MM::Utils::ErrorResult>(
-      MM::Utils::ErrorResult{
-          MM::Utils::ErrorCode::UNDEFINED_ERROR});
+  return MM::Result<UtilsErrorCustomStructNoCopy,
+                           MM::ErrorResult>(
+      MM::ErrorResult{
+          MM::ErrorCode::UNDEFINED_ERROR});
 }
 
-MM::Utils::Result<UtilsErrorCustomStructNoMove, MM::Utils::ErrorNil>
+MM::Result<UtilsErrorCustomStructNoMove, MM::ErrorNil>
 ReturnNilSuccessNoMove() {
-  return MM::Utils::Result<UtilsErrorCustomStructNoMove, MM::Utils::ErrorNil>(
-          MM::Utils::c_execute_success, std::string("ReturnNilSuccessNoMove"));
+  return MM::Result<UtilsErrorCustomStructNoMove, MM::ErrorNil>(
+          MM::st_execute_success, std::string("ReturnNilSuccessNoMove"));
 }
 
-MM::Utils::Result<UtilsErrorCustomStructNoMove, MM::Utils::ErrorNil>
+MM::Result<UtilsErrorCustomStructNoMove, MM::ErrorNil>
 ReturnNilFailedNoMove() {
-  return MM::Utils::Result<UtilsErrorCustomStructNoMove, MM::Utils::ErrorNil>(
-      MM::Utils::ErrorNil{false});
+  return MM::Result<UtilsErrorCustomStructNoMove, MM::ErrorNil>(
+      MM::ErrorNil{false});
 }
 
-MM::Utils::Result<UtilsErrorCustomStructNoMove,
-                  MM::Utils::ErrorResult>
+MM::Result<UtilsErrorCustomStructNoMove,
+                  MM::ErrorResult>
 ReturnCodeSuccessNoMove() {
-  return MM::Utils::Result<UtilsErrorCustomStructNoMove,
-                           MM::Utils::ErrorResult>(
-          MM::Utils::c_execute_success, std::string("ReturnCodeSuccessNoMove"));
+  return MM::Result<UtilsErrorCustomStructNoMove,
+                           MM::ErrorResult>(
+          MM::st_execute_success, std::string("ReturnCodeSuccessNoMove"));
 }
 
-MM::Utils::Result<UtilsErrorCustomStructNoMove,
-                  MM::Utils::ErrorResult>
+MM::Result<UtilsErrorCustomStructNoMove,
+                  MM::ErrorResult>
 ReturnCodeFailedNoMove() {
-  return MM::Utils::Result<UtilsErrorCustomStructNoMove,
-                           MM::Utils::ErrorResult>(
-      MM::Utils::ErrorResult(
-          MM::Utils::ErrorCode::UNDEFINED_ERROR));
+  return MM::Result<UtilsErrorCustomStructNoMove,
+                           MM::ErrorResult>(
+      MM::ErrorResult(
+          MM::ErrorCode::UNDEFINED_ERROR));
 }
 
-MM::Utils::Result<UtilsErrorCustomStruct, NewError> ReturnNewErrorSuccess() {
-  return MM::Utils::Result<UtilsErrorCustomStruct, NewError>(
+MM::Result<UtilsErrorCustomStruct, NewError> ReturnNewErrorSuccess() {
+  return MM::Result<UtilsErrorCustomStruct, NewError>(
       UtilsErrorCustomStruct{});
 }
 
-MM::Utils::Result<UtilsErrorCustomStruct, NewError> ReturnNewErrorFailed() {
-  return MM::Utils::Result<UtilsErrorCustomStruct, NewError>(NewError{1});
+MM::Result<UtilsErrorCustomStruct, NewError> ReturnNewErrorFailed() {
+  return MM::Result<UtilsErrorCustomStruct, NewError>(NewError{1});
 }
 
-MM::Utils::Result<UtilsErrorCustomStruct, NewError>
+MM::Result<UtilsErrorCustomStruct, NewError>
 ReturnUtilsErrorCustomErrorConstructor1(const std::string& s1) {
-  return MM::Utils::Result<UtilsErrorCustomStruct, NewError>(
-          MM::Utils::c_execute_success, s1);
+  return MM::Result<UtilsErrorCustomStruct, NewError>(
+          MM::st_execute_success, s1);
 }
 
-MM::Utils::Result<UtilsErrorCustomStruct, NewError>
+MM::Result<UtilsErrorCustomStruct, NewError>
 ReturnUtilsErrorCustomErrorConstructor2(const std::string& s1,
                                         const std::string& s2) {
-  return MM::Utils::Result<UtilsErrorCustomStruct, NewError>(
-          MM::Utils::c_execute_success, s1, s2);
+  return MM::Result<UtilsErrorCustomStruct, NewError>(
+          MM::st_execute_success, s1, s2);
 }
 
-MM::Utils::Result<UtilsErrorCustomStruct, NewError>
+MM::Result<UtilsErrorCustomStruct, NewError>
 ReturnUtilsErrorCustomErrorConstructor3(const std::vector<std::string>& vs) {
-  return MM::Utils::Result<UtilsErrorCustomStruct, NewError>(
-          MM::Utils::c_execute_success, vs);
+  return MM::Result<UtilsErrorCustomStruct, NewError>(
+          MM::st_execute_success, vs);
 }
 
-MM::Utils::Result<UtilsErrorCustomStruct, NewError> ReturnNewErrorConstructor(
+MM::Result<UtilsErrorCustomStruct, NewError> ReturnNewErrorConstructor(
     std::uint32_t num) {
-  return MM::Utils::Result<UtilsErrorCustomStruct, NewError>(
-          MM::Utils::c_execute_error, num);
+  return MM::Result<UtilsErrorCustomStruct, NewError>(
+          MM::st_execute_error, num);
 }
 
 TEST(Utils, error) {
@@ -262,10 +262,10 @@ TEST(Utils, error) {
       default_struct_no_move_success2{std::string("ReturnCodeSuccessNoMove")};
   NewError true_new_error{0};
 
-  MM::Utils::ErrorNil true_nil(true), false_nil(false);
-  MM::Utils::ErrorResult true_code{
-      MM::Utils::ErrorCode::SUCCESS},
-      false_code{MM::Utils::ErrorCode::UNDEFINED_ERROR};
+  MM::ErrorNil true_nil(true), false_nil(false);
+  MM::ErrorResult true_code{
+      MM::ErrorCode::SUCCESS},
+      false_code{MM::ErrorCode::UNDEFINED_ERROR};
   std::uint32_t expection_in = 0;
 
   auto return_nil_success = ReturnNilSuccess(),
@@ -310,7 +310,7 @@ TEST(Utils, error) {
        return_code_failed_no_copy = ReturnCodeFailedNoCopy();
   auto return_code_lambda =
       [&expection_in](UtilsErrorCustomStructNoCopy& result,
-                      const MM::Utils::ErrorResult& error) {
+                      const MM::ErrorResult& error) {
         ++expection_in;
         return;
       };
@@ -329,7 +329,7 @@ TEST(Utils, error) {
   auto return_nil_success_no_move = ReturnNilSuccessNoMove(),
        return_nil_failed_no_move = ReturnNilFailedNoMove();
   auto return_nil_lambda = [&expection_in](UtilsErrorCustomStructNoMove& result,
-                                           const MM::Utils::ErrorNil& error) {
+                                           const MM::ErrorNil& error) {
     ++expection_in;
     return;
   };

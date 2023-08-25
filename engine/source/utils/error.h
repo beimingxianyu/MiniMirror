@@ -10,8 +10,9 @@ namespace StaticTrait {
     struct Error {};
 }  // namespace ResultTrait
 
-namespace Utils {
-// TODO rename to ErrorCode
+static StaticTrait::Success st_execute_success;
+static StaticTrait::Error st_execute_error;
+
 enum class ErrorCode: std::uint32_t {
   SUCCESS = 0,
   UNDEFINED_ERROR,
@@ -133,8 +134,6 @@ class ErrorResult final : public ErrorTypeBase {
 };
 
 
-static StaticTrait::Success c_execute_success;
-static StaticTrait::Error c_execute_error;
 
 template <typename ResultTypeArg, typename ErrorTypeArg>
 class Result {
@@ -239,7 +238,7 @@ class Result {
 #ifdef MM_CHECK_ALL_EXCEPTION_PROCESS
       if (!exception_processed_) {
         std::cout << "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n"
-                  << "!!!!!!!!!!! Have exception not processed. !!!!!!!!!!\n"
+                  << "!!!!!!!!!!! Have exception not processed !!!!!!!!!!!\n"
                   << "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
                   << std::endl;
         abort();
@@ -436,9 +435,13 @@ class Result {
             std::is_invocable_r_v<void, CallbackType, ErrorType>;
     constexpr bool callback_signature5 =
             std::is_invocable_r_v<void, CallbackType, ResultType&, ErrorType>;
+    constexpr bool callback_signature6 =
+            std::is_invocable_r_v<void, CallbackType, ResultType&>;
+        constexpr bool callback_signature7 =
+                std::is_invocable_r_v<void, CallbackType>;
 
       static_assert(
-          callback_signature1 || callback_signature2 || callback_signature3 || callback_signature4 || callback_signature5,
+          callback_signature1 || callback_signature2 || callback_signature3 || callback_signature4 || callback_signature5 || callback_signature6 || callback_signature7,
           "Callback signature is invalid.");
 
       if (error_.Success()) {
@@ -462,6 +465,16 @@ class Result {
 
         IgnoreException();
         return;
+      } else if constexpr (callback_signature6) {
+          callback(result_);
+
+          IgnoreException();
+          return;
+      } else if constexpr (callback_signature7) {
+          callback();
+
+          IgnoreException();
+          return;
       }
     }
 
@@ -471,10 +484,16 @@ class Result {
           std::is_invocable_r_v<void, CallBackType, const ErrorType&>;
         constexpr bool callback_signature2 =
                 std::is_invocable_r_v<void, CallBackType, ErrorType>;
-      static_assert(callback_signature1 || callback_signature2, "Callback signature is invalid.");
+        constexpr bool callback_signature3 =
+                std::is_invocable_r_v<void, CallBackType>;
+      static_assert(callback_signature1 || callback_signature2 || callback_signature3, "Callback signature is invalid.");
 
-      error_.Exception();
-      callback(error_);
+      if constexpr (callback_signature1 || callback_signature2) {
+            error_.Exception();
+            callback(error_);
+      } else {
+          callback();
+      }
 
       IgnoreException();
     }
@@ -493,5 +512,4 @@ class Result {
  private:
   ResultWrapper<ResultType, ErrorType> result_wrapper_{};
 };
-}  // namespace Utils
 }  // namespace MM
