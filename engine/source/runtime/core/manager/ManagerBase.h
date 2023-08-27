@@ -138,76 +138,67 @@ class ManagerBaseImp {
     return ID_to_object_container_.GetSize(object_ID);
   }
 
-  ExecuteResult GetNameByID(ManagedObjectID managed_object_ID,
-                            std::string& name) const {
-    return GetNameByIDImp(managed_object_ID, name,
+  Result<std::string, ErrorResult> GetNameByID(ManagedObjectID managed_object_ID) const {
+    return GetNameByIDImp(managed_object_ID,
                           ManagedTypeIsSmartPointType{});
   }
 
-  ExecuteResult GetIDsByName(const std::string& object_name,
-                             std::vector<ManagedObjectID>& IDs) const {
-    std::vector<typename BaseNameToIDContainer::HandlerType>
-        name_to_ID_handlers;
-    MM_CHECK_WITHOUT_LOG(
-        name_to_ID_container_.GetObject(object_name, name_to_ID_handlers),
-        return MM_RESULT_CODE;)
-
-    if (name_to_ID_handlers.empty()) {
-      return Utils::ExecuteResult::
-          PARENT_OBJECT_NOT_CONTAIN_SPECIFIC_CHILD_OBJECT;
+    Result<std::vector<ManagedObjectID >, ErrorResult> GetIDsByName(const std::string& object_name) const {
+    auto name_to_ID_handlers = name_to_ID_container_.GetObject(object_name, st_get_multiply_object).Exception();
+    if (!name_to_ID_handlers.Success()) {
+        return Result<std::vector<ManagedObjectID>, ErrorResult>(st_execute_error, ErrorCode::PARENT_OBJECT_NOT_CONTAIN_SPECIFIC_CHILD_OBJECT);
     }
 
-    for (const auto& handler : name_to_ID_handlers) {
+    std::vector<ManagedObjectID> IDs;
+    IDs.reserve(name_to_ID_handlers.GetResult().size());
+    for (const auto& handler : name_to_ID_handlers.GetResult()) {
       IDs.emplace_back(handler.GetObject());
     }
 
-    return ExecuteResult ::SUCCESS;
+   return Result<std::vector<ManagedObjectID >, ErrorResult>(st_execute_success, std::move(IDs));
   }
 
   void Reserve(std::uint64_t size) {}
 
  protected:
-  ExecuteResult GetIDToObjectHandler(
-      ManagedObjectID object_ID,
-      typename BaseIDToObjectContainer::HandlerType& handler) const {
-    return ID_to_object_container_.GetObject(object_ID, handler);
+  Result<typename BaseIDToObjectContainer::HandlerType, ErrorResult> GetIDToObjectHandler(
+      ManagedObjectID object_ID) const {
+    return ID_to_object_container_.GetObject(object_ID);
   }
 
-  ExecuteResult AddObjectBase(ManagedType&& managed_object,
-                              HandlerType& handler) {
-    return AddObjectBaseImp(std::move(managed_object), handler,
+  Result<HandlerType, ErrorResult> AddObjectBase(ManagedType&& managed_object) {
+    return AddObjectBaseImp(std::move(managed_object),
                             ManagedTypeIsSmartPointType{});
   }
 
-  ExecuteResult GetObjectByIDBase(ManagedObjectID object_ID,
-                                  HandlerType& handler) const {
-    return GetObjectByIDBaseImp(object_ID, handler,
+  Result<HandlerType, ErrorResult> GetObjectByIDBase(ManagedObjectID object_ID) const {
+    return GetObjectByIDBaseImp(object_ID,
                                 ManagedTypeIsSmartPointType{});
   }
 
-  ExecuteResult GetObjectByNameBase(const std::string& object_name,
-                                    std::vector<HandlerType>& handlers) const {
-    std::vector<typename BaseNameToIDContainer ::HandlerType> name_ID_handlers;
+  Result<std::vector<HandlerType>, ErrorResult> GetObjectByNameBase(const std::string& object_name) const {
+     auto name_ID_handlers = name_to_ID_container_.GetObject(object_name, st_get_multiply_object).Exception();
+     if (!name_ID_handlers.Success()) {
+         return Result<std::vector<HandlerType>, ErrorResult>(st_execute_error, ErrorCode::PARENT_OBJECT_NOT_CONTAIN_SPECIFIC_CHILD_OBJECT);
+     }
 
-    MM_CHECK_WITHOUT_LOG(
-        name_to_ID_container_.GetObject(object_name, name_ID_handlers),
-        return MM_RESULT_CODE;)
-
-    if (name_ID_handlers.empty()) {
-      return ExecuteResult ::PARENT_OBJECT_NOT_CONTAIN_SPECIFIC_CHILD_OBJECT;
-    }
-
-    for (auto& name_ID_handler : name_ID_handlers) {
-      typename BaseIDToObjectContainer::HandlerType id_object_handler;
-      MM_CHECK_WITHOUT_LOG(ID_to_object_container_.GetObject(
-                               name_ID_handler.GetObject(), id_object_handler),
-                           continue;)
+     std::vector<HandlerType> handlers;
+    for (auto& name_ID_handler : name_ID_handlers.GetResult()) {
+      auto id_object_handler = ID_to_object_container_.GetObject(
+                               name_ID_handler.GetObject()).Exception();
+      if (!id_object_handler.Success()) {
+          continue;
+      }
 
       handlers.emplace_back(std::move(name_ID_handler),
                             std::move(id_object_handler));
     }
 
-    return ExecuteResult ::SUCCESS;
+    if (handlers.empty()) {
+        return Result<std::vector<HandlerType>, ErrorResult>(st_execute_error, ErrorCode::PARENT_OBJECT_NOT_CONTAIN_SPECIFIC_CHILD_OBJECT);
+    }
+
+      return Result<std::vector<HandlerType>, ErrorResult>(st_execute_success, std::move(handlers));
   }
 
   //  ExecuteResult GetLightCopyBase(const std::string& new_object_name,
@@ -223,128 +214,102 @@ class ManagerBaseImp {
   virtual ~ManagerBaseImp() = default;
 
  private:
-  ExecuteResult GetNameByIDImp(ManagedObjectID managed_object_ID,
-                               std::string& name,
+  Result<std::string, ErrorResult> GetNameByIDImp(ManagedObjectID managed_object_ID,
                                ManagedObjectIsNotSmartPoint) const {
-    typename BaseIDToObjectContainer ::HandlerType handler;
+     auto handler = ID_to_object_container_.GetObject(managed_object_ID).Exception();
+     if (!handler.Success()) {
+        return Result<std::string, ErrorResult>(st_execute_error, ErrorCode::PARENT_OBJECT_NOT_CONTAIN_SPECIFIC_CHILD_OBJECT);
+     }
 
-    MM_CHECK_WITHOUT_LOG(
-        ID_to_object_container_.GetObject(managed_object_ID, handler),
-        return MM_RESULT_CODE;)
-
-    name = handler.GetObject().GetObjectName();
-
-    return ExecuteResult ::SUCCESS;
+    return Result<std::string, ErrorResult> (st_execute_success, handler.GetResult().GetObject().GetObjectName());
   }
 
-  ExecuteResult GetNameByIDImp(ManagedObjectID managed_object_ID,
-                               std::string& name,
+  Result<std::string, ErrorResult> GetNameByIDImp(ManagedObjectID managed_object_ID,
                                ManagedObjectIsSmartPoint) const {
-    typename BaseIDToObjectContainer ::HandlerType handler;
+      auto handler = ID_to_object_container_.GetObject(managed_object_ID).Exception();
+      if (!handler.Success()) {
+          return Result<std::string, ErrorResult>(st_execute_error, ErrorCode::PARENT_OBJECT_NOT_CONTAIN_SPECIFIC_CHILD_OBJECT);
+      }
 
-    MM_CHECK_WITHOUT_LOG(
-        ID_to_object_container_.GetObject(managed_object_ID, handler),
-        return MM_RESULT_CODE;)
-
-    name = handler.GetObject()->GetObjectName();
-
-    return ExecuteResult ::SUCCESS;
+      return Result<std::string, ErrorResult> (st_execute_success, handler.GetResult().GetObject()->GetObjectName());
   }
 
-  ExecuteResult AddObjectBaseImp(ManagedType&& managed_object,
-                                 HandlerType& handler,
+  Result<HandlerType, ErrorResult> AddObjectBaseImp(ManagedType&& managed_object,
                                  ManagedObjectIsNotSmartPoint) {
-    typename BaseNameToIDContainer ::HandlerType name_ID_handler;
-    typename BaseIDToObjectContainer ::HandlerType ID_to_object_handler;
+      ManagedObjectID copy_ID = managed_object.GetObjectID();
+     auto name_ID_handler = name_to_ID_container_.AddObject(managed_object.GetObjectName(),
+                                                            std::move(copy_ID)).Exception();
+     if (!name_ID_handler.Success()) {
+         return Result<HandlerType, ErrorResult>(st_execute_error, name_ID_handler.GetError().GetErrorCode());
+     }
+     auto  ID_to_object_handler = ID_to_object_container_.AddObject(managed_object.GetObjectID(), std::move(managed_object)).Exception();
+     if (!ID_to_object_handler.Success()) {
+         return Result<HandlerType, ErrorResult>(st_execute_error, ID_to_object_handler.GetError().GetErrorCode());
+     }
 
-    ManagedObjectID copy_ID = managed_object.GetObjectID();
-    MM_CHECK_WITHOUT_LOG(
-        name_to_ID_container_.AddObject(managed_object.GetObjectName(),
-                                        std::move(copy_ID), name_ID_handler),
-        return MM_RESULT_CODE;)
-    MM_CHECK_WITHOUT_LOG(ID_to_object_container_.AddObject(
-                             managed_object.GetObjectID(),
-                             std::move(managed_object), ID_to_object_handler),
-                         return MM_RESULT_CODE;)
-    handler = HandlerType{std::move(name_ID_handler),
-                          std::move(ID_to_object_handler)};
-
-    return ExecuteResult ::SUCCESS;
+    return Result<HandlerType , ErrorResult>(st_execute_success, std::move(name_ID_handler),
+                                             std::move(ID_to_object_handler));
   }
 
-  ExecuteResult AddObjectBaseImp(ManagedType&& managed_object,
-                                 HandlerType& handler,
+  Result<HandlerType, ErrorResult> AddObjectBaseImp(ManagedType&& managed_object,
                                  ManagedObjectIsSmartPoint) {
-    typename BaseNameToIDContainer ::HandlerType name_ID_handler;
-    typename BaseIDToObjectContainer ::HandlerType ID_to_object_handler;
+      ManagedObjectID copy_ID = managed_object->GetObjectID();
+      auto name_ID_handler = name_to_ID_container_.AddObject(managed_object->GetObjectName(),
+                                                             std::move(copy_ID)).Exception();
+      if (!name_ID_handler.Success()) {
+          return Result<HandlerType, ErrorResult>(st_execute_error, name_ID_handler.GetError().GetErrorCode());
+      }
+      auto  ID_to_object_handler = ID_to_object_container_.AddObject(managed_object->GetObjectID(), std::move(managed_object)).Exception();
+      if (!ID_to_object_handler.Success()) {
+          return Result<HandlerType, ErrorResult>(st_execute_error, ID_to_object_handler.GetError().GetErrorCode());
+      }
 
-    ManagedObjectID copy_ID = managed_object->GetObjectID();
-    MM_CHECK_WITHOUT_LOG(
-        name_to_ID_container_.AddObject(managed_object->GetObjectName(),
-                                        std::move(copy_ID), name_ID_handler),
-        return MM_RESULT_CODE;)
-    MM_CHECK_WITHOUT_LOG(ID_to_object_container_.AddObject(
-                             managed_object->GetObjectID(),
-                             std::move(managed_object), ID_to_object_handler),
-                         return MM_RESULT_CODE;)
-    handler = HandlerType{std::move(name_ID_handler),
-                          std::move(ID_to_object_handler)};
-
-    return ExecuteResult ::SUCCESS;
+      return Result<HandlerType , ErrorResult>(st_execute_success, std::move(name_ID_handler),
+                                               std::move(ID_to_object_handler));
   }
 
-  ExecuteResult GetObjectByIDBaseImp(ManagedObjectID object_ID,
-                                     HandlerType& handler,
+  Result<HandlerType, ErrorResult> GetObjectByIDBaseImp(ManagedObjectID object_ID,
                                      ManagedObjectIsNotSmartPoint) const {
-    typename BaseIDToObjectContainer ::HandlerType ID_to_object_handler;
-    std::vector<typename BaseNameToIDContainer::HandlerType> name_ID_handlers;
+   auto ID_to_object_handler= ID_to_object_container_.GetObject(object_ID).Exception();
+   if (!ID_to_object_handler.Success()) {
+       return Result<HandlerType, ErrorResult>(st_execute_error, ID_to_object_handler.GetError().GetErrorCode());
+   }
+   auto  name_ID_handlers = name_to_ID_container_.GetObject(ID_to_object_handler.GetResult().GetObject().GetObjectName(), st_get_multiply_object).Exception();
+   if (!name_ID_handlers.Success()) {
+       return Result<HandlerType, ErrorResult>(st_execute_error, name_ID_handlers.GetError().GetErrorCode());
+   }
 
-    MM_CHECK_WITHOUT_LOG(
-        ID_to_object_container_.GetObject(object_ID, ID_to_object_handler),
-        return MM_RESULT_CODE;)
-    MM_CHECK_WITHOUT_LOG(
-        name_to_ID_container_.GetObject(
-            ID_to_object_handler.GetObject().GetObjectName(), name_ID_handlers),
-        return MM_RESULT_CODE;)
-
-    for (auto& name_ID_handler : name_ID_handlers) {
+    for (auto& name_ID_handler : name_ID_handlers.GetResult()) {
       if (name_ID_handler.GetObject() == object_ID) {
-        handler = HandlerType{std::move(name_ID_handler),
-                              std::move(ID_to_object_handler)};
-
-        return ExecuteResult ::SUCCESS;
+          return Result<HandlerType, ErrorResult>(st_execute_success, std::move(name_ID_handler),
+                                                  std::move(ID_to_object_handler));
       }
     }
 
     assert(false);
-    return ExecuteResult ::UNDEFINED_ERROR;
+    return Result<HandlerType, ErrorResult>(st_execute_error, ErrorCode::UNDEFINED_ERROR);
   }
 
-  ExecuteResult GetObjectByIDBaseImp(ManagedObjectID object_ID,
-                                     HandlerType& handler,
+  Result<HandlerType , ErrorResult>GetObjectByIDBaseImp(ManagedObjectID object_ID,
                                      ManagedObjectIsSmartPoint) const {
-    typename BaseIDToObjectContainer ::HandlerType ID_to_object_handler;
-    std::vector<typename BaseNameToIDContainer::HandlerType> name_ID_handlers;
-
-    MM_CHECK_WITHOUT_LOG(
-        ID_to_object_container_.GetObject(object_ID, ID_to_object_handler),
-        return MM_RESULT_CODE;)
-    MM_CHECK_WITHOUT_LOG(name_to_ID_container_.GetObject(
-                             ID_to_object_handler.GetObject()->GetObjectName(),
-                             name_ID_handlers),
-                         return MM_RESULT_CODE;)
-
-    for (auto& name_ID_handler : name_ID_handlers) {
-      if (name_ID_handler.GetObject() == object_ID) {
-        handler = HandlerType{std::move(name_ID_handler),
-                              std::move(ID_to_object_handler)};
-
-        return ExecuteResult ::SUCCESS;
+      auto ID_to_object_handler= ID_to_object_container_.GetObject(object_ID).Exception();
+      if (!ID_to_object_handler.Success()) {
+          return Result<HandlerType, ErrorResult>(st_execute_error, ID_to_object_handler.GetError().GetErrorCode());
       }
-    }
+      auto  name_ID_handlers = name_to_ID_container_.GetObject(ID_to_object_handler.GetResult().GetObject()->GetObjectName(), st_get_multiply_object).Exception();
+      if (!name_ID_handlers.Success()) {
+          return Result<HandlerType, ErrorResult>(st_execute_error, name_ID_handlers.GetError().GetErrorCode());
+      }
 
-    assert(false);
-    return ExecuteResult ::UNDEFINED_ERROR;
+      for (auto& name_ID_handler : name_ID_handlers.GetResult()) {
+          if (name_ID_handler.GetObject() == object_ID) {
+              return Result<HandlerType, ErrorResult>(st_execute_success, std::move(name_ID_handler),
+                                                      std::move(ID_to_object_handler));
+          }
+      }
+
+      assert(false);
+      return Result<HandlerType, ErrorResult>(st_execute_error, ErrorCode::UNDEFINED_ERROR);
   }
 
  private:

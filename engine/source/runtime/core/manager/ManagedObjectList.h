@@ -5,13 +5,13 @@
 
 #include "runtime/core/manager/ManagedObjectHandler.h"
 #include "runtime/core/manager/ManagedObjectTableBase.h"
-#include "runtime/core/manager/import_other_system.h"
+#include "runtime/core/manager/pre_header.h"
 
 namespace MM {
 namespace Manager {
 template <typename ObjectType, typename Equal = std::equal_to<>,
           typename Allocator = std::allocator<ObjectType>>
-class ManagedObjectList
+class ManagedObjectList final
     : public ManagedObjectTableBase<ObjectType, ObjectType, ListTrait> {
  public:
   using ContainerTrait = ListTrait;
@@ -41,16 +41,15 @@ class ManagedObjectList
 
   bool IsRelationshipContainer() const override;
 
-  ExecuteResult AddObject(ObjectType&& managed_object, HandlerType& handle);
+  Result<HandlerType, ErrorResult> AddObject(ObjectType&& managed_object);
 
-  ExecuteResult GetObject(const ObjectType& key, HandlerType& handle) const;
+  Result<HandlerType, ErrorResult> GetObject(const ObjectType& key) const;
 
-  ExecuteResult GetObject(const ObjectType& key,
-                          const std::atomic_uint32_t* use_count_ptr,
-                          HandlerType& handle) const;
+  Result<HandlerType, ErrorResult> GetObject(const ObjectType& key,
+                          const std::atomic_uint32_t* use_count_ptr) const;
 
-  ExecuteResult GetObject(const ObjectType& key,
-                          std::vector<HandlerType>& handlers) const;
+  Result<std::vector<HandlerType>, ErrorResult> GetObject(const ObjectType& key,
+                                                          StaticTrait::GetMultiplyObject) const;
 
   ContainerType& GetContainer() { return data_; }
 
@@ -59,11 +58,11 @@ class ManagedObjectList
   std::uint32_t GetUseCount(const ObjectType& key,
                             const std::atomic_uint32_t* use_count_ptr) const;
 
-  ExecuteResult GetUseCount(const ObjectType& key,
-                            std::vector<std::uint32_t>& use_counts) const;
+  Result<std::vector<std::uint32_t>, ErrorResult> GetUseCount(const ObjectType& key,
+                            StaticTrait::GetMultiplyObject) const;
 
  protected:
-  ExecuteResult RemoveObjectImp(const ObjectType& removed_object_key,
+  Result<Nil, ErrorResult> RemoveObjectImp(const ObjectType& removed_object_key,
                                 const std::atomic_uint32_t* use_count_ptr,
                                 ListTrait trait) override;
 
@@ -82,27 +81,26 @@ ManagedObjectList<ObjectType, Equal, Allocator>::~ManagedObjectList() {
 }
 
 template <typename ObjectType, typename Equal, typename Allocator>
-ExecuteResult ManagedObjectList<ObjectType, Equal, Allocator>::GetUseCount(
-    const ObjectType& key, std::vector<std::uint32_t>& use_counts) const {
+Result<std::vector<std::uint32_t>, ErrorResult> ManagedObjectList<ObjectType, Equal, Allocator>::GetUseCount(
+    const ObjectType& key, StaticTrait::GetMultiplyObject) const {
   if (!BaseType ::TestMovedWhenGetUseCount()) {
-    return ExecuteResult::OBJECT_IS_INVALID;
+     return Result<std::vector<std::uint32_t>, ErrorResult>(st_execute_error, ErrorCode::OBJECT_IS_INVALID);
   }
 
   std::shared_lock<std::shared_mutex> guard{data_mutex_};
 
-  bool have = false;
+  std::vector<std::uint32_t> use_counts;
   for (const auto& object : data_) {
     if (Equal{}(object.GetObject(), key)) {
-      have = true;
       use_counts.push_back(object.GetUseCount());
     }
   }
 
-  if (!have) {
-    return ExecuteResult::PARENT_OBJECT_NOT_CONTAIN_SPECIFIC_CHILD_OBJECT;
+  if (use_counts.empty()) {
+    return Result<std::vector<std::uint32_t>, ErrorResult>(st_execute_error, ErrorCode::PARENT_OBJECT_NOT_CONTAIN_SPECIFIC_CHILD_OBJECT);
   }
 
-  return ExecuteResult::SUCCESS;
+  return Result<std::vector<std::uint32_t>, ErrorResult>(st_execute_success, std::move(use_counts));
 }
 
 template <typename ObjectType, typename Equal, typename Allocator>
@@ -143,34 +141,23 @@ std::uint32_t ManagedObjectList<ObjectType, Equal, Allocator>::GetUseCount(
 }
 
 template <typename ObjectType, typename Equal, typename Allocator>
-ExecuteResult ManagedObjectList<ObjectType, Equal, Allocator>::GetObject(
-    const ObjectType& key, const std::atomic_uint32_t* use_count_ptr,
-    HandlerType& handler) const {
+Result<typename ManagedObjectList<ObjectType, Equal, Allocator>::HandlerType, ErrorResult> ManagedObjectList<ObjectType, Equal, Allocator>::GetObject(
+    const ObjectType& key, const std::atomic_uint32_t* use_count_ptr) const {
   if (!ThisType::TestMovedWhenAddObject()) {
-    return ExecuteResult::OBJECT_IS_INVALID;
+    return Result<HandlerType, ErrorResult>(st_execute_error, ErrorCode::OBJECT_IS_INVALID);
   }
 
   std::shared_lock<std::shared_mutex> guard{data_mutex_};
-  bool find = false;
-  HandlerType new_handler;
   for (const auto& object : data_) {
     if (Equal{}(object.GetObject(), key) &&
         object.GetUseCountPtr() == use_count_ptr) {
-      new_handler = HandlerType(BaseType::GetThisPtrPtr(),
-                                const_cast<ObjectType*>(object.GetObjectPtr()),
-                                object.GetUseCountPtr());
-      find = true;
-      break;
+      return Result<HandlerType, ErrorResult>(st_execute_success, BaseType::GetThisPtrPtr(),
+                                              const_cast<ObjectType*>(object.GetObjectPtr()),
+                                              object.GetUseCountPtr());
     }
   }
 
-  if (find) {
-    guard.unlock();
-    handler = new_handler;
-    return ExecuteResult::SUCCESS;
-  }
-
-  return ExecuteResult::PARENT_OBJECT_NOT_CONTAIN_SPECIFIC_CHILD_OBJECT;
+  return Result<HandlerType, ErrorResult>(st_execute_error, ErrorCode::PARENT_OBJECT_NOT_CONTAIN_SPECIFIC_CHILD_OBJECT);
 }
 
 template <typename ObjectType, typename Equal, typename Allocator>
@@ -178,12 +165,13 @@ ManagedObjectList<ObjectType, Equal, Allocator>::ManagedObjectList()
     : BaseType(this), data_(), data_mutex_() {}
 
 template <typename ObjectType, typename Equal, typename Allocator>
-ExecuteResult ManagedObjectList<ObjectType, Equal, Allocator>::GetObject(
-    const ObjectType& key, std::vector<HandlerType>& handlers) const {
+Result<std::vector<typename ManagedObjectList<ObjectType, Equal, Allocator>::HandlerType>, ErrorResult> ManagedObjectList<ObjectType, Equal, Allocator>::GetObject(
+    const ObjectType& key, StaticTrait::GetMultiplyObject) const {
   if (!ThisType::TestMovedWhenGetObject()) {
-    return ExecuteResult::OBJECT_IS_INVALID;
+      return Result<HandlerType, ErrorResult>(st_execute_error, ErrorCode::OBJECT_IS_INVALID);
   }
 
+  std::vector<HandlerType> handlers{};
   std::shared_lock<std::shared_mutex> guard{data_mutex_};
   for (const auto& object : data_) {
     if (Equal{}(object.GetObject(), key)) {
@@ -193,44 +181,33 @@ ExecuteResult ManagedObjectList<ObjectType, Equal, Allocator>::GetObject(
     }
   }
 
-  return ExecuteResult::SUCCESS;
+  return Result<HandlerType, ErrorResult>(st_execute_success, std::move(handlers));
 }
 
 template <typename ObjectType, typename Equal, typename Allocator>
-ExecuteResult ManagedObjectList<ObjectType, Equal, Allocator>::GetObject(
-    const ObjectType& key, HandlerType& handle) const {
+Result<typename ManagedObjectList<ObjectType, Equal, Allocator>::HandlerType, ErrorResult> ManagedObjectList<ObjectType, Equal, Allocator>::GetObject(
+    const ObjectType& key) const {
   if (!ThisType::TestMovedWhenGetObject()) {
-    return ExecuteResult::OBJECT_IS_INVALID;
+      return Result<HandlerType, ErrorResult>(st_execute_error, ErrorCode::OBJECT_IS_INVALID);
   }
 
   std::shared_lock<std::shared_mutex> guard{data_mutex_};
-  HandlerType new_handler;
-  bool find = false;
-
   for (auto iter = data_.begin(); iter == data_.end(); ++iter) {
     if (Equal{}(iter->GetObject(), key)) {
-      new_handler = HandlerType{BaseType::GetThisPtrPtr(),
-                                const_cast<ObjectType*>(iter->GetObjectPtr()),
-                                iter->GetUseCountPtr()};
-      find = true;
-      break;
+      return Result<HandlerType , ErrorResult>(st_execute_success, BaseType::GetThisPtrPtr(),
+                                               const_cast<ObjectType*>(iter->GetObjectPtr()),
+                                               iter->GetUseCountPtr());
     }
   }
 
-  if (find) {
-    guard.unlock();
-    handle = std::move(new_handler);
-    return ExecuteResult::SUCCESS;
-  }
-
-  return ExecuteResult::PARENT_OBJECT_NOT_CONTAIN_SPECIFIC_CHILD_OBJECT;
+  return Result<HandlerType, ErrorResult>(st_execute_error, ErrorCode::PARENT_OBJECT_NOT_CONTAIN_SPECIFIC_CHILD_OBJECT);
 }
 
 template <typename ObjectType, typename Equal, typename Allocator>
-ExecuteResult ManagedObjectList<ObjectType, Equal, Allocator>::AddObject(
-    ObjectType&& managed_object, HandlerType& handle) {
+Result<typename ManagedObjectList<ObjectType, Equal, Allocator>::HandlerType, ErrorResult> ManagedObjectList<ObjectType, Equal, Allocator>::AddObject(
+    ObjectType&& managed_object) {
   if (!BaseType ::TestMovedWhenAddObject()) {
-    return ExecuteResult::OBJECT_IS_INVALID;
+      return Result<HandlerType, ErrorResult>(st_execute_error, ErrorCode::OBJECT_IS_INVALID);
   }
 
   std::unique_lock<std::shared_mutex> guard{data_mutex_};
@@ -239,16 +216,16 @@ ExecuteResult ManagedObjectList<ObjectType, Equal, Allocator>::AddObject(
       HandlerType{BaseType::GetThisPtrPtr(), data_.front().GetObjectPtr(),
                   data_.front().GetUseCountPtr()};
   guard.unlock();
-  handle = std::move(new_handler);
-  return ExecuteResult::SUCCESS;
+
+  return Result<HandlerType, ErrorResult>(st_execute_success, std::move(new_handler));
 }
 
 template <typename ObjectType, typename Equal, typename Allocator>
-ExecuteResult ManagedObjectList<ObjectType, Equal, Allocator>::RemoveObjectImp(
+MM::Result<Nil, ErrorResult> ManagedObjectList<ObjectType, Equal, Allocator>::RemoveObjectImp(
     const ObjectType&, const std::atomic_uint32_t* use_count_ptr, ListTrait) {
   std::unique_lock<std::shared_mutex> guard{data_mutex_};
   if (BaseType ::this_ptr_ptr_ == nullptr) {
-    return ExecuteResult::CUSTOM_ERROR;
+     return Result<Nil, ErrorResult>(st_execute_error, ErrorCode::CUSTOM_ERROR);
   }
 
   for (auto iter = data_.begin(); iter != data_.end(); ++iter) {
@@ -257,11 +234,11 @@ ExecuteResult ManagedObjectList<ObjectType, Equal, Allocator>::RemoveObjectImp(
         data_.erase(iter);
       }
 
-      return ExecuteResult::SUCCESS;
+      return Result<Nil, ErrorResult>(st_execute_success);
     }
   }
 
-  return ExecuteResult::PARENT_OBJECT_NOT_CONTAIN_SPECIFIC_CHILD_OBJECT;
+  return Result<Nil, ErrorResult>(st_execute_error, ErrorCode::PARENT_OBJECT_NOT_CONTAIN_SPECIFIC_CHILD_OBJECT);
 }
 
 template <typename ObjectType, typename Equal, typename Allocator>

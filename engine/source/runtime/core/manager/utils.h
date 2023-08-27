@@ -3,7 +3,7 @@
 #include <mutex>
 #include <shared_mutex>
 
-#include "runtime/core/manager/import_other_system.h"
+#include "runtime/core/manager/pre_header.h"
 
 namespace MM {
 namespace Manager {

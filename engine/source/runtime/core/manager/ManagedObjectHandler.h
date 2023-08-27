@@ -1,6 +1,7 @@
 #pragma once
 
 #include "runtime/core/manager/ManagedObjectTableBase.h"
+#include "runtime/core/log/exception_description.h"
 
 namespace MM {
 namespace Manager {
@@ -101,18 +102,21 @@ class ManagedObjectHandler<ManagedType, ManagedType, ListTrait> {
 
     if (use_count_->fetch_sub(1, std::memory_order_acq_rel) == 1) {
       do {
-        ExecuteResult result =
+        Result<Nil, ErrorResult> result =
             object_table_->load(std::memory_order_acquire)
                 ->RemoveObjectImp(*managed_object_, use_count_,
                                   ContainerTrait());
-        if (result == ExecuteResult::SUCCESS) {
+        if (result.Success()) {
+           result.IgnoreException();
           break;
         }
-        if (result == ExecuteResult::CUSTOM_ERROR) {
+        if (result.GetError().GetErrorCode() == ErrorCode::CUSTOM_ERROR) {
+            result.IgnoreException();
           continue;
         }
-        MM_LOG_SYSTEM->CheckResult(result, MM_CODE_LOCATION,
-                                   LogSystem::LogSystem::LogLevel::ERROR);
+
+        result.Exception(MM_ERROR_DESCRIPTION(Failed to remove object.));
+
         break;
       } while (true);
     }
@@ -251,34 +255,37 @@ class ManagedObjectHandler<ManagedType, ManagedType, SetTrait> {
  private:
   void ReleaseMulti() {
     do {
-      ExecuteResult result =
+      Result<Nil, ErrorResult> result =
           object_table_->load(std::memory_order_acquire)
               ->RemoveObjectImp(*managed_object_, use_count_, ContainerTrait());
-      if (result == ExecuteResult::SUCCESS) {
+      if (result.Success()) {
+          result.IgnoreException();
         return;
       }
-      if (result == ExecuteResult::CUSTOM_ERROR) {
+      if (result.GetError().GetErrorCode() == ErrorCode::CUSTOM_ERROR) {
+         result.IgnoreException();
         continue;
       }
-      MM_LOG_SYSTEM->CheckResult(result, MM_CODE_LOCATION,
-                                 LogSystem::LogSystem::LogLevel::ERROR);
+      result.Exception(MM_ERROR_DESCRIPTION(Failed to remove object));
       return;
     } while (true);
   }
 
   void ReleaseNoMulti() {
     do {
-      ExecuteResult result =
+      Result<Nil, ErrorResult> result =
           object_table_->load(std::memory_order_acquire)
               ->RemoveObjectImp(*managed_object_, ContainerTrait());
-      if (result == ExecuteResult::SUCCESS) {
+      if (result.Success()) {
+         result.IgnoreException();
         return;
       }
-      if (result == ExecuteResult::CUSTOM_ERROR) {
+      if (result.GetError().GetErrorCode() == ErrorCode::CUSTOM_ERROR) {
+          result.IgnoreException();
         continue;
       }
-      MM_LOG_SYSTEM->CheckResult(result, MM_CODE_LOCATION,
-                                 LogSystem::LogSystem::LogLevel::ERROR);
+
+      result.Exception(MM_ERROR_DESCRIPTION(Failed to remove object.));
       return;
     } while (true);
   }
@@ -404,34 +411,38 @@ class ManagedObjectHandler<ManagedType, ManagedType, HashSetTrait> {
  private:
   void ReleaseMulti() {
     do {
-      ExecuteResult result =
+      Result<Nil, ErrorResult> result =
           object_table_->load(std::memory_order_acquire)
               ->RemoveObjectImp(*managed_object_, use_count_, ContainerTrait());
-      if (result == ExecuteResult::SUCCESS) {
+      if (result.Success()) {
+         result.IgnoreException();
         return;
       }
-      if (result == ExecuteResult::CUSTOM_ERROR) {
+      if (result.GetError().GetErrorCode() == ErrorCode::CUSTOM_ERROR) {
+          result.IgnoreException();
         continue;
       }
-      MM_LOG_SYSTEM->CheckResult(result, MM_CODE_LOCATION,
-                                 LogSystem::LogSystem::LogLevel::ERROR);
+
+      result.Exception(MM_ERROR_DESCRIPTION(Failed to remove object.));
       return;
     } while (true);
   }
 
   void ReleaseNoMulti() {
     do {
-      ExecuteResult result =
+      Result<Nil, ErrorResult> result =
           object_table_->load(std::memory_order_acquire)
               ->RemoveObjectImp(*managed_object_, ContainerTrait());
-      if (result == ExecuteResult::SUCCESS) {
+      if (result.Success()) {
+          result.IgnoreException();
         return;
       }
-      if (result == ExecuteResult::CUSTOM_ERROR) {
+      if (result.GetError().GetErrorCode() == ErrorCode::CUSTOM_ERROR) {
+          result.IgnoreException();
         continue;
       }
-      MM_LOG_SYSTEM->CheckResult(result, MM_CODE_LOCATION,
-                                 LogSystem::LogSystem::LogLevel::ERROR);
+
+      result.Exception(MM_ERROR_DESCRIPTION(Failed to remove object.));
       return;
     } while (true);
   }
@@ -572,33 +583,38 @@ class ManagedObjectHandler<KeyType, ManagedType, MapTrait> {
  private:
   void ReleaseMulti() {
     do {
-      ExecuteResult result =
+      Result<Nil, ErrorResult> result =
           object_table_->load(std::memory_order_acquire)
               ->RemoveObjectImp(*key_, use_count_, ContainerTrait());
-      if (result == ExecuteResult::SUCCESS) {
+      if (result.Success()) {
+         result.IgnoreException();
         return;
       }
-      if (result == ExecuteResult::CUSTOM_ERROR) {
+      if (result.GetError().GetErrorCode() == ErrorCode::CUSTOM_ERROR) {
+          result.IgnoreException();
         continue;
       }
-      MM_LOG_SYSTEM->CheckResult(result, MM_CODE_LOCATION,
-                                 LogSystem::LogSystem::LogLevel::ERROR);
+
+      result.Exception(MM_ERROR_DESCRIPTION(Failed to remove object.));
       return;
     } while (true);
   }
 
   void ReleaseNoMulti() {
     do {
-      ExecuteResult result = object_table_->load(std::memory_order_acquire)
+      Result<Nil, ErrorResult> result = object_table_->load(std::memory_order_acquire)
                                  ->RemoveObjectImp(*key_, ContainerTrait());
-      if (result == ExecuteResult::SUCCESS) {
+      if (result.Success()) {
+         result.IgnoreException();
         return;
       }
-      if (result == ExecuteResult::CUSTOM_ERROR) {
+      if (result.GetError().GetErrorCode() == ErrorCode::CUSTOM_ERROR) {
+         result.IgnoreException();
         continue;
       }
-      MM_LOG_SYSTEM->CheckResult(result, MM_CODE_LOCATION,
-                                 LogSystem::LogSystem::LogLevel::ERROR);
+
+      result.Exception(MM_ERROR_DESCRIPTION(Failed to remove object.));
+
       return;
     } while (true);
   }
@@ -739,33 +755,38 @@ class ManagedObjectHandler<KeyType, ManagedType, HashMapTrait> {
  private:
   void ReleaseMulti() {
     do {
-      ExecuteResult result =
+      Result<Nil, ErrorResult> result =
           object_table_->load(std::memory_order_acquire)
               ->RemoveObjectImp(*key_, use_count_, ContainerTrait());
-      if (result == ExecuteResult::SUCCESS) {
+      if (result.Success()) {
+         result.IgnoreException();
         return;
       }
-      if (result == ExecuteResult::CUSTOM_ERROR) {
+      if (result.GetError().GetErrorCode() == ErrorCode::CUSTOM_ERROR) {
         continue;
       }
-      MM_LOG_SYSTEM->CheckResult(result, MM_CODE_LOCATION,
-                                 LogSystem::LogSystem::LogLevel::ERROR);
+
+      result.Exception(MM_ERROR_DESCRIPTION(Failed to remove object.));
+
       return;
     } while (true);
   }
 
   void ReleaseNoMulti() {
     do {
-      ExecuteResult result = object_table_->load(std::memory_order_acquire)
+      Result<Nil, ErrorResult> result = object_table_->load(std::memory_order_acquire)
                                  ->RemoveObjectImp(*key_, ContainerTrait());
-      if (result == ExecuteResult::SUCCESS) {
+      if (result.Success()) {
+         result.IgnoreException();
         return;
       }
-      if (result == ExecuteResult::CUSTOM_ERROR) {
+      if (result.GetError().GetErrorCode() == ErrorCode::CUSTOM_ERROR) {
+         result.IgnoreException();
         continue;
       }
-      MM_LOG_SYSTEM->CheckResult(result, MM_CODE_LOCATION,
-                                 LogSystem::LogSystem::LogLevel::ERROR);
+
+     result.Exception(MM_ERROR_DESCRIPTION(Failed to remove object.));
+
       return;
     } while (true);
   }

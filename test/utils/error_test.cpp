@@ -120,29 +120,22 @@ class NewError final : public MM::ErrorTypeBase {
 
 MM::Result<UtilsErrorCustomStruct, MM::ErrorNil>
 ReturnNilSuccess() {
-  return MM::Result<UtilsErrorCustomStruct, MM::ErrorNil>(
-      UtilsErrorCustomStruct{});
+   return MM::ResultS<UtilsErrorCustomStruct>(UtilsErrorCustomStruct{});
 }
 
 MM::Result<UtilsErrorCustomStruct, MM::ErrorNil>
 ReturnNilFailed() {
-  return MM::Result<UtilsErrorCustomStruct, MM::ErrorNil>(
-      MM::ErrorNil{false});
+   return MM::ResultE<MM::ErrorNil>(MM::ErrorNil{false});
 }
 
 MM::Result<UtilsErrorCustomStruct, MM::ErrorResult>
 ReturnCodeSuccess() {
-  return MM::Result<UtilsErrorCustomStruct,
-                           MM::ErrorResult>(
-      UtilsErrorCustomStruct{});
+   return MM::ResultS<UtilsErrorCustomStruct>(UtilsErrorCustomStruct{});
 }
 
 MM::Result<UtilsErrorCustomStruct, MM::ErrorResult>
 ReturnCodeFailed() {
-  return MM::Result<UtilsErrorCustomStruct,
-                           MM::ErrorResult>(
-      MM::ErrorResult{
-          MM::ErrorCode::UNDEFINED_ERROR});
+   return MM::ResultE<MM::ErrorResult>(MM::ErrorResult{MM::ErrorCode::UNDEFINED_ERROR});
 }
 
 void ReturnCodeExceptionCallback(
@@ -153,14 +146,12 @@ void ReturnCodeExceptionCallback(
 
 MM::Result<UtilsErrorCustomStructNoCopy, MM::ErrorNil>
 ReturnNilSuccessNoCopy() {
-  return MM::Result<UtilsErrorCustomStructNoCopy, MM::ErrorNil>(
-      UtilsErrorCustomStructNoCopy{});
+   return MM::ResultS<UtilsErrorCustomStructNoCopy>(UtilsErrorCustomStructNoCopy{});
 }
 
 MM::Result<UtilsErrorCustomStructNoCopy, MM::ErrorNil>
 ReturnNilFailedNoCopy() {
-  return MM::Result<UtilsErrorCustomStructNoCopy, MM::ErrorNil>(
-      MM::ErrorNil{false});
+   return MM::ResultE<MM::ErrorNil>(MM::ErrorNil{false});
 }
 
 void ReturnNilFailedNoCopyExceptionCallback(MM::ErrorNil& error) {
@@ -170,18 +161,14 @@ void ReturnNilFailedNoCopyExceptionCallback(MM::ErrorNil& error) {
 MM::Result<UtilsErrorCustomStructNoCopy,
                   MM::ErrorResult>
 ReturnCodeSuccessNoCopy() {
-  return MM::Result<UtilsErrorCustomStructNoCopy,
-                           MM::ErrorResult>(
-      UtilsErrorCustomStructNoCopy{});
+   return MM::ResultS<UtilsErrorCustomStructNoCopy>(UtilsErrorCustomStructNoCopy{});
 }
 
 MM::Result<UtilsErrorCustomStructNoCopy,
                   MM::ErrorResult>
 ReturnCodeFailedNoCopy() {
-  return MM::Result<UtilsErrorCustomStructNoCopy,
-                           MM::ErrorResult>(
-      MM::ErrorResult{
-          MM::ErrorCode::UNDEFINED_ERROR});
+   return MM::ResultE<MM::ErrorResult>(MM::ErrorResult{
+           MM::ErrorCode::UNDEFINED_ERROR});
 }
 
 MM::Result<UtilsErrorCustomStructNoMove, MM::ErrorNil>

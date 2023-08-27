@@ -6,7 +6,7 @@
 #include <vector>
 
 #include "runtime/core/manager/ManagedObjectBase.h"
-#include "runtime/core/manager/import_other_system.h"
+#include "runtime/core/manager/pre_header.h"
 #include "runtime/platform/base/MMObject.h"
 #include "runtime/platform/base/error.h"
 #include "utils/marco.h"
@@ -312,35 +312,35 @@ class ManagedObjectTableBase : virtual public MM::MMObject {
   bool TestMovedWhenGetUseCount() const;
 
  protected:
-  virtual ExecuteResult RemoveObjectImp(
+  virtual Result<Nil, ErrorResult> RemoveObjectImp(
       const ValueType& removed_object_key,
       const std::atomic_uint32_t* use_count_ptr, ListTrait trait);
 
-  virtual ExecuteResult RemoveObjectImp(const ValueType& removed_object_key,
+  virtual Result<Nil, ErrorResult> RemoveObjectImp(const ValueType& removed_object_key,
                                         SetTrait trait);
 
-  virtual ExecuteResult RemoveObjectImp(
+  virtual Result<Nil, ErrorResult> RemoveObjectImp(
       const ValueType& removed_object_key,
       const std::atomic_uint32_t* use_count_ptr, SetTrait trait);
 
-  virtual ExecuteResult RemoveObjectImp(const KeyType& removed_object_key,
+  virtual Result<Nil, ErrorResult> RemoveObjectImp(const KeyType& removed_object_key,
                                         MapTrait trait);
 
-  virtual ExecuteResult RemoveObjectImp(
+  virtual Result<Nil, ErrorResult> RemoveObjectImp(
       const KeyType& removed_object_key,
       const std::atomic_uint32_t* use_count_ptr, MapTrait trait);
 
-  virtual ExecuteResult RemoveObjectImp(const ValueType& removed_object_key,
+  virtual Result<Nil, ErrorResult> RemoveObjectImp(const ValueType& removed_object_key,
                                         HashSetTrait);
 
-  virtual ExecuteResult RemoveObjectImp(
+  virtual Result<Nil, ErrorResult> RemoveObjectImp(
       const ValueType& removed_object_key,
       const std::atomic_uint32_t* use_count_ptr, HashSetTrait);
 
-  virtual ExecuteResult RemoveObjectImp(const KeyType& removed_object_key,
+  virtual Result<Nil, ErrorResult> RemoveObjectImp(const KeyType& removed_object_key,
                                         HashMapTrait);
 
-  virtual ExecuteResult RemoveObjectImp(
+  virtual Result<Nil, ErrorResult> RemoveObjectImp(
       const KeyType& removed_object_key,
       const std::atomic_uint32_t* use_count_ptr, HashMapTrait);
 
@@ -352,85 +352,85 @@ class ManagedObjectTableBase : virtual public MM::MMObject {
 
 template <typename KeyType, typename ValueType,
           typename RelationshipContainerTrait>
-ExecuteResult
+Result<Nil, ErrorResult>
 ManagedObjectTableBase<KeyType, ValueType, RelationshipContainerTrait>::
     RemoveObjectImp(const KeyType&, const std::atomic_uint32_t*, HashMapTrait) {
   MM_LOG_FATAL("This function should not be called.");
 
-  return ExecuteResult::UNDEFINED_ERROR;
+  return Result<Nil, ErrorResult>(st_execute_error, ErrorCode::UNDEFINED_ERROR);
 }
 
 template <typename KeyType, typename ValueType,
           typename RelationshipContainerTrait>
-ExecuteResult ManagedObjectTableBase<
+Result<Nil, ErrorResult> ManagedObjectTableBase<
     KeyType, ValueType,
     RelationshipContainerTrait>::RemoveObjectImp(const ValueType&,
                                                  const std::atomic_uint32_t*,
                                                  HashSetTrait) {
   MM_LOG_FATAL("This function should not be called.");
 
-  return ExecuteResult::UNDEFINED_ERROR;
+  return Result<Nil, ErrorResult>(st_execute_error, ErrorCode::UNDEFINED_ERROR);
 }
 
 template <typename KeyType, typename ValueType,
           typename RelationshipContainerTrait>
-ExecuteResult
+Result<Nil, ErrorResult>
 ManagedObjectTableBase<KeyType, ValueType, RelationshipContainerTrait>::
     RemoveObjectImp(const ValueType&, const std::atomic_uint32_t*, SetTrait) {
   MM_LOG_FATAL("This function should not be called.");
 
-  return ExecuteResult::UNDEFINED_ERROR;
+  return Result<Nil, ErrorResult>(st_execute_error, ErrorCode::UNDEFINED_ERROR);
 }
 
 template <typename KeyType, typename ValueType,
           typename RelationshipContainerTrait>
-ExecuteResult ManagedObjectTableBase<
+Result<Nil, ErrorResult> ManagedObjectTableBase<
     KeyType, ValueType,
     RelationshipContainerTrait>::RemoveObjectImp(const ValueType&, SetTrait) {
   MM_LOG_FATAL("This function should not be called.");
 
-  return ExecuteResult::UNDEFINED_ERROR;
+  return Result<Nil, ErrorResult>(st_execute_error, ErrorCode::UNDEFINED_ERROR);
 }
 
 template <typename KeyType, typename ValueType,
           typename RelationshipContainerTrait>
-ExecuteResult ManagedObjectTableBase<
+Result<Nil, ErrorResult> ManagedObjectTableBase<
     KeyType, ValueType,
     RelationshipContainerTrait>::RemoveObjectImp(const ValueType&,
                                                  HashSetTrait) {
   MM_LOG_FATAL("This function should not be called.");
 
-  return ExecuteResult::UNDEFINED_ERROR;
+  return Result<Nil, ErrorResult>(st_execute_error, ErrorCode::UNDEFINED_ERROR);
 }
 
 template <typename KeyType, typename ValueType,
           typename RelationshipContainerTrait>
-ExecuteResult ManagedObjectTableBase<
+Result<Nil, ErrorResult> ManagedObjectTableBase<
     KeyType, ValueType,
     RelationshipContainerTrait>::RemoveObjectImp(const KeyType&, HashMapTrait) {
   MM_LOG_FATAL("This function should not be called.");
 
-  return ExecuteResult::UNDEFINED_ERROR;
+  return Result<Nil, ErrorResult>(st_execute_error, ErrorCode::UNDEFINED_ERROR);
 }
 
 template <typename KeyType, typename ValueType,
           typename RelationshipContainerTrait>
-ExecuteResult
+Result<Nil, ErrorResult>
 ManagedObjectTableBase<KeyType, ValueType, RelationshipContainerTrait>::
     RemoveObjectImp(const KeyType&, const std::atomic_uint32_t*, MapTrait) {
   MM_LOG_FATAL("This function should not be called.");
 
-  return ExecuteResult::UNDEFINED_ERROR;
+  return Result<Nil, ErrorResult>(st_execute_error, ErrorCode::UNDEFINED_ERROR);
 }
 
 template <typename KeyType, typename ValueType,
           typename RelationshipContainerTrait>
-ExecuteResult ManagedObjectTableBase<
+Result<Nil, ErrorResult> ManagedObjectTableBase<
     KeyType, ValueType,
     RelationshipContainerTrait>::RemoveObjectImp(const KeyType&, MapTrait) {
   MM_LOG_FATAL("This function should not be called.");
 
-  return ExecuteResult::UNDEFINED_ERROR;
+  return Result<Nil, ErrorResult>(st_execute_error, ErrorCode::UNDEFINED_ERROR);
 }
 
 template <typename KeyType, typename ValueType,
@@ -502,12 +502,12 @@ ManagedObjectTableBase<KeyType, ValueType, RelationshipContainerTrait>::
 
 template <typename KeyType, typename ValueType,
           typename RelationshipContainerTrait>
-ExecuteResult
+Result<Nil, ErrorResult>
 ManagedObjectTableBase<KeyType, ValueType, RelationshipContainerTrait>::
     RemoveObjectImp(const ValueType&, const std::atomic_uint32_t*, ListTrait) {
   MM_LOG_FATAL("This function should not be called.");
 
-  return ExecuteResult::UNDEFINED_ERROR;
+  return Result<Nil, ErrorResult>(st_execute_error, ErrorCode::UNDEFINED_ERROR);
 }
 
 template <typename KeyType, typename ValueType,
