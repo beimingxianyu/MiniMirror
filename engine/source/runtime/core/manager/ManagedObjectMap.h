@@ -41,7 +41,8 @@ class ManagedObjectMap final
 
   bool IsRelationshipContainer() const override;
 
-  Result<HandlerType, ErrorResult> AddObject(const KeyType& key, ValueType&& managed_object);
+  Result<HandlerType, ErrorResult> AddObject(const KeyType& key,
+                                             ValueType&& managed_object);
 
   Result<HandlerType, ErrorResult> GetObject(const KeyType& key) const;
 
@@ -49,7 +50,7 @@ class ManagedObjectMap final
 
  protected:
   Result<Nil, ErrorResult> RemoveObjectImp(const KeyType& removed_object_key,
-                                ContainerTrait trait) override;
+                                           ContainerTrait trait) override;
 
  private:
   ContainerType data_;
@@ -91,16 +92,19 @@ class ManagedObjectMultiMap
 
   bool IsRelationshipContainer() const override;
 
-  Result<HandlerType, ErrorResult> AddObject(const KeyType& key, ValueType&& managed_object);
+  Result<HandlerType, ErrorResult> AddObject(const KeyType& key,
+                                             ValueType&& managed_object);
 
   Result<HandlerType, ErrorResult> GetObject(const KeyType& key) const;
 
+  Result<HandlerType, ErrorResult> GetObject(
+      const KeyType& key, const std::atomic_uint32_t* use_count_ptr) const;
+
   Result<HandlerType, ErrorResult> GetObject(const KeyType& key,
-                          const std::atomic_uint32_t* use_count_ptr) const;
+                                             const ValueType& object) const;
 
-  Result<HandlerType, ErrorResult> GetObject(const KeyType& key, const ValueType& object) const;
-
-  Result<std::vector<HandlerType>, ErrorResult> GetObject(const KeyType& key, StaticTrait::GetMultiplyObject) const;
+  Result<std::vector<HandlerType>, ErrorResult> GetObject(
+      const KeyType& key, StaticTrait::GetMultiplyObject) const;
 
   uint32_t GetUseCount(const KeyType& key) const;
 
@@ -109,12 +113,13 @@ class ManagedObjectMultiMap
 
   uint32_t GetUseCount(const KeyType& key, const ValueType& object) const;
 
-  Result<std::vector<std::uint32_t>, ErrorResult> GetUseCount(const KeyType& key, StaticTrait::GetMultiplyObject) const;
+  Result<std::vector<std::uint32_t>, ErrorResult> GetUseCount(
+      const KeyType& key, StaticTrait::GetMultiplyObject) const;
 
  protected:
-  Result<Nil, ErrorResult> RemoveObjectImp(const KeyType& removed_object_key,
-                                const std::atomic_uint32_t* use_count_ptr,
-                                MapTrait trait) override;
+  Result<Nil, ErrorResult> RemoveObjectImp(
+      const KeyType& removed_object_key,
+      const std::atomic_uint32_t* use_count_ptr, MapTrait trait) override;
 
  private:
   ContainerType data_{};
@@ -215,20 +220,25 @@ bool ManagedObjectMap<KeyType, ValueType, Less,
 
 template <typename KeyType, typename ValueType, typename Less,
           typename Allocator>
-MM::Result<typename ManagedObjectMap<KeyType, ValueType, Less, Allocator>::HandlerType, ErrorResult> ManagedObjectMap<KeyType, ValueType, Less, Allocator>::AddObject(
+MM::Result<
+    typename ManagedObjectMap<KeyType, ValueType, Less, Allocator>::HandlerType,
+    ErrorResult>
+ManagedObjectMap<KeyType, ValueType, Less, Allocator>::AddObject(
     const KeyType& key, ValueType&& managed_object) {
   if (!ThisType::TestMovedWhenAddObject()) {
-     return Result<HandlerType, ErrorResult>(st_execute_error, ErrorCode::OBJECT_IS_INVALID);
+    return Result<HandlerType, ErrorResult>(st_execute_error,
+                                            ErrorCode::OBJECT_IS_INVALID);
   }
 
   std::unique_lock<std::shared_mutex> guard{data_mutex_};
   std::pair<typename ContainerType::iterator, bool> insert_result =
       data_.emplace(std::make_pair(key, std::move(managed_object)));
 
-    return Result<HandlerType, ErrorResult>(st_execute_success,
-                                            BaseType::GetThisPtrPtr(), &(insert_result.first->first),
-                                            const_cast<ValueType*>(insert_result.first->second.GetObjectPtr()),
-                                            insert_result.first->second.GetUseCountPtr());
+  return Result<HandlerType, ErrorResult>(
+      st_execute_success, BaseType::GetThisPtrPtr(),
+      &(insert_result.first->first),
+      const_cast<ValueType*>(insert_result.first->second.GetObjectPtr()),
+      insert_result.first->second.GetUseCountPtr());
 }
 
 template <typename KeyType, typename ValueType, typename Less,
@@ -239,13 +249,16 @@ ManagedObjectMap<KeyType, ValueType, Less, Allocator>::RemoveObjectImp(
   std::unique_lock<std::shared_mutex> guard{data_mutex_};
 
   if (ThisType::this_ptr_ptr_ == nullptr) {
-     return MM::Result<Nil, ErrorResult>(st_execute_error, ErrorCode::CUSTOM_ERROR);
+    return MM::Result<Nil, ErrorResult>(st_execute_error,
+                                        ErrorCode::CUSTOM_ERROR);
   }
 
   auto iter = data_.find(removed_object_key);
 
   if (iter == data_.end()) {
-      return MM::Result<Nil, ErrorResult>(st_execute_error, ErrorCode::PARENT_OBJECT_NOT_CONTAIN_SPECIFIC_CHILD_OBJECT);
+    return MM::Result<Nil, ErrorResult>(
+        st_execute_error,
+        ErrorCode::PARENT_OBJECT_NOT_CONTAIN_SPECIFIC_CHILD_OBJECT);
   }
 
   if (iter->second.GetUseCount() == 0) {
@@ -257,10 +270,14 @@ ManagedObjectMap<KeyType, ValueType, Less, Allocator>::RemoveObjectImp(
 
 template <typename KeyType, typename ValueType, typename Less,
           typename Allocator>
-MM::Result<typename ManagedObjectMap<KeyType, ValueType, Less, Allocator>::HandlerType, ErrorResult> ManagedObjectMap<KeyType, ValueType, Less, Allocator>::GetObject(
+MM::Result<
+    typename ManagedObjectMap<KeyType, ValueType, Less, Allocator>::HandlerType,
+    ErrorResult>
+ManagedObjectMap<KeyType, ValueType, Less, Allocator>::GetObject(
     const KeyType& key) const {
   if (!ThisType::TestMovedWhenGetObject()) {
-    return Result<Nil, ErrorResult>(st_execute_error, ErrorCode::OBJECT_IS_INVALID);
+    return Result<HandlerType, ErrorResult>(st_execute_error,
+                                            ErrorCode::OBJECT_IS_INVALID);
   }
 
   std::shared_lock<std::shared_mutex> guard{data_mutex_};
@@ -268,12 +285,15 @@ MM::Result<typename ManagedObjectMap<KeyType, ValueType, Less, Allocator>::Handl
   typename ContainerType::const_iterator iter = data_.find(key);
 
   if (iter == data_.end()) {
-     return Result<Nil, ErrorResult>(st_execute_error, ErrorCode::PARENT_OBJECT_NOT_CONTAIN_SPECIFIC_CHILD_OBJECT);
+    return Result<HandlerType, ErrorResult>(
+        st_execute_error,
+        ErrorCode::PARENT_OBJECT_NOT_CONTAIN_SPECIFIC_CHILD_OBJECT);
   }
 
-return Result<Nil, ErrorResult>(st_execute_success, BaseType::GetThisPtrPtr(), &(iter->first),
-                                const_cast<ValueType*>(iter->second.GetObjectPtr()),
-                                iter->second.GetUseCountPtr());
+  return Result<HandlerType, ErrorResult>(
+      st_execute_success, BaseType::GetThisPtrPtr(), &(iter->first),
+      const_cast<ValueType*>(iter->second.GetObjectPtr()),
+      iter->second.GetUseCountPtr());
 }
 
 template <typename KeyType, typename ValueType, typename Less,
@@ -390,20 +410,24 @@ bool ManagedObjectMultiMap<KeyType, ValueType, Less,
 
 template <typename KeyType, typename ValueType, typename Less,
           typename Allocator>
-MM::Result<typename ManagedObjectMultiMap<KeyType, ValueType, Less, Allocator>::HandlerType, ErrorResult>
+MM::Result<typename ManagedObjectMultiMap<KeyType, ValueType, Less,
+                                          Allocator>::HandlerType,
+           ErrorResult>
 ManagedObjectMultiMap<KeyType, ValueType, Less, Allocator>::AddObject(
     const KeyType& key, ValueType&& managed_object) {
   if (!ThisType::TestMovedWhenAddObject()) {
-      return Result<HandlerType, ErrorResult>(st_execute_error, ErrorCode::OBJECT_IS_INVALID);
+    return Result<HandlerType, ErrorResult>(st_execute_error,
+                                            ErrorCode::OBJECT_IS_INVALID);
   }
 
   std::unique_lock<std::shared_mutex> guard{data_mutex_};
   typename ContainerType::iterator insert_result =
       data_.emplace(std::make_pair(key, std::move(managed_object)));
 
-  return Result<HandlerType, ErrorResult>(st_execute_success, BaseType::GetThisPtrPtr(), &(insert_result->first),
-                                          const_cast<ValueType*>(insert_result->second.GetObjectPtr()),
-                                          insert_result->second.GetUseCountPtr());
+  return Result<HandlerType, ErrorResult>(
+      st_execute_success, BaseType::GetThisPtrPtr(), &(insert_result->first),
+      const_cast<ValueType*>(insert_result->second.GetObjectPtr()),
+      insert_result->second.GetUseCountPtr());
 }
 
 template <typename KeyType, typename ValueType, typename Less,
@@ -414,13 +438,15 @@ ManagedObjectMultiMap<KeyType, ValueType, Less, Allocator>::RemoveObjectImp(
     const std::atomic_uint32_t* use_count_ptr, MapTrait) {
   std::unique_lock<std::shared_mutex> guard{data_mutex_};
   if (ThisType::this_ptr_ptr_ == nullptr) {
-      return Result<Nil, ErrorResult>(st_execute_error, ErrorCode::CUSTOM_ERROR);
+    return Result<Nil, ErrorResult>(st_execute_error, ErrorCode::CUSTOM_ERROR);
   }
 
   std::pair<typename ContainerType::iterator, typename ContainerType::iterator>
       equal_range = data_.equal_range(removed_object_key);
   if (equal_range.first == equal_range.second) {
-     return Result<Nil, ErrorResult>(st_execute_error, ErrorCode::PARENT_OBJECT_NOT_CONTAIN_SPECIFIC_CHILD_OBJECT);
+    return Result<Nil, ErrorResult>(
+        st_execute_error,
+        ErrorCode::PARENT_OBJECT_NOT_CONTAIN_SPECIFIC_CHILD_OBJECT);
   }
 
   for (typename ContainerType::iterator iter = equal_range.first;
@@ -434,16 +460,21 @@ ManagedObjectMultiMap<KeyType, ValueType, Less, Allocator>::RemoveObjectImp(
     }
   }
 
-  return Result<Nil, ErrorResult>(st_execute_error, ErrorCode::PARENT_OBJECT_NOT_CONTAIN_SPECIFIC_CHILD_OBJECT);
+  return Result<Nil, ErrorResult>(
+      st_execute_error,
+      ErrorCode::PARENT_OBJECT_NOT_CONTAIN_SPECIFIC_CHILD_OBJECT);
 }
 
 template <typename KeyType, typename ValueType, typename Less,
           typename Allocator>
-MM::Result<typename ManagedObjectMultiMap<KeyType, ValueType, Less, Allocator>::HandlerType, ErrorResult>
+MM::Result<typename ManagedObjectMultiMap<KeyType, ValueType, Less,
+                                          Allocator>::HandlerType,
+           ErrorResult>
 ManagedObjectMultiMap<KeyType, ValueType, Less, Allocator>::GetObject(
     const KeyType& key) const {
   if (!ThisType::TestMovedWhenGetObject()) {
-     return Result<HandlerType, ErrorResult>(st_execute_error, ErrorCode::OBJECT_IS_INVALID);
+    return Result<HandlerType, ErrorResult>(st_execute_error,
+                                            ErrorCode::OBJECT_IS_INVALID);
   }
 
   std::shared_lock<std::shared_mutex> guard{data_mutex_};
@@ -451,21 +482,28 @@ ManagedObjectMultiMap<KeyType, ValueType, Less, Allocator>::GetObject(
             typename ContainerType::const_iterator>
       equal_range = data_.equal_range(key);
   if (equal_range.first == equal_range.second) {
-      return Result<HandlerType, ErrorResult>(st_execute_error, ErrorCode::PARENT_OBJECT_NOT_CONTAIN_SPECIFIC_CHILD_OBJECT);
+    return Result<HandlerType, ErrorResult>(
+        st_execute_error,
+        ErrorCode::PARENT_OBJECT_NOT_CONTAIN_SPECIFIC_CHILD_OBJECT);
   }
 
-  return Result<HandlerType, ErrorResult>(st_execute_success, BaseType::GetThisPtrPtr(), &(equal_range.first->first),
-                                          const_cast<ValueType*>(equal_range.first->second.GetObjectPtr()),
-                                          equal_range.first->second.GetUseCountPtr());
+  return Result<HandlerType, ErrorResult>(
+      st_execute_success, BaseType::GetThisPtrPtr(),
+      &(equal_range.first->first),
+      const_cast<ValueType*>(equal_range.first->second.GetObjectPtr()),
+      equal_range.first->second.GetUseCountPtr());
 }
 
 template <typename KeyType, typename ValueType, typename Less,
           typename Allocator>
-MM::Result<typename ManagedObjectMultiMap<KeyType, ValueType, Less, Allocator>::HandlerType, ErrorResult>
+MM::Result<typename ManagedObjectMultiMap<KeyType, ValueType, Less,
+                                          Allocator>::HandlerType,
+           ErrorResult>
 ManagedObjectMultiMap<KeyType, ValueType, Less, Allocator>::GetObject(
     const KeyType& key, const std::atomic_uint32_t* use_count_ptr) const {
   if (!ThisType::TestMovedWhenGetObject()) {
-      return Result<HandlerType, ErrorResult>(st_execute_error, ErrorCode::OBJECT_IS_INVALID);
+    return Result<HandlerType, ErrorResult>(st_execute_error,
+                                            ErrorCode::OBJECT_IS_INVALID);
   }
 
   std::shared_lock<std::shared_mutex> guard{data_mutex_};
@@ -473,29 +511,36 @@ ManagedObjectMultiMap<KeyType, ValueType, Less, Allocator>::GetObject(
             typename ContainerType::const_iterator>
       equal_range = data_.equal_range(key);
   if (equal_range.first == equal_range.second) {
-      return Result<HandlerType, ErrorResult>(st_execute_error, ErrorCode::PARENT_OBJECT_NOT_CONTAIN_SPECIFIC_CHILD_OBJECT);
+    return Result<HandlerType, ErrorResult>(
+        st_execute_error,
+        ErrorCode::PARENT_OBJECT_NOT_CONTAIN_SPECIFIC_CHILD_OBJECT);
   }
 
   for (typename ContainerType::const_iterator iter = equal_range.first;
        iter != equal_range.second; ++iter) {
     if (iter->second.GetUseCountPtr() == use_count_ptr) {
-      return Result<HandlerType, ErrorResult>(st_execute_success, BaseType::GetThisPtrPtr(), &(iter->first),
-                                              const_cast<ValueType*>(iter->second.GetObjectPtr()),
-                                              iter->second.GetUseCountPtr());
+      return Result<HandlerType, ErrorResult>(
+          st_execute_success, BaseType::GetThisPtrPtr(), &(iter->first),
+          const_cast<ValueType*>(iter->second.GetObjectPtr()),
+          iter->second.GetUseCountPtr());
     }
   }
 
-
-    return Result<HandlerType, ErrorResult>(st_execute_error, ErrorCode::PARENT_OBJECT_NOT_CONTAIN_SPECIFIC_CHILD_OBJECT);
+  return Result<HandlerType, ErrorResult>(
+      st_execute_error,
+      ErrorCode::PARENT_OBJECT_NOT_CONTAIN_SPECIFIC_CHILD_OBJECT);
 }
 
 template <typename KeyType, typename ValueType, typename Less,
           typename Allocator>
-MM::Result<typename ManagedObjectMultiMap<KeyType, ValueType, Less, Allocator>::HandlerType, ErrorResult>
+MM::Result<typename ManagedObjectMultiMap<KeyType, ValueType, Less,
+                                          Allocator>::HandlerType,
+           ErrorResult>
 ManagedObjectMultiMap<KeyType, ValueType, Less, Allocator>::GetObject(
     const KeyType& key, const ValueType& object) const {
   if (!ThisType::TestMovedWhenGetObject()) {
-      return Result<HandlerType, ErrorResult>(st_execute_error, ErrorCode::OBJECT_IS_INVALID);
+    return Result<HandlerType, ErrorResult>(st_execute_error,
+                                            ErrorCode::OBJECT_IS_INVALID);
   }
 
   std::shared_lock<std::shared_mutex> guard{data_mutex_};
@@ -503,28 +548,36 @@ ManagedObjectMultiMap<KeyType, ValueType, Less, Allocator>::GetObject(
             typename ContainerType::const_iterator>
       equal_range = data_.equal_range(key);
   if (equal_range.first == equal_range.second) {
-      return Result<HandlerType, ErrorResult>(st_execute_error, ErrorCode::PARENT_OBJECT_NOT_CONTAIN_SPECIFIC_CHILD_OBJECT);
+    return Result<HandlerType, ErrorResult>(
+        st_execute_error,
+        ErrorCode::PARENT_OBJECT_NOT_CONTAIN_SPECIFIC_CHILD_OBJECT);
   }
 
   for (typename ContainerType::const_iterator iter = equal_range.first;
        iter != equal_range.second; ++iter) {
     if (iter->second.GetObject() == object) {
-        return Result<HandlerType, ErrorResult>(st_execute_success, BaseType::GetThisPtrPtr(), &(iter->first),
-                                                const_cast<ValueType*>(iter->second.GetObjectPtr()),
-                                                iter->second.GetUseCountPtr());
+      return Result<HandlerType, ErrorResult>(
+          st_execute_success, BaseType::GetThisPtrPtr(), &(iter->first),
+          const_cast<ValueType*>(iter->second.GetObjectPtr()),
+          iter->second.GetUseCountPtr());
     }
   }
 
-  return Result<HandlerType, ErrorResult>(st_execute_error, ErrorCode::PARENT_OBJECT_NOT_CONTAIN_SPECIFIC_CHILD_OBJECT);
+  return Result<HandlerType, ErrorResult>(
+      st_execute_error,
+      ErrorCode::PARENT_OBJECT_NOT_CONTAIN_SPECIFIC_CHILD_OBJECT);
 }
 
 template <typename KeyType, typename ValueType, typename Less,
           typename Allocator>
-MM::Result<std::vector<typename ManagedObjectMultiMap<KeyType, ValueType, Less, Allocator>::HandlerType>, ErrorResult>
+MM::Result<std::vector<typename ManagedObjectMultiMap<KeyType, ValueType, Less,
+                                                      Allocator>::HandlerType>,
+           ErrorResult>
 ManagedObjectMultiMap<KeyType, ValueType, Less, Allocator>::GetObject(
     const KeyType& key, StaticTrait::GetMultiplyObject) const {
   if (!ThisType::TestMovedWhenGetObject()) {
-      return Result<HandlerType, ErrorResult>(st_execute_error, ErrorCode::OBJECT_IS_INVALID);
+    return Result<HandlerType, ErrorResult>(st_execute_error,
+                                            ErrorCode::OBJECT_IS_INVALID);
   }
 
   std::shared_lock<std::shared_mutex> guard{data_mutex_};
@@ -532,7 +585,9 @@ ManagedObjectMultiMap<KeyType, ValueType, Less, Allocator>::GetObject(
             typename ContainerType::const_iterator>
       equal_range = data_.equal_range(key);
   if (equal_range.first == equal_range.second) {
-    return Result<HandlerType, ErrorResult>(st_execute_error, ErrorCode::PARENT_OBJECT_NOT_CONTAIN_SPECIFIC_CHILD_OBJECT);
+    return Result<HandlerType, ErrorResult>(
+        st_execute_error,
+        ErrorCode::PARENT_OBJECT_NOT_CONTAIN_SPECIFIC_CHILD_OBJECT);
   }
 
   std::vector<HandlerType> handles;
@@ -543,7 +598,8 @@ ManagedObjectMultiMap<KeyType, ValueType, Less, Allocator>::GetObject(
                          iter->second.GetUseCountPtr());
   }
 
-  return Result<std::vector<HandlerType>, ErrorResult>(st_execute_success, std::move(handles));
+  return Result<std::vector<HandlerType>, ErrorResult>(st_execute_success,
+                                                       std::move(handles));
 }
 
 template <typename KeyType, typename ValueType, typename Less,
@@ -622,11 +678,12 @@ ManagedObjectMultiMap<KeyType, ValueType, Less, Allocator>::GetUseCount(
 
 template <typename KeyType, typename ValueType, typename Less,
           typename Allocator>
- MM::Result<std::vector<std::uint32_t>, ErrorResult>
+MM::Result<std::vector<std::uint32_t>, ErrorResult>
 ManagedObjectMultiMap<KeyType, ValueType, Less, Allocator>::GetUseCount(
     const KeyType& key, StaticTrait::GetMultiplyObject) const {
   if (!ThisType::TestMovedWhenGetUseCount()) {
-      return Result<HandlerType, ErrorResult>(st_execute_error, ErrorCode::OBJECT_IS_INVALID);
+    return Result<HandlerType, ErrorResult>(st_execute_error,
+                                            ErrorCode::OBJECT_IS_INVALID);
   }
 
   std::shared_lock<std::shared_mutex> guard{data_mutex_};
@@ -634,7 +691,9 @@ ManagedObjectMultiMap<KeyType, ValueType, Less, Allocator>::GetUseCount(
             typename ContainerType::const_iterator>
       equal_range = data_.equal_range(key);
   if (equal_range.first == equal_range.second) {
-      return Result<HandlerType, ErrorResult>(st_execute_error, ErrorCode::PARENT_OBJECT_NOT_CONTAIN_SPECIFIC_CHILD_OBJECT);
+    return Result<HandlerType, ErrorResult>(
+        st_execute_error,
+        ErrorCode::PARENT_OBJECT_NOT_CONTAIN_SPECIFIC_CHILD_OBJECT);
   }
 
   std::vector<HandlerType> use_counts;
@@ -643,7 +702,8 @@ ManagedObjectMultiMap<KeyType, ValueType, Less, Allocator>::GetUseCount(
     use_counts.emplace_back(iter->second.GetUseCount());
   }
 
-  return Result<HandlerType, ErrorResult>(st_execute_success, std::move(use_counts));
+  return Result<HandlerType, ErrorResult>(st_execute_success,
+                                          std::move(use_counts));
 }
 }  // namespace Manager
 }  // namespace MM

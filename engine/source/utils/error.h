@@ -6,14 +6,14 @@
 namespace MM {
 
 namespace StaticTrait {
-    struct Success {};
-    struct Error {};
-}  // namespace ResultTrait
+struct Success {};
+struct Error {};
+}  // namespace StaticTrait
 
 static StaticTrait::Success st_execute_success;
 static StaticTrait::Error st_execute_error;
 
-enum class ErrorCode: std::uint32_t {
+enum class ErrorCode : std::uint32_t {
   SUCCESS = 0,
   UNDEFINED_ERROR,
   OUT_OF_HOST_MEMORY,
@@ -108,8 +108,7 @@ class ErrorResult final : public ErrorTypeBase {
   ErrorResult(const ErrorResult& other) = default;
   ErrorResult(ErrorResult&& other) noexcept;
   ErrorResult& operator=(const ErrorResult& other);
-  ErrorResult& operator=(
-          ErrorResult&& other) noexcept;
+  ErrorResult& operator=(ErrorResult&& other) noexcept;
 
  public:
   bool operator==(const ErrorResult& rhs) const;
@@ -136,122 +135,99 @@ class ErrorResult final : public ErrorTypeBase {
 // Success result
 template <typename ResultTypeArg>
 class ResultS {
-public:
-    using ResultType = ResultTypeArg;
+ public:
+  using ResultType = ResultTypeArg;
 
-    template <typename ResultTypeArgSame, typename ErrorTypeArg>
-    friend class Result;
+  template <typename ResultTypeArgSame, typename ErrorTypeArg>
+  friend class Result;
 
-public:
-    ResultS() = delete;
-    ~ResultS() = default;
-    explicit ResultS(const ResultType& result)
-        : result_(result) {}
-    explicit ResultS(ResultType&& result)
-        : result_(std::move(result)) {}
-    template <typename... Args>
-    explicit ResultS(Args... args)
-        : result_(std::forward<Args>(args)...) {}
-    ResultS(const ResultS& other)
-        : result_(other.result_) {}
-    ResultS(ResultS&& other) noexcept
-        : result_(std::move(other.result_)) {}
-    ResultS& operator=(const ResultS& other) {
-        if (std::addressof(other) == this) {
-            return *this;
-        }
-
-        result_ = other.result_;
-
-        return *this;
-    }
-    ResultS& operator=(ResultS&& other) noexcept {
-        if (std::addressof(other) == this) {
-            return *this;
-        }
-
-       result_ = std::move(other.result_);
-
-       return *this;
+ public:
+  ResultS() = delete;
+  ~ResultS() = default;
+  explicit ResultS(const ResultType& result) : result_(result) {}
+  explicit ResultS(ResultType&& result) : result_(std::move(result)) {}
+  template <typename... Args>
+  explicit ResultS(Args... args) : result_(std::forward<Args>(args)...) {}
+  ResultS(const ResultS& other) : result_(other.result_) {}
+  ResultS(ResultS&& other) noexcept : result_(std::move(other.result_)) {}
+  ResultS& operator=(const ResultS& other) {
+    if (std::addressof(other) == this) {
+      return *this;
     }
 
-public:
-    ResultType& GetResult() {
-        return result_;
+    result_ = other.result_;
+
+    return *this;
+  }
+  ResultS& operator=(ResultS&& other) noexcept {
+    if (std::addressof(other) == this) {
+      return *this;
     }
 
-    const ResultType& GetResult() const {
-        return result_;
-    }
+    result_ = std::move(other.result_);
 
-private:
-    ResultType&& Move() {
-        return std::move(result_);
-    }
+    return *this;
+  }
 
-private:
-    ResultType result_{};
+ public:
+  ResultType& GetResult() { return result_; }
+
+  const ResultType& GetResult() const { return result_; }
+
+ private:
+  ResultType&& Move() { return std::move(result_); }
+
+ private:
+  ResultType result_{};
 };
 
 // Error result
-template<typename ErrorTypeArg>
+template <typename ErrorTypeArg>
 class ResultE {
+ public:
+  using ErrorType = ErrorTypeArg;
 
-public:
-    using ErrorType = ErrorTypeArg;
+  template <typename ResultTypeArg, typename ErrorTypeArgSame>
+  friend class Result;
 
-    template <typename ResultTypeArg, typename ErrorTypeArgSame>
-    friend class Result;
-
-public:
-    ResultE() = delete;
-    ~ResultE() = default;
-    explicit ResultE(const ErrorType& error)
-        : error_(error){}
-    explicit ResultE(ErrorType&& error)
-        : error_(std::move(error)) {}
-    template <typename... Args>
-    explicit ResultE(Args ...args)
-        : error_(std::forward<Args>(args)...) {}
-    ResultE(const ResultE& other)
-        : error_(other.error_) {}
-    ResultE(ResultE&& other) noexcept
-        : error_(std::move(other.error_)) {}
-    ResultE& operator=(const ResultE& other) {
-        if (std::addressof(other) == this) {
-            return *this;
-        }
-
-        error_ = other.error_;
-
-        return *this;
-    }
-    ResultE& operator=(ResultE&& other) noexcept {
-        if (std::addressof(other) == this) {
-            return *this;
-        }
-
-        error_ = std::move(other.error_);
-
-        return *this;
+ public:
+  ResultE() = delete;
+  ~ResultE() = default;
+  explicit ResultE(const ErrorType& error) : error_(error) {}
+  explicit ResultE(ErrorType&& error) : error_(std::move(error)) {}
+  template <typename... Args>
+  explicit ResultE(Args... args) : error_(std::forward<Args>(args)...) {}
+  ResultE(const ResultE& other) : error_(other.error_) {}
+  ResultE(ResultE&& other) noexcept : error_(std::move(other.error_)) {}
+  ResultE& operator=(const ResultE& other) {
+    if (std::addressof(other) == this) {
+      return *this;
     }
 
-public:
-    ErrorType& GetError() {
-        return error_;
+    error_ = other.error_;
+
+    return *this;
+  }
+  ResultE& operator=(ResultE&& other) noexcept {
+    if (std::addressof(other) == this) {
+      return *this;
     }
 
-    const ErrorType& GetError() const {
-        return error_;
-    }
+    error_ = std::move(other.error_);
 
-private:
-    ErrorType&& Move() {
-        return std::move(error_);
-    }
+    return *this;
+  }
 
-private:
-    ErrorType error_{};
+ public:
+  ErrorType& GetError() { return error_; }
+
+  const ErrorType& GetError() const { return error_; }
+
+ private:
+  ErrorType&& Move() { return std::move(error_); }
+
+ private:
+  ErrorType error_{};
 };
 
 template <typename ResultTypeArg, typename ErrorTypeArg>
@@ -274,11 +250,10 @@ class Result {
   explicit Result(StaticTrait::Error, Args... args)
       : result_wrapper_(st_execute_error, std::forward<Args>(args)...) {}
   Result(ResultS<ResultType>&& result)
-    : result_wrapper_(st_execute_success, result.Move()) {}
+      : result_wrapper_(st_execute_success, result.Move()) {}
   Result(ResultE<ErrorType>&& error)
-    : result_wrapper_(st_execute_error, error.Move()) {}
-  Result(const Result& other)
-    : result_wrapper_(other.result_wrapper_) {}
+      : result_wrapper_(st_execute_error, error.Move()) {}
+  Result(const Result& other) : result_wrapper_(other.result_wrapper_) {}
   Result(Result&& other) noexcept
       : result_wrapper_(std::move(other.result_wrapper_)) {}
   Result& operator=(const Result& other) {
@@ -441,6 +416,16 @@ class Result {
         return *this;
       }
 
+#ifdef MM_CHECK_ALL_EXCEPTION_PROCESS
+      if (!exception_processed_) {
+        std::cout << "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n"
+                  << "!!!!!!!!!!! Have exception not processed !!!!!!!!!!!\n"
+                  << "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+                  << std::endl;
+        abort();
+      }
+#endif
+
       result_ = other.result_;
       error_ = other.error_;
 #ifdef MM_CHECK_ALL_EXCEPTION_PROCESS
@@ -453,6 +438,16 @@ class Result {
       if (std::addressof(other) == this) {
         return *this;
       }
+
+#ifdef MM_CHECK_ALL_EXCEPTION_PROCESS
+      if (!exception_processed_) {
+        std::cout << "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n"
+                  << "!!!!!!!!!!! Have exception not processed !!!!!!!!!!!\n"
+                  << "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+                  << std::endl;
+        abort();
+      }
+#endif
 
       result_ = std::move(other.result_);
       error_ = std::move(other.error_);
@@ -555,18 +550,20 @@ class Result {
           std::is_invocable_r_v<void, CallbackType, ErrorType&>;
       constexpr bool callback_signature3 =
           std::is_invocable_r_v<void, CallbackType, const ErrorType&>;
-    constexpr bool callback_signature4 =
-            std::is_invocable_r_v<void, CallbackType, ErrorType>;
-    constexpr bool callback_signature5 =
-            std::is_invocable_r_v<void, CallbackType, ResultType&, ErrorType>;
-    constexpr bool callback_signature6 =
-            std::is_invocable_r_v<void, CallbackType, ResultType&>;
-        constexpr bool callback_signature7 =
-                std::is_invocable_r_v<void, CallbackType>;
+      constexpr bool callback_signature4 =
+          std::is_invocable_r_v<void, CallbackType, ErrorType>;
+      constexpr bool callback_signature5 =
+          std::is_invocable_r_v<void, CallbackType, ResultType&, ErrorType>;
+      constexpr bool callback_signature6 =
+          std::is_invocable_r_v<void, CallbackType, ResultType&>;
+      constexpr bool callback_signature7 =
+          std::is_invocable_r_v<void, CallbackType>;
 
-      static_assert(
-          callback_signature1 || callback_signature2 || callback_signature3 || callback_signature4 || callback_signature5 || callback_signature6 || callback_signature7,
-          "Callback signature is invalid.");
+      static_assert(callback_signature1 || callback_signature2 ||
+                        callback_signature3 || callback_signature4 ||
+                        callback_signature5 || callback_signature6 ||
+                        callback_signature7,
+                    "Callback signature is invalid.");
 
       if (error_.Success()) {
         return;
@@ -590,15 +587,15 @@ class Result {
         IgnoreException();
         return;
       } else if constexpr (callback_signature6) {
-          callback(result_);
+        callback(result_);
 
-          IgnoreException();
-          return;
+        IgnoreException();
+        return;
       } else if constexpr (callback_signature7) {
-          callback();
+        callback();
 
-          IgnoreException();
-          return;
+        IgnoreException();
+        return;
       }
     }
 
@@ -606,17 +603,19 @@ class Result {
     void Exception(CallBackType&& callback) const {
       constexpr bool callback_signature1 =
           std::is_invocable_r_v<void, CallBackType, const ErrorType&>;
-        constexpr bool callback_signature2 =
-                std::is_invocable_r_v<void, CallBackType, ErrorType>;
-        constexpr bool callback_signature3 =
-                std::is_invocable_r_v<void, CallBackType>;
-      static_assert(callback_signature1 || callback_signature2 || callback_signature3, "Callback signature is invalid.");
+      constexpr bool callback_signature2 =
+          std::is_invocable_r_v<void, CallBackType, ErrorType>;
+      constexpr bool callback_signature3 =
+          std::is_invocable_r_v<void, CallBackType>;
+      static_assert(
+          callback_signature1 || callback_signature2 || callback_signature3,
+          "Callback signature is invalid.");
 
       if constexpr (callback_signature1 || callback_signature2) {
-            error_.Exception();
-            callback(error_);
+        error_.Exception();
+        callback(error_);
       } else {
-          callback();
+        callback();
       }
 
       IgnoreException();

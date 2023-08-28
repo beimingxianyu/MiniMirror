@@ -12,37 +12,36 @@
 TEST(manager, set) {
   MM::Manager::ManagedObjectSet<int> set_manager, set_manager2;
   {
-    MM::Manager::ManagedObjectSet<int>::HandlerType handler;
+    //    MM::Manager::ManagedObjectSet<int>::HandlerType handler;
     {
-      MM::Manager::ManagedObjectSet<int>::HandlerType handler1, handler2,
-          handler3;
-
       EXPECT_EQ(set_manager.GetSize(), 0);
-      EXPECT_EQ(set_manager.AddObject(10, handler1),
-                MM::ExecuteResult::SUCCESS);
+      auto handler1 = set_manager.AddObject(10).Exception();
+      EXPECT_EQ(handler1.Success(), true);
       EXPECT_EQ(set_manager.GetSize(), 1);
-      EXPECT_EQ(handler1.GetObject(), 10);
+      EXPECT_EQ(handler1.GetResult().GetObject(), 10);
       EXPECT_EQ(set_manager.Have(10), true);
       EXPECT_EQ(set_manager.Have(20), false);
       EXPECT_EQ(set_manager.GetSize(10), 1);
       EXPECT_EQ(set_manager.GetSize(20), 0);
       EXPECT_EQ(set_manager.IsMultiContainer(), false);
       EXPECT_EQ(set_manager.IsRelationshipContainer(), false);
-      EXPECT_EQ(set_manager.GetObject(10, handler2),
-                MM::ExecuteResult::SUCCESS);
-      EXPECT_EQ(
-          set_manager.GetObject(20, handler3),
-          MM::ExecuteResult::PARENT_OBJECT_NOT_CONTAIN_SPECIFIC_CHILD_OBJECT);
-      EXPECT_EQ(handler3.IsValid(), false);
-      EXPECT_EQ(set_manager.AddObject(20, handler3),
-                MM::ExecuteResult::SUCCESS);
-      EXPECT_EQ(handler3.GetObject(), 20);
+      auto handler2 = set_manager.GetObject(10).Exception();
+      EXPECT_EQ(handler2.Success(), true);
+      auto handler3 = set_manager.GetObject(20).Exception();
+      EXPECT_EQ(handler3.GetError().GetErrorCode(),
+                MM::ErrorCode::PARENT_OBJECT_NOT_CONTAIN_SPECIFIC_CHILD_OBJECT);
+      EXPECT_EQ(handler3.GetResult().IsValid(), false);
+      handler3 = set_manager.AddObject(20).Exception();
+      EXPECT_EQ(handler3.Success(), true);
+      EXPECT_EQ(handler3.GetResult().GetObject(), 20);
       EXPECT_EQ(set_manager.GetSize(), 2);
 
       std::vector<MM::Manager::ManagedObjectSet<int>::HandlerType> handlers{50};
       for (int i = 0; i < handlers.size(); ++i) {
         int temp = i;
-        set_manager.AddObject(std::move(temp), handlers[i]);
+        auto handler = set_manager.AddObject(std::move(temp)).Exception();
+        EXPECT_EQ(handler.Success(), true);
+        handlers[i] = std::move(handler.GetResult());
       }
 
       for (int i = 0; i < handlers.size(); ++i) {
@@ -50,26 +49,27 @@ TEST(manager, set) {
       }
 
       EXPECT_EQ(set_manager.GetSize(), 50);
-      EXPECT_EQ(handler1.GetUseCount(), 3);
-      EXPECT_EQ(set_manager.GetUseCount(handler1.GetObject()), 3);
-      EXPECT_EQ(handler2.GetUseCount(), 3);
-      EXPECT_EQ(set_manager.GetUseCount(handler2.GetObject()), 3);
-      EXPECT_EQ(handler3.GetUseCount(), 2);
-      EXPECT_EQ(set_manager.GetUseCount(handler3.GetObject()), 2);
+      EXPECT_EQ(handler1.GetResult().GetUseCount(), 3);
+      EXPECT_EQ(set_manager.GetUseCount(handler1.GetResult().GetObject()), 3);
+      EXPECT_EQ(handler2.GetResult().GetUseCount(), 3);
+      EXPECT_EQ(set_manager.GetUseCount(handler2.GetResult().GetObject()), 3);
+      EXPECT_EQ(handler3.GetResult().GetUseCount(), 2);
+      EXPECT_EQ(set_manager.GetUseCount(handler3.GetResult().GetObject()), 2);
 
-      set_manager.GetObject(49, handler);
+      auto handler = set_manager.GetObject(49).Exception();
 
       handler3 = handler1;
-      MM::Manager::ManagedObjectSet<int>::HandlerType handler5;
 
-      EXPECT_EQ(handler3.GetUseCount(), 4);
-      EXPECT_EQ(handler1.GetUseCount(), 4);
-      EXPECT_EQ(set_manager.AddObject(100, handler3),
-                MM::ExecuteResult::SUCCESS);
-      EXPECT_EQ(set_manager.GetObject(handler1.GetObject(), handler5),
-                MM::ExecuteResult::SUCCESS);
-      EXPECT_EQ(set_manager.GetObject(handler3.GetObject(), handler5),
-                MM::ExecuteResult::SUCCESS);
+      EXPECT_EQ(handler3.GetResult().GetUseCount(), 4);
+      EXPECT_EQ(handler1.GetResult().GetUseCount(), 4);
+      handler3 = set_manager.AddObject(100).Exception();
+      EXPECT_EQ(handler3.Success(), true);
+      auto handler5 =
+          set_manager.GetObject(handler1.GetResult().GetObject()).Exception();
+      EXPECT_EQ(handler5.Success(), true);
+      handler5 =
+          set_manager.GetObject(handler3.GetResult().GetObject()).Exception();
+      EXPECT_EQ(handler5.Success(), true);
     }
 
     EXPECT_EQ(set_manager.GetSize(), 1);
@@ -91,9 +91,10 @@ void InsertObject(
     std::vector<MM::Manager::ManagedObjectSet<int>::HandlerType>& handlers) {
   int end = start + COUNT_SIZE;
   for (; start != end; ++start) {
-    handlers.emplace_back();
     int temp = start;
-    set_manager.AddObject(std::move(temp), handlers.back());
+    auto handler = set_manager.AddObject(std::move(temp)).Exception();
+    EXPECT_EQ(handler.Success(), true);
+    handlers.emplace_back(std::move(handler.GetResult()));
   }
 }
 
@@ -213,41 +214,29 @@ TEST(manager, set_thread) {
 
 TEST(manager, multi_set) {
   MM::Manager::ManagedObjectMultiSet<int> multi_set_manager;
-  MM::Manager::ManagedObjectMultiSet<int>::HandlerType* handler1 =
-      new MM::Manager::ManagedObjectMultiSet<int>::HandlerType();
-  MM::Manager::ManagedObjectMultiSet<int>::HandlerType* handler2 =
-      new MM::Manager::ManagedObjectMultiSet<int>::HandlerType();
-  MM::Manager::ManagedObjectMultiSet<int>::HandlerType* handler3 =
-      new MM::Manager::ManagedObjectMultiSet<int>::HandlerType();
-  MM::Manager::ManagedObjectMultiSet<int>::HandlerType* handler4 =
-      new MM::Manager::ManagedObjectMultiSet<int>::HandlerType();
-  MM::Manager::ManagedObjectMultiSet<int>::HandlerType* handler5 =
-      new MM::Manager::ManagedObjectMultiSet<int>::HandlerType();
 
   EXPECT_EQ(multi_set_manager.GetSize(), 0);
   EXPECT_EQ(multi_set_manager.IsMultiContainer(), true);
   EXPECT_EQ(multi_set_manager.IsRelationshipContainer(), false);
-  EXPECT_EQ(multi_set_manager.AddObject(1, *handler1),
-            MM::ExecuteResult::SUCCESS);
-  EXPECT_EQ(multi_set_manager.AddObject(1, *handler2),
-            MM::ExecuteResult::SUCCESS);
-  EXPECT_EQ(multi_set_manager.AddObject(1, *handler3),
-            MM::ExecuteResult::SUCCESS);
-  *handler4 = *handler3;
-  *handler5 = *handler3;
-  EXPECT_EQ(handler3->GetUseCount(), 3);
-  EXPECT_EQ(multi_set_manager.GetUseCount(handler4->GetObject(),
-                                          handler4->GetUseCountPtr()),
-            3);
+  auto handler1 = multi_set_manager.AddObject(1).Exception();
+  EXPECT_EQ(handler1.Success(), true);
+  auto handler2 = multi_set_manager.AddObject(1).Exception();
+  EXPECT_EQ(handler2.Success(), true);
+  auto handler3 = multi_set_manager.AddObject(1).Exception();
+  EXPECT_EQ(handler3.Success(), true);
+  auto handler4 = handler3;
+  auto handler5 = handler3;
+  EXPECT_EQ(handler3.GetResult().GetUseCount(), 3);
+  EXPECT_EQ(
+      multi_set_manager.GetUseCount(handler4.GetResult().GetObject(),
+                                    handler4.GetResult().GetUseCountPtr()),
+      3);
   ASSERT_EQ(multi_set_manager.GetSize(), 3);
-  delete handler1;
+  handler1.GetResult().Release();
   EXPECT_EQ(multi_set_manager.GetSize(), 2);
-  delete handler2;
+  handler2.GetResult().Release();
   EXPECT_EQ(multi_set_manager.GetSize(), 1);
-  EXPECT_EQ(multi_set_manager.GetUseCount(handler3->GetObject()), 3);
-  delete handler3;
-  delete handler4;
-  delete handler5;
+  EXPECT_EQ(multi_set_manager.GetUseCount(handler3.GetResult().GetObject()), 3);
 }
 
 void InsertObject2(
@@ -255,11 +244,10 @@ void InsertObject2(
     std::vector<MM::Manager::ManagedObjectMultiSet<int>::HandlerType>&
         handlers) {
   for (int i = 0; i < COUNT_SIZE; ++i) {
-    MM::Manager::ManagedObjectMultiSet<int>::HandlerType handler;
     int temp = i;
-    EXPECT_EQ(multi_set_manager.AddObject(std::move(temp), handler),
-              MM::ExecuteResult::SUCCESS);
-    handlers.emplace_back(std::move(handler));
+    auto handler = multi_set_manager.AddObject(std::move(temp)).Exception();
+    EXPECT_EQ(handler.Success(), true);
+    handlers.emplace_back(std::move(handler.GetResult()));
   }
 }
 

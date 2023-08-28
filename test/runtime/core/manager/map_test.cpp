@@ -7,26 +7,21 @@
 
 TEST(manager, map) {
   MM::Manager::ManagedObjectMap<int, std::string> map_data, map_data2;
-  MM::Manager::ManagedObjectMap<int, std::string>::HandlerType* handler1 =
-      new MM::Manager::ManagedObjectMap<int, std::string>::HandlerType{};
-  MM::Manager::ManagedObjectMap<int, std::string>::HandlerType* handler2 =
-      new MM::Manager::ManagedObjectMap<int, std::string>::HandlerType{};
-  MM::Manager::ManagedObjectMap<int, std::string>::HandlerType* handler3 =
-      new MM::Manager::ManagedObjectMap<int, std::string>::HandlerType{};
-  MM::Manager::ManagedObjectMap<int, std::string>::HandlerType* handler4 =
-      new MM::Manager::ManagedObjectMap<int, std::string>::HandlerType{};
 
-  EXPECT_EQ(map_data.AddObject(1, std::string("2"), *handler1),
-            MM::ExecuteResult::SUCCESS);
-  EXPECT_EQ(map_data.AddObject(1, std::string("3"), *handler2),
-            MM::ExecuteResult::SUCCESS);
-  EXPECT_EQ(handler1->GetObject() == handler2->GetObject(), true);
-  EXPECT_EQ(handler1->GetObject(), std::string("2"));
-  EXPECT_EQ(handler2->GetObject(), std::string("2"));
+  auto handler1 = map_data.AddObject(1, std::string("2")).Exception();
+  EXPECT_EQ(handler1.Success(), true);
+  auto handler2 = map_data.AddObject(1, std::string("3")).Exception();
+  EXPECT_EQ(handler2.Success(), true);
+  EXPECT_EQ(
+      handler1.GetResult().GetObject() == handler2.GetResult().GetObject(),
+      true);
+  EXPECT_EQ(handler1.GetResult().GetObject(), std::string("2"));
+  EXPECT_EQ(handler2.GetResult().GetObject(), std::string("2"));
   EXPECT_EQ(map_data.GetSize(), 1);
-  EXPECT_EQ(map_data.AddObject(2, std::string("3"), *handler4),
-            MM::ExecuteResult::SUCCESS);
-  EXPECT_EQ(map_data.GetObject(1, *handler3), MM::ExecuteResult::SUCCESS);
+  auto handler4 = map_data.AddObject(2, std::string("3")).Exception();
+  EXPECT_EQ(handler4.Success(), true);
+  auto handler3 = map_data.GetObject(1).Exception();
+  EXPECT_EQ(handler3.Success(), true);
   std::uint32_t temp = 2;
   EXPECT_EQ(map_data.Have(temp), true);
   EXPECT_EQ(map_data.Have(2), true);
@@ -53,21 +48,18 @@ TEST(manager, map) {
   EXPECT_EQ(map_data2.GetUseCount(5), 0);
   EXPECT_EQ(map_data2.IsMultiContainer(), false);
   EXPECT_EQ(map_data2.IsRelationshipContainer(), true);
-  EXPECT_EQ(handler1->GetObject() == handler2->GetObject(), true);
-  EXPECT_EQ(handler1->GetObject(), std::string("2"));
-  EXPECT_EQ(handler2->GetObject(), std::string("2"));
+  EXPECT_EQ(
+      handler1.GetResult().GetObject() == handler2.GetResult().GetObject(),
+      true);
+  EXPECT_EQ(handler1.GetResult().GetObject(), std::string("2"));
+  EXPECT_EQ(handler2.GetResult().GetObject(), std::string("2"));
 
-  handler1->Release();
-  handler2->Release();
-  handler3->Release();
-  handler4->Release();
+  handler1.GetResult().Release();
+  handler2.GetResult().Release();
+  handler3.GetResult().Release();
+  handler4.GetResult().Release();
 
   EXPECT_EQ(map_data2.GetSize(), 0);
-
-  delete handler1;
-  delete handler2;
-  delete handler3;
-  delete handler4;
 }
 
 #define INSERT_COUNT 500000
@@ -78,8 +70,9 @@ void InsertString(
     MM::Manager::ManagedObjectMap<std::uint32_t, std::string>& map_data,
     std::uint32_t start) {
   for (std::uint32_t i = start; i != start + INSERT_COUNT; ++i) {
-    handlers.emplace_back();
-    map_data.AddObject(i, std::to_string(i), handlers.back());
+    auto handler = map_data.AddObject(i, std::to_string(i)).Exception();
+    EXPECT_EQ(handler.Success(), true);
+    handlers.emplace_back(std::move(handler.GetResult()));
     EXPECT_EQ(map_data.Have(i), true);
     EXPECT_EQ(map_data.GetSize(i), 1);
   }
@@ -130,35 +123,28 @@ TEST(manager, map_thread) {
 TEST(manager, multimap) {
   MM::Manager::ManagedObjectMultiMap<std::string, int> multi_map_data1,
       multi_map_data2;
-  MM::Manager::ManagedObjectMultiMap<std::string, int>::HandlerType handler1;
-  MM::Manager::ManagedObjectMultiMap<std::string, int>::HandlerType handler2;
-  MM::Manager::ManagedObjectMultiMap<std::string, int>::HandlerType handler3;
-  MM::Manager::ManagedObjectMultiMap<std::string, int>::HandlerType handler4;
-  MM::Manager::ManagedObjectMultiMap<std::string, int>::HandlerType handler5;
-  MM::Manager::ManagedObjectMultiMap<std::string, int>::HandlerType handler6;
-  std::vector<MM::Manager::ManagedObjectMultiMap<std::string, int>::HandlerType>
-      handlers;
 
   ASSERT_EQ(multi_map_data1.IsRelationshipContainer(), true);
   ASSERT_EQ(multi_map_data1.IsMultiContainer(), true);
-  ASSERT_EQ(multi_map_data1.AddObject(std::string("1"), 1, handler1),
-            MM::ExecuteResult::SUCCESS);
-  ASSERT_EQ(multi_map_data1.AddObject(std::string("2"), 1, handler2),
-            MM::ExecuteResult::SUCCESS);
-  ASSERT_EQ(multi_map_data1.AddObject(std::string("1"), 2, handler3),
-            MM::ExecuteResult::SUCCESS);
+  auto handler1 = multi_map_data1.AddObject(std::string("1"), 1).Exception();
+  ASSERT_EQ(handler1.Success(), true);
+  auto handler2 = multi_map_data1.AddObject(std::string("2"), 1).Exception();
+  ASSERT_EQ(handler2.Success(), true);
+  auto handler3 = multi_map_data1.AddObject(std::string("1"), 2).Exception();
+  ASSERT_EQ(handler3.Success(), true);
   ASSERT_EQ(multi_map_data1.GetSize(), 3);
-  ASSERT_EQ(multi_map_data1.GetObject(std::string("1"), 1, handler4),
-            MM::ExecuteResult::SUCCESS);
-  ASSERT_EQ(multi_map_data1.GetObject(std::string("1"), 2, handler5),
-            MM::ExecuteResult::SUCCESS);
+  auto handler4 = multi_map_data1.GetObject(std::string("1"), 1).Exception();
+  ASSERT_EQ(handler4.Success(), true);
+  auto handler5 = multi_map_data1.GetObject(std::string("1"), 2).Exception();
+  ASSERT_EQ(handler5.Success(), true);
   ASSERT_EQ(multi_map_data1.GetSize(), 3);
-  ASSERT_EQ(handler1.GetObject(), 1);
-  ASSERT_EQ(handler2.GetObject(), 1);
-  ASSERT_EQ(handler3.GetObject(), 2);
-  ASSERT_EQ(handler4.GetObject(), 1);
-  ASSERT_EQ(handler5.GetObject(), 2);
-  multi_map_data1.GetObject(std::string("1"), handlers);
+  ASSERT_EQ(handler1.GetResult().GetObject(), 1);
+  ASSERT_EQ(handler2.GetResult().GetObject(), 1);
+  ASSERT_EQ(handler3.GetResult().GetObject(), 2);
+  ASSERT_EQ(handler4.GetResult().GetObject(), 1);
+  ASSERT_EQ(handler5.GetResult().GetObject(), 2);
+  auto handlers =
+      multi_map_data1.GetObject(std::string("1"), MM::st_get_multiply_object);
   ASSERT_EQ(multi_map_data1.Have(std::string("1")), true);
   ASSERT_EQ(multi_map_data1.Have(std::string("2")), true);
   ASSERT_EQ(multi_map_data1.Have(std::string("3")), false);
@@ -166,21 +152,26 @@ TEST(manager, multimap) {
   ASSERT_EQ(multi_map_data1.GetSize(std::string("2")), 1);
   ASSERT_EQ(multi_map_data1.GetSize(std::string("3")), 0);
   ASSERT_EQ(multi_map_data1.GetUseCount(std::string("1")), 3);
-  ASSERT_EQ(multi_map_data1.GetObject(std::string("1"), 1, handler6),
-            MM::ExecuteResult::SUCCESS);
+  auto handler6 = multi_map_data1.GetObject(std::string("1"), 1).Exception();
+  ASSERT_EQ(handler6.Success(), true);
   ASSERT_EQ(multi_map_data1.GetUseCount(std::string("1"), 1), 4);
   ASSERT_EQ(multi_map_data1.GetUseCount(std::string("1"), 2), 3);
-  ASSERT_EQ(
-      multi_map_data1.GetUseCount(std::string("1"), handler6.GetUseCountPtr()),
-      4);
-  ASSERT_EQ(
-      multi_map_data1.GetUseCount(std::string("1"), handler5.GetUseCountPtr()),
-      3);
-  std::vector<std::uint32_t> use_counts1, use_counts2;
-  multi_map_data1.GetUseCount(std::string("1"), use_counts1);
-  multi_map_data1.GetUseCount(std::string("2"), use_counts2);
-  ASSERT_EQ(use_counts1.size(), 2);
-  ASSERT_EQ(use_counts2.size(), 1);
+  ASSERT_EQ(multi_map_data1.GetUseCount(std::string("1"),
+                                        handler6.GetResult().GetUseCountPtr()),
+            4);
+  ASSERT_EQ(multi_map_data1.GetUseCount(std::string("1"),
+                                        handler5.GetResult().GetUseCountPtr()),
+            3);
+  auto use_counts1 =
+      multi_map_data1.GetUseCount(std::string("1"), MM::st_get_multiply_object)
+          .Exception();
+  auto use_counts2 =
+      multi_map_data1.GetUseCount(std::string("2"), MM::st_get_multiply_object)
+          .Exception();
+  ASSERT_EQ(use_counts1.Success(), true);
+  ASSERT_EQ(use_counts2.Success(), true);
+  ASSERT_EQ(use_counts1.GetResult().size(), 2);
+  ASSERT_EQ(use_counts2.GetResult().size(), 1);
 
   multi_map_data2 = std::move(multi_map_data1);
   ASSERT_EQ(multi_map_data1.GetSize(), 0);
@@ -191,23 +182,29 @@ TEST(manager, multimap) {
   ASSERT_EQ(multi_map_data2.GetSize(std::string("2")), 1);
   ASSERT_EQ(multi_map_data2.GetSize(std::string("3")), 0);
   ASSERT_EQ(multi_map_data2.GetUseCount(std::string("1")), 4);
-  ASSERT_EQ(multi_map_data2.GetObject(std::string("1"), 1, handler6),
-            MM::ExecuteResult::SUCCESS);
-  ASSERT_EQ(handler6.IsValid(), true);
-  ASSERT_EQ(handler6.GetUseCount(), 4);
+
+  auto handler6 = multi_map_data2.GetObject(std::string("1"), 1).Exception();
+  ASSERT_EQ(handler6.Success(), true);
+  ASSERT_EQ(handler6.GetResult().IsValid(), true);
+  ASSERT_EQ(handler6.GetResult().GetUseCount(), 4);
   ASSERT_EQ(multi_map_data2.GetUseCount(std::string("1"), 1), 4);
   ASSERT_EQ(multi_map_data2.GetUseCount(std::string("1"), 2), 3);
-  ASSERT_EQ(
-      multi_map_data2.GetUseCount(std::string("1"), handler6.GetUseCountPtr()),
-      4);
-  ASSERT_EQ(
-      multi_map_data2.GetUseCount(std::string("1"), handler5.GetUseCountPtr()),
-      3);
-  std::vector<std::uint32_t> use_counts3, use_counts4;
-  multi_map_data2.GetUseCount(std::string("1"), use_counts3);
-  multi_map_data2.GetUseCount(std::string("2"), use_counts4);
-  ASSERT_EQ(use_counts3.size(), 2);
-  ASSERT_EQ(use_counts4.size(), 1);
+  ASSERT_EQ(multi_map_data2.GetUseCount(std::string("1"),
+                                        handler6.GetResult().GetUseCountPtr()),
+            4);
+  ASSERT_EQ(multi_map_data2.GetUseCount(std::string("1"),
+                                        handler5.GetResult().GetUseCountPtr()),
+            3);
+  auto use_counts3 =
+      multi_map_data2.GetUseCount(std::string("1"), MM::st_get_multiply_object)
+          .Exception();
+  ASSERT_EQ(use_counts3.Success(), true);
+  auto use_counts4 =
+      multi_map_data2.GetUseCount(std::string("2"), MM::st_get_multiply_object)
+          .Exception();
+  ASSERT_EQ(use_counts4.Success(), true);
+  ASSERT_EQ(use_counts3.GetResult().size(), 2);
+  ASSERT_EQ(use_counts4.GetResult().size(), 1);
 }
 
 void MultiInsertString(
@@ -217,8 +214,10 @@ void MultiInsertString(
     std::uint32_t start) {
   for (std::uint32_t i = start; i != start + INSERT_COUNT; ++i) {
     std::uint32_t temp;
-    handlers.emplace_back();
-    map_data.AddObject(std::to_string(i), std::move(i), handlers.back());
+    auto handler =
+        map_data.AddObject(std::to_string(i), std::move(i)).Exception();
+    ASSERT_EQ(handler.Success(), true);
+    handlers.emplace_back(std::move(handler.GetResult()));
     EXPECT_EQ(map_data.Have(std::to_string(i)), true);
   }
 }

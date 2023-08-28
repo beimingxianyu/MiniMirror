@@ -8,42 +8,36 @@
 
 TEST(manager, list) {
   MM::Manager::ManagedObjectList<int> list_data;
-  MM::Manager::ManagedObjectList<int>::HandlerType* handler1 =
-      new MM::Manager::ManagedObjectList<int>::HandlerType();
-  MM::Manager::ManagedObjectList<int>::HandlerType* handler2 =
-      new MM::Manager::ManagedObjectList<int>::HandlerType();
-  MM::Manager::ManagedObjectList<int>::HandlerType* handler3 =
-      new MM::Manager::ManagedObjectList<int>::HandlerType();
 
   EXPECT_EQ(list_data.IsRelationshipContainer(), false);
   EXPECT_EQ(list_data.IsMultiContainer(), true);
   EXPECT_EQ(list_data.GetSize(), 0);
-  EXPECT_EQ(list_data.AddObject(1, *handler1), MM::ExecuteResult::SUCCESS);
-  EXPECT_EQ(list_data.AddObject(1, *handler1), MM::ExecuteResult::SUCCESS);
+  auto handler1 = list_data.AddObject(1).Exception();
+  EXPECT_EQ(handler1.Success(), true);
+  handler1 = list_data.AddObject(1).Exception();
+  EXPECT_EQ(handler1.Success(), true);
   ASSERT_EQ(list_data.GetSize(), 1);
-  EXPECT_EQ(list_data.GetUseCount(1, handler1->GetUseCountPtr()), 1);
-  EXPECT_EQ(handler1->GetUseCount(), 1);
-  EXPECT_EQ(list_data.AddObject(1, *handler2), MM::ExecuteResult::SUCCESS);
+  EXPECT_EQ(list_data.GetUseCount(1, handler1.GetResult().GetUseCountPtr()), 1);
+  EXPECT_EQ(handler1.GetResult().GetUseCount(), 1);
+  auto handler2 = list_data.AddObject(1).Exception();
+  EXPECT_EQ(handler2.Success(), true);
   EXPECT_EQ(list_data.GetSize(), 2);
-  *handler3 = *handler1;
-  std::vector<std::uint32_t> use_count;
-  list_data.GetUseCount(1, use_count);
-  EXPECT_EQ(use_count.size(), 2);
+  auto handler3 = handler1.GetResult();
+  auto use_count =
+      list_data.GetUseCount(1, MM::st_get_multiply_object).Exception();
+  EXPECT_EQ(use_count.Success(), true);
+  EXPECT_EQ(use_count.GetResult().size(), 2);
   EXPECT_EQ(list_data.GetSize(), 2);
   std::vector<MM::Manager::ManagedObjectList<int>::HandlerType> handlers;
   for (int i = 0; i != 100; ++i) {
-    MM::Manager::ManagedObjectList<int>::HandlerType new_handler;
     int temp = i;
-    EXPECT_EQ(list_data.AddObject(std::move(temp), new_handler),
-              MM::ExecuteResult::SUCCESS);
-    handlers.emplace_back(std::move(new_handler));
+    auto new_handler = list_data.AddObject(std::move(temp)).Exception();
+    EXPECT_EQ(new_handler.Success(), true);
+    handlers.emplace_back(std::move(new_handler.GetResult()));
   }
   EXPECT_EQ(list_data.GetSize(), 102);
   handlers.clear();
   EXPECT_EQ(list_data.GetSize(), 2);
-  delete handler1;
-  delete handler2;
-  delete handler3;
 }
 
 #define COUNT_SIZE 1000
@@ -53,11 +47,10 @@ void InsertObject2(
     MM::Manager::ManagedObjectList<int>& list_manager,
     std::vector<MM::Manager::ManagedObjectList<int>::HandlerType>& handlers) {
   for (int i = 0; i < COUNT_SIZE; ++i) {
-    MM::Manager::ManagedObjectList<int>::HandlerType handler;
     int temp = i;
-    EXPECT_EQ(list_manager.AddObject(std::move(temp), handler),
-              MM::ExecuteResult::SUCCESS);
-    handlers.emplace_back(std::move(handler));
+    auto handler = list_manager.AddObject(std::move(temp)).Exception();
+    EXPECT_EQ(handler.Success(), true);
+    handlers.emplace_back(std::move(handler.GetResult()));
   }
 }
 
@@ -107,9 +100,4 @@ TEST(manager, list_thread) {
 
   EXPECT_EQ(list_manager2.GetSize(), 0);
   EXPECT_EQ(list_manager.GetSize(), 0);
-
-  for (auto& handler : list_manager2.GetContainer()) {
-    std::cout << "value:" << handler.GetObject() << '\t'
-              << "use_count:" << handler.GetUseCount() << std::endl;
-  }
 }
