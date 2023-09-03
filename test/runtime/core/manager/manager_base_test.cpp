@@ -31,41 +31,42 @@ TEST(manager, manager_base) {
     StringManager& operator=(StringManager& other) = delete;
 
    public:
-    MM::ExecuteResult AddObject(TestString&& object, HandlerType& handler) {
-      return AddObjectBase(std::move(object), handler);
+    MM::Result<HandlerType, MM::ErrorResult> AddObject(TestString&& object) {
+      return AddObjectBase(std::move(object));
     }
 
-    MM::ExecuteResult GetObjectByID(MM::Manager::ManagedObjectID object_id,
-                                    HandlerType& handler) const {
-      return GetObjectByIDBase(object_id, handler);
+    MM::Result<HandlerType, MM::ErrorResult> GetObjectByID(
+        MM::Manager::ManagedObjectID object_id) const {
+      return GetObjectByIDBase(object_id);
     }
 
-    MM::ExecuteResult GetObjectByName(
-        const std::string& object_name,
-        std::vector<HandlerType>& handlers) const {
-      return GetObjectByNameBase(object_name, handlers);
+    MM::Result<std::vector<HandlerType>, MM::ErrorResult> GetObjectByName(
+        const std::string& object_name) const {
+      return GetObjectByNameBase(object_name);
     }
   };
 
   StringManager manager;
 
-  StringManager::HandlerType handler1, handler2, handler3, handler4, handler5;
-  std::vector<StringManager::HandlerType> handlers1, handlers2, handlers3,
-      handlers4;
   MM::Manager::ManagedObjectID ID1, ID2;
-  std::vector<MM::Manager::ManagedObjectID> IDs1, IDs2, IDs3, IDs4;
 
   ASSERT_EQ(manager.Have(ID1), false);
   ASSERT_EQ(manager.Count(ID1), 0);
-  ASSERT_EQ(manager.GetObjectByID(ID2, handler1),
-            MM::ExecuteResult::PARENT_OBJECT_NOT_CONTAIN_SPECIFIC_CHILD_OBJECT);
-  ASSERT_EQ(handler1.IsValid(), false);
-  ASSERT_EQ(manager.GetIDsByName("Test", IDs1),
-            MM::ExecuteResult::PARENT_OBJECT_NOT_CONTAIN_SPECIFIC_CHILD_OBJECT);
-  ASSERT_EQ(IDs1.empty(), true);
-  ASSERT_EQ(manager.GetObjectByName("Test", handlers1),
-            MM::ExecuteResult::PARENT_OBJECT_NOT_CONTAIN_SPECIFIC_CHILD_OBJECT);
-  ASSERT_EQ(handlers1.empty(), true);
+  auto handler1 = manager.GetObjectByID(ID2).Exception();
+  ASSERT_EQ(handler1.Success(), false);
+  ASSERT_EQ(handler1.GetError().GetErrorCode(),
+            MM::ErrorCode::PARENT_OBJECT_NOT_CONTAIN_SPECIFIC_CHILD_OBJECT);
+  ASSERT_EQ(handler1.GetResult().IsValid(), false);
+  auto IDs1 = manager.GetIDsByName("Test").Exception();
+  ASSERT_EQ(IDs1.Success(), false);
+  ASSERT_EQ(IDs1.GetError().GetErrorCode(),
+            MM::ErrorCode::PARENT_OBJECT_NOT_CONTAIN_SPECIFIC_CHILD_OBJECT);
+  ASSERT_EQ(IDs1.GetResult().empty(), true);
+  auto handlers1 = manager.GetObjectByName("Test").Exception();
+  ASSERT_EQ(handlers1.Success(), false);
+  ASSERT_EQ(handlers1.GetError().GetErrorCode(),
+            MM::ErrorCode::PARENT_OBJECT_NOT_CONTAIN_SPECIFIC_CHILD_OBJECT);
+  ASSERT_EQ(handlers1.GetResult().empty(), true);
 
   ASSERT_EQ(manager.AddObject(TestString{"TestString1"}, handler1),
             MM::ExecuteResult::SUCCESS);

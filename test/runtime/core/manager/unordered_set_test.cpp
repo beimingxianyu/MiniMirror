@@ -166,7 +166,7 @@ TEST(manager, unorderd_multiset) {
   auto use_counts2 =
       multi_set_data1.GetUseCount(std::string("2"), MM::st_get_multiply_object);
   ASSERT_EQ(use_counts2.Success(), true);
-  ASSERT_EQ(use_counts2.size(), 1);
+  ASSERT_EQ(use_counts2.GetResult().size(), 1);
 
   multi_set_data2 = std::move(multi_set_data1);
   ASSERT_EQ(multi_set_data1.GetSize(), 0);
@@ -186,8 +186,8 @@ TEST(manager, unorderd_multiset) {
       multi_set_data2.GetUseCount(std::string("1"), MM::st_get_multiply_object);
   auto use_counts4 =
       multi_set_data2.GetUseCount(std::string("2"), MM::st_get_multiply_object);
-  ASSERT_EQ(use_counts3.size(), 2);
-  ASSERT_EQ(use_counts4.size(), 1);
+  ASSERT_EQ(use_counts3.GetResult().size(), 2);
+  ASSERT_EQ(use_counts4.GetResult().size(), 1);
   ASSERT_EQ(multi_set_data1.GetSize(), 0);
   ASSERT_EQ(multi_set_data2.GetSize(), 3);
 

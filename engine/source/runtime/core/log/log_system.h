@@ -91,8 +91,8 @@ class LogSystem {
     throw std::runtime_error(format_str);
   }
 
-  void CheckResult(ExecuteResult result, const std::string& description,
-                            LogLevel log_level = LogLevel::ERROR) const;
+  void CheckResult(MM::ErrorCode result, const std::string& description,
+                   LogLevel log_level = LogLevel::ERROR) const;
 
  private:
   /**
