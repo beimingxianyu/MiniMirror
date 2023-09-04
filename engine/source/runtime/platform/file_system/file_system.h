@@ -188,11 +188,9 @@ class FileSystem {
   /**
    * \brief Get the size of the directory.
    * \param dir_path The directory of you want get size.
-   * \param directory_size The size of the directory.
-   * \return Return error code.
+   * \return Return directory size or error.
    */
-  Result<Nil, ErrorResult> DirectorySize(const Path& dir_path,
-                              std::size_t& directory_size) const;
+  Result<std::size_t, ErrorResult> DirectorySize(const Path& dir_path) const;
 
   /**
    * \brief Create directory.
@@ -236,10 +234,9 @@ class FileSystem {
     /**
      * \brief Get all directory paths under the specified path.
      * \param dir_path The path you want to check.
-     * \param directories The result.
-     * \return Return error code.
+     * \return Return directories or error.
      */
-    Result<Nil, ErrorResult> GetDirectories(const Path &dir_path,
+    Result<std::vector<Path>, ErrorResult> GetDirectories(const Path &dir_path,
                                             std::vector<Path> &directories) const;
 
     /**
@@ -292,10 +289,9 @@ class FileSystem {
     /**
      * \brief Get all file paths under the specified path.
      * \param dir_path The path you want to check.
-     * \param files All file paths under the specified path.
-     * \return Return error code.
+     * \return Return files or error.
      */
-    Result<Nil, ErrorResult> GetFiles(const Path &dir_path, std::vector<Path> &files) const;
+    Result<std::vector<Path>, ErrorResult> GetFiles(const Path &dir_path) const;
 
     /**
      * \brief Create file or directory.
