@@ -72,67 +72,67 @@ void MM::LogSystem::LogSystem::CheckResult(MM::ErrorCode result,
       Log(log_level, std::string("[Undefined error]    ") + description);
       break;
     case ErrorCode::OUT_OF_HOST_MEMORY:
-      Log(log_level, "[Out of host memory]    " + description);
+      Log(log_level, "[Out of host memory] " + description);
       break;
     case ErrorCode::OUT_OF_DEVICE_MEMORY:
-      Log(log_level, "[Out of device memory]    " + description);
+      Log(log_level, "[Out of device memory] " + description);
       break;
     case ErrorCode::OBJECT_IS_INVALID:
-      Log(log_level, "[Object is invalid]    " + description);
+      Log(log_level, "[Object is invalid] " + description);
       break;
     case ErrorCode::NO_SUCH_CONFIG:
-      Log(log_level, "[The desired setting does not exist]    " + description);
+      Log(log_level, "[The desired setting does not exist] " + description);
       break;
     case ErrorCode::TYPE_CONVERSION_FAILED:
-      Log(log_level, "[Type conversion failed]    " + description);
+      Log(log_level, "[Type conversion failed] " + description);
       break;
       //    case ErrorCode::INITIALIZATION_FAILED:
     case ErrorCode::CREATE_OBJECT_FAILED:
-      Log(log_level, "[Create object/initialization failed]    " + description);
+      Log(log_level, "[Create object/initialization failed] " + description);
       break;
     case ErrorCode::LOAD_CONFIG_FROM_FILE_FAILED:
-      Log(log_level, "[Failed to load config from file]    " + description);
+      Log(log_level, "[Failed to load config from file] " + description);
       break;
     case ErrorCode::FILE_IS_NOT_EXIST:
-      Log(log_level, "[File is not exist]    " + description);
+      Log(log_level, "[File is not exist] " + description);
       break;
     case ErrorCode::DESTROY_FAILED:
-      Log(log_level, "[Failed to destroy object]    " + description);
+      Log(log_level, "[Failed to destroy object] " + description);
       break;
     case ErrorCode::PARENT_OBJECT_NOT_CONTAIN_SPECIFIC_CHILD_OBJECT:
       Log(log_level,
-          "[The parent object does not contain specific child objects]    " +
+          "[The parent object does not contain specific child objects] " +
               description);
       break;
     case ErrorCode::RENDER_COMMAND_RECORD_OR_SUBMIT_FAILED:
       Log(log_level,
-          "[Failed to submit or record render command]    " + description);
+          "[Failed to submit or record render command] " + description);
       break;
     case ErrorCode::INPUT_PARAMETERS_ARE_INCORRECT:
-      Log(log_level, "[The input parameters are incorrect]    " + description);
+      Log(log_level, "[The input parameters are incorrect] " + description);
       break;
     case ErrorCode::TIMEOUT:
-      Log(log_level, "[The operation timed out]    " + description);
+      Log(log_level, "[The operation timed out] " + description);
       break;
     case ErrorCode::OPERATION_NOT_SUPPORTED:
       Log(log_level,
-          "[An unsupported operation was performed]    " + description);
+          "[An unsupported operation was performed] " + description);
       break;
     case ErrorCode::INPUT_PARAMETERS_ARE_NOT_SUITABLE:
       Log(log_level,
-          "[The input parameters are not suitable]    " + description);
+          "[The input parameters are not suitable] " + description);
       break;
     case ErrorCode::FILE_OPERATION_ERROR:
-      Log(log_level, "[File operation error]    " + description);
+      Log(log_level, "[File operation error] " + description);
       break;
     case ErrorCode::SYNCHRONIZE_FAILED:
-      Log(log_level, "[Synchronize failed]    " + description);
+      Log(log_level, "[Synchronize failed] " + description);
       break;
     case ErrorCode::NO_AVAILABLE_ELEMENT:
-      Log(log_level, "[No available element]    " + description);
+      Log(log_level, "[No available element] " + description);
       break;
     case ErrorCode::CUSTOM_ERROR:
-      Log(log_level, "[Custom error]    " + description);
+      Log(log_level, "[Custom error] " + description);
       break;
   }
 }

@@ -143,8 +143,9 @@ class ManagerBaseImp {
     return GetNameByIDImp(managed_object_ID, ManagedTypeIsSmartPointType{});
   }
 
-  Result<std::vector<ManagedObjectID>, ErrorResult> GetIDsByName(
-      const std::string& object_name) const {
+  Result<std::vector<ManagedObjectID>, ErrorResult> GetIDByName(
+      const std::string& object_name,
+      MM::StaticTrait::GetMultiplyObject) const {
     auto name_to_ID_handlers =
         name_to_ID_container_.GetObject(object_name, st_get_multiply_object)
             .Exception();
@@ -162,6 +163,26 @@ class ManagerBaseImp {
 
     return Result<std::vector<ManagedObjectID>, ErrorResult>(st_execute_success,
                                                              std::move(IDs));
+  }
+
+ Result<ManagedObjectID, ErrorResult> GetIDByName(
+      const std::string& object_name,
+      MM::StaticTrait::GetOneObject) const {
+    auto name_to_ID_handler =
+        name_to_ID_container_.GetObject(object_name, st_get_one_object)
+            .Exception();
+      if (!name_to_ID_handler.Success()) {
+        return Result<ManagedObjectID, ErrorResult>(
+            st_execute_error,
+            ErrorCode::PARENT_OBJECT_NOT_CONTAIN_SPECIFIC_CHILD_OBJECT);
+      }
+
+    return Result<ManagedObjectID, ErrorResult>(st_execute_success, name_to_ID_handler.GetResult().GetObject());
+ }
+
+  Result<ManagedObjectID, ErrorResult> GetIDByName(
+      const std::string& object_name) const {
+    return GetIDByName(object_name, MM::st_get_one_object);
   }
 
   void Reserve(std::uint64_t name_to_ID_size, std::uint64_t ID_to_object_size) {
@@ -185,8 +206,31 @@ class ManagerBaseImp {
     return GetObjectByIDBaseImp(object_ID, ManagedTypeIsSmartPointType{});
   }
 
-  Result<std::vector<HandlerType>, ErrorResult> GetObjectByNameBase(
-      const std::string& object_name) const {
+  Result<HandlerType, ErrorResult> GetObjectByNameBase(
+      const std::string& object_name, StaticTrait::GetOneObject) const {
+    auto name_ID_handler =
+        name_to_ID_container_.GetObject(object_name, st_get_one_object)
+            .Exception();
+    if (!name_ID_handler.Success()) {
+      return Result<std::vector<HandlerType>, ErrorResult>(
+          st_execute_error,
+          ErrorCode::PARENT_OBJECT_NOT_CONTAIN_SPECIFIC_CHILD_OBJECT);
+    }
+
+    auto id_object_handler =
+        ID_to_object_container_.GetObject(name_ID_handler.GetResult().GetObject())
+            .Exception();
+    if (!id_object_handler.Success()) {
+      return Result<std::vector<HandlerType>, ErrorResult>(
+          st_execute_error,
+          ErrorCode::PARENT_OBJECT_NOT_CONTAIN_SPECIFIC_CHILD_OBJECT);
+    }
+
+    return Result<HandlerType, ErrorResult>(st_execute_success,
+                                            HandlerType{std::move(name_ID_handler), std::move(id_object_handler)});
+  }
+
+  Result<std::vector<HandlerType>, ErrorResult> GetObjectByNameBase(const std::string& object_name, StaticTrait::GetMultiplyObject) const {
     auto name_ID_handlers =
         name_to_ID_container_.GetObject(object_name, st_get_multiply_object)
             .Exception();
@@ -217,6 +261,10 @@ class ManagerBaseImp {
 
     return Result<std::vector<HandlerType>, ErrorResult>(st_execute_success,
                                                          std::move(handlers));
+  }
+
+  Result<HandlerType, ErrorResult> GetObjectByNameBase(const std::string& object_name) const {
+    return GetObjectByNameBase(object_name, MM::st_get_one_object);
   }
 
   //  ExecuteResult GetLightCopyBase(const std::string& new_object_name,

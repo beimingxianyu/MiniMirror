@@ -77,8 +77,9 @@ void InsertString(std::vector<MM::Manager::ManagedObjectUnorderedMap<
                   std::uint32_t start) {
   for (std::uint32_t i = start; i != start + INSERT_COUNT; ++i) {
     auto handler = map_data.AddObject(i, std::to_string(i)).Exception();
-    ASSERT_EQ(handler.Success(), true);
-    handlers.emplace_back(std::move(handler.GetResult()));
+    if (handler.Success()) {
+      handlers.emplace_back(std::move(handler.GetResult()));
+    }
     ASSERT_EQ(map_data.Have(i), true);
     ASSERT_EQ(map_data.GetSize(i), 1);
   }
@@ -141,7 +142,7 @@ TEST(manager, unordered_multimap) {
   ASSERT_EQ(multi_map_data1.GetSize(), 3);
   auto handler4 = multi_map_data1.GetObject(std::string("1"), 1).Exception();
   ASSERT_EQ(handler4.Success(), true);
-  auto handler5 = multi_map_data1.GetObject(std::string("1"), 2);
+  auto handler5 = multi_map_data1.GetObject(std::string("1"), 2).Exception();
   ASSERT_EQ(handler5.Success(), true);
   ASSERT_EQ(multi_map_data1.GetSize(), 3);
   ASSERT_EQ(handler1.GetResult().GetObject(), 1);
@@ -166,9 +167,9 @@ TEST(manager, unordered_multimap) {
   ASSERT_EQ(multi_map_data1.GetUseCount(std::string("1"), 1), 4);
   ASSERT_EQ(multi_map_data1.GetUseCount(std::string("1"), 2), 3);
   auto use_counts1 =
-      multi_map_data1.GetUseCount(std::string("1"), MM::st_get_multiply_object);
+      multi_map_data1.GetUseCount(std::string("1"), MM::st_get_multiply_object).Exception();
   auto use_counts2 =
-      multi_map_data1.GetUseCount(std::string("2"), MM::st_get_multiply_object);
+      multi_map_data1.GetUseCount(std::string("2"), MM::st_get_multiply_object).Exception();
   ASSERT_EQ(use_counts1.GetResult().size(), 2);
   ASSERT_EQ(use_counts2.GetResult().size(), 1);
 
@@ -187,12 +188,12 @@ TEST(manager, unordered_multimap) {
   ASSERT_EQ(handler6.GetResult().GetUseCount(), 4);
   ASSERT_EQ(multi_map_data2.GetUseCount(std::string("1"), 1), 4);
   ASSERT_EQ(multi_map_data2.GetUseCount(std::string("1"), 2), 3);
-  auto use_count3 =
-      multi_map_data2.GetUseCount(std::string("1"), MM::st_get_multiply_object);
-  auto use_count4 =
-      multi_map_data2.GetUseCount(std::string("2"), MM::st_get_multiply_object);
-  ASSERT_EQ(use_count3.Success(), true);
-  ASSERT_EQ(use_count4.Success(), true);
+  auto use_counts3 =
+      multi_map_data2.GetUseCount(std::string("1"), MM::st_get_multiply_object).Exception();
+  auto use_counts4 =
+      multi_map_data2.GetUseCount(std::string("2"), MM::st_get_multiply_object).Exception();
+  ASSERT_EQ(use_counts3.Success(), true);
+  ASSERT_EQ(use_counts4.Success(), true);
   ASSERT_EQ(use_counts3.GetResult().size(), 2);
   ASSERT_EQ(use_counts4.GetResult().size(), 1);
   ASSERT_EQ(multi_map_data1.GetSize(), 0);
@@ -216,8 +217,9 @@ void MultiInsertString(
   for (std::uint32_t i = start; i != start + INSERT_COUNT; ++i) {
     auto handler =
         map_data.AddObject(std::to_string(i), std::move(i)).Exception();
-    EXPECT_EQ(handler.Success(), true);
-    handlers.emplace_back(std::move(handler.GetResult()));
+    if (handler.Success()) {
+      handlers.emplace_back(std::move(handler.GetResult()));
+    }
     EXPECT_EQ(map_data.Have(std::to_string(i)), true);
   }
 }

@@ -495,7 +495,7 @@ class ManagedObjectUnorderedMultiSet
     return result;
   }
 
-  MM::Result<HandlerType, ErrorResult> GetObject(const ObjectType& key) const {
+  MM::Result<HandlerType, ErrorResult> GetObject(const ObjectType& key, StaticTrait::GetOneObject) const {
     if (!ThisType::TestMovedWhenGetObject()) {
       return Result<HandlerType, ErrorResult>(st_execute_error,
                                               ErrorCode::OBJECT_IS_INVALID);
@@ -516,6 +516,10 @@ class ManagedObjectUnorderedMultiSet
     return Result<HandlerType, ErrorResult>(
         st_execute_success, BaseType ::GetThisPtrPtr(),
         const_cast<ObjectType*>(iter->GetObjectPtr()), iter->GetUseCountPtr());
+  }
+
+  MM::Result<HandlerType, ErrorResult> GetObject(const ObjectType& key) const {
+      return GetObject(key, st_get_one_object);
   }
 
   MM::Result<HandlerType, ErrorResult> GetObject(
@@ -592,7 +596,7 @@ class ManagedObjectUnorderedMultiSet
                                                          std::move(handlers));
   }
 
-  std::uint32_t GetUseCount(const ObjectType& key) const {
+  std::uint32_t GetUseCount(const ObjectType& key, StaticTrait::GetOneObject) const {
     if (!ThisType::TestMovedWhenGetUseCount()) {
       return 0;
     }
@@ -614,6 +618,10 @@ class ManagedObjectUnorderedMultiSet
     }
 
     return iter->GetUseCount();
+  }
+
+  std::uint32_t GetUseCount(const ObjectType& key) const {
+      return GetUseCount(key, st_get_one_object);
   }
 
   Result<std::vector<std::uint32_t>, ErrorResult> GetUseCount(

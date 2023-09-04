@@ -100,12 +100,16 @@ class ManagedObjectMultiSet
 
   Result<HandlerType, ErrorResult> AddObject(ObjectType&& managed_object);
 
+  Result<HandlerType, ErrorResult> GetObject(const ObjectType& key, StaticTrait::GetOneObject) const;
+
   Result<HandlerType, ErrorResult> GetObject(const ObjectType& key) const;
 
   Result<HandlerType, ErrorResult> GetObject(const ObjectType& key,
                           const std::atomic_uint32_t* use_count_ptr) const;
 
   Result<std::vector<HandlerType>, ErrorResult> GetObject(const ObjectType& key, StaticTrait::GetMultiplyObject) const;
+
+  std::uint32_t GetUseCount(const ObjectType& key, StaticTrait::GetOneObject) const;
 
   std::uint32_t GetUseCount(const ObjectType& key) const;
 
@@ -123,6 +127,45 @@ class ManagedObjectMultiSet
   ContainerType data_{};
   mutable std::shared_mutex data_mutex_{};
 };
+
+template <typename ObjectType, typename Less, typename Allocator>
+std::uint32_t ManagedObjectMultiSet<ObjectType, Less, Allocator>::GetUseCount(
+    const ObjectType& key, StaticTrait::GetOneObject) const {
+  if (!ThisType::TestMovedWhenGetUseCount()) {
+    return 0;
+  }
+
+  std::shared_lock<std::shared_mutex> guard{data_mutex_};
+
+  std::pair<typename ContainerType::iterator, typename ContainerType::iterator>
+      equal_range = data_.equal_range(key);
+  if (equal_range.first == equal_range.second) {
+    return 0;
+  }
+
+  return equal_range.first->GetUseCount();
+}
+
+template <typename ObjectType, typename Less, typename Allocator>
+Result<typename ManagedObjectMultiSet<ObjectType, Less, Allocator>::HandlerType, ErrorResult>
+ManagedObjectMultiSet<ObjectType, Less, Allocator>::GetObject(
+    const ObjectType& key, StaticTrait::GetOneObject) const {
+  if (!ThisType::TestMovedWhenGetObject()) {
+    return Result<HandlerType, ErrorResult>(st_execute_error, ErrorCode::OBJECT_IS_INVALID);
+  }
+
+  std::shared_lock<std::shared_mutex> guard{data_mutex_};
+
+  std::pair<typename ContainerType::iterator, typename ContainerType::iterator>
+      equal_range = data_.equal_range(key);
+  if (equal_range.first == equal_range.second) {
+    return Result<HandlerType, ErrorResult>(st_execute_error, ErrorCode::PARENT_OBJECT_NOT_CONTAIN_SPECIFIC_CHILD_OBJECT);
+  }
+
+  return Result<HandlerType, ErrorResult>(st_execute_success, BaseType ::GetThisPtrPtr(),
+                                          const_cast<ObjectType*>(equal_range.first->GetObjectPtr()),
+                                          equal_range.first->GetUseCountPtr());
+}
 
 template <typename ObjectType, typename Less, typename Allocator>
 ManagedObjectMultiSet<ObjectType, Less, Allocator>::~ManagedObjectMultiSet() {
@@ -194,19 +237,7 @@ std::uint32_t ManagedObjectMultiSet<ObjectType, Less, Allocator>::GetUseCount(
 template <typename ObjectType, typename Less, typename Allocator>
 std::uint32_t ManagedObjectMultiSet<ObjectType, Less, Allocator>::GetUseCount(
     const ObjectType& key) const {
-  if (!ThisType::TestMovedWhenGetUseCount()) {
-    return 0;
-  }
-
-  std::shared_lock<std::shared_mutex> guard{data_mutex_};
-
-  std::pair<typename ContainerType::iterator, typename ContainerType::iterator>
-      equal_range = data_.equal_range(key);
-  if (equal_range.first == equal_range.second) {
-    return 0;
-  }
-
-  return equal_range.first->GetUseCount();
+  return GetUseCount(key, st_get_one_object);
 }
 
 template <typename ObjectType, typename Less, typename Allocator>
@@ -294,7 +325,7 @@ ManagedObjectMultiSet<ObjectType, Less, Allocator>::RemoveObjectImp(
     const std::atomic_uint32_t* use_count_ptr, ListTrait) {
   std::unique_lock<std::shared_mutex> guard{data_mutex_};
   if (ThisType::this_ptr_ptr_ == nullptr) {
-    return Result<Nil, ErrorResult>(st_execute_error, ErrorCode::OBJECT_IS_INVALID);
+    return Result<Nil, ErrorResult>(st_execute_error, ErrorCode::CUSTOM_ERROR);
   }
 
   std::pair<typename ContainerType::iterator, typename ContainerType::iterator>
@@ -321,21 +352,7 @@ template <typename ObjectType, typename Less, typename Allocator>
 MM::Result<typename ManagedObjectMultiSet<ObjectType, Less, Allocator>::HandlerType, ErrorResult>
 ManagedObjectMultiSet<ObjectType, Less, Allocator>::GetObject(
     const ObjectType& key) const {
-  if (!ThisType::TestMovedWhenGetObject()) {
-      return Result<HandlerType, ErrorResult>(st_execute_error, ErrorCode::OBJECT_IS_INVALID);
-  }
-
-  std::shared_lock<std::shared_mutex> guard{data_mutex_};
-
-  std::pair<typename ContainerType::iterator, typename ContainerType::iterator>
-      equal_range = data_.equal_range(key);
-  if (equal_range.first == equal_range.second) {
-      return Result<HandlerType, ErrorResult>(st_execute_error, ErrorCode::PARENT_OBJECT_NOT_CONTAIN_SPECIFIC_CHILD_OBJECT);
-  }
-
-return Result<HandlerType, ErrorResult>(st_execute_success, BaseType ::GetThisPtrPtr(),
-                                        const_cast<ObjectType*>(equal_range.first->GetObjectPtr()),
-                                        equal_range.first->GetUseCountPtr());
+    return GetObject(key, st_get_one_object);
 }
 
 template <typename ObjectType, typename Less, typename Allocator>

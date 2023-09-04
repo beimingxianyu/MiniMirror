@@ -241,7 +241,7 @@ TEST(Utils, HashTable_multi_map) {
   ASSERT_EQ(concurrent_multi_map.Erase(&(insert_result.first)).Exception().Success(),
             true);
   std::pair<const std::string, TestClass>* null_ptr = nullptr;
-  ASSERT_EQ(concurrent_multi_map.Erase(null_ptr).GetError(), MM::ErrorResult(MM::ErrorCode::INPUT_PARAMETERS_ARE_NOT_SUITABLE));
+  ASSERT_EQ(concurrent_multi_map.Erase(null_ptr).Exception().GetError(), MM::ErrorResult(MM::ErrorCode::INPUT_PARAMETERS_ARE_NOT_SUITABLE));
 
   for (std::uint64_t i = 0; i != 100; ++i) {
     ASSERT_EQ(concurrent_multi_map.Erase(std::to_string(i)), i + 1);

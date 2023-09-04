@@ -35,7 +35,9 @@ class ManagedObjectHandler<ManagedType, ManagedType, ListTrait> {
       : object_table_(other.object_table_),
         managed_object_(other.managed_object_),
         use_count_(other.use_count_) {
-    use_count_->fetch_add(1, std::memory_order_acq_rel);
+    if (IsValid()) {
+      use_count_->fetch_add(1, std::memory_order_acq_rel);
+    }
   }
   ManagedObjectHandler(ManagedObjectHandler&& other) noexcept
       : object_table_(other.object_table_),
@@ -54,7 +56,9 @@ class ManagedObjectHandler<ManagedType, ManagedType, ListTrait> {
       Release();
     }
 
-    other.use_count_->fetch_add(1, std::memory_order_acq_rel);
+    if (other.IsValid()) {
+      other.use_count_->fetch_add(1, std::memory_order_acq_rel);
+    }
 
     object_table_ = other.object_table_;
     managed_object_ = other.managed_object_;
@@ -164,13 +168,16 @@ class ManagedObjectHandler<ManagedType, ManagedType, SetTrait> {
       : object_table_(object_table),
         managed_object_(managed_object),
         use_count_(use_count) {
+    assert(object_table_ != nullptr && managed_object_ != nullptr && use_count_ != nullptr);
     use_count_->fetch_add(1, std::memory_order_acq_rel);
   }
   ManagedObjectHandler(const ManagedObjectHandler& other)
       : object_table_(other.object_table_),
         managed_object_(other.managed_object_),
         use_count_(other.use_count_) {
-    use_count_->fetch_add(1, std::memory_order_acq_rel);
+    if (IsValid()) {
+      use_count_->fetch_add(1, std::memory_order_acq_rel);
+    }
   }
   ManagedObjectHandler(ManagedObjectHandler&& other) noexcept
       : object_table_(other.object_table_),
@@ -189,7 +196,9 @@ class ManagedObjectHandler<ManagedType, ManagedType, SetTrait> {
       Release();
     }
 
-    other.use_count_->fetch_add(1, std::memory_order_acq_rel);
+    if (other.IsValid()) {
+      other.use_count_->fetch_add(1, std::memory_order_acq_rel);
+    }
 
     object_table_ = other.object_table_;
     managed_object_ = other.managed_object_;
@@ -320,13 +329,16 @@ class ManagedObjectHandler<ManagedType, ManagedType, HashSetTrait> {
       : object_table_(object_table),
         managed_object_(managed_object),
         use_count_(use_count) {
+    assert(object_table_ != nullptr && managed_object_ != nullptr && use_count_ != nullptr);
     use_count_->fetch_add(1, std::memory_order_acq_rel);
   }
   ManagedObjectHandler(const ManagedObjectHandler& other)
       : object_table_(other.object_table_),
         managed_object_(other.managed_object_),
         use_count_(other.use_count_) {
-    use_count_->fetch_add(1, std::memory_order_acq_rel);
+    if (IsValid()) {
+      use_count_->fetch_add(1, std::memory_order_acq_rel);
+    }
   }
   ManagedObjectHandler(ManagedObjectHandler&& other) noexcept
       : object_table_(other.object_table_),
@@ -345,7 +357,9 @@ class ManagedObjectHandler<ManagedType, ManagedType, HashSetTrait> {
       Release();
     }
 
-    other.use_count_->fetch_add(1, std::memory_order_acq_rel);
+    if (other.IsValid()) {
+      other.use_count_->fetch_add(1, std::memory_order_acq_rel);
+    }
 
     object_table_ = other.object_table_;
     managed_object_ = other.managed_object_;
@@ -479,6 +493,7 @@ class ManagedObjectHandler<KeyType, ManagedType, MapTrait> {
         key_(key),
         managed_object_(managed_object),
         use_count_(use_count) {
+    assert(object_table_ != nullptr && key_ != nullptr && managed_object_ != nullptr && use_count_ != nullptr);
     use_count_->fetch_add(1, std::memory_order_acq_rel);
   }
   ManagedObjectHandler(const ManagedObjectHandler& other)
@@ -486,7 +501,9 @@ class ManagedObjectHandler<KeyType, ManagedType, MapTrait> {
         key_(other.key_),
         managed_object_(other.managed_object_),
         use_count_(other.use_count_) {
-    use_count_->fetch_add(1, std::memory_order_acq_rel);
+    if (IsValid()) {
+      use_count_->fetch_add(1, std::memory_order_acq_rel);
+    }
   }
   ManagedObjectHandler(ManagedObjectHandler&& other) noexcept
       : object_table_(other.object_table_),
@@ -507,7 +524,9 @@ class ManagedObjectHandler<KeyType, ManagedType, MapTrait> {
       Release();
     }
 
-    other.use_count_->fetch_add(1, std::memory_order_acq_rel);
+    if (other.IsValid()) {
+      other.use_count_->fetch_add(1, std::memory_order_acq_rel);
+    }
 
     object_table_ = other.object_table_;
     key_ = other.key_;
@@ -650,6 +669,7 @@ class ManagedObjectHandler<KeyType, ManagedType, HashMapTrait> {
         key_(key),
         managed_object_(managed_object),
         use_count_(use_count) {
+    assert(object_table != nullptr && key != nullptr && managed_object_ != nullptr && use_count_ != nullptr);
     use_count_->fetch_add(1, std::memory_order_acq_rel);
   }
   ManagedObjectHandler(const ManagedObjectHandler& other)
@@ -657,7 +677,9 @@ class ManagedObjectHandler<KeyType, ManagedType, HashMapTrait> {
         key_(other.key_),
         managed_object_(other.managed_object_),
         use_count_(other.use_count_) {
-    use_count_->fetch_add(1, std::memory_order_acq_rel);
+    if (IsValid()) {
+      use_count_->fetch_add(1, std::memory_order_acq_rel);
+    }
   }
   ManagedObjectHandler(ManagedObjectHandler&& other) noexcept
       : object_table_(other.object_table_),
@@ -678,7 +700,9 @@ class ManagedObjectHandler<KeyType, ManagedType, HashMapTrait> {
       Release();
     }
 
-    other.use_count_->fetch_add(1, std::memory_order_acq_rel);
+    if (other.IsValid()) {
+      other.use_count_->fetch_add(1, std::memory_order_acq_rel);
+    }
 
     object_table_ = other.object_table_;
     key_ = other.key_;

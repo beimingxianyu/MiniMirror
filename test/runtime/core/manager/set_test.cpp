@@ -12,7 +12,7 @@
 TEST(manager, set) {
   MM::Manager::ManagedObjectSet<int> set_manager, set_manager2;
   {
-    //    MM::Manager::ManagedObjectSet<int>::HandlerType handler;
+        MM::Manager::ManagedObjectSet<int>::HandlerType handler;
     {
       EXPECT_EQ(set_manager.GetSize(), 0);
       auto handler1 = set_manager.AddObject(10).Exception();
@@ -56,7 +56,9 @@ TEST(manager, set) {
       EXPECT_EQ(handler3.GetResult().GetUseCount(), 2);
       EXPECT_EQ(set_manager.GetUseCount(handler3.GetResult().GetObject()), 2);
 
-      auto handler = set_manager.GetObject(49).Exception();
+      auto handler_temp = set_manager.GetObject(49).Exception();
+      EXPECT_EQ(handler_temp.Success(), true);
+      handler = std::move(handler_temp.GetResult());
 
       handler3 = handler1;
 

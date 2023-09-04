@@ -497,7 +497,7 @@ class ManagedObjectUnorderedMultiMap
     return result;
   }
 
-  MM::Result<HandlerType, ErrorResult> GetObject(const KeyType& key) const {
+  MM::Result<HandlerType, ErrorResult> GetObject(const KeyType& key, MM::StaticTrait::GetOneObject) const {
     if (!ThisType::TestMovedWhenGetObject()) {
       return Result<HandlerType, ErrorResult>(st_execute_error,
                                               ErrorCode::OBJECT_IS_INVALID);
@@ -525,6 +525,10 @@ class ManagedObjectUnorderedMultiMap
         st_execute_success, BaseType::GetThisPtrPtr(), &(iter->first),
         const_cast<ValueType*>(iter->second.GetObjectPtr()),
         iter->second.GetUseCountPtr());
+  }
+
+  MM::Result<HandlerType, ErrorResult> GetObject(const KeyType& key) const {
+    return GetObject(key, MM::st_get_one_object);
   }
 
   MM::Result<HandlerType, ErrorResult> GetObject(
@@ -639,7 +643,7 @@ class ManagedObjectUnorderedMultiMap
                                                          std::move(handlers));
   }
 
-  std::uint32_t GetUseCount(const KeyType& key) const {
+  std::uint32_t GetUseCount(const KeyType& key, StaticTrait::GetOneObject) const {
     if (!ThisType::TestMovedWhenGetUseCount()) {
       return 0;
     }
@@ -660,6 +664,10 @@ class ManagedObjectUnorderedMultiMap
     }
 
     return iter->second.GetUseCount();
+  }
+
+  std::uint32_t GetUseCount(const KeyType& key) const {
+      return GetUseCount(key, st_get_one_object);
   }
 
   std::uint32_t GetUseCount(const KeyType& key, const ValueType& object) const {

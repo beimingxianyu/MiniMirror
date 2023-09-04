@@ -258,9 +258,13 @@ class Result {
       : result_wrapper_(std::move(other.result_wrapper_)) {}
   Result& operator=(const Result& other) {
     result_wrapper_ = other.result_wrapper_;
+
+    return *this;
   }
   Result& operator=(Result&& other) noexcept {
     result_wrapper_ = other.result_wrapper_;
+
+    return *this;
   }
 
  public:

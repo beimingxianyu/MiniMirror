@@ -43,6 +43,9 @@ class ManagedObjectList final
 
   Result<HandlerType, ErrorResult> AddObject(ObjectType&& managed_object);
 
+  Result<HandlerType, ErrorResult> GetObject(const ObjectType& key,
+                                             StaticTrait::GetOneObject) const;
+
   Result<HandlerType, ErrorResult> GetObject(const ObjectType& key) const;
 
   Result<HandlerType, ErrorResult> GetObject(const ObjectType& key,
@@ -52,6 +55,8 @@ class ManagedObjectList final
                                                           StaticTrait::GetMultiplyObject) const;
 
   ContainerType& GetContainer() { return data_; }
+
+  std::uint32_t GetUseCount(const ObjectType& key, StaticTrait::GetOneObject) const;
 
   std::uint32_t GetUseCount(const ObjectType& key) const;
 
@@ -70,6 +75,44 @@ class ManagedObjectList final
   std::list<ManagedObjectWrapper<ObjectType>> data_{};
   mutable std::shared_mutex data_mutex_{};
 };
+
+template <typename ObjectType, typename Equal, typename Allocator>
+std::uint32_t ManagedObjectList<ObjectType, Equal, Allocator>::GetUseCount(
+    const ObjectType& key, StaticTrait::GetOneObject) const {
+  if (!ThisType::TestMovedWhenGetUseCount()) {
+    return 0;
+  }
+
+  std::shared_lock<std::shared_mutex> guard{data_mutex_};
+
+  for (const auto& object : data_) {
+    if (Equal{}(object.GetObject(), key)) {
+      return object.GetUseCount();
+    }
+  }
+
+  return 0;
+}
+
+template <typename ObjectType, typename Equal, typename Allocator>
+Result<typename ManagedObjectList<ObjectType, Equal, Allocator>::HandlerType, ErrorResult>
+ManagedObjectList<ObjectType, Equal, Allocator>::GetObject(
+    const ObjectType& key, StaticTrait::GetOneObject) const {
+  if (!ThisType::TestMovedWhenGetObject()) {
+    return Result<HandlerType, ErrorResult>(st_execute_error, ErrorCode::OBJECT_IS_INVALID);
+  }
+
+  std::shared_lock<std::shared_mutex> guard{data_mutex_};
+  for (auto iter = data_.begin(); iter == data_.end(); ++iter) {
+    if (Equal{}(iter->GetObject(), key)) {
+      return Result<HandlerType , ErrorResult>(st_execute_success, BaseType::GetThisPtrPtr(),
+                                               const_cast<ObjectType*>(iter->GetObjectPtr()),
+                                               iter->GetUseCountPtr());
+    }
+  }
+
+  return Result<HandlerType, ErrorResult>(st_execute_error, ErrorCode::PARENT_OBJECT_NOT_CONTAIN_SPECIFIC_CHILD_OBJECT);
+}
 
 template <typename ObjectType, typename Equal, typename Allocator>
 ManagedObjectList<ObjectType, Equal, Allocator>::~ManagedObjectList() {
@@ -125,19 +168,7 @@ std::uint32_t ManagedObjectList<ObjectType, Equal, Allocator>::GetUseCount(
 template <typename ObjectType, typename Equal, typename Allocator>
 std::uint32_t ManagedObjectList<ObjectType, Equal, Allocator>::GetUseCount(
     const ObjectType& key) const {
-  if (!ThisType::TestMovedWhenGetUseCount()) {
-    return 0;
-  }
-
-  std::shared_lock<std::shared_mutex> guard{data_mutex_};
-
-  for (const auto& object : data_) {
-    if (Equal{}(object.GetObject(), key)) {
-      return object.GetUseCount();
-    }
-  }
-
-  return 0;
+  return GetUseCount(key, st_get_one_object);
 }
 
 template <typename ObjectType, typename Equal, typename Allocator>
@@ -187,20 +218,7 @@ Result<std::vector<typename ManagedObjectList<ObjectType, Equal, Allocator>::Han
 template <typename ObjectType, typename Equal, typename Allocator>
 Result<typename ManagedObjectList<ObjectType, Equal, Allocator>::HandlerType, ErrorResult> ManagedObjectList<ObjectType, Equal, Allocator>::GetObject(
     const ObjectType& key) const {
-  if (!ThisType::TestMovedWhenGetObject()) {
-      return Result<HandlerType, ErrorResult>(st_execute_error, ErrorCode::OBJECT_IS_INVALID);
-  }
-
-  std::shared_lock<std::shared_mutex> guard{data_mutex_};
-  for (auto iter = data_.begin(); iter == data_.end(); ++iter) {
-    if (Equal{}(iter->GetObject(), key)) {
-      return Result<HandlerType , ErrorResult>(st_execute_success, BaseType::GetThisPtrPtr(),
-                                               const_cast<ObjectType*>(iter->GetObjectPtr()),
-                                               iter->GetUseCountPtr());
-    }
-  }
-
-  return Result<HandlerType, ErrorResult>(st_execute_error, ErrorCode::PARENT_OBJECT_NOT_CONTAIN_SPECIFIC_CHILD_OBJECT);
+  return GetObject(key, st_get_one_object);
 }
 
 template <typename ObjectType, typename Equal, typename Allocator>

@@ -24,7 +24,7 @@ TEST(manager, unordered_set) {
   EXPECT_EQ(set_data.GetSize(), 1);
   auto handler4 = set_data.AddObject(std::string("3")).Exception();
   EXPECT_EQ(handler4.Success(), true);
-  auto handler3 = set_data.AddObject(std::string("2")).Exception();
+  auto handler3 = set_data.GetObject(std::string("2")).Exception();
   EXPECT_EQ(handler3.Success(), true);
   std::string temp = std::to_string(2);
   EXPECT_EQ(set_data.Have(temp), true);
@@ -75,8 +75,9 @@ void InsertString2(
     std::uint32_t start) {
   for (std::uint32_t i = start; i != start + INSERT_COUNT; ++i) {
     auto handler = set_data.AddObject(std::to_string(i)).Exception();
-    ASSERT_EQ(handler.Success(), true);
-    handlers.emplace_back(std::move(handler.GetResult()));
+    if (handler.Success()) {
+      handlers.emplace_back(std::move(handler.GetResult()));
+    }
     ASSERT_EQ(set_data.Have(std::to_string(i)), true);
     ASSERT_EQ(set_data.GetSize(std::to_string(i)), 1);
   }

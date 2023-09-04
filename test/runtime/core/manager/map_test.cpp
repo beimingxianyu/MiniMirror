@@ -183,7 +183,7 @@ TEST(manager, multimap) {
   ASSERT_EQ(multi_map_data2.GetSize(std::string("3")), 0);
   ASSERT_EQ(multi_map_data2.GetUseCount(std::string("1")), 4);
 
-  auto handler6 = multi_map_data2.GetObject(std::string("1"), 1).Exception();
+  handler6 = multi_map_data2.GetObject(std::string("1"), 1).Exception();
   ASSERT_EQ(handler6.Success(), true);
   ASSERT_EQ(handler6.GetResult().IsValid(), true);
   ASSERT_EQ(handler6.GetResult().GetUseCount(), 4);
