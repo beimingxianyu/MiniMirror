@@ -236,16 +236,14 @@ class FileSystem {
      * \param dir_path The path you want to check.
      * \return Return directories or error.
      */
-    Result<std::vector<Path>, ErrorResult> GetDirectories(const Path &dir_path,
-                                            std::vector<Path> &directories) const;
+    Result<std::vector<Path>, ErrorResult> GetDirectories(const Path &dir_path) const;
 
     /**
      * \brief Get the size of the file.
      * \param file_path The file of you want get size.
-     * \param file_size The result.
-     * \return The result code.
+     * \return The file size or error.
      */
-    Result<Nil, ErrorResult> FileSize(const Path &file_path, std::size_t &file_size) const;
+    Result<std::size_t , ErrorResult> FileSize(const Path &file_path) const;
 
     /**
      * \brief Create file.
@@ -342,29 +340,24 @@ class FileSystem {
     /**
      * \brief Get the size of the directory or file.
      * \param path The directory or file of you want get size.
-     * \param size The size of the directory or file.
-     * \return Return error code.
+     * \return Return size or error.
      */
-    Result<Nil, ErrorResult> Size(const Path &path, std::size_t &size) const;
+    Result<std::size_t, ErrorResult> Size(const Path &path) const;
 
     /**
      * \brief Get all file paths and directory under the specified path.
      * \param path The path you want to check.
-     * \param all_sub_path All file and directory paths under the specified path.
-     * \return Return error code.
+     * \return Return all file or error.
      */
-    Result<Nil, ErrorResult> GetAll(const Path &path, std::vector<Path> &all_sub_path) const;
+    Result<std::vector<MM::FileSystem::Path>, ErrorResult> GetAll(const Path &path) const;
 
     /**
      * \brief Get file/directory last write time.
-     * \param path The path you want to check.
-     * \return The time of the file/directory last write time.
+     * \return The time of the file/directory last write time or error.
      */
-    Result<Nil, ErrorResult> GetLastWriteTime(const Path &path,
-                                              LastWriteTime &last_write_time) const;
+    Result<LastWriteTime , ErrorResult> GetLastWriteTime(const Path &path) const;
 
-    Result<Nil, ErrorResult> ReadFile(const MM::FileSystem::Path &path,
-                                      std::vector<char> &output_data) const;
+    Result<std::vector<char>, ErrorResult> ReadFile(const MM::FileSystem::Path &path) const;
 
     const Path &GetAssetDir() const;
 

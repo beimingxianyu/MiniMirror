@@ -393,8 +393,8 @@ bool MM::FileSystem::FileSystem::DirectoryIsEmpty(const Path& dir_path) const {
   return std::filesystem::is_empty(dir_path.path_);
 }
 
-MM::Result<MM::Nil, MM::ErrorResult> MM::FileSystem::FileSystem::GetDirectories(
-    const Path& dir_path, std::vector<Path>& directories) const {
+MM::Result<std::vector<MM::FileSystem::Path>, MM::ErrorResult> MM::FileSystem::FileSystem::GetDirectories(
+    const Path& dir_path) const {
   std::error_code error_code;
 
   auto directory_or_files =
@@ -402,12 +402,13 @@ MM::Result<MM::Nil, MM::ErrorResult> MM::FileSystem::FileSystem::GetDirectories(
 
   if (error_code) {
     if (error_code.value() == 2) {
-        return Result<Nil, ErrorResult>{st_execute_error, ErrorCode::FILE_IS_NOT_EXIST};
+        return Result<std::vector<Path>, ErrorResult>{st_execute_error, ErrorCode::FILE_IS_NOT_EXIST};
     }
 
-      return Result<Nil, ErrorResult>{st_execute_error, ErrorCode::FILE_OPERATION_ERROR};
+      return Result<std::vector<Path>, ErrorResult>{st_execute_error, ErrorCode::FILE_OPERATION_ERROR};
   }
 
+  std::vector<Path> directories{};
   for (const auto& directory_or_file : directory_or_files) {
     if (directory_or_file.is_directory()) {
       directories.emplace_back(
@@ -415,23 +416,23 @@ MM::Result<MM::Nil, MM::ErrorResult> MM::FileSystem::FileSystem::GetDirectories(
     }
   }
 
-    return Result<Nil, ErrorResult>{st_execute_success};
+    return Result<std::vector<Path>, ErrorResult>{st_execute_success, std::move(directories)};
 }
 
-MM::Result<MM::Nil, MM::ErrorResult> MM::FileSystem::FileSystem::FileSize(
-    const Path& file_path, std::size_t& file_size) const {
+MM::Result<std::size_t, MM::ErrorResult> MM::FileSystem::FileSystem::FileSize(
+    const Path& file_path) const {
   std::error_code error_code;
-  file_size = std::filesystem::file_size(file_path.path_, error_code);
+  std::size_t file_size = std::filesystem::file_size(file_path.path_, error_code);
 
   if (error_code) {
     if (error_code.value() == 2) {
-        return Result<Nil, ErrorResult>{st_execute_error, ErrorCode::FILE_IS_NOT_EXIST};
+        return Result<std::size_t , ErrorResult>{st_execute_error, ErrorCode::FILE_IS_NOT_EXIST};
     }
 
-      return Result<Nil, ErrorResult>{st_execute_error, ErrorCode::FILE_OPERATION_ERROR};
+      return Result<std::size_t, ErrorResult>{st_execute_error, ErrorCode::FILE_OPERATION_ERROR};
   }
 
-    return Result<Nil, ErrorResult>{st_execute_success};
+    return Result<std::size_t, ErrorResult>{st_execute_success, file_size};
 }
 
 MM::Result<MM::Nil, MM::ErrorResult> MM::FileSystem::FileSystem::CreateFile(
@@ -568,42 +569,54 @@ bool MM::FileSystem::FileSystem::IsEmpty(const Path& path) const {
   return FileIsEmpty(path);
 }
 
-MM::Result<MM::Nil, MM::ErrorResult> MM::FileSystem::FileSystem::Size(const Path& path,
-                                                   std::size_t& size) const {
+MM::Result<std::size_t, MM::ErrorResult> MM::FileSystem::FileSystem::Size(const Path& path) const {
   if (path.IsDirectory()) {
-    return DirectorySize(path, size);
+    return DirectorySize(path);
   }
-  return FileSize(path, size);
+  return FileSize(path);
 }
 
-MM::Result<MM::Nil, MM::ErrorResult> MM::FileSystem::FileSystem::GetAll(
-    const Path& path, std::vector<Path>& sub_paths) const {
-  if (path.IsDirectory()) {
-    return GetDirectories(path, sub_paths);
-  }
-  return GetFiles(path, sub_paths);
+MM::Result<std::vector<MM::FileSystem::Path>, MM::ErrorResult> MM::FileSystem::FileSystem::GetAll(
+    const Path& path) const {
+    std::error_code error_code;
+
+    auto directory_or_files =
+            std::filesystem::recursive_directory_iterator(path.path_, error_code);
+
+    if (error_code) {
+        if (error_code.value() == 2) {
+            return Result<std::vector<Path>, ErrorResult>{st_execute_error, ErrorCode::FILE_IS_NOT_EXIST};
+        }
+
+        return Result<std::vector<Path>, ErrorResult>{st_execute_error, ErrorCode::FILE_OPERATION_ERROR};
+    }
+
+    std::vector<Path> result{};
+    for (const auto& directory_or_file : directory_or_files) {
+        if (directory_or_file.is_regular_file() || directory_or_file.is_directory()) {
+            result.emplace_back(std::filesystem::path(directory_or_file).string());
+        }
+    }
+
+    return Result<std::vector<Path>, ErrorResult>{st_execute_success, std::move(result)};
 }
 
-MM::Result<MM::Nil, MM::ErrorResult> MM::FileSystem::FileSystem::ReadFile(
-    const MM::FileSystem::Path& path, std::vector<char>& output_data) const {
-  if (!output_data.empty()) {
-      return Result<Nil, ErrorResult>{st_execute_error, ErrorCode::INPUT_PARAMETERS_ARE_NOT_SUITABLE};
-  }
-
+MM::Result<std::vector<char>, MM::ErrorResult> MM::FileSystem::FileSystem::ReadFile(
+    const MM::FileSystem::Path& path) const {
   std::ifstream file(path.CStr(), std::ios::ate | std::ios::binary);
 
   if (!file.is_open()) {
-      return Result<Nil, ErrorResult>{st_execute_error, ErrorCode::FILE_OPERATION_ERROR};
+      return Result<std::vector<char>, ErrorResult>{st_execute_error, ErrorCode::FILE_OPERATION_ERROR};
   }
 
   std::size_t file_size = static_cast<std::size_t>(file.tellg());
-  output_data.reserve(file_size);
+  std::vector<char> output_data(file_size);
   file.seekg(0);
   file.read(output_data.data(), file_size);
 
   file.close();
 
-    return Result<Nil, ErrorResult>{st_execute_success};
+  return Result<std::vector<char>, ErrorResult>{st_execute_success, std::move(output_data)};
 }
 
 bool MM::FileSystem::FileSystem::Destroy() {
@@ -700,21 +713,20 @@ MM::FileSystem::Path MM::FileSystem::Path::GetParentDirPath() const {
 
 MM::FileSystem::FileSystem::~FileSystem() { file_system_ = nullptr; }
 
-MM::Result<MM::Nil, MM::ErrorResult> MM::FileSystem::FileSystem::GetLastWriteTime(
-    const MM::FileSystem::Path& path,
-    MM::FileSystem::LastWriteTime& last_write_time) const {
+MM::Result<MM::FileSystem::LastWriteTime , MM::ErrorResult> MM::FileSystem::FileSystem::GetLastWriteTime(
+    const MM::FileSystem::Path& path) const {
   std::error_code error_code;
-  last_write_time = std::filesystem::last_write_time(path.path_, error_code);
+  LastWriteTime last_write_time = std::filesystem::last_write_time(path.path_, error_code);
 
   if (error_code) {
     if (error_code.value() == 2) {
-        return Result<Nil, ErrorResult>{st_execute_error, ErrorCode::FILE_IS_NOT_EXIST};
+        return Result<LastWriteTime, ErrorResult>{st_execute_error, ErrorCode::FILE_IS_NOT_EXIST};
     }
 
-      return Result<Nil, ErrorResult>{st_execute_error, ErrorCode::FILE_OPERATION_ERROR};
+      return Result<LastWriteTime , ErrorResult>{st_execute_error, ErrorCode::FILE_OPERATION_ERROR};
   }
 
-    return Result<Nil, ErrorResult>{st_execute_success};
+    return Result<LastWriteTime, ErrorResult>{st_execute_success, std::move(last_write_time)};
 }
 
 const MM::FileSystem::Path& MM::FileSystem::FileSystem::GetAssetDir() const {
