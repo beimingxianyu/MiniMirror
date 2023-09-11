@@ -210,6 +210,7 @@ MM::ExecuteResult MM::AssetSystem::AssetType::Mesh::GetJson(
   Utils::Json::Value bounding_box(Utils::Json::kObjectType);
 
   bounding_box_->GetJson(bounding_box, allocator);
+
   document.AddMember("bounding box", bounding_box, allocator);
 
   return ExecuteResult ::SUCCESS;

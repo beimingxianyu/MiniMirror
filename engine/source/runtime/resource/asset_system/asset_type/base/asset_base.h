@@ -43,7 +43,7 @@ class AssetBase : public Manager::ManagedObjectBase {
 
   virtual std::uint64_t GetSize() const;
 
-  virtual MM::ExecuteResult GetJson(Utils::Json::Document& document) const;
+  virtual Result<MM::Utils::Json::Document, MM::ErrorResult> GetJson() const;
 
   virtual std::vector<std::pair<void*, std::uint64_t>> GetDatas();
 

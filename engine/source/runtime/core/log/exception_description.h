@@ -50,3 +50,51 @@
         std::string("[") + function_name + "]    " + #description,                                         \
         MM::LogSystem::LogSystem::LogLevel::FATAL);                                                        \
   }
+
+#define MM_TRACE_DESCRIPTION2(description)                                                           \
+  [function_name = MM_FUNCTION_NAME, description_info = description](MM::ErrorResult error_result) { \
+    MM_LOG_SYSTEM->CheckResult(                                                                      \
+        error_result.GetErrorCode(),                                                                 \
+        std::string("[") + function_name + "]    " + description_info ,                              \
+        MM::LogSystem::LogSystem::LogLevel::TRACE);                                                  \
+  }
+
+#define MM_INFO_DESCRIPTION2(description)                                                            \
+  [function_name = MM_FUNCTION_NAME, description_info = description](MM::ErrorResult error_result) { \
+    MM_LOG_SYSTEM->CheckResult(                                                                      \
+        error_result.GetErrorCode(),                                                                 \
+        std::string("[") + function_name + "]    " + description_info ,                              \
+        MM::LogSystem::LogSystem::LogLevel::INFO);                                                   \
+  }
+
+#define MM_DEBUG_DESCRIPTION2(description)                                                           \
+  [function_name = MM_FUNCTION_NAME, description_info = description](MM::ErrorResult error_result) { \
+    MM_LOG_SYSTEM->CheckResult(                                                                      \
+        error_result.GetErrorCode(),                                                                 \
+        std::string("[") + function_name + "]    " + description_info ,                              \
+        MM::LogSystem::LogSystem::LogLevel::DEBUG);                                                  \
+  }
+
+#define MM_WRAN_DESCRIPTION2(description)                                                            \
+  [function_name = MM_FUNCTION_NAME, description_info = description](MM::ErrorResult error_result) { \
+    MM_LOG_SYSTEM->CheckResult(                                                                      \
+        error_result.GetErrorCode(),                                                                 \
+        std::string("[") + function_name + "]    " + description_info ,                              \
+        MM::LogSystem::LogSystem::LogLevel::WRAN);                                                   \
+  }
+
+#define MM_ERROR_DESCRIPTION2(description)                                                           \
+  [function_name = MM_FUNCTION_NAME, description_info = description](MM::ErrorResult error_result) { \
+    MM_LOG_SYSTEM->CheckResult(                                                                      \
+        error_result.GetErrorCode(),                                                                 \
+        std::string("[") + function_name + "]    " + description_info ,                              \
+        MM::LogSystem::LogSystem::LogLevel::ERROR);                                                  \
+  }
+
+#define MM_FATAL_DESCRIPTION2(description)                                                           \
+  [function_name = MM_FUNCTION_NAME, description_info = description](MM::ErrorResult error_result) { \
+    MM_LOG_SYSTEM->CheckResult(                                                                      \
+        error_result.GetErrorCode(),                                                                 \
+        std::string("[") + function_name + "]    " + description_info ,                              \
+        MM::LogSystem::LogSystem::LogLevel::FATAL);                                                  \
+  }

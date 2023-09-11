@@ -4,6 +4,7 @@
 #include "runtime/resource/asset_system/asset_type/base/vertex.h"
 #include "utils/Json.h"
 #include "utils/error.h"
+#include "utils/type_utils.h"
 
 namespace MM {
 namespace AssetSystem {
@@ -26,12 +27,11 @@ class BoundingBox {
 
   virtual BoundingBoxType GetBoundingType() const = 0;
 
-  virtual Utils::ExecuteResult UpdateBoundingBox(const Mesh& mesh) = 0;
+  virtual Result<Nil, ErrorResult> UpdateBoundingBox(const Mesh& mesh) = 0;
 
   virtual void UpdateBoundingBoxWithOneVertex(const Vertex& vertex) = 0;
 
-  virtual Utils::ExecuteResult GetJson(
-      Utils::Json::Value& output_json_data,
+  virtual Utils::Json::Value GetJson(
       Utils::Json::MemoryPoolAllocator<>& allocator) const;
 };
 
@@ -83,35 +83,34 @@ class RectangleBox : public BoundingBox {
 
   BoundingBoxType GetBoundingType() const override;
 
-  Utils::ExecuteResult UpdateBoundingBox(const Mesh& mesh) override;
+  Result<Nil, ErrorResult> UpdateBoundingBox(const Mesh& mesh) override;
 
   void UpdateBoundingBoxWithOneVertex(const Vertex& vertex) override;
 
-  Utils::ExecuteResult GetJson(
-      Utils::Json::Value& output_json_data,
+  Utils::Json::Value GetJson(
       Utils::Json::MemoryPoolAllocator<>& allocator) const override;
 
   friend void Swap(RectangleBox& lhs, RectangleBox& rhs) noexcept {
     using std::swap;
-    swap(lhs.left_bottom_forward, rhs.left_bottom_forward);
-    swap(lhs.right_top_back, rhs.right_top_back);
+    swap(lhs.left_bottom_forward_, rhs.left_bottom_forward_);
+    swap(lhs.right_top_back_, rhs.right_top_back_);
   }
 
   friend void swap(RectangleBox& lhs, RectangleBox& rhs) noexcept {
     using std::swap;
-    swap(lhs.left_bottom_forward, rhs.left_bottom_forward);
-    swap(lhs.right_top_back, rhs.right_top_back);
+    swap(lhs.left_bottom_forward_, rhs.left_bottom_forward_);
+    swap(lhs.right_top_back_, rhs.right_top_back_);
   }
 
  private:
   /**
    * \brief The offset value from the center of the mesh.
    */
-  Math::vec3 left_bottom_forward{MathDefinition::VEC3_ZERO};
+  Math::vec3 left_bottom_forward_{MathDefinition::VEC3_ZERO};
   /**
    * \brief The offset value from the center of the mesh.
    */
-  Math::vec3 right_top_back{MathDefinition::VEC3_ZERO};
+  Math::vec3 right_top_back_{MathDefinition::VEC3_ZERO};
 };
 
 class CapsuleBox : public BoundingBox {
@@ -142,12 +141,11 @@ class CapsuleBox : public BoundingBox {
 
   BoundingBoxType GetBoundingType() const override;
 
-  Utils::ExecuteResult UpdateBoundingBox(const Mesh& mesh) override;
+  Result<Nil, ErrorResult> UpdateBoundingBox(const Mesh& mesh) override;
 
   void UpdateBoundingBoxWithOneVertex(const Vertex& vertex) override;
 
-  Utils::ExecuteResult GetJson(
-      rapidjson::Value& output_json_data,
+  Utils::Json::Value GetJson(
       Utils::Json::MemoryPoolAllocator<>& allocator) const override;
 
  private:

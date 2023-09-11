@@ -136,22 +136,22 @@ MM::AssetSystem::AssetType::Vertex::GetOffsetOfPosition() {
 
 constexpr std::uint32_t
 MM::AssetSystem::AssetType::Vertex::GetOffsetOfNormal() {
-  return offsetof(Vertex, normal_);
+  return OFFSET_OF(Vertex, normal_);
 }
 
 constexpr std::uint32_t
 MM::AssetSystem::AssetType::Vertex::GetOffsetOfTangent() {
-  return offsetof(Vertex, tangent_);
+  return OFFSET_OF(Vertex, tangent_);
 }
 
 constexpr std::uint32_t
 MM::AssetSystem::AssetType::Vertex::GetOffsetOfBiTangent() {
-  return offsetof(Vertex, bi_tangent_);
+  return OFFSET_OF(Vertex, bi_tangent_);
 }
 
 constexpr std::uint32_t
 MM::AssetSystem::AssetType::Vertex::GetOffsetOfTextureCoord() {
-  return offsetof(Vertex, texture_coord_);
+  return OFFSET_OF(Vertex, texture_coord_);
 }
 
 bool MM::AssetSystem::AssetType::operator==(const Vertex& lhs,
