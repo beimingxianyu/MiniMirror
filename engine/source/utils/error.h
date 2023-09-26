@@ -501,6 +501,17 @@ class Result {
       IgnoreException();
     }
 
+    void Exception(void callback()) const {
+      if (error_.Success()) {
+        return;
+      }
+
+      error_.Exception();
+      callback();
+
+      IgnoreException();
+    }
+
     void Exception(void callback(ResultType&, const ErrorType&)) {
       if (error_.Success()) {
         return;
@@ -548,20 +559,20 @@ class Result {
     template <typename CallbackType>
     void Exception(CallbackType&& callback) {
       constexpr bool callback_signature1 =
-          std::is_invocable_r_v<void, CallbackType, ResultType&,
+          std::is_invocable_v<CallbackType, ResultType&,
                                 const ErrorType&>;
       constexpr bool callback_signature2 =
-          std::is_invocable_r_v<void, CallbackType, ErrorType&>;
+          std::is_invocable_v<CallbackType, ErrorType&>;
       constexpr bool callback_signature3 =
-          std::is_invocable_r_v<void, CallbackType, const ErrorType&>;
+          std::is_invocable_v<CallbackType, const ErrorType&>;
       constexpr bool callback_signature4 =
-          std::is_invocable_r_v<void, CallbackType, ErrorType>;
+          std::is_invocable_v<CallbackType, ErrorType>;
       constexpr bool callback_signature5 =
-          std::is_invocable_r_v<void, CallbackType, ResultType&, ErrorType>;
+          std::is_invocable_v<CallbackType, ResultType&, ErrorType>;
       constexpr bool callback_signature6 =
-          std::is_invocable_r_v<void, CallbackType, ResultType&>;
+          std::is_invocable_v<CallbackType, ResultType&>;
       constexpr bool callback_signature7 =
-          std::is_invocable_r_v<void, CallbackType>;
+          std::is_invocable_v<CallbackType>;
 
       static_assert(callback_signature1 || callback_signature2 ||
                         callback_signature3 || callback_signature4 ||
@@ -606,11 +617,11 @@ class Result {
     template <typename CallBackType>
     void Exception(CallBackType&& callback) const {
       constexpr bool callback_signature1 =
-          std::is_invocable_r_v<void, CallBackType, const ErrorType&>;
+          std::is_invocable_v<CallBackType, const ErrorType&>;
       constexpr bool callback_signature2 =
-          std::is_invocable_r_v<void, CallBackType, ErrorType>;
+          std::is_invocable_v<CallBackType, ErrorType>;
       constexpr bool callback_signature3 =
-          std::is_invocable_r_v<void, CallBackType>;
+          std::is_invocable_v<CallBackType>;
       static_assert(
           callback_signature1 || callback_signature2 || callback_signature3,
           "Callback signature is invalid.");

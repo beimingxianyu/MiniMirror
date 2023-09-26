@@ -4,7 +4,7 @@
 
 namespace MM {
 namespace Utils {
-#define OFFSET_OF(class_, member) offsetof(class_, member)
+#define OFFSET_OF(class_, member) ((::size_t)&((((class_*)0)->member)))
 
 #define MM_CAT_IMP(a, b) a##b
 

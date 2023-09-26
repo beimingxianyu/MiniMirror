@@ -129,26 +129,31 @@ void MM::AssetSystem::AssetType::Vertex::Reset() {
   bi_tangent_ = MathDefinition::VEC3_ZERO;
 }
 
+// Idea reported an error but was able to compile successfully.
 constexpr std::uint32_t
 MM::AssetSystem::AssetType::Vertex::GetOffsetOfPosition() {
   return OFFSET_OF(Vertex, position_);
 }
 
+// Idea reported an error but was able to compile successfully.
 constexpr std::uint32_t
 MM::AssetSystem::AssetType::Vertex::GetOffsetOfNormal() {
   return OFFSET_OF(Vertex, normal_);
 }
 
+// Idea reported an error but was able to compile successfully.
 constexpr std::uint32_t
 MM::AssetSystem::AssetType::Vertex::GetOffsetOfTangent() {
   return OFFSET_OF(Vertex, tangent_);
 }
 
+// Idea reported an error but was able to compile successfully.
 constexpr std::uint32_t
 MM::AssetSystem::AssetType::Vertex::GetOffsetOfBiTangent() {
   return OFFSET_OF(Vertex, bi_tangent_);
 }
 
+// Idea reported an error but was able to compile successfully.
 constexpr std::uint32_t
 MM::AssetSystem::AssetType::Vertex::GetOffsetOfTextureCoord() {
   return OFFSET_OF(Vertex, texture_coord_);

@@ -14,6 +14,10 @@ MM::AssetSystem::AssetType::Shader::Shader(
     return;
   }
 
+  LoadShader(shader_path).Exception([function_name = MM_FUNCTION_NAME] {
+    MM_LOG_SYSTEM->LogError()
+  });
+  LoadShader(shader_path, MM_ERROR_DESCRIPTION(Failed to load shader.));
   MM_CHECK(LoadShader(shader_path), MM_LOG_ERROR("Failed to load shader.");
            AssetBase::Release();)
 }
@@ -62,14 +66,25 @@ std::string MM::AssetSystem::AssetType::Shader::GetAssetTypeString() const {
 
 uint64_t MM::AssetSystem::AssetType::Shader::GetSize() const { return size_; }
 
-MM::ExecuteResult MM::AssetSystem::AssetType::Shader::GetJson(
-    rapidjson::Document &document) const {
-  // TODO complete
-  // name
-  // path
-  // asset id
-  // bin data path
-  return AssetBase::GetJson(document);
+MM::Result<MM::Utils::Json::Document, MM::ErrorResult> MM::AssetSystem::AssetType::Shader::GetJson() const {
+  if (!IsValid()) {
+    return Result<Utils::Json::Document, ErrorResult>(st_execute_error, MM::ErrorCode::OBJECT_IS_INVALID);
+  }
+
+  Utils::Json::Document document{};
+  auto& allocator = document.GetAllocator();
+  document.AddMember("name",
+                     Utils::Json::GenericStringRef<Utils::Json::UTF8<>::Ch>(
+                         GetAssetName().c_str()),
+                     allocator);
+  document.AddMember("path",
+                     Utils::Json::GenericStringRef<Utils::Json::UTF8<>::Ch>(
+                         GetAssetPath().StringView().data()),
+                     allocator);
+  document.AddMember("asset id", Utils::Json::GenericStringRef<Utils::Json::UTF8<>::Ch>(std::to_string(GetAssetID()).c_str()), allocator);
+  document.AddMember("bin data path", Utils::Json::GenericStringRef<Utils::Json::UTF8<>::Ch>(GetBinPath().CStr()), allocator);
+
+  return Result<Utils::Json::Document, ErrorResult>(st_execute_success, &allocator);
 }
 
 std::vector<std::pair<void *, std::uint64_t>>
@@ -194,4 +209,12 @@ MM::ExecuteResult MM::AssetSystem::AssetType::Shader::SaveCompiledShaderToFile(
            MM_FILE_SYSTEM->Delete(temp_path); return MM_RESULT_CODE;)
 
   return ExecuteResult ::SUCCESS;
+}
+
+MM::FileSystem::Path MM::AssetSystem::AssetType::Shader::GetBinPath() const {
+  if (!IsValid()) {
+    return MM::FileSystem::Path{""};
+  }
+
+
 }

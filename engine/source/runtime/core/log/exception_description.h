@@ -4,11 +4,17 @@
 #include "runtime/core/log/log_system.h"
 #include "runtime/platform/base/cross_platform_header.h"
 
+#define MM_LOG_DESCRIPTION_MESSAGE(function_name, description) \
+  std::string("[") + function_name + "] " + #description
+
+#define MM_LOG_DESCRIPTION_MESSAGE2(function_name, description) \
+  std::string("[") + function_name + "] " + #description
+
 #define MM_TRACE_DESCRIPTION(description)                            \
   [function_name = MM_FUNCTION_NAME](MM::ErrorResult error_result) { \
     MM_LOG_SYSTEM->CheckResult(                                      \
         error_result.GetErrorCode(),                                 \
-        std::string("[") + function_name + "]    " + #description,   \
+        std::string("[") + function_name + "] " + #description,   \
         MM::LogSystem::LogSystem::LogLevel::TRACE);                  \
   }
 
@@ -16,7 +22,7 @@
   [function_name = MM_FUNCTION_NAME](MM::ErrorResult error_result) { \
     MM_LOG_SYSTEM->CheckResult(                                      \
         error_result.GetErrorCode(),                                 \
-        std::string("[") + function_name + "]    " + #description,   \
+        std::string("[") + function_name + "] " + #description,   \
         MM::LogSystem::LogSystem::LogLevel::INFO);                   \
   }
 
@@ -24,7 +30,7 @@
   [function_name = MM_FUNCTION_NAME](MM::ErrorResult error_result) { \
     MM_LOG_SYSTEM->CheckResult(                                      \
         error_result.GetErrorCode(),                                 \
-        std::string("[") + function_name + "]    " + #description,   \
+        std::string("[") + function_name + "] " + #description,   \
         MM::LogSystem::LogSystem::LogLevel::DEBUG);                  \
   }
 
@@ -32,7 +38,7 @@
   [function_name = MM_FUNCTION_NAME](MM::ErrorResult error_result) { \
     MM_LOG_SYSTEM->CheckResult(                                      \
         error_result.GetErrorCode(),                                 \
-        std::string("[") + function_name + "]    " + #description,   \
+        std::string("[") + function_name + "] " + #description,   \
         MM::LogSystem::LogSystem::LogLevel::WARN);                   \
   }
 
@@ -40,14 +46,14 @@
   [function_name = MM_FUNCTION_NAME](MM::ErrorResult error_result) { \
     MM_LOG_SYSTEM->CheckResult(                                      \
         error_result.GetErrorCode(),                                 \
-        std::string("[") + function_name + "]    " + #description,   \
+        std::string("[") + function_name + "] " + #description,   \
         MM::LogSystem::LogSystem::LogLevel::ERROR);                  \
   }
 
 #define MM_FATAL_DESCRIPTION(description) function_name = MM_FUNCTION_NAME](MM::ErrorResult error_result){ \
     MM_LOG_SYSTEM->CheckResult(                                                                            \
         error_result.GetErrorCode(),                                                                       \
-        std::string("[") + function_name + "]    " + #description,                                         \
+        std::string("[") + function_name + "] " + #description,                                         \
         MM::LogSystem::LogSystem::LogLevel::FATAL);                                                        \
   }
 
@@ -55,7 +61,7 @@
   [function_name = MM_FUNCTION_NAME, description_info = description](MM::ErrorResult error_result) { \
     MM_LOG_SYSTEM->CheckResult(                                                                      \
         error_result.GetErrorCode(),                                                                 \
-        std::string("[") + function_name + "]    " + description_info ,                              \
+        std::string("[") + function_name + "] " + description_info ,                              \
         MM::LogSystem::LogSystem::LogLevel::TRACE);                                                  \
   }
 
@@ -63,7 +69,7 @@
   [function_name = MM_FUNCTION_NAME, description_info = description](MM::ErrorResult error_result) { \
     MM_LOG_SYSTEM->CheckResult(                                                                      \
         error_result.GetErrorCode(),                                                                 \
-        std::string("[") + function_name + "]    " + description_info ,                              \
+        std::string("[") + function_name + "] " + description_info ,                              \
         MM::LogSystem::LogSystem::LogLevel::INFO);                                                   \
   }
 
@@ -71,7 +77,7 @@
   [function_name = MM_FUNCTION_NAME, description_info = description](MM::ErrorResult error_result) { \
     MM_LOG_SYSTEM->CheckResult(                                                                      \
         error_result.GetErrorCode(),                                                                 \
-        std::string("[") + function_name + "]    " + description_info ,                              \
+        std::string("[") + function_name + "] " + description_info ,                              \
         MM::LogSystem::LogSystem::LogLevel::DEBUG);                                                  \
   }
 
@@ -79,7 +85,7 @@
   [function_name = MM_FUNCTION_NAME, description_info = description](MM::ErrorResult error_result) { \
     MM_LOG_SYSTEM->CheckResult(                                                                      \
         error_result.GetErrorCode(),                                                                 \
-        std::string("[") + function_name + "]    " + description_info ,                              \
+        std::string("[") + function_name + "] " + description_info ,                              \
         MM::LogSystem::LogSystem::LogLevel::WRAN);                                                   \
   }
 
@@ -87,7 +93,7 @@
   [function_name = MM_FUNCTION_NAME, description_info = description](MM::ErrorResult error_result) { \
     MM_LOG_SYSTEM->CheckResult(                                                                      \
         error_result.GetErrorCode(),                                                                 \
-        std::string("[") + function_name + "]    " + description_info ,                              \
+        std::string("[") + function_name + "] " + description_info ,                              \
         MM::LogSystem::LogSystem::LogLevel::ERROR);                                                  \
   }
 
@@ -95,6 +101,6 @@
   [function_name = MM_FUNCTION_NAME, description_info = description](MM::ErrorResult error_result) { \
     MM_LOG_SYSTEM->CheckResult(                                                                      \
         error_result.GetErrorCode(),                                                                 \
-        std::string("[") + function_name + "]    " + description_info ,                              \
+        std::string("[") + function_name + "] " + description_info ,                              \
         MM::LogSystem::LogSystem::LogLevel::FATAL);                                                  \
   }
