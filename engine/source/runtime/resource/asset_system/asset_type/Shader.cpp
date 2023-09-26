@@ -14,12 +14,16 @@ MM::AssetSystem::AssetType::Shader::Shader(
     return;
   }
 
-  LoadShader(shader_path).Exception([function_name = MM_FUNCTION_NAME] {
-    MM_LOG_SYSTEM->LogError()
-  });
-  LoadShader(shader_path, MM_ERROR_DESCRIPTION(Failed to load shader.));
-  MM_CHECK(LoadShader(shader_path), MM_LOG_ERROR("Failed to load shader.");
-           AssetBase::Release();)
+  LoadShader(shader_path)
+      .Exception([function_name = MM_FUNCTION_NAME,
+                  this_object = this](ErrorResult error_result) {
+        MM_LOG_SYSTEM->CheckResult(
+            error_result.GetErrorCode(),
+            MM_LOG_DESCRIPTION_MESSAGE(function_name, "Failed to load shader."),
+            LogSystem::LogSystem::LogLevel::ERROR);
+
+        this_object->AssetBase::Release();
+      });
 }
 
 MM::AssetSystem::AssetType::Shader::Shader(
@@ -66,13 +70,23 @@ std::string MM::AssetSystem::AssetType::Shader::GetAssetTypeString() const {
 
 uint64_t MM::AssetSystem::AssetType::Shader::GetSize() const { return size_; }
 
-MM::Result<MM::Utils::Json::Document, MM::ErrorResult> MM::AssetSystem::AssetType::Shader::GetJson() const {
+MM::Result<MM::Utils::Json::Document, MM::ErrorResult>
+MM::AssetSystem::AssetType::Shader::GetJson() const {
   if (!IsValid()) {
-    return Result<Utils::Json::Document, ErrorResult>(st_execute_error, MM::ErrorCode::OBJECT_IS_INVALID);
+    return Result<Utils::Json::Document, ErrorResult>(
+        st_execute_error, MM::ErrorCode::OBJECT_IS_INVALID);
+  }
+
+  Result<FileSystem::Path, ErrorResult> bin_path = GetBinPath();
+  bin_path.Exception(MM_ERROR_DESCRIPTION(Failed to get bin path.));
+  if (!bin_path.IsSuccess()) {
+    return Result<Utils::Json::Document, ErrorResult>(st_execute_error,
+                                                      bin_path.GetError());
   }
 
   Utils::Json::Document document{};
-  auto& allocator = document.GetAllocator();
+  document.SetObject();
+  auto &allocator = document.GetAllocator();
   document.AddMember("name",
                      Utils::Json::GenericStringRef<Utils::Json::UTF8<>::Ch>(
                          GetAssetName().c_str()),
@@ -81,10 +95,17 @@ MM::Result<MM::Utils::Json::Document, MM::ErrorResult> MM::AssetSystem::AssetTyp
                      Utils::Json::GenericStringRef<Utils::Json::UTF8<>::Ch>(
                          GetAssetPath().StringView().data()),
                      allocator);
-  document.AddMember("asset id", Utils::Json::GenericStringRef<Utils::Json::UTF8<>::Ch>(std::to_string(GetAssetID()).c_str()), allocator);
-  document.AddMember("bin data path", Utils::Json::GenericStringRef<Utils::Json::UTF8<>::Ch>(GetBinPath().CStr()), allocator);
+  document.AddMember("asset id",
+                     Utils::Json::GenericStringRef<Utils::Json::UTF8<>::Ch>(
+                         std::to_string(GetAssetID()).c_str()),
+                     allocator);
+  document.AddMember("bin data path",
+                     Utils::Json::GenericStringRef<Utils::Json::UTF8<>::Ch>(
+                         GetBinPath().GetResult().CStr()),
+                     allocator);
 
-  return Result<Utils::Json::Document, ErrorResult>(st_execute_success, &allocator);
+  return Result<Utils::Json::Document, ErrorResult>(st_execute_success,
+                                                    std::move(document));
 }
 
 std::vector<std::pair<void *, std::uint64_t>>
@@ -105,97 +126,110 @@ void MM::AssetSystem::AssetType::Shader::Release() {
   data_.clear();
 }
 
-MM::ExecuteResult MM::AssetSystem::AssetType::Shader::LoadShader(
+MM::Result<MM::Nil, MM::ErrorResult>
+MM::AssetSystem::AssetType::Shader::LoadShader(
     const MM::FileSystem::Path &shader_path) {
-  FileSystem::LastWriteTime last_write_time;
-  MM_CHECK(MM_FILE_SYSTEM->GetLastWriteTime(shader_path, last_write_time),
-           MM_LOG_ERROR("Failed to get shader file last write time.");
-           return MM_RESULT_CODE;)
-
-  const FileSystem::Path &cache_dir(MM_FILE_SYSTEM->GetAssetDirCache());
-  std::string asset_relative_path =
-      shader_path.GetRelativePath(MM_FILE_SYSTEM->GetAssetDir());
-  FileSystem::Path compiled_shader_path(
-      cache_dir + asset_relative_path +
-      std::to_string(last_write_time.time_since_epoch().count() << 26));
-  if (compiled_shader_path.IsExists()) {
-    MM_CHECK(MM_FILE_SYSTEM->ReadFile(compiled_shader_path, data_),
-             MM_LOG_ERROR("Failed to read shader data.");
-             return MM_RESULT_CODE;)
-    return ExecuteResult ::SUCCESS;
+  Result<FileSystem::Path, ErrorResult> compiled_shader_path = GetBinPath();
+  compiled_shader_path.Exception(
+      MM_ERROR_DESCRIPTION(Filed to get shander bin path.));
+  if (!compiled_shader_path.IsSuccess()) {
+    return Result<Nil, ErrorResult>(st_execute_error,
+                                    compiled_shader_path.GetError());
   }
 
-  std::vector<char> shader_data;
-  MM_CHECK(MM_FILE_SYSTEM->ReadFile(shader_path, shader_data),
-           MM_LOG_ERROR("Failed to read shader data.");
-           return MM_RESULT_CODE;)
+  if (compiled_shader_path.GetResult().IsExists()) {
+    Result<std::vector<char>, ErrorResult> read_result =
+        MM_FILE_SYSTEM->ReadFile(compiled_shader_path.GetResult());
+    read_result.Exception(
+        MM_ERROR_DESCRIPTION(Failed to read data from compiled file.));
+    if (read_result.IsSuccess()) {
+      data_ = std::move(read_result.GetResult());
+      return Result<Nil, ErrorResult>{st_execute_success};
+    }
+  }
 
-  Utils::ShadercShaderKind kind;
-  MM_CHECK(ChooseShaderKind(shader_path, kind),
-           MM_LOG_ERROR("The file extension is error.");
-           return MM_RESULT_CODE;)
+  Result<std::vector<char>, ErrorResult> shader_read_result =
+      MM_FILE_SYSTEM->ReadFile(compiled_shader_path.GetResult());
+  shader_read_result.Exception(
+      MM_ERROR_DESCRIPTION(Failed to read shader data.));
+  if (!shader_read_result.IsSuccess()) {
+    return Result<Nil, ErrorResult>{st_execute_error,
+                                    shader_read_result.GetError()};
+  }
 
-  MM_CHECK(Utils::CompileShader(data_, shader_path.CStr(), std::string("main"),
-                                kind, shader_data.data(), shader_data.size(),
-                                true, shaderc_optimization_level_performance),
-           MM_LOG_ERROR("Failed to compile shader.");
-           return MM_RESULT_CODE;)
+  Result<Utils::ShadercShaderKind, ErrorResult> kind =
+      ChooseShaderKind(shader_path);
+  kind.Exception(MM_ERROR_DESCRIPTION(The file extension is error.));
+  if (!kind.IsSuccess()) {
+    return Result<Nil, ErrorResult>{st_execute_error, kind.GetError()};
+  }
 
-  SaveCompiledShaderToFile(compiled_shader_path);
+  Result<std::vector<char>, ErrorResult> compiled_result = Utils::CompileShader(
+      shader_path.CStr(), std::string("main"), kind.GetResult(),
+      shader_read_result.GetResult().data(),
+      shader_read_result.GetResult().size(), true,
+      shaderc_optimization_level_performance);
+  compiled_result.Exception(MM_ERROR_DESCRIPTION(Failed to compile shader.));
+  if (compiled_result.IsError()) {
+    return Result<Nil, ErrorResult>{st_execute_error,
+                                    compiled_result.GetError()};
+  }
 
-  return MM::ExecuteResult::SUCCESS;
+  SaveCompiledShaderToFile(compiled_shader_path.GetResult())
+      .Exception(MM_WRAN_DESCRIPTION(Failed to save compiled shader to file.));
+
+  return Result<Nil, ErrorResult>{st_execute_success};
 }
 
-MM::Utils::ExecuteResult MM::AssetSystem::AssetType::Shader::ChooseShaderKind(
-    const MM::FileSystem::Path &shader_path,
-    MM::Utils::ShadercShaderKind &output_kind) {
+MM::Result<MM::Utils::ShadercShaderKind, MM::ErrorResult>
+MM::AssetSystem::AssetType::Shader::ChooseShaderKind(
+    const MM::FileSystem::Path &shader_path) {
   std::string_view sub_fix = shader_path.GetExtensionView();
   if (sub_fix.empty()) {
-    return ExecuteResult ::FILE_OPERATION_ERROR;
+    return Result<Utils::ShadercShaderKind, ErrorResult>{
+        st_execute_error, ErrorCode::FILE_OPERATION_ERROR};
   }
 
   if (sub_fix.compare(".vert") == 0) {
-    output_kind = shaderc_vertex_shader;
-    return Utils::ExecuteResult ::SUCCESS;
+    return ResultS{shaderc_vertex_shader};
   }
   if (sub_fix.compare(".frag") == 0) {
-    output_kind = shaderc_fragment_shader;
-    return Utils::ExecuteResult ::SUCCESS;
+    return ResultS{shaderc_fragment_shader};
   }
   if (sub_fix.compare(".comp") == 0) {
-    output_kind = shaderc_compute_shader;
-    return Utils::ExecuteResult ::SUCCESS;
+    return ResultS{shaderc_compute_shader};
   }
   if (sub_fix.compare(".geom") == 0) {
-    output_kind = shaderc_geometry_shader;
-    return Utils::ExecuteResult ::SUCCESS;
+    return ResultS{shaderc_geometry_shader};
   }
   if (sub_fix.compare(".tesc") == 0) {
-    output_kind = shaderc_tess_control_shader;
-    return Utils::ExecuteResult ::SUCCESS;
+    return ResultS{shaderc_tess_control_shader};
   }
   if (sub_fix.compare(".tese") == 0) {
-    output_kind = shaderc_tess_evaluation_shader;
-    return Utils::ExecuteResult ::SUCCESS;
+    return ResultS{shaderc_tess_evaluation_shader};
   }
 
-  return ExecuteResult ::FILE_OPERATION_ERROR;
+  return ResultE<ErrorResult>{ErrorCode::FILE_OPERATION_ERROR};
 }
 
-MM::ExecuteResult MM::AssetSystem::AssetType::Shader::SaveCompiledShaderToFile(
+MM::Result<MM::Nil, MM::ErrorResult>
+MM::AssetSystem::AssetType::Shader::SaveCompiledShaderToFile(
     MM::FileSystem::Path compiled_path) const {
   static std::uint8_t rand = 0;
   ++rand;
   FileSystem::Path temp_path{compiled_path + std::to_string(rand)};
 
-  MM_CHECK(MM_FILE_SYSTEM->Create(temp_path),
-           MM_LOG_ERROR("Failed to create temp file to save compiled shader.");
-           return MM_RESULT_CODE;)
+  Result<Nil, ErrorResult> create_result = MM_FILE_SYSTEM->Create(temp_path);
+  create_result.Exception(
+      MM_WRAN_DESCRIPTION(Failed to create temp file to save compiled shader.));
+  if (create_result.IsError()) {
+    return ResultE<ErrorResult>{create_result.GetError().GetErrorCode()};
+  }
 
   std::ofstream file(temp_path.CStr(), std::ios::out | std::ios::binary);
 
   if (!file.is_open()) {
-    return ExecuteResult ::FILE_OPERATION_ERROR;
+    return ResultE<ErrorResult>{ErrorCode::FILE_OPERATION_ERROR};
   }
 
   file.seekp(0);
@@ -203,18 +237,49 @@ MM::ExecuteResult MM::AssetSystem::AssetType::Shader::SaveCompiledShaderToFile(
 
   file.close();
 
-  MM_CHECK(MM_FILE_SYSTEM->Rename(temp_path, compiled_path),
-           MM_LOG_ERROR(
-               "Failed to rename temp shader failed to target compiled path.");
-           MM_FILE_SYSTEM->Delete(temp_path); return MM_RESULT_CODE;)
-
-  return ExecuteResult ::SUCCESS;
-}
-
-MM::FileSystem::Path MM::AssetSystem::AssetType::Shader::GetBinPath() const {
-  if (!IsValid()) {
-    return MM::FileSystem::Path{""};
+  Result<Nil, ErrorResult> rename_result =
+      MM_FILE_SYSTEM->Rename(temp_path, compiled_path);
+  rename_result.Exception(
+      [function_name = MM_FUNCTION_NAME, &temp_path](ErrorResult error_result) {
+        MM_LOG_SYSTEM->CheckResult(
+            error_result.GetErrorCode(),
+            MM_LOG_DESCRIPTION_MESSAGE(
+                function_name, Failed to rename_result temp shader failed to
+                                   target compiled path.),
+            LogSystem::LogSystem::LogLevel::WARN);
+        MM_FILE_SYSTEM->Delete(temp_path);
+      });
+  if (rename_result.IsError()) {
+    return ResultE<ErrorResult>{rename_result.GetError().GetErrorCode()};
   }
 
+  return ResultS<Nil>{Nil()};
+}
 
+MM::Result<MM::FileSystem::Path, MM::ErrorResult>
+MM::AssetSystem::AssetType::Shader::GetBinPath() const {
+  if (!IsValid()) {
+    return Result<FileSystem::Path, ErrorResult>(st_execute_error,
+                                                 ErrorCode::OBJECT_IS_INVALID);
+  }
+
+  Result<FileSystem::LastWriteTime, ErrorResult> last_write_time =
+      MM_FILE_SYSTEM->GetLastWriteTime(GetAssetPath());
+  last_write_time.Exception(
+      MM_ERROR_DESCRIPTION(Failed to get shader file last write time.));
+  if (!last_write_time.IsSuccess()) {
+    return Result<FileSystem::Path, ErrorResult>(st_execute_error,
+                                                 last_write_time.GetError());
+  }
+
+  const FileSystem::Path &cache_dir(MM_FILE_SYSTEM->GetAssetDirCache());
+  std::string asset_relative_path =
+      GetAssetPath().GetRelativePath(MM_FILE_SYSTEM->GetAssetDir());
+  FileSystem::Path compiled_shader_path(
+      cache_dir + asset_relative_path +
+      std::to_string(
+          last_write_time.GetResult().time_since_epoch().count() << 26 >> 26));
+
+  return Result<FileSystem::Path, ErrorResult>(st_execute_success,
+                                               std::move(compiled_shader_path));
 }

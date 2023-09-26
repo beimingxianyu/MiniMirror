@@ -1,7 +1,7 @@
 #pragma once
 
-#include "runtime/core/manager/ManagedObjectTableBase.h"
 #include "runtime/core/log/exception_description.h"
+#include "runtime/core/manager/ManagedObjectTableBase.h"
 
 namespace MM {
 namespace Manager {
@@ -110,12 +110,12 @@ class ManagedObjectHandler<ManagedType, ManagedType, ListTrait> {
             object_table_->load(std::memory_order_acquire)
                 ->RemoveObjectImp(*managed_object_, use_count_,
                                   ContainerTrait());
-        if (result.Success()) {
-           result.IgnoreException();
+        if (result.IsSuccess()) {
+          result.IgnoreException();
           break;
         }
         if (result.GetError().GetErrorCode() == ErrorCode::CUSTOM_ERROR) {
-            result.IgnoreException();
+          result.IgnoreException();
           continue;
         }
 
@@ -168,7 +168,8 @@ class ManagedObjectHandler<ManagedType, ManagedType, SetTrait> {
       : object_table_(object_table),
         managed_object_(managed_object),
         use_count_(use_count) {
-    assert(object_table_ != nullptr && managed_object_ != nullptr && use_count_ != nullptr);
+    assert(object_table_ != nullptr && managed_object_ != nullptr &&
+           use_count_ != nullptr);
     use_count_->fetch_add(1, std::memory_order_acq_rel);
   }
   ManagedObjectHandler(const ManagedObjectHandler& other)
@@ -267,12 +268,12 @@ class ManagedObjectHandler<ManagedType, ManagedType, SetTrait> {
       Result<Nil, ErrorResult> result =
           object_table_->load(std::memory_order_acquire)
               ->RemoveObjectImp(*managed_object_, use_count_, ContainerTrait());
-      if (result.Success()) {
-          result.IgnoreException();
+      if (result.IsSuccess()) {
+        result.IgnoreException();
         return;
       }
       if (result.GetError().GetErrorCode() == ErrorCode::CUSTOM_ERROR) {
-         result.IgnoreException();
+        result.IgnoreException();
         continue;
       }
       result.Exception(MM_ERROR_DESCRIPTION(Failed to remove object));
@@ -285,12 +286,12 @@ class ManagedObjectHandler<ManagedType, ManagedType, SetTrait> {
       Result<Nil, ErrorResult> result =
           object_table_->load(std::memory_order_acquire)
               ->RemoveObjectImp(*managed_object_, ContainerTrait());
-      if (result.Success()) {
-         result.IgnoreException();
+      if (result.IsSuccess()) {
+        result.IgnoreException();
         return;
       }
       if (result.GetError().GetErrorCode() == ErrorCode::CUSTOM_ERROR) {
-          result.IgnoreException();
+        result.IgnoreException();
         continue;
       }
 
@@ -329,7 +330,8 @@ class ManagedObjectHandler<ManagedType, ManagedType, HashSetTrait> {
       : object_table_(object_table),
         managed_object_(managed_object),
         use_count_(use_count) {
-    assert(object_table_ != nullptr && managed_object_ != nullptr && use_count_ != nullptr);
+    assert(object_table_ != nullptr && managed_object_ != nullptr &&
+           use_count_ != nullptr);
     use_count_->fetch_add(1, std::memory_order_acq_rel);
   }
   ManagedObjectHandler(const ManagedObjectHandler& other)
@@ -428,12 +430,12 @@ class ManagedObjectHandler<ManagedType, ManagedType, HashSetTrait> {
       Result<Nil, ErrorResult> result =
           object_table_->load(std::memory_order_acquire)
               ->RemoveObjectImp(*managed_object_, use_count_, ContainerTrait());
-      if (result.Success()) {
-         result.IgnoreException();
+      if (result.IsSuccess()) {
+        result.IgnoreException();
         return;
       }
       if (result.GetError().GetErrorCode() == ErrorCode::CUSTOM_ERROR) {
-          result.IgnoreException();
+        result.IgnoreException();
         continue;
       }
 
@@ -447,12 +449,12 @@ class ManagedObjectHandler<ManagedType, ManagedType, HashSetTrait> {
       Result<Nil, ErrorResult> result =
           object_table_->load(std::memory_order_acquire)
               ->RemoveObjectImp(*managed_object_, ContainerTrait());
-      if (result.Success()) {
-          result.IgnoreException();
+      if (result.IsSuccess()) {
+        result.IgnoreException();
         return;
       }
       if (result.GetError().GetErrorCode() == ErrorCode::CUSTOM_ERROR) {
-          result.IgnoreException();
+        result.IgnoreException();
         continue;
       }
 
@@ -493,7 +495,8 @@ class ManagedObjectHandler<KeyType, ManagedType, MapTrait> {
         key_(key),
         managed_object_(managed_object),
         use_count_(use_count) {
-    assert(object_table_ != nullptr && key_ != nullptr && managed_object_ != nullptr && use_count_ != nullptr);
+    assert(object_table_ != nullptr && key_ != nullptr &&
+           managed_object_ != nullptr && use_count_ != nullptr);
     use_count_->fetch_add(1, std::memory_order_acq_rel);
   }
   ManagedObjectHandler(const ManagedObjectHandler& other)
@@ -605,12 +608,12 @@ class ManagedObjectHandler<KeyType, ManagedType, MapTrait> {
       Result<Nil, ErrorResult> result =
           object_table_->load(std::memory_order_acquire)
               ->RemoveObjectImp(*key_, use_count_, ContainerTrait());
-      if (result.Success()) {
-         result.IgnoreException();
+      if (result.IsSuccess()) {
+        result.IgnoreException();
         return;
       }
       if (result.GetError().GetErrorCode() == ErrorCode::CUSTOM_ERROR) {
-          result.IgnoreException();
+        result.IgnoreException();
         continue;
       }
 
@@ -621,14 +624,15 @@ class ManagedObjectHandler<KeyType, ManagedType, MapTrait> {
 
   void ReleaseNoMulti() {
     do {
-      Result<Nil, ErrorResult> result = object_table_->load(std::memory_order_acquire)
-                                 ->RemoveObjectImp(*key_, ContainerTrait());
-      if (result.Success()) {
-         result.IgnoreException();
+      Result<Nil, ErrorResult> result =
+          object_table_->load(std::memory_order_acquire)
+              ->RemoveObjectImp(*key_, ContainerTrait());
+      if (result.IsSuccess()) {
+        result.IgnoreException();
         return;
       }
       if (result.GetError().GetErrorCode() == ErrorCode::CUSTOM_ERROR) {
-         result.IgnoreException();
+        result.IgnoreException();
         continue;
       }
 
@@ -669,7 +673,8 @@ class ManagedObjectHandler<KeyType, ManagedType, HashMapTrait> {
         key_(key),
         managed_object_(managed_object),
         use_count_(use_count) {
-    assert(object_table != nullptr && key != nullptr && managed_object_ != nullptr && use_count_ != nullptr);
+    assert(object_table != nullptr && key != nullptr &&
+           managed_object_ != nullptr && use_count_ != nullptr);
     use_count_->fetch_add(1, std::memory_order_acq_rel);
   }
   ManagedObjectHandler(const ManagedObjectHandler& other)
@@ -782,8 +787,8 @@ class ManagedObjectHandler<KeyType, ManagedType, HashMapTrait> {
       Result<Nil, ErrorResult> result =
           object_table_->load(std::memory_order_acquire)
               ->RemoveObjectImp(*key_, use_count_, ContainerTrait());
-      if (result.Success()) {
-         result.IgnoreException();
+      if (result.IsSuccess()) {
+        result.IgnoreException();
         return;
       }
       if (result.GetError().GetErrorCode() == ErrorCode::CUSTOM_ERROR) {
@@ -798,18 +803,19 @@ class ManagedObjectHandler<KeyType, ManagedType, HashMapTrait> {
 
   void ReleaseNoMulti() {
     do {
-      Result<Nil, ErrorResult> result = object_table_->load(std::memory_order_acquire)
-                                 ->RemoveObjectImp(*key_, ContainerTrait());
-      if (result.Success()) {
-         result.IgnoreException();
+      Result<Nil, ErrorResult> result =
+          object_table_->load(std::memory_order_acquire)
+              ->RemoveObjectImp(*key_, ContainerTrait());
+      if (result.IsSuccess()) {
+        result.IgnoreException();
         return;
       }
       if (result.GetError().GetErrorCode() == ErrorCode::CUSTOM_ERROR) {
-         result.IgnoreException();
+        result.IgnoreException();
         continue;
       }
 
-     result.Exception(MM_ERROR_DESCRIPTION(Failed to remove object.));
+      result.Exception(MM_ERROR_DESCRIPTION(Failed to remove object.));
 
       return;
     } while (true);

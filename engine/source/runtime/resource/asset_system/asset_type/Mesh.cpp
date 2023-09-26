@@ -185,16 +185,16 @@ std::string MM::AssetSystem::AssetType::Mesh::GetAssetTypeString() const {
   return std::string(MM_ASSET_TYPE_MESH);
 }
 
-MM::ExecuteResult MM::AssetSystem::AssetType::Mesh::GetJson(
-    MM::Utils::Json::Document& document) const {
-  if (!document.IsObject()) {
-    return ExecuteResult ::INPUT_PARAMETERS_ARE_NOT_SUITABLE;
-  }
-  if (!(document.MemberBegin() == document.MemberEnd())) {
-    return ExecuteResult ::INPUT_PARAMETERS_ARE_NOT_SUITABLE;
+MM::Result<MM::Utils::Json::Document, MM::ErrorResult>
+MM::AssetSystem::AssetType::Mesh::GetJson() const {
+  if (!IsValid()) {
+    return ResultE<ErrorResult>{ErrorCode::OBJECT_IS_INVALID};
   }
 
+  Utils::Json::Document document{};
+  document.SetObject();
   auto& allocator = document.GetAllocator();
+
   document.AddMember("name",
                      Utils::Json::GenericStringRef<Utils::Json::UTF8<>::Ch>(
                          GetAssetName().c_str()),
@@ -206,14 +206,10 @@ MM::ExecuteResult MM::AssetSystem::AssetType::Mesh::GetJson(
   document.AddMember("asset id", GetAssetID(), allocator);
   document.AddMember("number of indexes", indexes_.size(), allocator);
   document.AddMember("number of vertices", vertices_.size(), allocator);
-
-  Utils::Json::Value bounding_box(Utils::Json::kObjectType);
-
-  bounding_box_->GetJson(bounding_box, allocator);
-
+  Utils::Json::Value bounding_box = bounding_box_->GetJson(allocator);
   document.AddMember("bounding box", bounding_box, allocator);
 
-  return ExecuteResult ::SUCCESS;
+  return ResultS{std::move(document)};
 }
 
 MM::AssetSystem::AssetType::Mesh::Mesh(
@@ -251,13 +247,18 @@ MM::AssetSystem::AssetType::Mesh::Mesh(
   SetAssetID(GetAssetID() + mesh_index + bounding_type_offset);
 }
 
-MM::ExecuteResult MM::AssetSystem::AssetType::Mesh::CalculateAssetID(
+MM::Result<MM::AssetSystem::AssetType::AssetID, MM::ErrorResult>
+MM::AssetSystem::AssetType::Mesh::CalculateAssetID(
     const MM::FileSystem::Path& path, std::uint32_t index,
-    MM::AssetSystem::AssetType::BoundingBox::BoundingBoxType bounding_box_type,
-    MM::AssetSystem::AssetType::AssetID& asset_ID) {
-  FileSystem::LastWriteTime last_write_time;
-  MM_CHECK_WITHOUT_LOG(MM_FILE_SYSTEM->GetLastWriteTime(path, last_write_time),
-                       return MM_RESULT_CODE;)
+    MM::AssetSystem::AssetType::BoundingBox::BoundingBoxType
+        bounding_box_type) {
+  Result<FileSystem::LastWriteTime, ErrorResult> last_write_time =
+      MM_FILE_SYSTEM->GetLastWriteTime(path);
+  last_write_time.Exception(
+      MM_ERROR_DESCRIPTION(Failed to get last write time.));
+  if (last_write_time.IsError()) {
+    return ResultE<ErrorResult>{ErrorCode::FILE_OPERATION_ERROR};
+  }
 
   std::uint64_t bounding_type_offset = 0;
   switch (bounding_box_type) {
@@ -268,9 +269,10 @@ MM::ExecuteResult MM::AssetSystem::AssetType::Mesh::CalculateAssetID(
       bounding_type_offset = static_cast<std::uint64_t>(0x1) << 32;
       break;
   }
-  asset_ID = (path.GetHash() ^ last_write_time.time_since_epoch().count()) +
-             (index + bounding_type_offset);
-  return ExecuteResult ::SUCCESS;
+  AssetID asset_ID = (path.GetHash() ^
+                      last_write_time.GetResult().time_since_epoch().count()) +
+                     (index + bounding_type_offset);
+  return ResultS{asset_ID};
 }
 
 std::vector<std::pair<void*, std::uint64_t>>

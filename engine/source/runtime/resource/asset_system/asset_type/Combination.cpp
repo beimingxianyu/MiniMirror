@@ -41,9 +41,10 @@ std::string Combination::GetAssetTypeString() const {
   return MM_ASSET_TYPE_UNDEFINED;
 }
 
-ExecuteResult Combination::GetJson(rapidjson::Document&) const {
+MM::Result<MM::Utils::Json::Document, ErrorResult> Combination::GetJson()
+    const {
   MM_LOG_FATAL("This function should not be called.");
-  return ExecuteResult ::UNDEFINED_ERROR;
+  return ResultE<ErrorResult>{ErrorCode::UNDEFINED_ERROR};
 }
 
 void Combination::Release() {
@@ -99,20 +100,39 @@ Combination::Combination(const FileSystem::Path& combination_path)
     return;
   }
 
-  std::vector<AssetManager::AssetHandler> images;
-  std::vector<AssetManager::AssetHandler> meshes;
   TaskSystem::Taskflow taskflow;
   TaskSystem::Future<void>* future{new TaskSystem::Future<void>{}};
   bool load_result = true;
 
-  MM_CHECK(LoadImages(combination_path, combination_json, taskflow, future,
-                      images, load_result),
-           AssetBase::Release();
-           return;);
-  MM_CHECK(LoadMeshes(combination_path, combination_json, taskflow, future,
-                      meshes, load_result),
-           AssetBase::Release();
-           return;);
+  Result<std::vector<AssetManager::AssetHandler>, ErrorResult> images =
+      LoadImages(combination_path, combination_json, taskflow, future,
+                 load_result);
+  images.Exception([function_name = MM_FUNCTION_NAME,
+                    this_object = this](ErrorResult error_result) {
+    MM_LOG_SYSTEM->CheckResult(
+        error_result.GetErrorCode(),
+        MM_LOG_DESCRIPTION_MESSAGE(function_name, Failed to load images.),
+        LogSystem::LogSystem::LogLevel::ERROR);
+    this_object->AssetBase::Release();
+  });
+  if (images.IsError()) {
+    return;
+  }
+
+  Result<std::vector<AssetManager::AssetHandler>, ErrorResult> meshes =
+      LoadMeshes(combination_path, combination_json, taskflow, future,
+                 load_result);
+  meshes.Exception([function_name = MM_FUNCTION_NAME,
+                    this_object = this](ErrorResult error_result) {
+    MM_LOG_SYSTEM->CheckResult(
+        error_result.GetErrorCode(),
+        MM_LOG_DESCRIPTION_MESSAGE(function_name, Failed to load meshes.),
+        LogSystem::LogSystem::LogLevel::ERROR);
+    this_object->AssetBase::Release();
+  });
+  if (meshes.IsError()) {
+    return;
+  }
 
   *future = MM_TASK_SYSTEM->Run(TaskSystem::TaskType::Common, taskflow);
   future->wait();
@@ -122,11 +142,12 @@ Combination::Combination(const FileSystem::Path& combination_path)
     return;
   }
 
-  asset_handlers_.reserve(images.size() + meshes.size());
-  for (auto& image : images) {
+  asset_handlers_.reserve(images.GetResult().size() +
+                          meshes.GetResult().size());
+  for (auto& image : images.GetResult()) {
     asset_handlers_.emplace_back(std::move(image));
   }
-  for (auto& mesh : meshes) {
+  for (auto& mesh : meshes.GetResult()) {
     asset_handlers_.emplace_back(std::move(mesh));
   }
 }

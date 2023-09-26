@@ -4,16 +4,16 @@
 #include <fstream>
 #include <iostream>
 #include <list>
+#include <locale>
 #include <memory>
 #include <mutex>
 #include <utility>
 #include <vector>
-#include <locale>
 
-#include "utils/marco.h"
-#include "utils/error.h"
-#include "utils/type_utils.h"
 #include "runtime/platform/base/cross_platform_header.h"
+#include "utils/error.h"
+#include "utils/marco.h"
+#include "utils/type_utils.h"
 
 namespace MM {
 namespace FileSystem {
@@ -30,7 +30,7 @@ class Path {
   friend std::hash<Path>;
 
  public:
-  Path() = delete;
+  Path() = default;
   ~Path() = default;
   Path(const Path& other);
   Path(Path&& other) noexcept;
@@ -206,178 +206,184 @@ class FileSystem {
    */
   Result<Nil, ErrorResult> DeleteDirectory(const Path& dir_path) const;
 
-    /**
-     * \brief Copy directory.
-     * \param dir_path The directory you want to copy.
-     * \param dest_dir The destination directory of the copy file.
-     * \return Return error code.
-     */
-    Result<Nil, ErrorResult> CopyDirectory(const Path &dir_path, const Path &dest_dir) const;
+  /**
+   * \brief Copy directory.
+   * \param dir_path The directory you want to copy.
+   * \param dest_dir The destination directory of the copy file.
+   * \return Return error code.
+   */
+  Result<Nil, ErrorResult> CopyDirectory(const Path& dir_path,
+                                         const Path& dest_dir) const;
 
-    /**
-     * \brief Rename directory.
-     * \param dir_path The directory you want to rename.
-     * \param new_name The new name will be set.
-     * \return Return error code.
-     */
-    Result<Nil, ErrorResult> RenameDirectory(const Path &dir_path,
-                                             const std::string &new_name) const;
+  /**
+   * \brief Rename directory.
+   * \param dir_path The directory you want to rename.
+   * \param new_name The new name will be set.
+   * \return Return error code.
+   */
+  Result<Nil, ErrorResult> RenameDirectory(const Path& dir_path,
+                                           const std::string& new_name) const;
 
-    /**
-     * \brief Check whether the specified directory is empty.
-     * \param dir_path The directory you want to check.
-     * \return Returns false if the operation is fail or the directory does not
-     * exist; otherwise, true is returned.
-     */
-    bool DirectoryIsEmpty(const Path &dir_path) const;
+  /**
+   * \brief Check whether the specified directory is empty.
+   * \param dir_path The directory you want to check.
+   * \return Returns false if the operation is fail or the directory does not
+   * exist; otherwise, true is returned.
+   */
+  bool DirectoryIsEmpty(const Path& dir_path) const;
 
-    /**
-     * \brief Get all directory paths under the specified path.
-     * \param dir_path The path you want to check.
-     * \return Return directories or error.
-     */
-    Result<std::vector<Path>, ErrorResult> GetDirectories(const Path &dir_path) const;
+  /**
+   * \brief Get all directory paths under the specified path.
+   * \param dir_path The path you want to check.
+   * \return Return directories or error.
+   */
+  Result<std::vector<Path>, ErrorResult> GetDirectories(
+      const Path& dir_path) const;
 
-    /**
-     * \brief Get the size of the file.
-     * \param file_path The file of you want get size.
-     * \return The file size or error.
-     */
-    Result<std::size_t , ErrorResult> FileSize(const Path &file_path) const;
+  /**
+   * \brief Get the size of the file.
+   * \param file_path The file of you want get size.
+   * \return The file size or error.
+   */
+  Result<std::size_t, ErrorResult> FileSize(const Path& file_path) const;
 
-    /**
-     * \brief Create file.
-     * \param file_path The file you want to create.
-     * \return Return result code.
-     */
-    Result<Nil, ErrorResult> CreateFile(const Path &file_path) const;
+  /**
+   * \brief Create file.
+   * \param file_path The file you want to create.
+   * \return Return result code.
+   */
+  Result<Nil, ErrorResult> CreateFile(const Path& file_path) const;
 
-    /**
-     * \brief Delete file.
-     * \param file_path The file you want to delete.
-     * \return Return result code.
-     */
-    Result<Nil, ErrorResult> DeleteFile(const Path &file_path) const;
+  /**
+   * \brief Delete file.
+   * \param file_path The file you want to delete.
+   * \return Return result code.
+   */
+  Result<Nil, ErrorResult> DeleteFile(const Path& file_path) const;
 
-    /**
-     * \brief Copy file.
-     * \param file_path The file you want to copy.
-     * \param dest_dir The destination directory of the copy file.
-     * \return Return result code.
-     */
-    Result<Nil, ErrorResult> CopyFile(const Path &file_path, const Path &dest_dir) const;
+  /**
+   * \brief Copy file.
+   * \param file_path The file you want to copy.
+   * \param dest_dir The destination directory of the copy file.
+   * \return Return result code.
+   */
+  Result<Nil, ErrorResult> CopyFile(const Path& file_path,
+                                    const Path& dest_dir) const;
 
-    /**
-     * \brief Rename file.
-     * \param file_path The file you want to rename.
-     * \param new_name The new name will be set.
-     * \return Return result code.
-     */
-    Result<Nil, ErrorResult> RenameFile(const Path &file_path,
-                                        const std::string &new_name) const;
+  /**
+   * \brief Rename file.
+   * \param file_path The file you want to rename.
+   * \param new_name The new name will be set.
+   * \return Return result code.
+   */
+  Result<Nil, ErrorResult> RenameFile(const Path& file_path,
+                                      const std::string& new_name) const;
 
-    /**
-     * \brief Check whether the specified file is empty.
-     * \param file_path The path you want to check.
-     * \return Returns false if the operation is fail or the directory does not
-     * exist; otherwise, true is returned.
-     */
-    bool FileIsEmpty(const Path &file_path) const;
+  /**
+   * \brief Check whether the specified file is empty.
+   * \param file_path The path you want to check.
+   * \return Returns false if the operation is fail or the directory does not
+   * exist; otherwise, true is returned.
+   */
+  bool FileIsEmpty(const Path& file_path) const;
 
-    /**
-     * \brief Get all file paths under the specified path.
-     * \param dir_path The path you want to check.
-     * \return Return files or error.
-     */
-    Result<std::vector<Path>, ErrorResult> GetFiles(const Path &dir_path) const;
+  /**
+   * \brief Get all file paths under the specified path.
+   * \param dir_path The path you want to check.
+   * \return Return files or error.
+   */
+  Result<std::vector<Path>, ErrorResult> GetFiles(const Path& dir_path) const;
 
-    /**
-     * \brief Create file or directory.
-     * \param path The file or directory you want to create.
-     * \return Returns error code.
-     */
-    Result<Nil, ErrorResult> Create(const Path &path) const;
+  /**
+   * \brief Create file or directory.
+   * \param path The file or directory you want to create.
+   * \return Returns error code.
+   */
+  Result<Nil, ErrorResult> Create(const Path& path) const;
 
-    /**
-     * \brief Delete file or directory.
-     * \param path The file or directory you want to delete.
-     * \return Returns error code.
-     */
-    Result<Nil, ErrorResult> Delete(const Path &path) const;
+  /**
+   * \brief Delete file or directory.
+   * \param path The file or directory you want to delete.
+   * \return Returns error code.
+   */
+  Result<Nil, ErrorResult> Delete(const Path& path) const;
 
-    /**
-     * \brief Copy file or directory.
-     * \param path The file or directory you want to copy.
-     * \param dest_path The destination directory of the copy file/directory.
-     * \return Returns error code.
-     */
-    Result<Nil, ErrorResult> Copy(const Path &path, const Path &dest_path) const;
+  /**
+   * \brief Copy file or directory.
+   * \param path The file or directory you want to copy.
+   * \param dest_path The destination directory of the copy file/directory.
+   * \return Returns error code.
+   */
+  Result<Nil, ErrorResult> Copy(const Path& path, const Path& dest_path) const;
 
-    /**
-     * \brief Rename file or directory.
-     * \param path The file or directory you want to rename.
-     * \param new_name The new name will be set.
-     * \return Returns error code.
-     */
-    Result<Nil, ErrorResult> Rename(const Path &path, const std::string &new_name) const;
+  /**
+   * \brief Rename file or directory.
+   * \param path The file or directory you want to rename.
+   * \param new_name The new name will be set.
+   * \return Returns error code.
+   */
+  Result<Nil, ErrorResult> Rename(const Path& path,
+                                  const std::string& new_name) const;
 
-    /**
-     * \brief Rename file or directory.
-     * \param path The file or directory you want to rename.
-     * \param new_name The new name will be set.
-     * \return Returns error code.
-     */
-    Result<Nil, ErrorResult> Rename(const Path &path, const Path &new_path) const;
+  /**
+   * \brief Rename file or directory.
+   * \param path The file or directory you want to rename.
+   * \param new_name The new name will be set.
+   * \return Returns error code.
+   */
+  Result<Nil, ErrorResult> Rename(const Path& path, const Path& new_path) const;
 
-    /**
-     * \brief Check whether the specified file or directory is empty.
-     * \param path The path you want to check.
-     * \return Returns false if the operation is fail or the directory does not
-     * exist; otherwise, true is returned.
-     */
-    bool IsEmpty(const Path &path) const;
+  /**
+   * \brief Check whether the specified file or directory is empty.
+   * \param path The path you want to check.
+   * \return Returns false if the operation is fail or the directory does not
+   * exist; otherwise, true is returned.
+   */
+  bool IsEmpty(const Path& path) const;
 
-    /**
-     * \brief Get the size of the directory or file.
-     * \param path The directory or file of you want get size.
-     * \return Return size or error.
-     */
-    Result<std::size_t, ErrorResult> Size(const Path &path) const;
+  /**
+   * \brief Get the size of the directory or file.
+   * \param path The directory or file of you want get size.
+   * \return Return size or error.
+   */
+  Result<std::size_t, ErrorResult> Size(const Path& path) const;
 
-    /**
-     * \brief Get all file paths and directory under the specified path.
-     * \param path The path you want to check.
-     * \return Return all file or error.
-     */
-    Result<std::vector<MM::FileSystem::Path>, ErrorResult> GetAll(const Path &path) const;
+  /**
+   * \brief Get all file paths and directory under the specified path.
+   * \param path The path you want to check.
+   * \return Return all file or error.
+   */
+  Result<std::vector<MM::FileSystem::Path>, ErrorResult> GetAll(
+      const Path& path) const;
 
-    /**
-     * \brief Get file/directory last write time.
-     * \return The time of the file/directory last write time or error.
-     */
-    Result<LastWriteTime , ErrorResult> GetLastWriteTime(const Path &path) const;
+  /**
+   * \brief Get file/directory last write time.
+   * \return The time of the file/directory last write time or error.
+   */
+  Result<LastWriteTime, ErrorResult> GetLastWriteTime(const Path& path) const;
 
-    Result<std::vector<char>, ErrorResult> ReadFile(const MM::FileSystem::Path &path) const;
+  Result<std::vector<char>, ErrorResult> ReadFile(
+      const MM::FileSystem::Path& path) const;
 
-    const Path &GetAssetDir() const;
+  const Path& GetAssetDir() const;
 
-    const Path &GetAssetDirStd() const;
+  const Path& GetAssetDirStd() const;
 
-    const Path &GetAssetDirUser() const;
+  const Path& GetAssetDirUser() const;
 
-    const Path &GetAssetDirCache() const;
+  const Path& GetAssetDirCache() const;
 
-private:
-    /**
-     * \brief Destroy the instance. If it is successfully destroyed, it returns
-     * true, otherwise it returns false.
-     * \return If it is successfully
-     * destroyed, it returns true, otherwise it returns false.
-     */
-    static bool Destroy();
+ private:
+  /**
+   * \brief Destroy the instance. If it is successfully destroyed, it returns
+   * true, otherwise it returns false.
+   * \return If it is successfully
+   * destroyed, it returns true, otherwise it returns false.
+   */
+  static bool Destroy();
 
-protected:
-    FileSystem() = default;
+ protected:
+  FileSystem() = default;
   ~FileSystem();
   static FileSystem* file_system_;
 

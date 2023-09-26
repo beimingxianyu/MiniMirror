@@ -64,7 +64,7 @@ class Image : public AssetBase {
 
   std::string GetAssetTypeString() const override;
 
-  ExecuteResult GetJson(rapidjson::Document& document) const override;
+  Result<Utils::Json::Document, ErrorResult> GetJson() const override;
 
   static void Swap(Image& lhs, Image& rhs) noexcept;
 
@@ -82,9 +82,8 @@ class Image : public AssetBase {
 
   const void* GetPixelsData() const;
 
-  static ExecuteResult CalculateAssetID(const FileSystem::Path& path,
-                                        std::uint32_t desired_channels,
-                                        AssetID& asset_ID);
+  static Result<AssetID, ErrorResult> CalculateAssetID(
+      const FileSystem::Path& path, std::uint32_t desired_channels);
 
   void Release() override;
 

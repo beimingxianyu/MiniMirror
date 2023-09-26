@@ -31,7 +31,7 @@ class Combination : public AssetBase {
 
   std::string GetAssetTypeString() const override;
 
-  ExecuteResult GetJson(rapidjson::Document& document) const override;
+  Result<Utils::Json::Document, ErrorResult> GetJson() const override;
 
   void Release() override;
 
@@ -51,17 +51,17 @@ class Combination : public AssetBase {
   const AssetManager::AssetHandler& Get(std::uint64_t index) const;
 
  private:
-  static Utils::ExecuteResult LoadImages(
-      const FileSystem::Path& json_path,
-      const Utils::Json::Document& combination_json,
-      TaskSystem::Taskflow& taskflow, TaskSystem::Future<void>* future,
-      std::vector<AssetManager::AssetHandler>& images, bool& load_result);
+  static Result<std::vector<AssetManager::AssetHandler>, ErrorResult>
+  LoadImages(const FileSystem::Path& json_path,
+             const Utils::Json::Document& combination_json,
+             TaskSystem::Taskflow& taskflow, TaskSystem::Future<void>* future,
+             bool& load_result);
 
-  static Utils::ExecuteResult LoadMeshes(
-      const FileSystem::Path& json_path,
-      const rapidjson::Document& combination_json,
-      TaskSystem::Taskflow& taskflow, TaskSystem::Future<void>* future,
-      std::vector<AssetManager::AssetHandler>& meshes, bool& load_result);
+  static Result<std::vector<AssetManager::AssetHandler>, ErrorResult>
+  LoadMeshes(const FileSystem::Path& json_path,
+             const rapidjson::Document& combination_json,
+             TaskSystem::Taskflow& taskflow, TaskSystem::Future<void>* future,
+             bool& load_result);
 
  private:
   std::vector<AssetManager::AssetHandler> asset_handlers_{};

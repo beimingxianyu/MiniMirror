@@ -13,26 +13,26 @@ TEST(manager, list) {
   EXPECT_EQ(list_data.IsMultiContainer(), true);
   EXPECT_EQ(list_data.GetSize(), 0);
   auto handler1 = list_data.AddObject(1).Exception();
-  EXPECT_EQ(handler1.Success(), true);
+  EXPECT_EQ(handler1.IsSuccess(), true);
   handler1 = list_data.AddObject(1).Exception();
-  EXPECT_EQ(handler1.Success(), true);
+  EXPECT_EQ(handler1.IsSuccess(), true);
   ASSERT_EQ(list_data.GetSize(), 1);
   EXPECT_EQ(list_data.GetUseCount(1, handler1.GetResult().GetUseCountPtr()), 1);
   EXPECT_EQ(handler1.GetResult().GetUseCount(), 1);
   auto handler2 = list_data.AddObject(1).Exception();
-  EXPECT_EQ(handler2.Success(), true);
+  EXPECT_EQ(handler2.IsSuccess(), true);
   EXPECT_EQ(list_data.GetSize(), 2);
   auto handler3 = handler1.GetResult();
   auto use_count =
       list_data.GetUseCount(1, MM::st_get_multiply_object).Exception();
-  EXPECT_EQ(use_count.Success(), true);
+  EXPECT_EQ(use_count.IsSuccess(), true);
   EXPECT_EQ(use_count.GetResult().size(), 2);
   EXPECT_EQ(list_data.GetSize(), 2);
   std::vector<MM::Manager::ManagedObjectList<int>::HandlerType> handlers;
   for (int i = 0; i != 100; ++i) {
     int temp = i;
     auto new_handler = list_data.AddObject(std::move(temp)).Exception();
-    EXPECT_EQ(new_handler.Success(), true);
+    EXPECT_EQ(new_handler.IsSuccess(), true);
     handlers.emplace_back(std::move(new_handler.GetResult()));
   }
   EXPECT_EQ(list_data.GetSize(), 102);
@@ -49,7 +49,7 @@ void InsertObject2(
   for (int i = 0; i < COUNT_SIZE; ++i) {
     int temp = i;
     auto handler = list_manager.AddObject(std::move(temp)).Exception();
-    EXPECT_EQ(handler.Success(), true);
+    EXPECT_EQ(handler.IsSuccess(), true);
     handlers.emplace_back(std::move(handler.GetResult()));
   }
 }

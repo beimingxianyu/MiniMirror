@@ -56,12 +56,11 @@ class Mesh : public AssetBase {
 
   AssetType GetAssetType() const override;
 
-  ExecuteResult GetJson(Utils::Json::Document& document) const override;
+  MM::Result<Utils::Json::Document, ErrorResult> GetJson() const override;
 
-  static ExecuteResult CalculateAssetID(
+  static MM::Result<AssetID, ErrorResult> CalculateAssetID(
       const FileSystem::Path& path, std::uint32_t index,
-      AssetSystem::AssetType::BoundingBox::BoundingBoxType bounding_box_type,
-      AssetID& asset_ID);
+      AssetSystem::AssetType::BoundingBox::BoundingBoxType bounding_box_type);
 
   void Release() override;
 

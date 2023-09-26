@@ -11,17 +11,19 @@ MM::AssetSystem::AssetType::AssetBase::AssetBase(
     return;
   }
 
-  Result<FileSystem::LastWriteTime, ErrorResult> last_write_time = MM_FILE_SYSTEM->GetLastWriteTime(asset_path).Exception(
-          MM_ERROR_DESCRIPTION2(asset_path.String() + "is not exisits")
-          );
- if (!last_write_time.Success()) {
-     asset_path_ = FileSystem::Path("");
-     return;
- }
+  Result<FileSystem::LastWriteTime, ErrorResult> last_write_time =
+      MM_FILE_SYSTEM->GetLastWriteTime(asset_path)
+          .Exception(
+              MM_ERROR_DESCRIPTION2(asset_path.String() + "is not exisits"));
+  if (!last_write_time.IsSuccess()) {
+    asset_path_ = FileSystem::Path("");
+    return;
+  }
 
   asset_path_and_last_editing_time_hash =
       asset_path.GetHash() ^
-      static_cast<std::uint64_t>(last_write_time.GetResult().time_since_epoch().count());
+      static_cast<std::uint64_t>(
+          last_write_time.GetResult().time_since_epoch().count());
   assert(asset_path_and_last_editing_time_hash != 0);
 }
 
@@ -122,9 +124,11 @@ MM::AssetSystem::AssetType::AssetBase::GetAssetPath() const {
   return asset_path_;
 }
 
-MM::Result<MM::Utils::Json::Document, MM::ErrorResult> MM::AssetSystem::AssetType::AssetBase::GetJson() const {
+MM::Result<MM::Utils::Json::Document, MM::ErrorResult>
+MM::AssetSystem::AssetType::AssetBase::GetJson() const {
   MM_LOG_FATAL("This function should not be called.");
-  return Result<MM::Utils::Json::Document, MM::ErrorResult>{st_execute_error, MM::ErrorCode::UNDEFINED_ERROR};
+  return Result<MM::Utils::Json::Document, MM::ErrorResult>{
+      st_execute_error, MM::ErrorCode::UNDEFINED_ERROR};
 }
 
 void MM::AssetSystem::AssetType::AssetBase::SetAssetID(

@@ -12,11 +12,11 @@
 TEST(manager, set) {
   MM::Manager::ManagedObjectSet<int> set_manager, set_manager2;
   {
-        MM::Manager::ManagedObjectSet<int>::HandlerType handler;
+    MM::Manager::ManagedObjectSet<int>::HandlerType handler;
     {
       EXPECT_EQ(set_manager.GetSize(), 0);
       auto handler1 = set_manager.AddObject(10).Exception();
-      EXPECT_EQ(handler1.Success(), true);
+      EXPECT_EQ(handler1.IsSuccess(), true);
       EXPECT_EQ(set_manager.GetSize(), 1);
       EXPECT_EQ(handler1.GetResult().GetObject(), 10);
       EXPECT_EQ(set_manager.Have(10), true);
@@ -26,13 +26,13 @@ TEST(manager, set) {
       EXPECT_EQ(set_manager.IsMultiContainer(), false);
       EXPECT_EQ(set_manager.IsRelationshipContainer(), false);
       auto handler2 = set_manager.GetObject(10).Exception();
-      EXPECT_EQ(handler2.Success(), true);
+      EXPECT_EQ(handler2.IsSuccess(), true);
       auto handler3 = set_manager.GetObject(20).Exception();
       EXPECT_EQ(handler3.GetError().GetErrorCode(),
                 MM::ErrorCode::PARENT_OBJECT_NOT_CONTAIN_SPECIFIC_CHILD_OBJECT);
       EXPECT_EQ(handler3.GetResult().IsValid(), false);
       handler3 = set_manager.AddObject(20).Exception();
-      EXPECT_EQ(handler3.Success(), true);
+      EXPECT_EQ(handler3.IsSuccess(), true);
       EXPECT_EQ(handler3.GetResult().GetObject(), 20);
       EXPECT_EQ(set_manager.GetSize(), 2);
 
@@ -40,7 +40,7 @@ TEST(manager, set) {
       for (int i = 0; i < handlers.size(); ++i) {
         int temp = i;
         auto handler = set_manager.AddObject(std::move(temp)).Exception();
-        EXPECT_EQ(handler.Success(), true);
+        EXPECT_EQ(handler.IsSuccess(), true);
         handlers[i] = std::move(handler.GetResult());
       }
 
@@ -57,7 +57,7 @@ TEST(manager, set) {
       EXPECT_EQ(set_manager.GetUseCount(handler3.GetResult().GetObject()), 2);
 
       auto handler_temp = set_manager.GetObject(49).Exception();
-      EXPECT_EQ(handler_temp.Success(), true);
+      EXPECT_EQ(handler_temp.IsSuccess(), true);
       handler = std::move(handler_temp.GetResult());
 
       handler3 = handler1;
@@ -65,13 +65,13 @@ TEST(manager, set) {
       EXPECT_EQ(handler3.GetResult().GetUseCount(), 4);
       EXPECT_EQ(handler1.GetResult().GetUseCount(), 4);
       handler3 = set_manager.AddObject(100).Exception();
-      EXPECT_EQ(handler3.Success(), true);
+      EXPECT_EQ(handler3.IsSuccess(), true);
       auto handler5 =
           set_manager.GetObject(handler1.GetResult().GetObject()).Exception();
-      EXPECT_EQ(handler5.Success(), true);
+      EXPECT_EQ(handler5.IsSuccess(), true);
       handler5 =
           set_manager.GetObject(handler3.GetResult().GetObject()).Exception();
-      EXPECT_EQ(handler5.Success(), true);
+      EXPECT_EQ(handler5.IsSuccess(), true);
     }
 
     EXPECT_EQ(set_manager.GetSize(), 1);
@@ -95,7 +95,7 @@ void InsertObject(
   for (; start != end; ++start) {
     int temp = start;
     auto handler = set_manager.AddObject(std::move(temp)).Exception();
-    EXPECT_EQ(handler.Success(), true);
+    EXPECT_EQ(handler.IsSuccess(), true);
     handlers.emplace_back(std::move(handler.GetResult()));
   }
 }
@@ -221,11 +221,11 @@ TEST(manager, multi_set) {
   EXPECT_EQ(multi_set_manager.IsMultiContainer(), true);
   EXPECT_EQ(multi_set_manager.IsRelationshipContainer(), false);
   auto handler1 = multi_set_manager.AddObject(1).Exception();
-  EXPECT_EQ(handler1.Success(), true);
+  EXPECT_EQ(handler1.IsSuccess(), true);
   auto handler2 = multi_set_manager.AddObject(1).Exception();
-  EXPECT_EQ(handler2.Success(), true);
+  EXPECT_EQ(handler2.IsSuccess(), true);
   auto handler3 = multi_set_manager.AddObject(1).Exception();
-  EXPECT_EQ(handler3.Success(), true);
+  EXPECT_EQ(handler3.IsSuccess(), true);
   auto handler4 = handler3;
   auto handler5 = handler3;
   EXPECT_EQ(handler3.GetResult().GetUseCount(), 3);
@@ -248,7 +248,7 @@ void InsertObject2(
   for (int i = 0; i < COUNT_SIZE; ++i) {
     int temp = i;
     auto handler = multi_set_manager.AddObject(std::move(temp)).Exception();
-    EXPECT_EQ(handler.Success(), true);
+    EXPECT_EQ(handler.IsSuccess(), true);
     handlers.emplace_back(std::move(handler.GetResult()));
   }
 }

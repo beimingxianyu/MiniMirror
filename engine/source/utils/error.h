@@ -65,7 +65,7 @@ class ErrorTypeBase {
 
   virtual void Exception() const;
 
-  virtual bool Success() const = 0;
+  virtual bool IsSuccess() const = 0;
 
   virtual void Reset() = 0;
 };
@@ -92,7 +92,7 @@ class ErrorNil final : public ErrorTypeBase {
 
   void Exception() const override;
 
-  bool Success() const override;
+  bool IsSuccess() const override;
 
   void Reset() override;
 
@@ -122,7 +122,7 @@ class ErrorResult final : public ErrorTypeBase {
 
   void Exception() const override;
 
-  bool Success() const override;
+  bool IsSuccess() const override;
 
   void Reset() override;
 
@@ -142,7 +142,7 @@ class ResultS {
   friend class Result;
 
  public:
-  ResultS() = delete;
+  ResultS() = default;
   ~ResultS() = default;
   explicit ResultS(const ResultType& result) : result_(result) {}
   explicit ResultS(ResultType&& result) : result_(std::move(result)) {}
@@ -191,7 +191,7 @@ class ResultE {
   friend class Result;
 
  public:
-  ResultE() = delete;
+  ResultE() = default;
   ~ResultE() = default;
   explicit ResultE(const ErrorType& error) : error_(error) {}
   explicit ResultE(ErrorType&& error) : error_(std::move(error)) {}
@@ -328,7 +328,9 @@ class Result {
 
   void IgnoreException() { result_wrapper_.IgnoreException(); }
 
-  bool Success() const { return result_wrapper_.Success(); }
+  bool IsSuccess() const { return result_wrapper_.Success(); }
+
+  bool IsError() const { return !result_wrapper_.Success(); }
 
  private:
   template <typename ResultTypeIn, typename ErrorTypeIn,
@@ -464,7 +466,7 @@ class Result {
     }
 
    public:
-    explicit operator bool() const { return error_.Success(); }
+    explicit operator bool() const { return error_.IsSuccess(); }
 
    public:
     ErrorTypeIn& GetError() { return error_; }
@@ -482,7 +484,7 @@ class Result {
     }
 
     void Exception() {
-      if (error_.Success()) {
+      if (error_.IsSuccess()) {
         return;
       }
 
@@ -492,7 +494,7 @@ class Result {
     }
 
     void Exception() const {
-      if (error_.Success()) {
+      if (error_.IsSuccess()) {
         return;
       }
 
@@ -502,7 +504,7 @@ class Result {
     }
 
     void Exception(void callback()) const {
-      if (error_.Success()) {
+      if (error_.IsSuccess()) {
         return;
       }
 
@@ -513,7 +515,7 @@ class Result {
     }
 
     void Exception(void callback(ResultType&, const ErrorType&)) {
-      if (error_.Success()) {
+      if (error_.IsSuccess()) {
         return;
       }
 
@@ -524,7 +526,7 @@ class Result {
     }
 
     void Exception(void callback(ErrorType&)) {
-      if (error_.Success()) {
+      if (error_.IsSuccess()) {
         return;
       }
 
@@ -535,7 +537,7 @@ class Result {
     }
 
     void Exception(void callback(const ErrorType&)) {
-      if (error_.Success()) {
+      if (error_.IsSuccess()) {
         return;
       }
 
@@ -546,7 +548,7 @@ class Result {
     }
 
     void Exception(void callback(const ErrorType&)) const {
-      if (error_.Success()) {
+      if (error_.IsSuccess()) {
         return;
       }
 
@@ -559,8 +561,7 @@ class Result {
     template <typename CallbackType>
     void Exception(CallbackType&& callback) {
       constexpr bool callback_signature1 =
-          std::is_invocable_v<CallbackType, ResultType&,
-                                const ErrorType&>;
+          std::is_invocable_v<CallbackType, ResultType&, const ErrorType&>;
       constexpr bool callback_signature2 =
           std::is_invocable_v<CallbackType, ErrorType&>;
       constexpr bool callback_signature3 =
@@ -571,8 +572,7 @@ class Result {
           std::is_invocable_v<CallbackType, ResultType&, ErrorType>;
       constexpr bool callback_signature6 =
           std::is_invocable_v<CallbackType, ResultType&>;
-      constexpr bool callback_signature7 =
-          std::is_invocable_v<CallbackType>;
+      constexpr bool callback_signature7 = std::is_invocable_v<CallbackType>;
 
       static_assert(callback_signature1 || callback_signature2 ||
                         callback_signature3 || callback_signature4 ||
@@ -580,7 +580,7 @@ class Result {
                         callback_signature7,
                     "Callback signature is invalid.");
 
-      if (error_.Success()) {
+      if (error_.IsSuccess()) {
         return;
       }
 
@@ -620,8 +620,7 @@ class Result {
           std::is_invocable_v<CallBackType, const ErrorType&>;
       constexpr bool callback_signature2 =
           std::is_invocable_v<CallBackType, ErrorType>;
-      constexpr bool callback_signature3 =
-          std::is_invocable_v<CallBackType>;
+      constexpr bool callback_signature3 = std::is_invocable_v<CallBackType>;
       static_assert(
           callback_signature1 || callback_signature2 || callback_signature3,
           "Callback signature is invalid.");
@@ -636,7 +635,7 @@ class Result {
       IgnoreException();
     }
 
-    bool Success() const { return error_.Success(); }
+    bool Success() const { return error_.IsSuccess(); }
 
    private:
     ResultType result_{};

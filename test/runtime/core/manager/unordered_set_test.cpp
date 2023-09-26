@@ -9,9 +9,9 @@ TEST(manager, unordered_set) {
   MM::Manager::ManagedObjectUnorderedSet<std::string> set_data, set_data2;
 
   auto handler1 = set_data.AddObject(std::string("2")).Exception();
-  EXPECT_EQ(handler1.Success(), true);
+  EXPECT_EQ(handler1.IsSuccess(), true);
   auto handler2 = set_data.AddObject(std::string("2")).Exception();
-  EXPECT_EQ(handler2.Success(), false);
+  EXPECT_EQ(handler2.IsSuccess(), false);
   EXPECT_EQ(handler2.GetError().GetErrorCode(),
             MM::ErrorCode::OPERATION_NOT_SUPPORTED);
   ASSERT_EQ(handler2.GetResult().IsValid(), false);
@@ -23,9 +23,9 @@ TEST(manager, unordered_set) {
   EXPECT_EQ(handler2.GetResult().GetObject(), std::string("2"));
   EXPECT_EQ(set_data.GetSize(), 1);
   auto handler4 = set_data.AddObject(std::string("3")).Exception();
-  EXPECT_EQ(handler4.Success(), true);
+  EXPECT_EQ(handler4.IsSuccess(), true);
   auto handler3 = set_data.GetObject(std::string("2")).Exception();
-  EXPECT_EQ(handler3.Success(), true);
+  EXPECT_EQ(handler3.IsSuccess(), true);
   std::string temp = std::to_string(2);
   EXPECT_EQ(set_data.Have(temp), true);
   EXPECT_EQ(set_data.Have(std::to_string(2)), true);
@@ -75,7 +75,7 @@ void InsertString2(
     std::uint32_t start) {
   for (std::uint32_t i = start; i != start + INSERT_COUNT; ++i) {
     auto handler = set_data.AddObject(std::to_string(i)).Exception();
-    if (handler.Success()) {
+    if (handler.IsSuccess()) {
       handlers.emplace_back(std::move(handler.GetResult()));
     }
     ASSERT_EQ(set_data.Have(std::to_string(i)), true);
@@ -131,16 +131,16 @@ TEST(manager, unorderd_multiset) {
   ASSERT_EQ(multi_set_data1.IsRelationshipContainer(), false);
   ASSERT_EQ(multi_set_data1.IsMultiContainer(), true);
   auto handler1 = multi_set_data1.AddObject(std::string("1")).Exception();
-  ASSERT_EQ(handler1.Success(), true);
+  ASSERT_EQ(handler1.IsSuccess(), true);
   auto handler2 = multi_set_data1.AddObject(std::string("2")).Exception();
-  ASSERT_EQ(handler2.Success(), true);
+  ASSERT_EQ(handler2.IsSuccess(), true);
   auto handler3 = multi_set_data1.AddObject(std::string("1")).Exception();
-  ASSERT_EQ(handler3.Success(), true);
+  ASSERT_EQ(handler3.IsSuccess(), true);
   ASSERT_EQ(multi_set_data1.GetSize(), 3);
   auto handler4 = multi_set_data1.GetObject(std::string("1")).Exception();
-  ASSERT_EQ(handler4.Success(), true);
+  ASSERT_EQ(handler4.IsSuccess(), true);
   auto handler5 = multi_set_data1.GetObject(std::string("1")).Exception();
-  ASSERT_EQ(handler5.Success(), true);
+  ASSERT_EQ(handler5.IsSuccess(), true);
   ASSERT_EQ(multi_set_data1.GetSize(), 3);
   ASSERT_EQ(handler1.GetResult().GetObject(), std::to_string(1));
   ASSERT_EQ(handler2.GetResult().GetObject(), std::to_string(2));
@@ -149,7 +149,7 @@ TEST(manager, unorderd_multiset) {
   ASSERT_EQ(handler5.GetResult().GetObject(), std::to_string(1));
   auto handlers =
       multi_set_data1.GetObject(std::string("1"), MM::st_get_multiply_object);
-  ASSERT_EQ(handlers.Success(), true);
+  ASSERT_EQ(handlers.IsSuccess(), true);
   ASSERT_EQ(handlers.GetResult().size(), 2);
   ASSERT_EQ(multi_set_data1.Have(std::string("1")), true);
   ASSERT_EQ(multi_set_data1.Have(std::string("2")), true);
@@ -159,14 +159,14 @@ TEST(manager, unorderd_multiset) {
   ASSERT_EQ(multi_set_data1.GetSize(std::string("3")), 0);
   ASSERT_EQ(multi_set_data1.GetUseCount(std::string("1")), 4);
   auto handler6 = multi_set_data1.GetObject(std::string("1")).Exception();
-  ASSERT_EQ(handler6.Success(), true);
+  ASSERT_EQ(handler6.IsSuccess(), true);
   auto use_counts1 =
       multi_set_data1.GetUseCount(std::string("1"), MM::st_get_multiply_object);
-  ASSERT_EQ(use_counts1.Success(), true);
+  ASSERT_EQ(use_counts1.IsSuccess(), true);
   ASSERT_EQ(use_counts1.GetResult().size(), 2);
   auto use_counts2 =
       multi_set_data1.GetUseCount(std::string("2"), MM::st_get_multiply_object);
-  ASSERT_EQ(use_counts2.Success(), true);
+  ASSERT_EQ(use_counts2.IsSuccess(), true);
   ASSERT_EQ(use_counts2.GetResult().size(), 1);
 
   multi_set_data2 = std::move(multi_set_data1);
@@ -179,7 +179,7 @@ TEST(manager, unorderd_multiset) {
   ASSERT_EQ(multi_set_data2.GetSize(std::string("3")), 0);
   ASSERT_EQ(multi_set_data2.GetUseCount(std::string("1")), 5);
   handler6 = multi_set_data2.GetObject(std::string("1")).Exception();
-  ASSERT_EQ(handler6.Success(), true);
+  ASSERT_EQ(handler6.IsSuccess(), true);
   ASSERT_EQ(handler6.GetResult().IsValid(), true);
   ASSERT_EQ(handler6.GetResult().GetUseCount(), 5);
   ASSERT_EQ(multi_set_data2.GetUseCount(std::string("1")), 5);
@@ -209,7 +209,7 @@ void MultiInsertString(
   for (std::uint32_t i = start; i != start + INSERT_COUNT; ++i) {
     std::uint32_t temp;
     auto handler = map_data.AddObject(std::to_string(i));
-    ASSERT_EQ(handler.Success(), true);
+    ASSERT_EQ(handler.IsSuccess(), true);
     handlers.emplace_back(std::move(handler.GetResult()));
     EXPECT_EQ(map_data.Have(std::to_string(i)), true);
   }

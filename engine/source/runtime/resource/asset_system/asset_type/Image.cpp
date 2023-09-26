@@ -182,16 +182,16 @@ std::string MM::AssetSystem::AssetType::Image::GetAssetTypeString() const {
   return std::string(MM_ASSET_TYPE_IMAGE);
 }
 
-MM::ExecuteResult MM::AssetSystem::AssetType::Image::GetJson(
-    rapidjson::Document& document) const {
-  if (!document.IsObject()) {
-    return ExecuteResult ::INPUT_PARAMETERS_ARE_NOT_SUITABLE;
-  }
-  if (!(document.MemberBegin() == document.MemberEnd())) {
-    return ExecuteResult ::INPUT_PARAMETERS_ARE_NOT_SUITABLE;
+MM::Result<MM::Utils::Json::Document, MM::ErrorResult>
+MM::AssetSystem::AssetType::Image::GetJson() const {
+  if (!IsValid()) {
+    return ResultE<ErrorResult>{ErrorCode::OBJECT_IS_INVALID};
   }
 
+  Utils::Json::Document document{};
+  document.SetObject();
   auto& allocator = document.GetAllocator();
+
   document.AddMember("name",
                      Utils::Json::GenericStringRef<Utils::Json::UTF8<>::Ch>(
                          GetAssetName().c_str()),
@@ -207,7 +207,7 @@ MM::ExecuteResult MM::AssetSystem::AssetType::Image::GetJson(
   document.AddMember("image size", GetImageSize(), allocator);
   switch (GetImageFormat()) {
     case ImageFormat::UNDEFINED:
-      return ExecuteResult ::OBJECT_IS_INVALID;
+      return ResultE<ErrorResult>{ErrorCode::OBJECT_IS_INVALID};
     case ImageFormat::GREY:
       document.AddMember("image format", "GREY", allocator);
       break;
@@ -222,7 +222,7 @@ MM::ExecuteResult MM::AssetSystem::AssetType::Image::GetJson(
       break;
   }
 
-  return ExecuteResult ::SUCCESS;
+  return ResultS{std::move(document)};
 }
 
 std::uint32_t MM::AssetSystem::AssetType::Image::GetOriginalImageChannels()
@@ -230,16 +230,21 @@ std::uint32_t MM::AssetSystem::AssetType::Image::GetOriginalImageChannels()
   return image_info_.original_image_channels_;
 }
 
-MM::ExecuteResult MM::AssetSystem::AssetType::Image::CalculateAssetID(
-    const MM::FileSystem::Path& path, std::uint32_t desired_channels,
-    MM::AssetSystem::AssetType::AssetID& asset_ID) {
-  FileSystem::LastWriteTime last_write_time;
-  MM_CHECK_WITHOUT_LOG(MM_FILE_SYSTEM->GetLastWriteTime(path, last_write_time),
-                       return MM_RESULT_CODE;)
+MM::Result<MM::AssetSystem::AssetType::AssetID, MM::ErrorResult>
+MM::AssetSystem::AssetType::Image::CalculateAssetID(
+    const MM::FileSystem::Path& path, std::uint32_t desired_channels) {
+  MM::Result<FileSystem::LastWriteTime, ErrorResult> last_write_time =
+      MM_FILE_SYSTEM->GetLastWriteTime(path);
+  last_write_time.Exception(
+      MM_ERROR_DESCRIPTION(Failed to get last write time.));
+  if (last_write_time.IsError()) {
+    return ResultE<ErrorResult>{ErrorCode::FILE_OPERATION_ERROR};
+  }
 
-  asset_ID = (path.GetHash() ^ last_write_time.time_since_epoch().count()) +
-             desired_channels;
-  return ExecuteResult ::SUCCESS;
+  AssetID asset_ID = (path.GetHash() ^
+                      last_write_time.GetResult().time_since_epoch().count()) +
+                     desired_channels;
+  return ResultS{asset_ID};
 }
 
 std::vector<std::pair<void*, std::uint64_t>>

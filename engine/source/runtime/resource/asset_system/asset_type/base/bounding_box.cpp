@@ -33,8 +33,8 @@ MM::AssetSystem::AssetType::RectangleBox::operator=(const RectangleBox& other) {
   if (&other == this) {
     return *this;
   }
-    left_bottom_forward_ = other.left_bottom_forward_;
-    right_top_back_ = other.right_top_back_;
+  left_bottom_forward_ = other.left_bottom_forward_;
+  right_top_back_ = other.right_top_back_;
 
   return *this;
 }
@@ -45,11 +45,11 @@ MM::AssetSystem::AssetType::RectangleBox::operator=(
   if (&other == this) {
     return *this;
   }
-    left_bottom_forward_ = other.left_bottom_forward_;
-    right_top_back_ = other.right_top_back_;
+  left_bottom_forward_ = other.left_bottom_forward_;
+  right_top_back_ = other.right_top_back_;
 
-    left_bottom_forward_ = MathDefinition::VEC3_ZERO;
-    right_top_back_ = MathDefinition::VEC3_ZERO;
+  left_bottom_forward_ = MathDefinition::VEC3_ZERO;
+  right_top_back_ = MathDefinition::VEC3_ZERO;
 
   return *this;
 }
@@ -63,7 +63,7 @@ const float& MM::AssetSystem::AssetType::RectangleBox::GetTop() const {
 }
 
 void MM::AssetSystem::AssetType::RectangleBox::SetTop(const float& new_top) {
-    right_top_back_.y = new_top;
+  right_top_back_.y = new_top;
 }
 
 float& MM::AssetSystem::AssetType::RectangleBox::GetBottom() {
@@ -76,7 +76,7 @@ const float& MM::AssetSystem::AssetType::RectangleBox::GetBottom() const {
 
 void MM::AssetSystem::AssetType::RectangleBox::SetBottom(
     const float& new_bottom) {
-    left_bottom_forward_.y = new_bottom;
+  left_bottom_forward_.y = new_bottom;
 }
 
 float& MM::AssetSystem::AssetType::RectangleBox::GetLeft() {
@@ -88,7 +88,7 @@ const float& MM::AssetSystem::AssetType::RectangleBox::GetLeft() const {
 }
 
 void MM::AssetSystem::AssetType::RectangleBox::SetLeft(const float& new_left) {
-    left_bottom_forward_.x = new_left;
+  left_bottom_forward_.x = new_left;
 }
 
 float& MM::AssetSystem::AssetType::RectangleBox::GetRight() {
@@ -101,7 +101,7 @@ const float& MM::AssetSystem::AssetType::RectangleBox::GetRight() const {
 
 void MM::AssetSystem::AssetType::RectangleBox::SetRight(
     const float& new_right) {
-    right_top_back_.x = new_right;
+  right_top_back_.x = new_right;
 }
 
 float& MM::AssetSystem::AssetType::RectangleBox::GetForward() {
@@ -114,7 +114,7 @@ const float& MM::AssetSystem::AssetType::RectangleBox::GetForward() const {
 
 void MM::AssetSystem::AssetType::RectangleBox::SetForward(
     const float& new_forward) {
-    left_bottom_forward_.z = new_forward;
+  left_bottom_forward_.z = new_forward;
 }
 
 float& MM::AssetSystem::AssetType::RectangleBox::GetBack() {
@@ -126,7 +126,7 @@ const float& MM::AssetSystem::AssetType::RectangleBox::GetBack() const {
 }
 
 void MM::AssetSystem::AssetType::RectangleBox::SetBack(const float& new_back) {
-    right_top_back_.z = new_back;
+  right_top_back_.z = new_back;
 }
 
 MM::Math::vec3&
@@ -141,7 +141,7 @@ MM::AssetSystem::AssetType::RectangleBox::GetLeftBottomForward() const {
 
 void MM::AssetSystem::AssetType::RectangleBox::SetLeftBottomForward(
     const Math::vec3& new_left_bottom_forward) {
-    left_bottom_forward_ = new_left_bottom_forward;
+  left_bottom_forward_ = new_left_bottom_forward;
 }
 
 MM::Math::vec3& MM::AssetSystem::AssetType::RectangleBox::GetRightTopBack() {
@@ -155,7 +155,7 @@ MM::AssetSystem::AssetType::RectangleBox::GetRightTopBack() const {
 
 void MM::AssetSystem::AssetType::RectangleBox::SetRightTopBack(
     const Math::vec3& new_right_top_back) {
-    right_top_back_ = new_right_top_back;
+  right_top_back_ = new_right_top_back;
 }
 
 bool MM::AssetSystem::AssetType::RectangleBox::IsValid() const {
@@ -181,29 +181,30 @@ void MM::AssetSystem::AssetType::RectangleBox::UpdateBoundingBoxWithOneVertex(
   const Math::vec3& vertex_position = vertex.GetPosition();
 
   if (vertex_position.x < left_bottom_forward_.x) {
-      left_bottom_forward_.x = vertex_position.x;
+    left_bottom_forward_.x = vertex_position.x;
   }
   if (vertex_position.x > right_top_back_.x) {
-      right_top_back_.x = vertex_position.x;
+    right_top_back_.x = vertex_position.x;
   }
   if (vertex_position.y < left_bottom_forward_.y) {
-      left_bottom_forward_.y = vertex_position.y;
+    left_bottom_forward_.y = vertex_position.y;
   }
   if (vertex_position.y > right_top_back_.y) {
-      right_top_back_.y = vertex_position.y;
+    right_top_back_.y = vertex_position.y;
   }
   if (vertex_position.z < left_bottom_forward_.z) {
-      left_bottom_forward_.z = vertex_position.z;
+    left_bottom_forward_.z = vertex_position.z;
   }
   if (vertex_position.z > right_top_back_.z) {
-      right_top_back_.z = vertex_position.z;
+    right_top_back_.z = vertex_position.z;
   }
 }
 
-MM::Result<MM::Nil, MM::ErrorResult> MM::AssetSystem::AssetType::RectangleBox::UpdateBoundingBox(
-    const Mesh& mesh) {
+MM::Result<MM::Nil, MM::ErrorResult>
+MM::AssetSystem::AssetType::RectangleBox::UpdateBoundingBox(const Mesh& mesh) {
   if (!mesh.IsValid()) {
-      return MM::Result<MM::Nil, MM::ErrorResult>{st_execute_error, ErrorCode::INPUT_PARAMETERS_ARE_INCORRECT};
+    return MM::Result<MM::Nil, MM::ErrorResult>{
+        st_execute_error, ErrorCode::INPUT_PARAMETERS_ARE_INCORRECT};
   }
 
   const std::vector<Vertex>& mesh_vertices = mesh.GetVertices();
@@ -212,22 +213,22 @@ MM::Result<MM::Nil, MM::ErrorResult> MM::AssetSystem::AssetType::RectangleBox::U
     const Math::vec3& vertex_position = vertex.GetPosition();
 
     if (vertex_position.x < left_bottom_forward_.x) {
-        left_bottom_forward_.x = vertex_position.x;
+      left_bottom_forward_.x = vertex_position.x;
     }
     if (vertex_position.x > right_top_back_.x) {
-        right_top_back_.x = vertex_position.x;
+      right_top_back_.x = vertex_position.x;
     }
     if (vertex_position.y < left_bottom_forward_.y) {
-        left_bottom_forward_.y = vertex_position.y;
+      left_bottom_forward_.y = vertex_position.y;
     }
     if (vertex_position.y > right_top_back_.y) {
-        right_top_back_.y = vertex_position.y;
+      right_top_back_.y = vertex_position.y;
     }
     if (vertex_position.z < left_bottom_forward_.z) {
-        left_bottom_forward_.z = vertex_position.z;
+      left_bottom_forward_.z = vertex_position.z;
     }
     if (vertex_position.z > right_top_back_.z) {
-        right_top_back_.z = vertex_position.z;
+      right_top_back_.z = vertex_position.z;
     }
   }
 
@@ -236,8 +237,7 @@ MM::Result<MM::Nil, MM::ErrorResult> MM::AssetSystem::AssetType::RectangleBox::U
 
 MM::Utils::Json::Value MM::AssetSystem::AssetType::RectangleBox::GetJson(
     Utils::Json::MemoryPoolAllocator<>& allocator) const {
-
-    MM::Utils::Json::Value output_json_data{Utils::Json::kObjectType};
+  MM::Utils::Json::Value output_json_data{Utils::Json::kObjectType};
   Utils::Json::Value bounding_type{"AABB"};
   const Math::vec3& left_bottom_forward = GetLeftBottomForward();
   const Math::vec3& right_top_back = GetRightTopBack();
@@ -255,7 +255,7 @@ MM::Utils::Json::Value MM::AssetSystem::AssetType::RectangleBox::GetJson(
   output_json_data.AddMember("top", top, allocator);
   output_json_data.AddMember("back", back, allocator);
 
-  return output_json_data.GetObject();
+  return output_json_data;
 }
 
 MM::AssetSystem::AssetType::CapsuleBox&
@@ -350,10 +350,11 @@ void MM::AssetSystem::AssetType::CapsuleBox::UpdateBoundingBoxWithOneVertex(
   }
 }
 
-MM::Result<MM::Nil, MM::ErrorResult> MM::AssetSystem::AssetType::CapsuleBox::UpdateBoundingBox(
-    const Mesh& mesh) {
+MM::Result<MM::Nil, MM::ErrorResult>
+MM::AssetSystem::AssetType::CapsuleBox::UpdateBoundingBox(const Mesh& mesh) {
   if (!mesh.IsValid()) {
-    return Result<Nil, ErrorResult>{st_execute_error, ErrorCode::INPUT_PARAMETERS_ARE_INCORRECT};
+    return Result<Nil, ErrorResult>{st_execute_error,
+                                    ErrorCode::INPUT_PARAMETERS_ARE_INCORRECT};
   }
 
   const std::vector<Vertex>& mesh_vertices = mesh.GetVertices();
@@ -379,7 +380,7 @@ MM::Result<MM::Nil, MM::ErrorResult> MM::AssetSystem::AssetType::CapsuleBox::Upd
 
 MM::Utils::Json::Value MM::AssetSystem::AssetType::CapsuleBox::GetJson(
     rapidjson::MemoryPoolAllocator<>& allocator) const {
-    Utils::Json::Value output_json_data{Utils::Json::kObjectType};
+  Utils::Json::Value output_json_data{Utils::Json::kObjectType};
 
   Utils::Json::Value bounding_type{"capsule"};
   Utils::Json::Value radius{GetRadius()};
@@ -390,5 +391,5 @@ MM::Utils::Json::Value MM::AssetSystem::AssetType::CapsuleBox::GetJson(
   output_json_data.AddMember("top", top, allocator);
   output_json_data.AddMember("bottom", bottom, allocator);
 
-  return output_json_data.GetObject();
+  return output_json_data;
 }

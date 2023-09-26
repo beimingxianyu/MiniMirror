@@ -2,9 +2,9 @@
 // Created by beimingxianyu on 23-7-21.
 //
 
+#include "runtime/core/log/exception_description.h"
 #include "runtime/platform/base/error.h"
 #include "runtime/platform/file_system/file_system.h"
-#include "runtime/core/log/exception_description.h"
 #include "runtime/resource/asset_system/asset_type/base/asset_base.h"
 #include "runtime/resource/asset_system/asset_type/base/asset_type_define.h"
 #include "utils/shaderc.h"
@@ -26,7 +26,7 @@ class Shader : public AssetBase {
  public:
   const std::vector<char>& GetShaderData() const;
 
-  FileSystem::Path GetBinPath() const;
+  Result<FileSystem::Path, ErrorResult> GetBinPath() const;
 
   bool IsValid() const override;
 
@@ -36,7 +36,8 @@ class Shader : public AssetBase {
 
   uint64_t GetSize() const override;
 
-  virtual Result<MM::Utils::Json::Document, MM::ErrorResult> GetJson() const override;
+  virtual Result<MM::Utils::Json::Document, MM::ErrorResult> GetJson()
+      const override;
 
   std::vector<std::pair<void*, std::uint64_t>> GetDatas() override;
 
@@ -46,8 +47,7 @@ class Shader : public AssetBase {
 
  private:
   static Result<Utils::ShadercShaderKind, ErrorResult> ChooseShaderKind(
-      const MM::FileSystem::Path& shader_path,
-      MM::Utils::ShadercShaderKind& output_kind);
+      const MM::FileSystem::Path& shader_path);
 
   Result<Nil, ErrorResult> LoadShader(const FileSystem::Path& shader_path);
 

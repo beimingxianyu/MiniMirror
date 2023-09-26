@@ -110,7 +110,7 @@ class NewError final : public MM::ErrorTypeBase {
 
   void Exception() const override {}
 
-  bool Success() const override { return num_ == 0; }
+  bool IsSuccess() const override { return num_ == 0; }
 
   void Reset() override { num_ = 0; }
 
@@ -118,91 +118,79 @@ class NewError final : public MM::ErrorTypeBase {
   std::uint32_t num_{0};
 };
 
-MM::Result<UtilsErrorCustomStruct, MM::ErrorNil>
-ReturnNilSuccess() {
-   return MM::ResultS<UtilsErrorCustomStruct>(UtilsErrorCustomStruct{});
+MM::Result<UtilsErrorCustomStruct, MM::ErrorNil> ReturnNilSuccess() {
+  return MM::ResultS<UtilsErrorCustomStruct>(UtilsErrorCustomStruct{});
 }
 
-MM::Result<UtilsErrorCustomStruct, MM::ErrorNil>
-ReturnNilFailed() {
-   return MM::ResultE<MM::ErrorNil>(MM::ErrorNil{false});
+MM::Result<UtilsErrorCustomStruct, MM::ErrorNil> ReturnNilFailed() {
+  return MM::ResultE<MM::ErrorNil>(MM::ErrorNil{false});
 }
 
-MM::Result<UtilsErrorCustomStruct, MM::ErrorResult>
-ReturnCodeSuccess() {
-   return MM::ResultS<UtilsErrorCustomStruct>(UtilsErrorCustomStruct{});
+MM::Result<UtilsErrorCustomStruct, MM::ErrorResult> ReturnCodeSuccess() {
+  return MM::ResultS<UtilsErrorCustomStruct>(UtilsErrorCustomStruct{});
 }
 
-MM::Result<UtilsErrorCustomStruct, MM::ErrorResult>
-ReturnCodeFailed() {
-   return MM::ResultE<MM::ErrorResult>(MM::ErrorResult{MM::ErrorCode::UNDEFINED_ERROR});
+MM::Result<UtilsErrorCustomStruct, MM::ErrorResult> ReturnCodeFailed() {
+  return MM::ResultE<MM::ErrorResult>(
+      MM::ErrorResult{MM::ErrorCode::UNDEFINED_ERROR});
 }
 
-void ReturnCodeExceptionCallback(
-    UtilsErrorCustomStruct& result,
-    const MM::ErrorResult& error) {
+void ReturnCodeExceptionCallback(UtilsErrorCustomStruct& result,
+                                 const MM::ErrorResult& error) {
   result = UtilsErrorCustomStruct("ReturnCodeExceptionCallback");
 }
 
 MM::Result<UtilsErrorCustomStructNoCopy, MM::ErrorNil>
 ReturnNilSuccessNoCopy() {
-   return MM::ResultS<UtilsErrorCustomStructNoCopy>(UtilsErrorCustomStructNoCopy{});
+  return MM::ResultS<UtilsErrorCustomStructNoCopy>(
+      UtilsErrorCustomStructNoCopy{});
 }
 
-MM::Result<UtilsErrorCustomStructNoCopy, MM::ErrorNil>
-ReturnNilFailedNoCopy() {
-   return MM::ResultE<MM::ErrorNil>(MM::ErrorNil{false});
+MM::Result<UtilsErrorCustomStructNoCopy, MM::ErrorNil> ReturnNilFailedNoCopy() {
+  return MM::ResultE<MM::ErrorNil>(MM::ErrorNil{false});
 }
 
 void ReturnNilFailedNoCopyExceptionCallback(MM::ErrorNil& error) {
   error.Reset();
 }
 
-MM::Result<UtilsErrorCustomStructNoCopy,
-                  MM::ErrorResult>
+MM::Result<UtilsErrorCustomStructNoCopy, MM::ErrorResult>
 ReturnCodeSuccessNoCopy() {
-   return MM::ResultS<UtilsErrorCustomStructNoCopy>(UtilsErrorCustomStructNoCopy{});
+  return MM::ResultS<UtilsErrorCustomStructNoCopy>(
+      UtilsErrorCustomStructNoCopy{});
 }
 
-MM::Result<UtilsErrorCustomStructNoCopy,
-                  MM::ErrorResult>
+MM::Result<UtilsErrorCustomStructNoCopy, MM::ErrorResult>
 ReturnCodeFailedNoCopy() {
-   return MM::ResultE<MM::ErrorResult>(MM::ErrorResult{
-           MM::ErrorCode::UNDEFINED_ERROR});
+  return MM::ResultE<MM::ErrorResult>(
+      MM::ErrorResult{MM::ErrorCode::UNDEFINED_ERROR});
 }
 
 MM::Result<UtilsErrorCustomStructNoMove, MM::ErrorNil>
 ReturnNilSuccessNoMove() {
   return MM::Result<UtilsErrorCustomStructNoMove, MM::ErrorNil>(
-          MM::st_execute_success, std::string("ReturnNilSuccessNoMove"));
+      MM::st_execute_success, std::string("ReturnNilSuccessNoMove"));
 }
 
-MM::Result<UtilsErrorCustomStructNoMove, MM::ErrorNil>
-ReturnNilFailedNoMove() {
+MM::Result<UtilsErrorCustomStructNoMove, MM::ErrorNil> ReturnNilFailedNoMove() {
   return MM::Result<UtilsErrorCustomStructNoMove, MM::ErrorNil>(
       MM::ErrorNil{false});
 }
 
-MM::Result<UtilsErrorCustomStructNoMove,
-                  MM::ErrorResult>
+MM::Result<UtilsErrorCustomStructNoMove, MM::ErrorResult>
 ReturnCodeSuccessNoMove() {
-  return MM::Result<UtilsErrorCustomStructNoMove,
-                           MM::ErrorResult>(
-          MM::st_execute_success, std::string("ReturnCodeSuccessNoMove"));
+  return MM::Result<UtilsErrorCustomStructNoMove, MM::ErrorResult>(
+      MM::st_execute_success, std::string("ReturnCodeSuccessNoMove"));
 }
 
-MM::Result<UtilsErrorCustomStructNoMove,
-                  MM::ErrorResult>
+MM::Result<UtilsErrorCustomStructNoMove, MM::ErrorResult>
 ReturnCodeFailedNoMove() {
-  return MM::Result<UtilsErrorCustomStructNoMove,
-                           MM::ErrorResult>(
-      MM::ErrorResult(
-          MM::ErrorCode::UNDEFINED_ERROR));
+  return MM::Result<UtilsErrorCustomStructNoMove, MM::ErrorResult>(
+      MM::ErrorResult(MM::ErrorCode::UNDEFINED_ERROR));
 }
 
 MM::Result<UtilsErrorCustomStruct, NewError> ReturnNewErrorSuccess() {
-  return MM::Result<UtilsErrorCustomStruct, NewError>(
-      UtilsErrorCustomStruct{});
+  return MM::Result<UtilsErrorCustomStruct, NewError>(UtilsErrorCustomStruct{});
 }
 
 MM::Result<UtilsErrorCustomStruct, NewError> ReturnNewErrorFailed() {
@@ -211,27 +199,27 @@ MM::Result<UtilsErrorCustomStruct, NewError> ReturnNewErrorFailed() {
 
 MM::Result<UtilsErrorCustomStruct, NewError>
 ReturnUtilsErrorCustomErrorConstructor1(const std::string& s1) {
-  return MM::Result<UtilsErrorCustomStruct, NewError>(
-          MM::st_execute_success, s1);
+  return MM::Result<UtilsErrorCustomStruct, NewError>(MM::st_execute_success,
+                                                      s1);
 }
 
 MM::Result<UtilsErrorCustomStruct, NewError>
 ReturnUtilsErrorCustomErrorConstructor2(const std::string& s1,
                                         const std::string& s2) {
-  return MM::Result<UtilsErrorCustomStruct, NewError>(
-          MM::st_execute_success, s1, s2);
+  return MM::Result<UtilsErrorCustomStruct, NewError>(MM::st_execute_success,
+                                                      s1, s2);
 }
 
 MM::Result<UtilsErrorCustomStruct, NewError>
 ReturnUtilsErrorCustomErrorConstructor3(const std::vector<std::string>& vs) {
-  return MM::Result<UtilsErrorCustomStruct, NewError>(
-          MM::st_execute_success, vs);
+  return MM::Result<UtilsErrorCustomStruct, NewError>(MM::st_execute_success,
+                                                      vs);
 }
 
 MM::Result<UtilsErrorCustomStruct, NewError> ReturnNewErrorConstructor(
     std::uint32_t num) {
-  return MM::Result<UtilsErrorCustomStruct, NewError>(
-          MM::st_execute_error, num);
+  return MM::Result<UtilsErrorCustomStruct, NewError>(MM::st_execute_error,
+                                                      num);
 }
 
 TEST(Utils, error) {
@@ -250,30 +238,29 @@ TEST(Utils, error) {
   NewError true_new_error{0};
 
   MM::ErrorNil true_nil(true), false_nil(false);
-  MM::ErrorResult true_code{
-      MM::ErrorCode::SUCCESS},
+  MM::ErrorResult true_code{MM::ErrorCode::SUCCESS},
       false_code{MM::ErrorCode::UNDEFINED_ERROR};
   std::uint32_t expection_in = 0;
 
   auto return_nil_success = ReturnNilSuccess(),
        return_nil_failed = ReturnNilFailed();
-  EXPECT_EQ(return_nil_success.Success(), true);
+  EXPECT_EQ(return_nil_success.IsSuccess(), true);
   EXPECT_EQ(return_nil_success.GetResult(), default_struct);
   EXPECT_EQ(return_nil_success.GetError(), true_nil);
   return_nil_success.Exception();
-  EXPECT_EQ(return_nil_failed.Success(), false);
+  EXPECT_EQ(return_nil_failed.IsSuccess(), false);
   EXPECT_EQ(return_nil_failed.GetResult(), default_struct);
   EXPECT_EQ(return_nil_failed.GetError(), false_nil);
   return_nil_failed.Exception();
 
   auto return_code_success = ReturnCodeSuccess(),
        return_code_failed = ReturnCodeFailed();
-  EXPECT_EQ(return_code_success.Success(), true);
+  EXPECT_EQ(return_code_success.IsSuccess(), true);
   EXPECT_EQ(return_code_success.GetResult(), default_struct);
   EXPECT_EQ(return_code_success.GetError(), true_code);
   return_code_success.Exception(ReturnCodeExceptionCallback);
   EXPECT_EQ(return_code_success.GetResult(), default_struct);
-  EXPECT_EQ(return_code_failed.Success(), false);
+  EXPECT_EQ(return_code_failed.IsSuccess(), false);
   EXPECT_EQ(return_code_failed.GetResult(), default_struct);
   EXPECT_EQ(return_code_failed.GetError(), false_code);
   return_code_failed.Exception(ReturnCodeExceptionCallback);
@@ -282,12 +269,12 @@ TEST(Utils, error) {
 
   auto return_nil_success_no_copy = ReturnNilSuccessNoCopy(),
        return_nil_failed_no_copy = ReturnNilFailedNoCopy();
-  EXPECT_EQ(return_nil_success_no_copy.Success(), true);
+  EXPECT_EQ(return_nil_success_no_copy.IsSuccess(), true);
   EXPECT_EQ(return_nil_success_no_copy.GetResult(), default_struct_no_copy);
   EXPECT_EQ(return_nil_success_no_copy.GetError(), true_nil);
   return_nil_success_no_copy.Exception(ReturnNilFailedNoCopyExceptionCallback);
   EXPECT_EQ(return_nil_success_no_copy.GetError(), true_nil);
-  EXPECT_EQ(return_nil_failed_no_copy.Success(), false);
+  EXPECT_EQ(return_nil_failed_no_copy.IsSuccess(), false);
   EXPECT_EQ(return_nil_failed_no_copy.GetResult(), default_struct_no_copy);
   EXPECT_EQ(return_nil_failed_no_copy.GetError(), false_nil);
   return_nil_failed_no_copy.Exception(ReturnNilFailedNoCopyExceptionCallback);
@@ -295,18 +282,18 @@ TEST(Utils, error) {
 
   auto return_code_success_no_copy = ReturnCodeSuccessNoCopy(),
        return_code_failed_no_copy = ReturnCodeFailedNoCopy();
-  auto return_code_lambda =
-      [&expection_in](UtilsErrorCustomStructNoCopy& result,
-                      const MM::ErrorResult& error) {
-        ++expection_in;
-        return;
-      };
-  EXPECT_EQ(return_code_success_no_copy.Success(), true);
+  auto return_code_lambda = [&expection_in](
+                                UtilsErrorCustomStructNoCopy& result,
+                                const MM::ErrorResult& error) {
+    ++expection_in;
+    return;
+  };
+  EXPECT_EQ(return_code_success_no_copy.IsSuccess(), true);
   EXPECT_EQ(return_code_success_no_copy.GetResult(), default_struct_no_copy);
   EXPECT_EQ(return_code_success_no_copy.GetError(), true_code);
   return_code_success_no_copy.Exception(return_code_lambda);
   EXPECT_EQ(expection_in, 0);
-  EXPECT_EQ(return_code_failed_no_copy.Success(), false);
+  EXPECT_EQ(return_code_failed_no_copy.IsSuccess(), false);
   EXPECT_EQ(return_code_failed_no_copy.GetResult(), default_struct_no_copy);
   EXPECT_EQ(return_code_failed_no_copy.GetError(), false_code);
   return_code_failed_no_copy.Exception(return_code_lambda);
@@ -320,13 +307,13 @@ TEST(Utils, error) {
     ++expection_in;
     return;
   };
-  EXPECT_EQ(return_nil_success_no_move.Success(), true);
+  EXPECT_EQ(return_nil_success_no_move.IsSuccess(), true);
   EXPECT_EQ(return_nil_success_no_move.GetResult(),
             default_struct_no_move_success);
   EXPECT_EQ(return_nil_success_no_move.GetError(), true_nil);
   return_nil_success_no_move.Exception(return_nil_lambda);
   EXPECT_EQ(expection_in, 0);
-  EXPECT_EQ(return_nil_failed_no_move.Success(), false);
+  EXPECT_EQ(return_nil_failed_no_move.IsSuccess(), false);
   EXPECT_EQ(return_nil_failed_no_move.GetResult(),
             default_struct_no_move_failed);
   EXPECT_EQ(return_nil_failed_no_move.GetError(), false_nil);
@@ -335,12 +322,12 @@ TEST(Utils, error) {
 
   auto return_code_success_no_move = ReturnCodeSuccessNoMove(),
        return_code_failed_no_move = ReturnCodeFailedNoMove();
-  EXPECT_EQ(return_code_success_no_move.Success(), true);
+  EXPECT_EQ(return_code_success_no_move.IsSuccess(), true);
   EXPECT_EQ(return_code_success_no_move.GetResult(),
             default_struct_no_move_success2);
   EXPECT_EQ(return_code_success_no_move.GetError(), true_code);
   return_code_success_no_move.Exception();
-  EXPECT_EQ(return_code_failed_no_move.Success(), false);
+  EXPECT_EQ(return_code_failed_no_move.IsSuccess(), false);
   EXPECT_EQ(return_code_failed_no_move.GetResult(),
             default_struct_no_move_failed);
   EXPECT_EQ(return_code_failed_no_move.GetError(), false_code);
@@ -348,11 +335,11 @@ TEST(Utils, error) {
 
   auto return_new_error_success = ReturnNewErrorSuccess(),
        return_new_error_failed = ReturnNewErrorFailed();
-  EXPECT_EQ(return_new_error_success.Success(), true);
+  EXPECT_EQ(return_new_error_success.IsSuccess(), true);
   EXPECT_EQ(return_new_error_success.GetResult(), default_struct);
   EXPECT_EQ(return_new_error_success.GetError(), true_new_error);
   return_new_error_success.Exception();
-  EXPECT_EQ(return_new_error_failed.Success(), false);
+  EXPECT_EQ(return_new_error_failed.IsSuccess(), false);
   EXPECT_EQ(return_new_error_failed.GetResult(), default_struct);
   EXPECT_EQ(return_new_error_failed.GetError(), NewError(1));
   return_new_error_failed.Exception();
@@ -369,22 +356,22 @@ TEST(Utils, error) {
                {"ReturnUtilsErrorCustomErrorConstructor1",
                 "ReturnUtilsErrorCustomErrorConstructor2"}),
        return_new_error_constructor = ReturnNewErrorConstructor(50);
-  EXPECT_EQ(return_utils_error_custom_error_constructor1.Success(), true);
+  EXPECT_EQ(return_utils_error_custom_error_constructor1.IsSuccess(), true);
   EXPECT_EQ(return_utils_error_custom_error_constructor1.GetResult(), struct1);
   EXPECT_EQ(return_utils_error_custom_error_constructor1.GetError(),
             true_new_error);
   return_utils_error_custom_error_constructor1.Exception();
-  EXPECT_EQ(return_utils_error_custom_error_constructor2.Success(), true);
+  EXPECT_EQ(return_utils_error_custom_error_constructor2.IsSuccess(), true);
   EXPECT_EQ(return_utils_error_custom_error_constructor2.GetResult(), struct2);
   EXPECT_EQ(return_utils_error_custom_error_constructor2.GetError(),
             true_new_error);
   return_utils_error_custom_error_constructor2.Exception();
-  EXPECT_EQ(return_utils_error_custom_error_constructor3.Success(), true);
+  EXPECT_EQ(return_utils_error_custom_error_constructor3.IsSuccess(), true);
   EXPECT_EQ(return_utils_error_custom_error_constructor3.GetResult(), struct3);
   EXPECT_EQ(return_utils_error_custom_error_constructor3.GetError(),
             true_new_error);
   return_utils_error_custom_error_constructor3.Exception();
-  EXPECT_EQ(return_new_error_constructor.Success(), false);
+  EXPECT_EQ(return_new_error_constructor.IsSuccess(), false);
   EXPECT_EQ(return_new_error_constructor.GetResult(), default_struct);
   EXPECT_EQ(return_new_error_constructor.GetError(), 50);
   return_new_error_constructor.Exception();
