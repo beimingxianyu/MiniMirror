@@ -182,7 +182,7 @@ class ResultS {
 };
 
 // Error result
-template <typename ErrorTypeArg>
+template <typename ErrorTypeArg = ErrorResult>
 class ResultE {
  public:
   using ErrorType = ErrorTypeArg;
@@ -230,7 +230,7 @@ class ResultE {
   ErrorType error_{};
 };
 
-template <typename ResultTypeArg, typename ErrorTypeArg>
+template <typename ResultTypeArg, typename ErrorTypeArg = ErrorResult>
 class Result {
  public:
   using ResultType = ResultTypeArg;

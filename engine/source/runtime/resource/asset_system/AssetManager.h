@@ -89,66 +89,48 @@ class AssetManager final
 
   bool Have(AssetType::AssetID asset_ID) const;
 
-  ExecuteResult AddAsset(std::unique_ptr<AssetType::AssetBase>&& asset,
-                         HandlerType& handler);
+  Result<HandlerType, ErrorResult> AddAsset(std::unique_ptr<AssetType::AssetBase>&& asset);
 
-  ExecuteResult AddImage(FileSystem::Path image_path, int desired_channels,
-                         HandlerType& handler);
+  Result<HandlerType, ErrorResult> AddImage(FileSystem::Path image_path, int desired_channels);
 
-  ExecuteResult AddImage(
+  Result<HandlerType, ErrorResult> AddImage(
       const FileSystem::Path& asset_path, AssetType::AssetID asset_id,
       const AssetType::Image::ImageInfo& image_info,
-      std::unique_ptr<stbi_uc, AssetType::Image::StbiImageFree>&& image_pixels,
-      HandlerType& handler);
+      std::unique_ptr<stbi_uc, AssetType::Image::StbiImageFree>&& image_pixels);
 
-  ExecuteResult AddMesh(const FileSystem::Path& mesh_path, uint32_t mesh_index,
-                        HandlerType& handler);
+  Result<HandlerType, ErrorResult> AddMesh(const FileSystem::Path& mesh_path, uint32_t mesh_index);
 
-  ExecuteResult AddMesh(const FileSystem::Path& asset_path,
+  Result<HandlerType, ErrorResult> AddMesh(const FileSystem::Path& asset_path,
                         AssetType::AssetID asset_ID,
                         std::unique_ptr<AssetType::RectangleBox>&& aabb_box,
                         std::vector<uint32_t>&& indexes,
-                        std::vector<AssetType::Vertex>&& vertices,
-                        HandlerType& handler);
+                        std::vector<AssetType::Vertex>&& vertices);
 
-  ExecuteResult AddMesh(const FileSystem::Path& asset_path,
+  Result<HandlerType, ErrorResult> AddMesh(const FileSystem::Path& asset_path,
                         AssetType::AssetID asset_ID,
                         std::unique_ptr<AssetType::CapsuleBox>&& capsule_box,
                         std::vector<uint32_t>&& indexes,
-                        std::vector<AssetType::Vertex>&& vertices,
-                        HandlerType& handler);
+                        std::vector<AssetType::Vertex>&& vertices);
 
-  ExecuteResult GetAssetByID(Manager::ManagedObjectID managed_object_ID,
-                             HandlerType& handler) const;
+  Result<HandlerType, ErrorResult> GetAssetByID(Manager::ManagedObjectID managed_object_ID) const;
 
-  ExecuteResult GetAssetByAssetID(AssetType::AssetID asset_ID,
-                                  HandlerType& handler) const;
+  Result<HandlerType, ErrorResult> GetAssetByAssetID(AssetType::AssetID asset_ID) const;
 
-  ExecuteResult GetAssetByName(const std::string& name,
-                               std::vector<HandlerType>& handlers) const;
+  Result<std::vector<HandlerType>, ErrorResult> GetAssetByName(const std::string& name) const;
 
-  ExecuteResult GetAssetByAssetName(const std::string& asset_name,
-                                    std::vector<HandlerType>& handler) const;
+  Result<std::vector<HandlerType>, ErrorResult> GetAssetByAssetName(const std::string& asset_name) const;
 
-  ExecuteResult GetIDByAssetID(AssetType::AssetID asset_ID,
-                               Manager::ManagedObjectID& object_ID) const;
+  Result<Manager::ManagedObjectID, ErrorResult> GetIDByAssetID(AssetType::AssetID asset_ID) const;
 
-  ExecuteResult GetNameByAssetID(AssetType::AssetID asset_ID,
-                                 std::string& name) const;
+  Result<std::string, ErrorResult> GetNameByAssetID(AssetType::AssetID asset_ID) const;
 
-  ExecuteResult GetAssetNameByAssetID(AssetType::AssetID asset_ID,
-                                      std::string& asset_name) const;
+  Result<std::string, ErrorResult> GetAssetNameByAssetID(AssetType::AssetID asset_ID) const;
 
-  ExecuteResult GetAssetIDByID(Manager::ManagedObjectID object_ID,
-                               AssetType::AssetID& asset_ID) const;
+  Result<AssetType::AssetID , ErrorResult> GetAssetIDByID(Manager::ManagedObjectID object_ID) const;
 
-  ExecuteResult GetAssetIDByName(
-      const std::string& name,
-      std::vector<AssetType::AssetID>& asset_IDs) const;
+  Result<std::vector<AssetType::AssetID>, ErrorResult> GetAssetIDByName(const std::string& name) const;
 
-  ExecuteResult GetAssetIDByAssetName(
-      const std::string& asset_name,
-      std::vector<AssetType::AssetID>& asset_IDs) const;
+  Result<std::vector<AssetType::AssetID>, ErrorResult>GetAssetIDByAssetName(const std::string& asset_name) const;
 
  protected:
   AssetManager() = default;

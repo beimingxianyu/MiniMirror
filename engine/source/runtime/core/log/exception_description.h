@@ -34,7 +34,7 @@
         MM::LogSystem::LogSystem::LogLevel::DEBUG);                  \
   }
 
-#define MM_WRAN_DESCRIPTION(description)                             \
+#define MM_WARN_DESCRIPTION(description)                             \
   [function_name = MM_FUNCTION_NAME](MM::ErrorResult error_result) { \
     MM_LOG_SYSTEM->CheckResult(                                      \
         error_result.GetErrorCode(),                                 \
@@ -81,12 +81,12 @@
         MM::LogSystem::LogSystem::LogLevel::DEBUG);                                                  \
   }
 
-#define MM_WRAN_DESCRIPTION2(description)                                                            \
+#define MM_WARN_DESCRIPTION2(description)                                                            \
   [function_name = MM_FUNCTION_NAME, description_info = description](MM::ErrorResult error_result) { \
     MM_LOG_SYSTEM->CheckResult(                                                                      \
         error_result.GetErrorCode(),                                                                 \
         std::string("[") + function_name + "] " + description_info ,                              \
-        MM::LogSystem::LogSystem::LogLevel::WRAN);                                                   \
+        MM::LogSystem::LogSystem::LogLevel::WARN);                                                   \
   }
 
 #define MM_ERROR_DESCRIPTION2(description)                                                           \

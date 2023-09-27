@@ -100,14 +100,17 @@ Combination::Combination(const FileSystem::Path& combination_path)
     return;
   }
 
+  std::vector<AssetManager::AssetHandler> images{};
+  std::vector<AssetManager::AssetHandler> meshes{};
+
   TaskSystem::Taskflow taskflow;
   TaskSystem::Future<void>* future{new TaskSystem::Future<void>{}};
   bool load_result = true;
 
-  Result<std::vector<AssetManager::AssetHandler>, ErrorResult> images =
-      LoadImages(combination_path, combination_json, taskflow, future,
+  Result<Nil, ErrorResult> images_load_result =
+      LoadImages(combination_path, combination_json, taskflow, future, images,
                  load_result);
-  images.Exception([function_name = MM_FUNCTION_NAME,
+  images_load_result.Exception([function_name = MM_FUNCTION_NAME,
                     this_object = this](ErrorResult error_result) {
     MM_LOG_SYSTEM->CheckResult(
         error_result.GetErrorCode(),
@@ -115,22 +118,22 @@ Combination::Combination(const FileSystem::Path& combination_path)
         LogSystem::LogSystem::LogLevel::ERROR);
     this_object->AssetBase::Release();
   });
-  if (images.IsError()) {
+  if (images_load_result.IsError()) {
     return;
   }
 
-  Result<std::vector<AssetManager::AssetHandler>, ErrorResult> meshes =
-      LoadMeshes(combination_path, combination_json, taskflow, future,
+  Result<Nil, ErrorResult> meshes_load_result =
+      LoadMeshes(combination_path, combination_json, taskflow, future, meshes,
                  load_result);
-  meshes.Exception([function_name = MM_FUNCTION_NAME,
-                    this_object = this](ErrorResult error_result) {
+  meshes_load_result.Exception([function_name = MM_FUNCTION_NAME,
+                   this_object = this](ErrorResult error_result) {
     MM_LOG_SYSTEM->CheckResult(
         error_result.GetErrorCode(),
         MM_LOG_DESCRIPTION_MESSAGE(function_name, Failed to load meshes.),
         LogSystem::LogSystem::LogLevel::ERROR);
     this_object->AssetBase::Release();
   });
-  if (meshes.IsError()) {
+  if (meshes_load_result.IsError()) {
     return;
   }
 
@@ -142,17 +145,17 @@ Combination::Combination(const FileSystem::Path& combination_path)
     return;
   }
 
-  asset_handlers_.reserve(images.GetResult().size() +
-                          meshes.GetResult().size());
-  for (auto& image : images.GetResult()) {
+  asset_handlers_.reserve(images.size() +
+                          meshes.size());
+  for (auto& image : images) {
     asset_handlers_.emplace_back(std::move(image));
   }
-  for (auto& mesh : meshes.GetResult()) {
+  for (auto& mesh : meshes) {
     asset_handlers_.emplace_back(std::move(mesh));
   }
 }
 
-Utils::ExecuteResult Combination::LoadImages(
+MM::Result<MM::Nil, MM::ErrorResult> Combination::LoadImages(
     const FileSystem::Path& json_path,
     const Utils::Json::Document& combination_json,
     TaskSystem::Taskflow& taskflow, TaskSystem::Future<void>* future,
@@ -161,7 +164,7 @@ Utils::ExecuteResult Combination::LoadImages(
   if (images_iter == combination_json.MemberEnd() ||
       !images_iter->value.IsArray()) {
     load_result = false;
-    return Utils::ExecuteResult ::INPUT_PARAMETERS_ARE_NOT_SUITABLE;
+    return ResultE<ErrorResult>{ErrorCode::INPUT_PARAMETERS_ARE_NOT_SUITABLE};
   }
   std::vector<FileSystem::Path> image_paths;
   std::vector<std::uint32_t> image_desired_channels;
@@ -170,21 +173,21 @@ Utils::ExecuteResult Combination::LoadImages(
        image_iter != images_iter->value.End(); ++image_iter) {
     if (!image_iter->IsObject()) {
       load_result = false;
-      return Utils::ExecuteResult ::INPUT_PARAMETERS_ARE_NOT_SUITABLE;
+      return ResultE<ErrorResult>{ErrorCode::INPUT_PARAMETERS_ARE_NOT_SUITABLE};
     }
 
     auto image_path = image_iter->FindMember("image path");
     if (image_path == image_iter->MemberEnd() ||
         !image_path->value.IsString()) {
       load_result = false;
-      return Utils::ExecuteResult ::INPUT_PARAMETERS_ARE_NOT_SUITABLE;
+      return ResultE<ErrorResult>{ErrorCode::INPUT_PARAMETERS_ARE_NOT_SUITABLE};
     }
 
     auto image_desired_channel = image_iter->FindMember("image channel");
     if (image_desired_channel == image_iter->MemberEnd() ||
         !image_desired_channel->value.IsUint()) {
       load_result = false;
-      return Utils::ExecuteResult ::INPUT_PARAMETERS_ARE_NOT_SUITABLE;
+      return ResultE<ErrorResult>{ErrorCode::INPUT_PARAMETERS_ARE_NOT_SUITABLE};
     }
 
     image_paths.emplace_back(
@@ -198,16 +201,21 @@ Utils::ExecuteResult Combination::LoadImages(
     taskflow.emplace([asset_manager, image_path_in = image_paths[index],
                       image_desired_channel_in = image_desired_channels[index],
                       &images, index, future, &load_result]() {
-      FileSystem::LastWriteTime last_write_time;
+      Result<FileSystem::LastWriteTime, ErrorResult> last_write_time = MM_FILE_SYSTEM->GetLastWriteTime(image_path_in);
+      last_write_time.Exception([function_name = MM_FUNCTION_NAME, &load_result, &future](ErrorResult error_result) {
+        MM_LOG_SYSTEM->CheckResult(error_result.GetErrorCode(),
+                                   MM_LOG_DESCRIPTION_MESSAGE(function_name, Faied to get last write time.),
+                                   LogSystem::LogSystem::LogLevel::ERROR);
+
+        load_result = false;
+        future->cancel();
+      });
+      if (last_write_time.IsError()) return;
       std::uint64_t path_hash = image_path_in.GetHash();
-      MM_CHECK_WITHOUT_LOG(
-          MM_FILE_SYSTEM->GetLastWriteTime(image_path_in, last_write_time),
-          load_result = false;
-          future->cancel(); return;)
-      AssetID asset_id;
+      Result<AssetID> asset_id;
       MM::AssetSystem::AssetType::Image::CalculateAssetID(
           image_path_in, image_desired_channel_in, asset_id);
-      ExecuteResult result = ExecuteResult ::UNDEFINED_ERROR;
+      ErrorCode result = ErrorCode::UNDEFINED_ERROR;
       while ((result =
                   asset_manager->GetAssetByAssetID(asset_id, images[index])) ==
              ExecuteResult::PARENT_OBJECT_NOT_CONTAIN_SPECIFIC_CHILD_OBJECT) {

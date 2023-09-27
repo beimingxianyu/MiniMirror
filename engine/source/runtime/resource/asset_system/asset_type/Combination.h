@@ -51,16 +51,18 @@ class Combination : public AssetBase {
   const AssetManager::AssetHandler& Get(std::uint64_t index) const;
 
  private:
-  static Result<std::vector<AssetManager::AssetHandler>, ErrorResult>
+  static Result<Nil, ErrorResult>
   LoadImages(const FileSystem::Path& json_path,
              const Utils::Json::Document& combination_json,
              TaskSystem::Taskflow& taskflow, TaskSystem::Future<void>* future,
+             std::vector<AssetManager::AssetHandler>& images,
              bool& load_result);
 
-  static Result<std::vector<AssetManager::AssetHandler>, ErrorResult>
+  static Result<Nil, ErrorResult>
   LoadMeshes(const FileSystem::Path& json_path,
              const rapidjson::Document& combination_json,
              TaskSystem::Taskflow& taskflow, TaskSystem::Future<void>* future,
+             std::vector<AssetManager::AssetHandler>& meshes,
              bool& load_result);
 
  private:

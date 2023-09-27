@@ -104,8 +104,7 @@ MM::AssetSystem::AssetType::Shader::GetJson() const {
                          GetBinPath().GetResult().CStr()),
                      allocator);
 
-  return Result<Utils::Json::Document, ErrorResult>(st_execute_success,
-                                                    std::move(document));
+  return ResultS{std::move(document)};
 }
 
 std::vector<std::pair<void *, std::uint64_t>>
@@ -176,7 +175,7 @@ MM::AssetSystem::AssetType::Shader::LoadShader(
   }
 
   SaveCompiledShaderToFile(compiled_shader_path.GetResult())
-      .Exception(MM_WRAN_DESCRIPTION(Failed to save compiled shader to file.));
+      .Exception(MM_WARN_DESCRIPTION(Failed to save compiled shader to file.));
 
   return Result<Nil, ErrorResult>{st_execute_success};
 }
@@ -221,7 +220,7 @@ MM::AssetSystem::AssetType::Shader::SaveCompiledShaderToFile(
 
   Result<Nil, ErrorResult> create_result = MM_FILE_SYSTEM->Create(temp_path);
   create_result.Exception(
-      MM_WRAN_DESCRIPTION(Failed to create temp file to save compiled shader.));
+      MM_WARN_DESCRIPTION(Failed to create temp file to save compiled shader.));
   if (create_result.IsError()) {
     return ResultE<ErrorResult>{create_result.GetError().GetErrorCode()};
   }

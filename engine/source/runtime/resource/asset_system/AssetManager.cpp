@@ -32,13 +32,10 @@ MM::AssetSystem::AssetManager* MM::AssetSystem::AssetManager::GetInstance() {
     std::lock_guard<std::mutex> guard{sync_flag_};
     if (!asset_manager_) {
       std::uint64_t asset_size = 0;
+
       if (MM_CONFIG_SYSTEM->GetConfig("manager_size_asset_manager",
-                                      asset_size) != ExecuteResult::SUCCESS) {
-        MM_LOG_WARN("The number of managed asset was not specified.");
-        if (MM_CONFIG_SYSTEM->GetConfig("manager_size", asset_size) !=
-            ExecuteResult::SUCCESS) {
-          MM_LOG_FATAL("The number of managed objects was not specified.");
-        }
+                                      asset_size).Exception(MM_WARN_DESCRIPTION2("The number of managed asset was not specified")).IsError()) {
+        MM_CONFIG_SYSTEM->GetConfig("manager_size", asset_size).Exception(MM_FATAL_DESCRIPTION2("The number of managed object was not specified."));
       }
       asset_manager_ = new AssetManager{asset_size};
     }
@@ -47,221 +44,250 @@ MM::AssetSystem::AssetManager* MM::AssetSystem::AssetManager::GetInstance() {
   return asset_manager_;
 }
 
-MM::ExecuteResult MM::AssetSystem::AssetManager::AddAsset(
-    std::unique_ptr<AssetType::AssetBase>&& asset,
-    MM::AssetSystem::AssetManager::HandlerType& handler) {
+MM::Result<MM::AssetSystem::AssetManager::HandlerType, ErrorResult> MM::AssetSystem::AssetManager::AddAsset(
+    std::unique_ptr<AssetType::AssetBase>&& asset) {
+  if (!IsValid()) {
+    return ResultE<ErrorResult>{ErrorCode::OBJECT_IS_INVALID};
+  }
+
   if (!asset->IsValid()) {
-    return ExecuteResult ::INPUT_PARAMETERS_ARE_INCORRECT;
+    return ResultE<ErrorResult>{ErrorCode::INPUT_PARAMETERS_ARE_INCORRECT};
   }
 
   if (asset->GetAssetType() == AssetType::AssetType::UNDEFINED) {
-    return ExecuteResult::INPUT_PARAMETERS_ARE_NOT_SUITABLE;
+    return ResultE<ErrorResult>{ErrorCode::INPUT_PARAMETERS_ARE_NOT_SUITABLE};
   }
 
   AssetType::AssetID asset_id = asset->GetAssetID();
   Manager::ManagedObjectID managed_object_id = asset->GetObjectID();
 
-  BaseHandlerType base_handler;
+  Result<BaseHandlerType, ErrorResult> base_handler = AddObjectBase(std::move(asset)).Exception();
+  if (base_handler.IsError()) {
+    return ResultE<ErrorResult>{base_handler.GetError().GetErrorCode()};
+  }
 
-  MM_CHECK_WITHOUT_LOG(AddObjectBase(std::move(asset), base_handler),
-                       return MM_RESULT_CODE;)
+  Result<AssetIDToObjectIDContainerType::HandlerType, ErrorResult> asset_ID_ID_handler = asset_ID_to_object_ID_.AddObject(asset_id, std::move(managed_object_id)).Exception();
+  if (asset_ID_ID_handler.IsError()) {
+    return ResultE<ErrorResult>{asset_ID_ID_handler.GetError().GetErrorCode()};
+  }
 
-  AssetIDToObjectIDContainerType ::HandlerType asset_ID_ID_handler;
-
-  MM_CHECK_WITHOUT_LOG(
-      asset_ID_to_object_ID_.AddObject(asset_id, std::move(managed_object_id),
-                                       asset_ID_ID_handler),
-      return MM_RESULT_CODE;)
-
-  handler =
-      HandlerType{std::move(base_handler), std::move(asset_ID_ID_handler)};
-
-  return ExecuteResult ::SUCCESS;
+  return ResultS<HandlerType>{std::move(base_handler.GetResult()), std::move(asset_ID_ID_handler.GetResult())};
 }
 
-MM::ExecuteResult MM::AssetSystem::AssetManager::AddImage(
-    MM::FileSystem::Path image_path, int desired_channels,
-    MM::AssetSystem::AssetManager::HandlerType& handler) {
+MM::Result<MM::AssetSystem::AssetManager::HandlerType, ErrorResult> MM::AssetSystem::AssetManager::AddImage(
+    MM::FileSystem::Path image_path, int desired_channels) {
+  if (!IsValid()) {
+    return ResultE<ErrorResult>{ErrorCode::OBJECT_IS_INVALID};
+  }
+
   std::unique_ptr<AssetType::Image> image(
       std::make_unique<AssetType::Image>(image_path, desired_channels));
 
-  return AddAsset(std::move(image), handler);
+  return AddAsset(std::move(image));
 }
 
-MM::ExecuteResult MM::AssetSystem::AssetManager::AddImage(
+MM::Result<MM::AssetSystem::AssetManager::HandlerType, ErrorResult> MM::AssetSystem::AssetManager::AddImage(
     const FileSystem::Path& asset_path, AssetType::AssetID asset_id,
     const AssetType::Image::ImageInfo& image_info,
-    std::unique_ptr<stbi_uc, AssetType::Image::StbiImageFree>&& image_pixels,
-    HandlerType& handler) {
+    std::unique_ptr<stbi_uc, AssetType::Image::StbiImageFree>&& image_pixels) {
+  if (!IsValid()) {
+    return ResultE<ErrorResult>{ErrorCode::OBJECT_IS_INVALID};
+  }
+
   std::unique_ptr<AssetType::Image> image(std::make_unique<AssetType::Image>(
       asset_path, asset_id, image_info, std::move(image_pixels)));
 
-  return AddAsset(std::move(image), handler);
+  return AddAsset(std::move(image));
 }
 
-MM::ExecuteResult MM::AssetSystem::AssetManager::AddMesh(
-    const MM::FileSystem::Path& mesh_path, uint32_t mesh_index,
-    MM::AssetSystem::AssetManager::HandlerType& handler) {
+MM::Result<MM::AssetSystem::AssetManager::HandlerType, ErrorResult> MM::AssetSystem::AssetManager::AddMesh(
+    const MM::FileSystem::Path& mesh_path, uint32_t mesh_index) {
+  if (!IsValid()) {
+    return ResultE<ErrorResult>{ErrorCode::OBJECT_IS_INVALID};
+  }
+
   std::unique_ptr<AssetType::Mesh> mesh(
       std::make_unique<AssetType::Mesh>(mesh_path, mesh_index));
 
-  return AddAsset(std::move(mesh), handler);
+  return AddAsset(std::move(mesh));
 }
 
-MM::ExecuteResult MM::AssetSystem::AssetManager::AddMesh(
+MM::Result<MM::AssetSystem::AssetManager::HandlerType, ErrorResult> MM::AssetSystem::AssetManager::AddMesh(
     const FileSystem::Path& asset_path, AssetType::AssetID asset_ID,
     std::unique_ptr<AssetType::RectangleBox>&& aabb_box,
-    std::vector<uint32_t>&& indexes, std::vector<AssetType::Vertex>&& vertices,
-    HandlerType& handler) {
+    std::vector<uint32_t>&& indexes, std::vector<AssetType::Vertex>&& vertices) {
+  if (!IsValid()) {
+    return ResultE<ErrorResult>{ErrorCode::OBJECT_IS_INVALID};
+  }
+
   std::unique_ptr<AssetType::Mesh> mesh(std::make_unique<AssetType::Mesh>(
       asset_path, asset_ID, std::move(aabb_box), std::move(indexes),
       std::move(vertices)));
 
-  return AddAsset(std::move(mesh), handler);
+  return AddAsset(std::move(mesh));
 }
 
-MM::ExecuteResult MM::AssetSystem::AssetManager::AddMesh(
+MM::Result<MM::AssetSystem::AssetManager::HandlerType, ErrorResult> MM::AssetSystem::AssetManager::AddMesh(
     const FileSystem::Path& asset_path, AssetType::AssetID asset_ID,
     std::unique_ptr<AssetType::CapsuleBox>&& capsule_box,
-    std::vector<uint32_t>&& indexes, std::vector<AssetType::Vertex>&& vertices,
-    HandlerType& handler) {
+    std::vector<uint32_t>&& indexes, std::vector<AssetType::Vertex>&& vertices) {
+  if (!IsValid()) {
+    return ResultE<ErrorResult>{ErrorCode::OBJECT_IS_INVALID};
+  }
+
   std::unique_ptr<AssetType::Mesh> mesh(std::make_unique<AssetType::Mesh>(
       asset_path, asset_ID, std::move(capsule_box), std::move(indexes),
       std::move(vertices)));
 
-  return AddAsset(std::move(mesh), handler);
+  return AddAsset(std::move(mesh));
 }
 
-MM::ExecuteResult MM::AssetSystem::AssetManager::GetAssetByID(
-    MM::Manager::ManagedObjectID managed_object_ID,
-    MM::AssetSystem::AssetManager::HandlerType& handler) const {
-  BaseHandlerType base_handler;
-  MM_CHECK_WITHOUT_LOG(GetObjectByIDBase(managed_object_ID, base_handler),
-                       return MM_RESULT_CODE;)
+MM::Result<MM::AssetSystem::AssetManager::HandlerType, ErrorResult> MM::AssetSystem::AssetManager::GetAssetByID(
+    MM::Manager::ManagedObjectID managed_object_ID) const {
+  if (!IsValid()) {
+    return ResultE<ErrorResult>{ErrorCode::OBJECT_IS_INVALID};
+  }
 
-  AssetIDToObjectIDContainerType ::HandlerType asset_ID_ID_handler;
-  MM_CHECK_WITHOUT_LOG(
-      asset_ID_to_object_ID_.GetObject(base_handler.GetObject()->GetAssetID(),
-                                       asset_ID_ID_handler),
-      return MM_RESULT_CODE;)
+  Result<BaseHandlerType, ErrorResult> base_handler = GetObjectByIDBase(managed_object_ID).Exception();
+  if (base_handler.IsError()) {
+    return ResultE<ErrorResult>{base_handler.GetError().GetErrorCode()};
+  }
 
-  handler =
-      HandlerType{std::move(base_handler), std::move(asset_ID_ID_handler)};
+  Result<AssetIDToObjectIDContainerType::HandlerType, ErrorResult> asset_ID_ID_handler = asset_ID_to_object_ID_.GetObject(base_handler.GetResult().GetObject()->GetAssetID()).Exception();
+  if (asset_ID_ID_handler.IsError()) {
+    return ResultE<ErrorResult>{base_handler.GetError().GetErrorCode()};
+  }
 
-  return ExecuteResult ::SUCCESS;
+  return ResultS<HandlerType>{std::move(base_handler.GetResult()), std::move(asset_ID_ID_handler.GetResult())};
 }
 
-MM::ExecuteResult MM::AssetSystem::AssetManager::GetAssetByAssetID(
-    MM::AssetSystem::AssetType::AssetID asset_ID,
-    MM::AssetSystem::AssetManager::HandlerType& handler) const {
-  AssetIDToObjectIDContainerType ::HandlerType asset_ID_ID_handler;
-  MM_CHECK_WITHOUT_LOG(
-      asset_ID_to_object_ID_.GetObject(asset_ID, asset_ID_ID_handler),
-      return MM_RESULT_CODE;)
+MM::Result<MM::AssetSystem::AssetManager::HandlerType, ErrorResult> MM::AssetSystem::AssetManager::GetAssetByAssetID(
+    MM::AssetSystem::AssetType::AssetID asset_ID) const {
+  if (!IsValid()) {
+    return ResultE<ErrorResult>{ErrorCode::OBJECT_IS_INVALID};
+  }
 
-  BaseHandlerType base_handler;
-  MM_CHECK_WITHOUT_LOG(
-      GetObjectByIDBase(asset_ID_ID_handler.GetObject(), base_handler),
-      return MM_RESULT_CODE;)
+  Result<AssetIDToObjectIDContainerType::HandlerType, ErrorResult> asset_ID_ID_handler = asset_ID_to_object_ID_.GetObject(asset_ID).Exception();
+  if (asset_ID_ID_handler.IsError()) {
+    return ResultE<ErrorResult>{asset_ID_ID_handler.GetError().GetErrorCode()};
+  }
 
-  handler =
-      HandlerType{std::move(base_handler), std::move(asset_ID_ID_handler)};
+  Result<BaseHandlerType, ErrorResult> base_handler = GetObjectByIDBase(asset_ID_ID_handler.GetResult().GetObject()).Exception();
+  if (base_handler.IsError()) {
+    return ResultE<ErrorResult>{base_handler.GetError().GetErrorCode()};
+  }
 
-  return ExecuteResult ::SUCCESS;
+  return ResultS<HandlerType>{std::move(base_handler.GetResult()), std::move(asset_ID_ID_handler.GetResult())};
 }
 
-MM::ExecuteResult MM::AssetSystem::AssetManager::GetAssetByName(
-    const std::string& name, std::vector<HandlerType>& handlers) const {
-  std::vector<BaseHandlerType> base_handlers;
-  MM_CHECK_WITHOUT_LOG(GetObjectByNameBase(name, base_handlers),
-                       return MM_RESULT_CODE;)
+MM::Result<std::vector<MM::AssetSystem::AssetManager::HandlerType>, MM::ErrorResult> MM::AssetSystem::AssetManager::GetAssetByName(
+    const std::string& name) const {
+  if (!IsValid()) {
+    return ResultE<ErrorResult>{ErrorCode::OBJECT_IS_INVALID};
+  }
 
-  bool is_add = false;
-  for (auto& base_handler : base_handlers) {
-    AssetIDToObjectIDContainerType ::HandlerType asset_ID_ID_handler;
-    MM_CHECK_WITHOUT_LOG(
-        asset_ID_to_object_ID_.GetObject(base_handler.GetObject()->GetAssetID(),
-                                         asset_ID_ID_handler),
-        continue;)
+  Result<std::vector<BaseHandlerType>, ErrorResult> base_handlers = GetObjectByNameBase(name, st_get_multiply_object).Exception();
+  if (base_handlers.IsError()) {
+    return ResultE<ErrorResult>{base_handlers.GetError().GetErrorCode()};
+  }
+
+  std::vector<MM::AssetSystem::AssetManager::HandlerType> handlers{};
+  for (auto& base_handler : base_handlers.GetResult()) {
+    Result<AssetIDToObjectIDContainerType::HandlerType> asset_ID_ID_handler = asset_ID_to_object_ID_.GetObject(base_handler.GetObject()->GetAssetID()).Exception();
+    if (asset_ID_ID_handler.IsError()) {
+      continue;
+    }
     handlers.emplace_back(std::move(base_handler),
-                          std::move(asset_ID_ID_handler));
-    is_add = true;
+                          std::move(asset_ID_ID_handler.GetResult()));
   }
 
-  if (is_add) {
-    return ExecuteResult ::SUCCESS;
+  if (handlers.empty()) {
+    return ResultE<>{ErrorCode::PARENT_OBJECT_NOT_CONTAIN_SPECIFIC_CHILD_OBJECT};
   }
 
-  return ExecuteResult ::PARENT_OBJECT_NOT_CONTAIN_SPECIFIC_CHILD_OBJECT;
+  return Result{std::move(handlers)};
 }
 
-MM::ExecuteResult MM::AssetSystem::AssetManager::GetAssetByAssetName(
-    const std::string& asset_name, std::vector<HandlerType>& handler) const {
-  return GetAssetByName(asset_name, handler);
+MM::Result<std::vector<MM::AssetSystem::AssetManager::HandlerType>> MM::AssetSystem::AssetManager::GetAssetByAssetName(
+    const std::string& asset_name) const {
+  return GetAssetByName(asset_name);
 }
 
-MM::ExecuteResult MM::AssetSystem::AssetManager::GetIDByAssetID(
-    MM::AssetSystem::AssetType::AssetID asset_ID,
-    MM::Manager::ManagedObjectID& object_ID) const {
-  AssetIDToObjectIDContainerType ::HandlerType handler;
-  MM_CHECK_WITHOUT_LOG(asset_ID_to_object_ID_.GetObject(asset_ID, handler),
-                       return MM_RESULT_CODE;)
+MM::Result<MM::Manager::ManagedObjectID, ErrorResult> MM::AssetSystem::AssetManager::GetIDByAssetID(
+    MM::AssetSystem::AssetType::AssetID asset_ID) const {
+  if (!IsValid()) {
+    return ResultE<ErrorResult>{ErrorCode::OBJECT_IS_INVALID};
+  }
 
-  object_ID = handler.GetObject();
+  Result<AssetIDToObjectIDContainerType::HandlerType, ErrorResult> handler = asset_ID_to_object_ID_.GetObject(asset_ID).Exception();
+  if (handler.IsError()) {
+    return ResultE<>{handler.GetError().GetErrorCode()};
+  }
 
-  return ExecuteResult ::SUCCESS;
+  return Result{handler.GetResult().GetObject()};
 }
 
-MM::ExecuteResult MM::AssetSystem::AssetManager::GetNameByAssetID(
-    MM::AssetSystem::AssetType::AssetID asset_ID, std::string& name) const {
-  AssetIDToObjectIDContainerType ::HandlerType handler;
-  MM_CHECK_WITHOUT_LOG(asset_ID_to_object_ID_.GetObject(asset_ID, handler),
-                       return MM_RESULT_CODE;)
+MM::Result<std::string, ErrorResult> MM::AssetSystem::AssetManager::GetNameByAssetID(
+    MM::AssetSystem::AssetType::AssetID asset_ID) const {
+  if (!IsValid()) {
+    return ResultE<ErrorResult>{ErrorCode::OBJECT_IS_INVALID};
+  }
 
-  MM_CHECK_WITHOUT_LOG(GetNameByID(handler.GetObject(), name),
-                       return MM_RESULT_CODE;)
+  Result<AssetIDToObjectIDContainerType::HandlerType> handler = asset_ID_to_object_ID_.GetObject(asset_ID).Exception();
+  if (handler.IsError()) {
+    return ResultE<>{handler.GetError().GetErrorCode()};
+  }
 
-  return ExecuteResult ::SUCCESS;
+  auto result2 = GetNameByID(handler.GetResult().GetObject()).Exception();
+  if (result2.IsSuccess()) {
+    return Result{result2};
+  } else {
+    return ResultE<>{handler.GetError().GetErrorCode()};
+  }
 }
 
-MM::ExecuteResult MM::AssetSystem::AssetManager::GetAssetNameByAssetID(
-    MM::AssetSystem::AssetType::AssetID asset_ID,
-    std::string& asset_name) const {
-  return GetNameByAssetID(asset_ID, asset_name);
+MM::Result<std::string, ErrorResult> MM::AssetSystem::AssetManager::GetAssetNameByAssetID(
+    MM::AssetSystem::AssetType::AssetID asset_ID) const {
+  return GetNameByAssetID(asset_ID);
 }
 
-MM::ExecuteResult MM::AssetSystem::AssetManager::GetAssetIDByID(
-    MM::Manager::ManagedObjectID object_ID,
-    MM::AssetSystem::AssetType::AssetID& asset_ID) const {
-  BaseHandlerType handler;
+Result<MM::AssetSystem::AssetType::AssetID, ErrorResult> MM::AssetSystem::AssetManager::GetAssetIDByID(
+    MM::Manager::ManagedObjectID object_ID) const {
+  if (!IsValid()) {
+    return ResultE<ErrorResult>{ErrorCode::OBJECT_IS_INVALID};
+  }
 
-  MM_CHECK_WITHOUT_LOG(GetObjectByIDBase(object_ID, handler),
-                       return MM_RESULT_CODE;)
+  Result<BaseHandlerType, ErrorResult> handler = GetObjectByIDBase(object_ID).Exception();
+  if (handler.IsError()) {
+    return ResultE<>{handler.GetError().GetErrorCode()};
+  }
 
-  asset_ID = handler.GetObject()->GetAssetID();
-
-  return ExecuteResult ::SUCCESS;
+  return Result{handler.GetResult().GetObject()->GetAssetID()};
 }
 
-MM::ExecuteResult MM::AssetSystem::AssetManager::GetAssetIDByName(
-    const std::string& name, std::vector<AssetType::AssetID>& asset_IDs) const {
-  std::vector<BaseHandlerType> handlers;
+MM::Result<std::vector<AssetType::AssetID>, ErrorResult> MM::AssetSystem::AssetManager::GetAssetIDByName(
+    const std::string& name) const {
+  if (!IsValid()) {
+    return ResultE<ErrorResult>{ErrorCode::OBJECT_IS_INVALID};
+  }
 
-  MM_CHECK_WITHOUT_LOG(GetObjectByNameBase(name, handlers),
-                       return MM_RESULT_CODE;)
+  Result<std::vector<BaseHandlerType>> handlers = GetObjectByNameBase(name, st_get_multiply_object).Exception();
+  if (handlers.IsError()) {
+    return ResultE<>{handlers.GetError().GetErrorCode()};
+  }
 
-  asset_IDs.reserve(asset_IDs.size() + handlers.size());
-  for (auto& handler : handlers) {
+  std::vector<AssetType::AssetID> asset_IDs;
+  asset_IDs.reserve(handlers.GetResult().size());
+  for (auto& handler : handlers.GetResult()) {
     asset_IDs.emplace_back(handler.GetObject()->GetAssetID());
   }
 
-  return ExecuteResult ::SUCCESS;
+  return Result{std::move(asset_IDs)};
 }
 
-MM::ExecuteResult MM::AssetSystem::AssetManager::GetAssetIDByAssetName(
-    const std::string& asset_name,
-    std::vector<AssetType::AssetID>& asset_IDs) const {
-  return GetAssetIDByName(asset_name, asset_IDs);
+MM::Result<std::vector<AssetType::AssetID>, ErrorResult> MM::AssetSystem::AssetManager::GetAssetIDByAssetName(
+    const std::string& asset_name) const {
+  return GetAssetIDByName(asset_name);
 }
 
 bool AssetManager::Have(AssetType::AssetID asset_ID) const {
