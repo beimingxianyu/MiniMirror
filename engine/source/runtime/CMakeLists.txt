@@ -45,7 +45,11 @@ target_link_libraries(task_system PUBLIC Taskflow_lib)
 
 ########## manager ##########
 AddModule("manager" "${CMAKE_CURRENT_SOURCE_DIR}/core/manager")
-target_link_libraries(manager PUBLIC base log_system)
+if (NOT "${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
+    target_link_libraries(manager PUBLIC base log_system pthread)
+else ()
+    target_link_libraries(manager PUBLIC base log_system)
+endif ()
 
 #####################################################
 #####################  resource  ####################
