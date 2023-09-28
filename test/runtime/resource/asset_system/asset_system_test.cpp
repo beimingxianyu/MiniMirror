@@ -95,30 +95,24 @@ TEST(asset_system, asset_manager) {
   ImageImageMeshMesh asset1(json_path1), asset2(json_path2);
   ImageImageMesh asset3(json_path3), asset4(json_path4);
 
-  MM::FileSystem::LastWriteTime last_write_time1, last_write_time2,
-      last_write_time3, last_write_time4;
+  MM::Result<MM::FileSystem::LastWriteTime> last_write_time1 = MM::FileSystem::FileSystem::GetInstance()->GetLastWriteTime(json_path1).Exception().Move();
+  MM::Result<MM::FileSystem::LastWriteTime> last_write_time2 = MM::FileSystem::FileSystem::GetInstance()->GetLastWriteTime(json_path2).Exception().Move();
+  MM::Result<MM::FileSystem::LastWriteTime> last_write_time3 = MM::FileSystem::FileSystem::GetInstance()->GetLastWriteTime(json_path3).Exception().Move();
+  MM::Result<MM::FileSystem::LastWriteTime> last_write_time4 = MM::FileSystem::FileSystem::GetInstance()->GetLastWriteTime(json_path4).Exception().Move();
 
-  ASSERT_EQ(MM::FileSystem::FileSystem::GetInstance()->GetLastWriteTime(
-                json_path1, last_write_time1),
-            MM::ExecuteResult::SUCCESS);
-  ASSERT_EQ(MM::FileSystem::FileSystem::GetInstance()->GetLastWriteTime(
-                json_path2, last_write_time2),
-            MM::ExecuteResult::SUCCESS);
-  ASSERT_EQ(MM::FileSystem::FileSystem::GetInstance()->GetLastWriteTime(
-                json_path3, last_write_time3),
-            MM::ExecuteResult::SUCCESS);
-  ASSERT_EQ(MM::FileSystem::FileSystem::GetInstance()->GetLastWriteTime(
-                json_path4, last_write_time4),
-            MM::ExecuteResult::SUCCESS);
+  ASSERT_EQ(last_write_time1.IsSuccess(), true);
+  ASSERT_EQ(last_write_time2.IsSuccess(), true);
+  ASSERT_EQ(last_write_time3.IsSuccess(), true);
+  ASSERT_EQ(last_write_time4.IsSuccess(), true);
 
   MM::AssetSystem::AssetType::AssetID
       asset_id1 =
-          json_path1.GetHash() ^ last_write_time1.time_since_epoch().count(),
+          json_path1.GetHash() ^ last_write_time1.GetResult().time_since_epoch().count(),
       asset_id2 = 0,
       asset_id3 =
-          json_path3.GetHash() ^ last_write_time3.time_since_epoch().count(),
+          json_path3.GetHash() ^ last_write_time3.GetResult().time_since_epoch().count(),
       asset_id4 =
-          json_path4.GetHash() ^ last_write_time4.time_since_epoch().count();
+          json_path4.GetHash() ^ last_write_time4.GetResult().time_since_epoch().count();
 
   ASSERT_EQ(asset1.IsValid(), true);
   ASSERT_EQ(asset2.IsValid(), false);
@@ -146,28 +140,18 @@ TEST(asset_system, asset_manager) {
               "/asset_system/test_picture2.png"),
       path1_3(std::string(MM_TEST_FILE_DIR_TEST) + "/asset_system/monkey.obj"),
       path1_4(std::string(MM_TEST_FILE_DIR_TEST) + "/asset_system/model.fbx");
-  MM::AssetSystem::AssetType::AssetID asset_id1_1, asset_id1_2, asset_id1_3,
-      asset_id1_4;
-  ASSERT_EQ(MM::AssetSystem::AssetType::Image::CalculateAssetID(path1_1, 3,
-                                                                asset_id1_1),
-            MM::ExecuteResult::SUCCESS);
-  ASSERT_EQ(MM::AssetSystem::AssetType::Image::CalculateAssetID(path1_2, 4,
-                                                                asset_id1_2),
-            MM::ExecuteResult::SUCCESS);
-  ASSERT_EQ(MM::AssetSystem::AssetType::Mesh::CalculateAssetID(
-                path1_3, 0,
-                MM::AssetSystem::AssetType::BoundingBox::BoundingBoxType::AABB,
-                asset_id1_3),
-            MM::ExecuteResult::SUCCESS);
-  ASSERT_EQ(
-      MM::AssetSystem::AssetType::Mesh::CalculateAssetID(
-          path1_4, 0,
-          MM::AssetSystem::AssetType::BoundingBox::BoundingBoxType::CAPSULE,
-          asset_id1_4),
-      MM::ExecuteResult::SUCCESS);
+  MM::Result<MM::AssetSystem::AssetType::AssetID> asset_id1_1 = MM::AssetSystem::AssetType::Image::CalculateAssetID(path1_1, 3).Exception().Move();
+  MM::Result<MM::AssetSystem::AssetType::AssetID> asset_id1_2 = MM::AssetSystem::AssetType::Image::CalculateAssetID(path1_2, 4).Exception().Move();
+  MM::Result<MM::AssetSystem::AssetType::AssetID> asset_id1_3 = MM::AssetSystem::AssetType::Mesh::CalculateAssetID(path1_3, 0, MM::AssetSystem::AssetType::BoundingBox::BoundingBoxType::AABB).Exception().Move();
+  MM::Result<MM::AssetSystem::AssetType::AssetID> asset_id1_4 = MM::AssetSystem::AssetType::Mesh::CalculateAssetID(path1_4, 0, MM::AssetSystem::AssetType::BoundingBox::BoundingBoxType::CAPSULE).Exception().Move();
+
+  ASSERT_EQ(asset_id1_1.IsSuccess(), true);
+  ASSERT_EQ(asset_id1_2.IsSuccess(), true);
+  ASSERT_EQ(asset_id1_3.IsSuccess(), true);
+  ASSERT_EQ(asset_id1_4.IsSuccess(), true);
 
   // image1_1
-  ASSERT_EQ(image1_1.GetAssetID(), asset_id1_1);
+  ASSERT_EQ(image1_1.GetAssetID(), asset_id1_1.GetResult());
   ASSERT_EQ(image1_1.IsValid(), true);
   ASSERT_EQ(image1_1.GetAssetName(), path1_1.GetFileName());
   ASSERT_EQ(image1_1.GetAssetPath(), path1_1);
@@ -184,7 +168,7 @@ TEST(asset_system, asset_manager) {
   ASSERT_NE(image1_1.GetPixelsData(), nullptr);
 
   // image1_2
-  ASSERT_EQ(image1_2.GetAssetID(), asset_id1_2);
+  ASSERT_EQ(image1_2.GetAssetID(), asset_id1_2.GetResult());
   ASSERT_EQ(image1_2.IsValid(), true);
   ASSERT_EQ(image1_2.GetAssetName(), path1_2.GetFileName());
   ASSERT_EQ(image1_2.GetAssetPath(), path1_2);
@@ -201,7 +185,7 @@ TEST(asset_system, asset_manager) {
   ASSERT_NE(image1_2.GetPixelsData(), nullptr);
 
   // mesh1_1
-  ASSERT_EQ(mesh1_1.GetAssetID(), asset_id1_3);
+  ASSERT_EQ(mesh1_1.GetAssetID(), asset_id1_3.GetResult());
   ASSERT_EQ(mesh1_1.IsValid(), true);
   ASSERT_EQ(mesh1_1.GetAssetName(), path1_3.GetFileName());
   ASSERT_EQ(mesh1_1.GetAssetPath(), path1_3);
@@ -222,7 +206,7 @@ TEST(asset_system, asset_manager) {
   ASSERT_FLOAT_EQ(mesh1_1_box.GetBack(), 0.851562023);
 
   // mesh1_2
-  ASSERT_EQ(mesh1_2.GetAssetID(), asset_id1_4);
+  ASSERT_EQ(mesh1_2.GetAssetID(), asset_id1_4.GetResult());
   ASSERT_EQ(mesh1_2.IsValid(), true);
   ASSERT_EQ(mesh1_2.GetAssetName(), path1_4.GetFileName());
   ASSERT_EQ(mesh1_2.GetAssetPath(), path1_4);
@@ -253,21 +237,16 @@ TEST(asset_system, asset_manager) {
       path3_2(std::string(MM_TEST_FILE_DIR_TEST) +
               "/asset_system/test_picture2.png"),
       path3_3(std::string(MM_TEST_FILE_DIR_TEST) + "/asset_system/model.fbx");
-  MM::AssetSystem::AssetType::AssetID asset_id3_1, asset_id3_2, asset_id3_3;
-  ASSERT_EQ(MM::AssetSystem::AssetType::Image::CalculateAssetID(path3_1, 2,
-                                                                asset_id3_1),
-            MM::ExecuteResult::SUCCESS);
-  ASSERT_EQ(MM::AssetSystem::AssetType::Image::CalculateAssetID(path3_2, 4,
-                                                                asset_id3_2),
-            MM::ExecuteResult::SUCCESS);
-  ASSERT_EQ(MM::AssetSystem::AssetType::Mesh::CalculateAssetID(
-                path3_3, 0,
-                MM::AssetSystem::AssetType::BoundingBox::BoundingBoxType::AABB,
-                asset_id3_3),
-            MM::ExecuteResult::SUCCESS);
+  MM::Result<MM::AssetSystem::AssetType::AssetID> asset_id3_1 = MM::AssetSystem::AssetType::Image::CalculateAssetID(path3_1, 2).Exception().Move();
+  MM::Result<MM::AssetSystem::AssetType::AssetID> asset_id3_2 = MM::AssetSystem::AssetType::Image::CalculateAssetID(path3_2, 4).Exception().Move();
+  MM::Result<MM::AssetSystem::AssetType::AssetID> asset_id3_3 = MM::AssetSystem::AssetType::Mesh::CalculateAssetID(path3_3, 0, MM::AssetSystem::AssetType::BoundingBox::BoundingBoxType::AABB).Exception().Move();
+
+  ASSERT_EQ(asset_id3_1.IsSuccess(), true);
+  ASSERT_EQ(asset_id3_2.IsSuccess(), true);
+  ASSERT_EQ(asset_id3_3.IsSuccess(), true);
 
   // image3_1
-  ASSERT_EQ(image3_1.GetAssetID(), asset_id3_1);
+  ASSERT_EQ(image3_1.GetAssetID(), asset_id3_1.GetResult());
   ASSERT_EQ(image3_1.IsValid(), true);
   ASSERT_EQ(image3_1.GetAssetName(), path3_1.GetFileName());
   ASSERT_EQ(image3_1.GetAssetPath(), path3_1);
@@ -284,7 +263,7 @@ TEST(asset_system, asset_manager) {
   ASSERT_NE(image3_1.GetPixelsData(), nullptr);
 
   // image3_2
-  ASSERT_EQ(image3_2.GetAssetID(), asset_id3_2);
+  ASSERT_EQ(image3_2.GetAssetID(), asset_id3_2.GetResult());
   ASSERT_EQ(image3_2.IsValid(), true);
   ASSERT_EQ(image3_2.GetAssetName(), path3_2.GetFileName());
   ASSERT_EQ(image3_2.GetAssetPath(), path3_2);
@@ -301,7 +280,7 @@ TEST(asset_system, asset_manager) {
   ASSERT_NE(image3_2.GetPixelsData(), nullptr);
 
   // mesh3_1
-  ASSERT_EQ(mesh3_1.GetAssetID(), asset_id3_3);
+  ASSERT_EQ(mesh3_1.GetAssetID(), asset_id3_3.GetResult());
   ASSERT_EQ(mesh3_1.IsValid(), true);
   ASSERT_EQ(mesh3_1.GetAssetName(), path3_3.GetFileName());
   ASSERT_EQ(mesh3_1.GetAssetPath(), path3_3);
@@ -335,21 +314,16 @@ TEST(asset_system, asset_manager) {
       path4_2(std::string(MM_TEST_FILE_DIR_TEST) +
               "/asset_system/test_picture1.jpg"),
       path4_3(std::string(MM_TEST_FILE_DIR_TEST) + "/asset_system/model.fbx");
-  MM::AssetSystem::AssetType::AssetID asset_id4_1, asset_id4_2, asset_id4_3;
-  ASSERT_EQ(MM::AssetSystem::AssetType::Image::CalculateAssetID(path4_1, 3,
-                                                                asset_id4_1),
-            MM::ExecuteResult::SUCCESS);
-  ASSERT_EQ(MM::AssetSystem::AssetType::Image::CalculateAssetID(path4_2, 3,
-                                                                asset_id4_2),
-            MM::ExecuteResult::SUCCESS);
-  ASSERT_EQ(MM::AssetSystem::AssetType::Mesh::CalculateAssetID(
-                path4_3, 0,
-                MM::AssetSystem::AssetType::BoundingBox::BoundingBoxType::AABB,
-                asset_id4_3),
-            MM::ExecuteResult::SUCCESS);
+  MM::Result<MM::AssetSystem::AssetType::AssetID> asset_id4_1 = MM::AssetSystem::AssetType::Image::CalculateAssetID(path4_1, 3).Exception().Move();
+  MM::Result<MM::AssetSystem::AssetType::AssetID> asset_id4_2 = MM::AssetSystem::AssetType::Image::CalculateAssetID(path4_2, 3).Exception().Move();
+  MM::Result<MM::AssetSystem::AssetType::AssetID> asset_id4_3 = MM::AssetSystem::AssetType::Mesh::CalculateAssetID(path4_3, 0, MM::AssetSystem::AssetType::BoundingBox::BoundingBoxType::AABB).Exception().Move();
+
+  ASSERT_EQ(asset_id4_1.IsSuccess(), true);
+  ASSERT_EQ(asset_id4_2.IsSuccess(), true);
+  ASSERT_EQ(asset_id4_3.IsSuccess(), true);
 
   // image4_1
-  ASSERT_EQ(image4_1.GetAssetID(), asset_id4_1);
+  ASSERT_EQ(image4_1.GetAssetID(), asset_id4_1.GetResult());
   ASSERT_EQ(image4_1.IsValid(), true);
   ASSERT_EQ(image4_1.GetAssetName(), path4_1.GetFileName());
   ASSERT_EQ(image4_1.GetAssetPath(), path4_1);
@@ -366,7 +340,7 @@ TEST(asset_system, asset_manager) {
   ASSERT_NE(image4_1.GetPixelsData(), nullptr);
 
   // image4_2
-  ASSERT_EQ(image4_2.GetAssetID(), asset_id4_2);
+  ASSERT_EQ(image4_2.GetAssetID(), asset_id4_2.GetResult());
   ASSERT_EQ(image4_2.IsValid(), true);
   ASSERT_EQ(image4_2.GetAssetName(), path4_2.GetFileName());
   ASSERT_EQ(image4_2.GetAssetPath(), path4_2);
@@ -383,7 +357,7 @@ TEST(asset_system, asset_manager) {
   ASSERT_NE(image4_2.GetPixelsData(), nullptr);
 
   // mesh4_1
-  ASSERT_EQ(mesh4_1.GetAssetID(), asset_id4_3);
+  ASSERT_EQ(mesh4_1.GetAssetID(), asset_id4_3.GetResult());
   ASSERT_EQ(mesh4_1.IsValid(), true);
   ASSERT_EQ(mesh4_1.GetAssetName(), path4_3.GetFileName());
   ASSERT_EQ(mesh4_1.GetAssetPath(), path4_3);
@@ -405,95 +379,60 @@ TEST(asset_system, asset_manager) {
 
   MM::AssetSystem::AssetManager* asset_manager =
       MM::AssetSystem::AssetManager::GetInstance();
-  std::vector<MM::AssetSystem::AssetManager::AssetHandler>
-      image1_asset_handler_vector, image2_asset_handler_vector,
-      mesh1_asset_handler_vector, mesh2_asset_handler_vector;
+  MM::Result<std::vector<MM::AssetSystem::AssetManager::AssetHandler>>
+      image1_asset_handler_vector = asset_manager->GetAssetByAssetName("test_picture1.jpg").Exception().Move(),
+      image2_asset_handler_vector = asset_manager->GetAssetByAssetName("test_picture2.png").Exception().Move(),
+      mesh1_asset_handler_vector  = asset_manager->GetAssetByAssetName("monkey.obj").Exception().Move(),
+      mesh2_asset_handler_vector  = asset_manager->GetAssetByAssetName("model.fbx").Exception().Move();
+
+  ASSERT_EQ(image1_asset_handler_vector.IsSuccess(), true);
+  ASSERT_EQ(image2_asset_handler_vector.IsSuccess(), true);
+  ASSERT_EQ(mesh1_asset_handler_vector.IsSuccess(), true);
+  ASSERT_EQ(mesh2_asset_handler_vector.IsSuccess(), true);
+
   ASSERT_EQ(asset_manager->GetSize(), 6);
-  ASSERT_EQ(asset_manager->GetAssetByAssetName("test_picture1.jpg",
-                                               image1_asset_handler_vector),
-            MM::Utils::ExecuteResult::SUCCESS);
-  ASSERT_EQ(asset_manager->GetAssetByAssetName("test_picture2.png",
-                                               image2_asset_handler_vector),
-            MM::Utils::ExecuteResult::SUCCESS);
-  ASSERT_EQ(asset_manager->GetAssetByAssetName("monkey.obj",
-                                               mesh1_asset_handler_vector),
-            MM::Utils::ExecuteResult::SUCCESS);
-  ASSERT_EQ(asset_manager->GetAssetByAssetName("model.fbx",
-                                               mesh2_asset_handler_vector),
-            MM::Utils::ExecuteResult::SUCCESS);
-  ASSERT_EQ(image1_asset_handler_vector.size(), 2);
-  ASSERT_EQ(image2_asset_handler_vector.size(), 1);
-  ASSERT_EQ(mesh1_asset_handler_vector.size(), 1);
-  ASSERT_EQ(mesh2_asset_handler_vector.size(), 2);
-  image1_asset_handler_vector.clear();
-  image2_asset_handler_vector.clear();
-  mesh1_asset_handler_vector.clear();
-  mesh2_asset_handler_vector.clear();
-  //  auto& image1_asset_handler_vector0 =
-  //      dynamic_cast<MM::AssetSystem::AssetType::Image&>(
-  //          *image1_asset_handler_vector[0].GetObject());
-  //  auto& image1_asset_handler_vector1 =
-  //      dynamic_cast<MM::AssetSystem::AssetType::Image&>(
-  //          *image1_asset_handler_vector[1].GetObject());
-  //  auto& image1_2_channel = image1_asset_handler_vector0.GetImageChannels()
-  //  == 2
-  //                               ? image1_asset_handler_vector0
-  //                               : image1_asset_handler_vector1;
-  //  auto& image1_3_channel = &image1_2_channel ==
-  //  &image1_asset_handler_vector0
-  //                               ? image1_asset_handler_vector1
-  //                               : image1_asset_handler_vector0;
-  MM::AssetSystem::AssetType::AssetID image1_2_channel_asset_id,
-      image1_3_channel_asset_id, image2_4_channel_asset_id, mesh1_AABB_asset_id,
-      mesh2_AABB_asset_id, mesh2_CAPSULE_asset_id;
-  ASSERT_EQ(MM::AssetSystem::AssetType::Image::CalculateAssetID(
-                path1_1, 2, image1_2_channel_asset_id),
-            MM::Utils::ExecuteResult::SUCCESS);
-  ASSERT_EQ(MM::AssetSystem::AssetType::Image::CalculateAssetID(
-                path1_1, 3, image1_3_channel_asset_id),
-            MM::Utils::ExecuteResult::SUCCESS);
-  ASSERT_EQ(MM::AssetSystem::AssetType::Image::CalculateAssetID(
-                path1_2, 4, image2_4_channel_asset_id),
-            MM::Utils::ExecuteResult::SUCCESS);
-  ASSERT_EQ(MM::AssetSystem::AssetType::Mesh::CalculateAssetID(
-                path1_3, 0,
-                MM::AssetSystem::AssetType::BoundingBox::BoundingBoxType::AABB,
-                mesh1_AABB_asset_id),
-            MM::Utils::ExecuteResult::SUCCESS);
-  ASSERT_EQ(MM::AssetSystem::AssetType::Mesh::CalculateAssetID(
-                path1_4, 0,
-                MM::AssetSystem::AssetType::BoundingBox::BoundingBoxType::AABB,
-                mesh2_AABB_asset_id),
-            MM::Utils::ExecuteResult::SUCCESS);
-  ASSERT_EQ(
-      MM::AssetSystem::AssetType::Mesh::CalculateAssetID(
-          path1_4, 0,
-          MM::AssetSystem::AssetType::BoundingBox::BoundingBoxType::CAPSULE,
-          mesh2_CAPSULE_asset_id),
-      MM::Utils::ExecuteResult::SUCCESS);
+  ASSERT_EQ(image1_asset_handler_vector.GetResult().size(), 2);
+  ASSERT_EQ(image2_asset_handler_vector.GetResult().size(), 1);
+  ASSERT_EQ(mesh1_asset_handler_vector.GetResult().size(), 1);
+  ASSERT_EQ(mesh2_asset_handler_vector.GetResult().size(), 2);
+  image1_asset_handler_vector.GetResult().clear();
+  image2_asset_handler_vector.GetResult().clear();
+  mesh1_asset_handler_vector.GetResult().clear();
+  mesh2_asset_handler_vector.GetResult().clear();
+  MM::Result<MM::AssetSystem::AssetType::AssetID>
+      image1_2_channel_asset_id = MM::AssetSystem::AssetType::Image::CalculateAssetID(path1_1, 2).Exception().Move(),
+      image1_3_channel_asset_id = MM::AssetSystem::AssetType::Image::CalculateAssetID(path1_1, 3).Exception().Move(),
+      image2_4_channel_asset_id = MM::AssetSystem::AssetType::Image::CalculateAssetID(path1_2, 4).Exception().Move(),
+      mesh1_AABB_asset_id    = MM::AssetSystem::AssetType::Mesh::CalculateAssetID(path1_3, 0, MM::AssetSystem::AssetType::BoundingBox::BoundingBoxType::AABB).Exception().Move(),
+      mesh2_AABB_asset_id    = MM::AssetSystem::AssetType::Mesh::CalculateAssetID(path1_4, 0, MM::AssetSystem::AssetType::BoundingBox::BoundingBoxType::AABB).Exception().Move(),
+      mesh2_CAPSULE_asset_id = MM::AssetSystem::AssetType::Mesh::CalculateAssetID(path1_4, 0, MM::AssetSystem::AssetType::BoundingBox::BoundingBoxType::CAPSULE).Exception().Move();
 
-  MM::AssetSystem::AssetManager::HandlerType handler1, handler2, handler3,
-      handler4, handler5, handler6;
-  ASSERT_EQ(
-      asset_manager->GetAssetByAssetID(image1_2_channel_asset_id, handler1),
-      MM::Utils::ExecuteResult::SUCCESS);
-  ASSERT_EQ(
-      asset_manager->GetAssetByAssetID(image1_3_channel_asset_id, handler2),
-      MM::Utils::ExecuteResult::SUCCESS);
-  ASSERT_EQ(
-      asset_manager->GetAssetByAssetID(image2_4_channel_asset_id, handler3),
-      MM::Utils::ExecuteResult::SUCCESS);
-  ASSERT_EQ(asset_manager->GetAssetByAssetID(mesh1_AABB_asset_id, handler4),
-            MM::Utils::ExecuteResult::SUCCESS);
-  ASSERT_EQ(asset_manager->GetAssetByAssetID(mesh2_AABB_asset_id, handler5),
-            MM::Utils::ExecuteResult::SUCCESS);
-  ASSERT_EQ(asset_manager->GetAssetByAssetID(mesh2_CAPSULE_asset_id, handler6),
-            MM::Utils::ExecuteResult::SUCCESS);
+  ASSERT_EQ(image1_2_channel_asset_id.IsSuccess(), true);
+  ASSERT_EQ(image1_3_channel_asset_id.IsSuccess(), true);
+  ASSERT_EQ(image2_4_channel_asset_id.IsSuccess(), true);
+  ASSERT_EQ(mesh1_AABB_asset_id.IsSuccess(), true);
+  ASSERT_EQ(mesh2_AABB_asset_id.IsSuccess(), true);
+  ASSERT_EQ(mesh2_CAPSULE_asset_id.IsSuccess(), true);
 
-  ASSERT_EQ(handler1.GetUseCount(), 2);
-  ASSERT_EQ(handler2.GetUseCount(), 4);
-  ASSERT_EQ(handler3.GetUseCount(), 3);
-  ASSERT_EQ(handler4.GetUseCount(), 2);
-  ASSERT_EQ(handler5.GetUseCount(), 3);
-  ASSERT_EQ(handler6.GetUseCount(), 2);
+  MM::Result<MM::AssetSystem::AssetManager::HandlerType>
+      handler1 = asset_manager->GetAssetByAssetID(image1_2_channel_asset_id.GetResult()).Exception().Move(),
+      handler2 = asset_manager->GetAssetByAssetID(image1_3_channel_asset_id.GetResult()).Exception().Move(),
+      handler3 = asset_manager->GetAssetByAssetID(image2_4_channel_asset_id.GetResult()).Exception().Move(),
+      handler4 = asset_manager->GetAssetByAssetID(mesh1_AABB_asset_id.GetResult()).Exception().Move(),
+      handler5 = asset_manager->GetAssetByAssetID(mesh2_AABB_asset_id.GetResult()).Exception().Move(),
+      handler6 = asset_manager->GetAssetByAssetID(mesh2_CAPSULE_asset_id.GetResult()).Exception().Move();
+
+  ASSERT_EQ(handler1.IsSuccess(), true);
+  ASSERT_EQ(handler2.IsSuccess(), true);
+  ASSERT_EQ(handler3.IsSuccess(), true);
+  ASSERT_EQ(handler4.IsSuccess(), true);
+  ASSERT_EQ(handler5.IsSuccess(), true);
+  ASSERT_EQ(handler6.IsSuccess(), true);
+
+  ASSERT_EQ(handler1.GetResult().GetUseCount(), 2);
+  ASSERT_EQ(handler2.GetResult().GetUseCount(), 4);
+  ASSERT_EQ(handler3.GetResult().GetUseCount(), 3);
+  ASSERT_EQ(handler4.GetResult().GetUseCount(), 2);
+  ASSERT_EQ(handler5.GetResult().GetUseCount(), 3);
+  ASSERT_EQ(handler6.GetResult().GetUseCount(), 2);
 }

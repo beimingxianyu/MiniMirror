@@ -201,61 +201,74 @@ MM::Result<MM::Nil, MM::ErrorResult> Combination::LoadImages(
     taskflow.emplace([asset_manager, image_path_in = image_paths[index],
                       image_desired_channel_in = image_desired_channels[index],
                       &images, index, future, &load_result]() {
-      Result<FileSystem::LastWriteTime, ErrorResult> last_write_time = MM_FILE_SYSTEM->GetLastWriteTime(image_path_in);
-      last_write_time.Exception([function_name = MM_FUNCTION_NAME, &load_result, &future](ErrorResult error_result) {
-        MM_LOG_SYSTEM->CheckResult(error_result.GetErrorCode(),
-                                   MM_LOG_DESCRIPTION_MESSAGE(function_name, Faied to get last write time.),
-                                   LogSystem::LogSystem::LogLevel::ERROR);
+      Result<AssetID> asset_id = MM::AssetSystem::AssetType::Image::CalculateAssetID(image_path_in, image_desired_channel_in).Exception(
+          [function_name = MM_FUNCTION_NAME, &load_result, &future](ErrorResult error_result) {
+            MM_LOG_SYSTEM->CheckResult(error_result.GetErrorCode(),
+                                       MM_LOG_DESCRIPTION_MESSAGE(function_name, Faied to calculate image asset ID.),
+                                       LogSystem::LogSystem::LogLevel::ERROR);
 
-        load_result = false;
-        future->cancel();
-      });
-      if (last_write_time.IsError()) return;
+            load_result = false;
+            future->cancel();
+          }
+      );
+      if (asset_id.IsError()) return;
+
       std::uint64_t path_hash = image_path_in.GetHash();
-      Result<AssetID> asset_id;
-      MM::AssetSystem::AssetType::Image::CalculateAssetID(
-          image_path_in, image_desired_channel_in, asset_id);
-      ErrorCode result = ErrorCode::UNDEFINED_ERROR;
-      while ((result =
-                  asset_manager->GetAssetByAssetID(asset_id, images[index])) ==
-             ExecuteResult::PARENT_OBJECT_NOT_CONTAIN_SPECIFIC_CHILD_OBJECT) {
-        std::unique_ptr<Image> image =
-            std::make_unique<Image>(image_path_in, image_desired_channel_in);
-        if (!image->IsValid()) {
+
+      Result<AssetManager::HandlerType> result = asset_manager->GetAssetByAssetID(asset_id.GetResult()).Exception();
+      if (result.IsError()) {
+        do {
+          std::unique_ptr<Image> image =
+              std::make_unique<Image>(image_path_in, image_desired_channel_in);
+          if (!image->IsValid()) {
+            load_result = false;
+            future->cancel();
+            return;
+          }
+          result = asset_manager->AddAsset(std::move(image)).Exception();
+          if (result.IsSuccess()) {
+            images[index] = std::move(result.GetResult());
+            return;
+          }
+          if (asset_manager->Have(asset_id.GetResult())) {
+            asset_id = MM::AssetSystem::AssetType::Image::CalculateAssetID(image_path_in, image_desired_channel_in).Exception(
+          [function_name = MM_FUNCTION_NAME, &load_result, &future](ErrorResult error_result) {
+            MM_LOG_SYSTEM->CheckResult(error_result.GetErrorCode(),
+                                       MM_LOG_DESCRIPTION_MESSAGE(function_name, Faied to calculate image asset ID.),
+                                       LogSystem::LogSystem::LogLevel::ERROR);
+
+            load_result = false;
+            future->cancel();
+          }
+      );
+           if (asset_id.IsError()) {
+             return;
+           }
+            continue;
+          }
           load_result = false;
           future->cancel();
           return;
-        }
-        result = asset_manager->AddAsset(std::move(image), images[index]);
-        if (result == Utils::ExecuteResult::SUCCESS) {
-          return;
-        }
-        if (asset_manager->Have(asset_id)) {
-          MM_CHECK_WITHOUT_LOG(
-              MM::AssetSystem::AssetType::Image::CalculateAssetID(
-                  image_path_in, image_desired_channel_in, asset_id),
-              load_result = false;
-              future->cancel(); return;);
-          continue;
-        }
+        } while ((result =
+                     asset_manager->GetAssetByAssetID(asset_id.GetResult()).Exception()).GetError().GetErrorCode() ==
+                     ErrorCode::PARENT_OBJECT_NOT_CONTAIN_SPECIFIC_CHILD_OBJECT);
+      }
+      if (result.IsError()) {
+        MM_LOG_ERROR("Faield to load image.");
         load_result = false;
         future->cancel();
-        return;
-      }
-      if (result == Utils::ExecuteResult::SUCCESS) {
         return;
       } else {
-        load_result = false;
-        future->cancel();
+        images[index] = std::move(result.GetResult());
         return;
       }
     });
   }
 
-  return Utils::ExecuteResult ::SUCCESS;
+  return Result<Nil>{st_execute_success};
 }
 
-Utils::ExecuteResult Combination::LoadMeshes(
+MM::Result<MM::Nil, MM::ErrorResult> Combination::LoadMeshes(
     const FileSystem::Path& json_path,
     const rapidjson::Document& combination_json, TaskSystem::Taskflow& taskflow,
     TaskSystem::Future<void>* future,
@@ -264,7 +277,7 @@ Utils::ExecuteResult Combination::LoadMeshes(
   if (meshes_iter == combination_json.MemberEnd() ||
       !meshes_iter->value.IsArray()) {
     load_result = false;
-    return Utils::ExecuteResult ::INPUT_PARAMETERS_ARE_NOT_SUITABLE;
+    return ResultE<>{ErrorCode::INPUT_PARAMETERS_ARE_NOT_SUITABLE};
   }
   std::vector<FileSystem::Path> mesh_paths;
   std::vector<std::uint32_t> mesh_indexes;
@@ -274,19 +287,19 @@ Utils::ExecuteResult Combination::LoadMeshes(
        mesh_iter != meshes_iter->value.End(); ++mesh_iter) {
     if (!mesh_iter->IsObject()) {
       load_result = false;
-      return Utils::ExecuteResult ::INPUT_PARAMETERS_ARE_NOT_SUITABLE;
+      return ResultE<>{ErrorCode::INPUT_PARAMETERS_ARE_NOT_SUITABLE};
     }
 
     auto mesh_path = mesh_iter->FindMember("mesh path");
     if (mesh_path == mesh_iter->MemberEnd() || !mesh_path->value.IsString()) {
       load_result = false;
-      return Utils::ExecuteResult ::INPUT_PARAMETERS_ARE_NOT_SUITABLE;
+      return ResultE<>{ErrorCode::INPUT_PARAMETERS_ARE_NOT_SUITABLE};
     }
 
     auto mesh_index = mesh_iter->FindMember("mesh index");
     if (mesh_index == mesh_iter->MemberEnd() || !mesh_index->value.IsUint()) {
       load_result = false;
-      return Utils::ExecuteResult ::INPUT_PARAMETERS_ARE_NOT_SUITABLE;
+      return ResultE<>{ErrorCode::INPUT_PARAMETERS_ARE_NOT_SUITABLE};
     }
 
     mesh_paths.emplace_back(json_path.GetParentDirPath() +
@@ -297,7 +310,7 @@ Utils::ExecuteResult Combination::LoadMeshes(
     if (mesh_bounding_box_type != mesh_iter->MemberEnd()) {
       if (!mesh_bounding_box_type->value.IsString()) {
         load_result = false;
-        return Utils::ExecuteResult::INPUT_PARAMETERS_ARE_NOT_SUITABLE;
+        return ResultE<>{ErrorCode::INPUT_PARAMETERS_ARE_NOT_SUITABLE};
       }
 
       if (std::strcmp(mesh_bounding_box_type->value.GetString(), "AABB") == 0) {
@@ -309,7 +322,7 @@ Utils::ExecuteResult Combination::LoadMeshes(
             BoundingBox::BoundingBoxType::CAPSULE);
       } else {
         load_result = false;
-        return Utils::ExecuteResult::INPUT_PARAMETERS_ARE_NOT_SUITABLE;
+        return ResultE<>{ErrorCode::INPUT_PARAMETERS_ARE_NOT_SUITABLE};
       }
     } else {
       mesh_bounding_box_types.emplace_back(BoundingBox::BoundingBoxType::AABB);
@@ -323,51 +336,70 @@ Utils::ExecuteResult Combination::LoadMeshes(
                       mesh_bounding_box_type_in =
                           mesh_bounding_box_types[index],
                       index, future, &load_result]() {
-      FileSystem::LastWriteTime last_write_time;
-      AssetID asset_id;
-      MM_CHECK_WITHOUT_LOG(
-          MM::AssetSystem::AssetType::Mesh::CalculateAssetID(
-              mesh_path_in, mesh_index_in, mesh_bounding_box_type_in, asset_id),
-          load_result = false;
-          future->cancel(); return;);
-      ExecuteResult result = ExecuteResult ::UNDEFINED_ERROR;
-      while ((result =
-                  asset_manager->GetAssetByAssetID(asset_id, meshes[index])) ==
-             ExecuteResult::PARENT_OBJECT_NOT_CONTAIN_SPECIFIC_CHILD_OBJECT) {
-        std::unique_ptr<Mesh> mesh = std::make_unique<Mesh>(
-            mesh_path_in, mesh_index_in, mesh_bounding_box_type_in);
-        if (!mesh->IsValid()) {
+      Result<AssetID> asset_id = MM::AssetSystem::AssetType::Mesh::CalculateAssetID(
+          mesh_path_in, mesh_index_in, mesh_bounding_box_type_in).Exception(
+            [function_name = MM_FUNCTION_NAME, &load_result, &future](ErrorResult error_result){
+              MM_LOG_SYSTEM->CheckResult(
+                                               error_result.GetErrorCode(),
+                                               MM_LOG_DESCRIPTION_MESSAGE(function_name, Failed to calculate mesh asset id.),
+                                               LogSystem::LogSystem::LogLevel::ERROR
+                                               );
+              load_result = false;
+              future->cancel();
+                                     });
+      if (asset_id.IsError()) {return;}
+      Result<AssetManager::HandlerType> result = asset_manager->GetAssetByAssetID(asset_id.GetResult()).Exception();
+      if (result.IsError()) {
+        do {
+          std::unique_ptr<Mesh> mesh = std::make_unique<Mesh>(
+              mesh_path_in, mesh_index_in, mesh_bounding_box_type_in);
+          if (!mesh->IsValid()) {
+            load_result = false;
+            future->cancel();
+            return;
+          }
+          result = asset_manager->AddAsset(std::move(mesh)).Exception();
+          if (result.IsSuccess()) {
+            meshes[index] = std::move(result.GetResult());
+            return;
+          }
+          if (asset_manager->Have(asset_id.GetResult())) {
+            asset_id = MM::AssetSystem::AssetType::Mesh::CalculateAssetID(
+                mesh_path_in, mesh_index_in, mesh_bounding_box_type_in).Exception(
+                               [function_name = MM_FUNCTION_NAME, &load_result, &future](ErrorResult error_result) {
+                                 MM_LOG_SYSTEM->CheckResult(error_result.GetErrorCode(),
+                                                            MM_LOG_DESCRIPTION_MESSAGE(function_name, Faied to calculate image asset ID.),
+                                                            LogSystem::LogSystem::LogLevel::ERROR);
+                                 load_result = false;
+                                 future->cancel();
+                               }
+                               );
+            if (asset_id.IsError()) {
+              return;
+            }
+            continue;
+          }
           load_result = false;
           future->cancel();
           return;
-        }
-        result = asset_manager->AddAsset(std::move(mesh), meshes[index]);
-        if (result == Utils::ExecuteResult::SUCCESS) {
-          return;
-        }
-        if (asset_manager->Have(asset_id)) {
-          MM_CHECK_WITHOUT_LOG(
-              MM::AssetSystem::AssetType::Mesh::CalculateAssetID(
-                  mesh_path_in, mesh_index_in, mesh_bounding_box_type_in,
-                  asset_id),
-              load_result = false;
-              future->cancel(); return;);
-          continue;
-        }
+        } while ((result =
+                      asset_manager->GetAssetByAssetID(asset_id.GetResult()).Exception()).GetError().GetErrorCode() ==
+                 ErrorCode::PARENT_OBJECT_NOT_CONTAIN_SPECIFIC_CHILD_OBJECT);
+      }
+
+      if (result.IsError()) {
+        MM_LOG_ERROR("Faield to load mesh.");
         load_result = false;
         future->cancel();
-        return;
-      }
-      if (result == Utils::ExecuteResult::SUCCESS) {
         return;
       } else {
-        load_result = false;
-        future->cancel();
+        meshes[index] = std::move(result.GetResult());
+        return;
       }
     });
   }
 
-  return Utils::ExecuteResult ::SUCCESS;
+  return Result<Nil>{st_execute_success};
 }
 
 Combination::Combination(

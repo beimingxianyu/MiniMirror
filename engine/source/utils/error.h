@@ -276,6 +276,10 @@ class Result {
 
   const ResultType& GetResult() const { return result_wrapper_.GetResult(); }
 
+  Result&& Move() {
+      return std::move(*this);
+  }
+
   Result& Exception() {
     result_wrapper_.Exception();
 
@@ -415,7 +419,9 @@ class Result {
           exception_processed_(other.exception_processed_)
 #endif
     {
+#ifdef MM_CHECK_ALL_EXCEPTION_PROCESS
       other.exception_processed_ = true;
+#endif
     }
     ResultWrapper& operator=(const ResultWrapper& other) {
       if (std::addressof(other) == this) {

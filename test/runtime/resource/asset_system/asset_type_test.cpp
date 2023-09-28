@@ -39,12 +39,11 @@ TEST(asset_system, asset_base) {
             std::string(MM_ASSET_TYPE_UNDEFINED));
 
   // asset_base2
-  MM::FileSystem::LastWriteTime last_write_time2;
-  MM::FileSystem::FileSystem::GetInstance()->GetLastWriteTime(path2,
-                                                              last_write_time2);
+  MM::Result<MM::FileSystem::LastWriteTime> last_write_time2 =
+  MM::FileSystem::FileSystem::GetInstance()->GetLastWriteTime(path2).Exception();
   ASSERT_EQ(asset_base2.GetAssetID(),
             path2.GetHash() ^ static_cast<std::uint64_t>(
-                                  last_write_time2.time_since_epoch().count()));
+                                  last_write_time2.GetResult().time_since_epoch().count()));
   ASSERT_EQ(asset_base2.IsValid(), true);
   ASSERT_EQ(asset_base2.GetAssetName(), path2.GetFileName());
   ASSERT_EQ(asset_base2.GetAssetPath(), path2);
@@ -57,12 +56,11 @@ TEST(asset_system, asset_base) {
             std::string(MM_ASSET_TYPE_UNDEFINED));
 
   // asset_base3
-  MM::FileSystem::LastWriteTime last_write_time3;
-  MM::FileSystem::FileSystem::GetInstance()->GetLastWriteTime(path3,
-                                                              last_write_time3);
+  MM::Result<MM::FileSystem::LastWriteTime> last_write_time3 =
+  MM::FileSystem::FileSystem::GetInstance()->GetLastWriteTime(path3).Exception();
   ASSERT_EQ(asset_base3.GetAssetID(),
             path3.GetHash() ^ static_cast<std::uint64_t>(
-                                  last_write_time3.time_since_epoch().count()));
+                                  last_write_time3.GetResult().time_since_epoch().count()));
   ASSERT_EQ(asset_base3.IsValid(), true);
   ASSERT_EQ(asset_base3.GetAssetName(), path3.GetFileName());
   ASSERT_EQ(asset_base3.GetAssetPath(), path3);
@@ -101,13 +99,11 @@ TEST(asset_system, image) {
   // image2
   MM::AssetSystem::AssetType::Image image2_1(path2, 1), image2_2(path2, 2),
       image2_3(path2, 3), image2_4(path2, 4);
-  MM::FileSystem::LastWriteTime last_write_time2;
-  ASSERT_EQ(MM::FileSystem::FileSystem::GetInstance()->GetLastWriteTime(
-                path2, last_write_time2),
-            MM::Utils::ExecuteResult::SUCCESS);
+  MM::Result<MM::FileSystem::LastWriteTime> last_write_time2 = MM::FileSystem::FileSystem::GetInstance()->GetLastWriteTime(path2).Exception();
+  ASSERT_EQ(last_write_time2.IsSuccess(), true);
   MM::AssetSystem::AssetType::AssetID asset_id2 =
       path2.GetHash() ^
-      static_cast<std::uint64_t>(last_write_time2.time_since_epoch().count());
+      static_cast<std::uint64_t>(last_write_time2.GetResult().time_since_epoch().count());
   MM::AssetSystem::AssetType::AssetID asset_id2_1 = asset_id2 + 1,
                                       asset_id2_2 = asset_id2 + 2,
                                       asset_id2_3 = asset_id2 + 3,
@@ -129,17 +125,16 @@ TEST(asset_system, image) {
   ASSERT_EQ(image2_1.GetImageSize(),
             image2_1.GetImageWidth() * image2_1.GetImageHeight() * 1);
   ASSERT_NE(image2_1.GetPixelsData(), nullptr);
-  MM::Utils::Json::Document json2_1;
-  json2_1.SetObject();
-  ASSERT_EQ(image2_1.GetJson(json2_1), MM::Utils::ExecuteResult::SUCCESS);
-  ASSERT_EQ(json2_1["name"].GetString(), image2_1.GetAssetName());
-  ASSERT_EQ(json2_1["path"].GetString(), image2_1.GetAssetPath().String());
-  ASSERT_EQ(json2_1["asset id"].GetUint64(), image2_1.GetAssetID());
-  ASSERT_EQ(json2_1["image width"].GetUint(), image2_1.GetImageWidth());
-  ASSERT_EQ(json2_1["image height"].GetUint(), image2_1.GetImageHeight());
-  ASSERT_EQ(json2_1["image channels"].GetUint(), image2_1.GetImageChannels());
-  ASSERT_EQ(json2_1["image size"].GetUint(), image2_1.GetImageSize());
-  ASSERT_EQ(json2_1["image format"], "GREY");
+  MM::Result<MM::Utils::Json::Document> json2_1{image2_1.GetJson().Exception().Move()};
+  ASSERT_EQ(json2_1.IsSuccess(), true);
+  ASSERT_EQ(json2_1.GetResult()["name"].GetString(), image2_1.GetAssetName());
+  ASSERT_EQ(json2_1.GetResult()["path"].GetString(), image2_1.GetAssetPath().String());
+  ASSERT_EQ(json2_1.GetResult()["asset id"].GetUint64(), image2_1.GetAssetID());
+  ASSERT_EQ(json2_1.GetResult()["image width"].GetUint(), image2_1.GetImageWidth());
+  ASSERT_EQ(json2_1.GetResult()["image height"].GetUint(), image2_1.GetImageHeight());
+  ASSERT_EQ(json2_1.GetResult()["image channels"].GetUint(), image2_1.GetImageChannels());
+  ASSERT_EQ(json2_1.GetResult()["image size"].GetUint(), image2_1.GetImageSize());
+  ASSERT_EQ(json2_1.GetResult()["image format"], "GREY");
   image2_1.Release();
   ASSERT_EQ(image2_1.IsValid(), false);
   ASSERT_EQ(image2_1.GetAssetID(), 0);
@@ -159,17 +154,16 @@ TEST(asset_system, image) {
   ASSERT_EQ(image2_2.GetImageSize(),
             image2_2.GetImageWidth() * image2_2.GetImageHeight() * 2);
   ASSERT_NE(image2_2.GetPixelsData(), nullptr);
-  MM::Utils::Json::Document json2_2;
-  json2_2.SetObject();
-  ASSERT_EQ(image2_2.GetJson(json2_2), MM::Utils::ExecuteResult::SUCCESS);
-  ASSERT_EQ(json2_2["name"].GetString(), image2_2.GetAssetName());
-  ASSERT_EQ(json2_2["path"].GetString(), image2_2.GetAssetPath().String());
-  ASSERT_EQ(json2_2["asset id"].GetUint64(), image2_2.GetAssetID());
-  ASSERT_EQ(json2_2["image width"].GetUint(), image2_2.GetImageWidth());
-  ASSERT_EQ(json2_2["image height"].GetUint(), image2_2.GetImageHeight());
-  ASSERT_EQ(json2_2["image channels"].GetUint(), image2_2.GetImageChannels());
-  ASSERT_EQ(json2_2["image size"].GetUint(), image2_2.GetImageSize());
-  ASSERT_EQ(json2_2["image format"], "GREY_ALPHA");
+  MM::Result<MM::Utils::Json::Document> json2_2 = image2_2.GetJson().Exception().Move();
+  ASSERT_EQ(json2_2.IsSuccess(), true);
+  ASSERT_EQ(json2_2.GetResult()["name"].GetString(), image2_2.GetAssetName());
+  ASSERT_EQ(json2_2.GetResult()["path"].GetString(), image2_2.GetAssetPath().String());
+  ASSERT_EQ(json2_2.GetResult()["asset id"].GetUint64(), image2_2.GetAssetID());
+  ASSERT_EQ(json2_2.GetResult()["image width"].GetUint(), image2_2.GetImageWidth());
+  ASSERT_EQ(json2_2.GetResult()["image height"].GetUint(), image2_2.GetImageHeight());
+  ASSERT_EQ(json2_2.GetResult()["image channels"].GetUint(), image2_2.GetImageChannels());
+  ASSERT_EQ(json2_2.GetResult()["image size"].GetUint(), image2_2.GetImageSize());
+  ASSERT_EQ(json2_2.GetResult()["image format"], "GREY_ALPHA");
   image2_2.Release();
   ASSERT_EQ(image2_2.IsValid(), false);
   ASSERT_EQ(image2_2.GetAssetID(), 0);
@@ -189,17 +183,16 @@ TEST(asset_system, image) {
   ASSERT_EQ(image2_3.GetImageSize(),
             image2_3.GetImageWidth() * image2_3.GetImageHeight() * 3);
   ASSERT_NE(image2_3.GetPixelsData(), nullptr);
-  MM::Utils::Json::Document json2_3;
-  json2_3.SetObject();
-  ASSERT_EQ(image2_3.GetJson(json2_3), MM::Utils::ExecuteResult::SUCCESS);
-  ASSERT_EQ(json2_3["name"].GetString(), image2_3.GetAssetName());
-  ASSERT_EQ(json2_3["path"].GetString(), image2_3.GetAssetPath().String());
-  ASSERT_EQ(json2_3["asset id"].GetUint64(), image2_3.GetAssetID());
-  ASSERT_EQ(json2_3["image width"].GetUint(), image2_3.GetImageWidth());
-  ASSERT_EQ(json2_3["image height"].GetUint(), image2_3.GetImageHeight());
-  ASSERT_EQ(json2_3["image channels"].GetUint(), image2_3.GetImageChannels());
-  ASSERT_EQ(json2_3["image size"].GetUint(), image2_3.GetImageSize());
-  ASSERT_EQ(json2_3["image format"], "RGB");
+  MM::Result<MM::Utils::Json::Document> json2_3 = image2_3.GetJson().Exception().Move();
+  ASSERT_EQ(json2_3.IsSuccess(), true);
+  ASSERT_EQ(json2_3.GetResult()["name"].GetString(), image2_3.GetAssetName());
+  ASSERT_EQ(json2_3.GetResult()["path"].GetString(), image2_3.GetAssetPath().String());
+  ASSERT_EQ(json2_3.GetResult()["asset id"].GetUint64(), image2_3.GetAssetID());
+  ASSERT_EQ(json2_3.GetResult()["image width"].GetUint(), image2_3.GetImageWidth());
+  ASSERT_EQ(json2_3.GetResult()["image height"].GetUint(), image2_3.GetImageHeight());
+  ASSERT_EQ(json2_3.GetResult()["image channels"].GetUint(), image2_3.GetImageChannels());
+  ASSERT_EQ(json2_3.GetResult()["image size"].GetUint(), image2_3.GetImageSize());
+  ASSERT_EQ(json2_3.GetResult()["image format"], "RGB");
   image2_3.Release();
   ASSERT_EQ(image2_3.IsValid(), false);
   ASSERT_EQ(image2_3.GetAssetID(), 0);
@@ -219,17 +212,16 @@ TEST(asset_system, image) {
   ASSERT_EQ(image2_4.GetImageSize(),
             image2_4.GetImageWidth() * image2_4.GetImageHeight() * 4);
   ASSERT_NE(image2_4.GetPixelsData(), nullptr);
-  MM::Utils::Json::Document json2_4;
-  json2_4.SetObject();
-  ASSERT_EQ(image2_4.GetJson(json2_4), MM::Utils::ExecuteResult::SUCCESS);
-  ASSERT_EQ(json2_4["name"].GetString(), image2_4.GetAssetName());
-  ASSERT_EQ(json2_4["path"].GetString(), image2_4.GetAssetPath().String());
-  ASSERT_EQ(json2_4["asset id"].GetUint64(), image2_4.GetAssetID());
-  ASSERT_EQ(json2_4["image width"].GetUint(), image2_4.GetImageWidth());
-  ASSERT_EQ(json2_4["image height"].GetUint(), image2_4.GetImageHeight());
-  ASSERT_EQ(json2_4["image channels"].GetUint(), image2_4.GetImageChannels());
-  ASSERT_EQ(json2_4["image size"].GetUint(), image2_4.GetImageSize());
-  ASSERT_EQ(json2_4["image format"], "RGB_ALPHA");
+  MM::Result<MM::Utils::Json::Document> json2_4 = image2_4.GetJson().Exception().Move();
+  ASSERT_EQ(json2_4.IsSuccess(), true);
+  ASSERT_EQ(json2_4.GetResult()["name"].GetString(), image2_4.GetAssetName());
+  ASSERT_EQ(json2_4.GetResult()["path"].GetString(), image2_4.GetAssetPath().String());
+  ASSERT_EQ(json2_4.GetResult()["asset id"].GetUint64(), image2_4.GetAssetID());
+  ASSERT_EQ(json2_4.GetResult()["image width"].GetUint(), image2_4.GetImageWidth());
+  ASSERT_EQ(json2_4.GetResult()["image height"].GetUint(), image2_4.GetImageHeight());
+  ASSERT_EQ(json2_4.GetResult()["image channels"].GetUint(), image2_4.GetImageChannels());
+  ASSERT_EQ(json2_4.GetResult()["image size"].GetUint(), image2_4.GetImageSize());
+  ASSERT_EQ(json2_4.GetResult()["image format"], "RGB_ALPHA");
   image2_4.Release();
   ASSERT_EQ(image2_4.IsValid(), false);
   ASSERT_EQ(image2_4.GetAssetID(), 0);
@@ -237,13 +229,11 @@ TEST(asset_system, image) {
   // image3
   MM::AssetSystem::AssetType::Image image3_1(path3, 1), image3_2(path3, 2),
       image3_3(path3, 3), image3_4(path3, 4);
-  MM::FileSystem::LastWriteTime last_write_time3;
-  ASSERT_EQ(MM::FileSystem::FileSystem::GetInstance()->GetLastWriteTime(
-                path3, last_write_time3),
-            MM::Utils::ExecuteResult::SUCCESS);
+  MM::Result<MM::FileSystem::LastWriteTime> last_write_time3 = MM::FileSystem::FileSystem::GetInstance()->GetLastWriteTime(path3).Exception().Move();
+  ASSERT_EQ(last_write_time3.IsSuccess(), true);
   MM::AssetSystem::AssetType::AssetID asset_id3 =
       path3.GetHash() ^
-      static_cast<std::uint64_t>(last_write_time3.time_since_epoch().count());
+      static_cast<std::uint64_t>(last_write_time3.GetResult().time_since_epoch().count());
   MM::AssetSystem::AssetType::AssetID asset_id3_1 = asset_id3 + 1,
                                       asset_id3_2 = asset_id3 + 2,
                                       asset_id3_3 = asset_id3 + 3,
@@ -264,17 +254,16 @@ TEST(asset_system, image) {
   ASSERT_EQ(image3_1.GetImageSize(),
             image3_1.GetImageWidth() * image3_1.GetImageHeight() * 1);
   ASSERT_NE(image3_1.GetPixelsData(), nullptr);
-  MM::Utils::Json::Document json3_1;
-  json3_1.SetObject();
-  ASSERT_EQ(image3_1.GetJson(json3_1), MM::Utils::ExecuteResult::SUCCESS);
-  ASSERT_EQ(json3_1["name"].GetString(), image3_1.GetAssetName());
-  ASSERT_EQ(json3_1["path"].GetString(), image3_1.GetAssetPath().String());
-  ASSERT_EQ(json3_1["asset id"].GetUint64(), image3_1.GetAssetID());
-  ASSERT_EQ(json3_1["image width"].GetUint(), image3_1.GetImageWidth());
-  ASSERT_EQ(json3_1["image height"].GetUint(), image3_1.GetImageHeight());
-  ASSERT_EQ(json3_1["image channels"].GetUint(), image3_1.GetImageChannels());
-  ASSERT_EQ(json3_1["image size"].GetUint(), image3_1.GetImageSize());
-  ASSERT_EQ(json3_1["image format"], "GREY");
+  MM::Result<MM::Utils::Json::Document> json3_1 = image3_1.GetJson().Exception().Move();
+  ASSERT_EQ(json3_1.IsSuccess(), true);
+  ASSERT_EQ(json3_1.GetResult()["name"].GetString(), image3_1.GetAssetName());
+  ASSERT_EQ(json3_1.GetResult()["path"].GetString(), image3_1.GetAssetPath().String());
+  ASSERT_EQ(json3_1.GetResult()["asset id"].GetUint64(), image3_1.GetAssetID());
+  ASSERT_EQ(json3_1.GetResult()["image width"].GetUint(), image3_1.GetImageWidth());
+  ASSERT_EQ(json3_1.GetResult()["image height"].GetUint(), image3_1.GetImageHeight());
+  ASSERT_EQ(json3_1.GetResult()["image channels"].GetUint(), image3_1.GetImageChannels());
+  ASSERT_EQ(json3_1.GetResult()["image size"].GetUint(), image3_1.GetImageSize());
+  ASSERT_EQ(json3_1.GetResult()["image format"], "GREY");
   image3_1.Release();
   ASSERT_EQ(image3_1.IsValid(), false);
   ASSERT_EQ(image3_1.GetAssetID(), 0);
@@ -294,17 +283,16 @@ TEST(asset_system, image) {
   ASSERT_EQ(image3_2.GetImageSize(),
             image3_2.GetImageWidth() * image3_2.GetImageHeight() * 2);
   ASSERT_NE(image3_2.GetPixelsData(), nullptr);
-  MM::Utils::Json::Document json3_2;
-  json3_2.SetObject();
-  ASSERT_EQ(image3_2.GetJson(json3_2), MM::Utils::ExecuteResult::SUCCESS);
-  ASSERT_EQ(json3_2["name"].GetString(), image3_2.GetAssetName());
-  ASSERT_EQ(json3_2["path"].GetString(), image3_2.GetAssetPath().String());
-  ASSERT_EQ(json3_2["asset id"].GetUint64(), image3_2.GetAssetID());
-  ASSERT_EQ(json3_2["image width"].GetUint(), image3_2.GetImageWidth());
-  ASSERT_EQ(json3_2["image height"].GetUint(), image3_2.GetImageHeight());
-  ASSERT_EQ(json3_2["image channels"].GetUint(), image3_2.GetImageChannels());
-  ASSERT_EQ(json3_2["image size"].GetUint(), image3_2.GetImageSize());
-  ASSERT_EQ(json3_2["image format"], "GREY_ALPHA");
+  MM::Result<MM::Utils::Json::Document> json3_2 = image3_2.GetJson().Exception().Move();
+  ASSERT_EQ(json3_2.IsSuccess(), true);
+  ASSERT_EQ(json3_2.GetResult()["name"].GetString(), image3_2.GetAssetName());
+  ASSERT_EQ(json3_2.GetResult()["path"].GetString(), image3_2.GetAssetPath().String());
+  ASSERT_EQ(json3_2.GetResult()["asset id"].GetUint64(), image3_2.GetAssetID());
+  ASSERT_EQ(json3_2.GetResult()["image width"].GetUint(), image3_2.GetImageWidth());
+  ASSERT_EQ(json3_2.GetResult()["image height"].GetUint(), image3_2.GetImageHeight());
+  ASSERT_EQ(json3_2.GetResult()["image channels"].GetUint(), image3_2.GetImageChannels());
+  ASSERT_EQ(json3_2.GetResult()["image size"].GetUint(), image3_2.GetImageSize());
+  ASSERT_EQ(json3_2.GetResult()["image format"], "GREY_ALPHA");
   image3_2.Release();
   ASSERT_EQ(image3_2.IsValid(), false);
   ASSERT_EQ(image3_2.GetAssetID(), 0);
@@ -324,17 +312,16 @@ TEST(asset_system, image) {
   ASSERT_EQ(image3_3.GetImageSize(),
             image3_3.GetImageWidth() * image3_3.GetImageHeight() * 3);
   ASSERT_NE(image3_3.GetPixelsData(), nullptr);
-  MM::Utils::Json::Document json3_3;
-  json3_3.SetObject();
-  ASSERT_EQ(image3_3.GetJson(json3_3), MM::Utils::ExecuteResult::SUCCESS);
-  ASSERT_EQ(json3_3["name"].GetString(), image3_3.GetAssetName());
-  ASSERT_EQ(json3_3["path"].GetString(), image3_3.GetAssetPath().String());
-  ASSERT_EQ(json3_3["asset id"].GetUint64(), image3_3.GetAssetID());
-  ASSERT_EQ(json3_3["image width"].GetUint(), image3_3.GetImageWidth());
-  ASSERT_EQ(json3_3["image height"].GetUint(), image3_3.GetImageHeight());
-  ASSERT_EQ(json3_3["image channels"].GetUint(), image3_3.GetImageChannels());
-  ASSERT_EQ(json3_3["image size"].GetUint(), image3_3.GetImageSize());
-  ASSERT_EQ(json3_3["image format"], "RGB");
+  MM::Result<MM::Utils::Json::Document> json3_3 = image3_3.GetJson().Exception().Move();
+  ASSERT_EQ(json3_3.IsSuccess(), true);
+  ASSERT_EQ(json3_3.GetResult()["name"].GetString(), image3_3.GetAssetName());
+  ASSERT_EQ(json3_3.GetResult()["path"].GetString(), image3_3.GetAssetPath().String());
+  ASSERT_EQ(json3_3.GetResult()["asset id"].GetUint64(), image3_3.GetAssetID());
+  ASSERT_EQ(json3_3.GetResult()["image width"].GetUint(), image3_3.GetImageWidth());
+  ASSERT_EQ(json3_3.GetResult()["image height"].GetUint(), image3_3.GetImageHeight());
+  ASSERT_EQ(json3_3.GetResult()["image channels"].GetUint(), image3_3.GetImageChannels());
+  ASSERT_EQ(json3_3.GetResult()["image size"].GetUint(), image3_3.GetImageSize());
+  ASSERT_EQ(json3_3.GetResult()["image format"], "RGB");
   image3_3.Release();
   ASSERT_EQ(image3_3.IsValid(), false);
   ASSERT_EQ(image3_3.GetAssetID(), 0);
@@ -354,17 +341,16 @@ TEST(asset_system, image) {
   ASSERT_EQ(image3_4.GetImageSize(),
             image3_4.GetImageWidth() * image3_4.GetImageHeight() * 4);
   ASSERT_NE(image3_4.GetPixelsData(), nullptr);
-  MM::Utils::Json::Document json3_4;
-  json3_4.SetObject();
-  ASSERT_EQ(image3_4.GetJson(json3_4), MM::Utils::ExecuteResult::SUCCESS);
-  ASSERT_EQ(json3_4["name"].GetString(), image3_4.GetAssetName());
-  ASSERT_EQ(json3_4["path"].GetString(), image3_4.GetAssetPath().String());
-  ASSERT_EQ(json3_4["asset id"].GetUint64(), image3_4.GetAssetID());
-  ASSERT_EQ(json3_4["image width"].GetUint(), image3_4.GetImageWidth());
-  ASSERT_EQ(json3_4["image height"].GetUint(), image3_4.GetImageHeight());
-  ASSERT_EQ(json3_4["image channels"].GetUint(), image3_4.GetImageChannels());
-  ASSERT_EQ(json3_4["image size"].GetUint(), image3_4.GetImageSize());
-  ASSERT_EQ(json3_4["image format"], "RGB_ALPHA");
+  MM::Result<MM::Utils::Json::Document> json3_4 = image3_4.GetJson().Exception().Move();
+  ASSERT_EQ(json3_4.IsSuccess(), true);
+  ASSERT_EQ(json3_4.GetResult()["name"].GetString(), image3_4.GetAssetName());
+  ASSERT_EQ(json3_4.GetResult()["path"].GetString(), image3_4.GetAssetPath().String());
+  ASSERT_EQ(json3_4.GetResult()["asset id"].GetUint64(), image3_4.GetAssetID());
+  ASSERT_EQ(json3_4.GetResult()["image width"].GetUint(), image3_4.GetImageWidth());
+  ASSERT_EQ(json3_4.GetResult()["image height"].GetUint(), image3_4.GetImageHeight());
+  ASSERT_EQ(json3_4.GetResult()["image channels"].GetUint(), image3_4.GetImageChannels());
+  ASSERT_EQ(json3_4.GetResult()["image size"].GetUint(), image3_4.GetImageSize());
+  ASSERT_EQ(json3_4.GetResult()["image format"], "RGB_ALPHA");
   image3_4.Release();
   ASSERT_EQ(image3_4.IsValid(), false);
   ASSERT_EQ(image3_4.GetAssetID(), 0);
@@ -408,27 +394,18 @@ TEST(asset_system, mesh) {
       mesh2_4(
           path2, 1,
           MM::AssetSystem::AssetType::BoundingBox::BoundingBoxType::CAPSULE);
-  MM::FileSystem::LastWriteTime last_write_time2;
-  ASSERT_EQ(MM::FileSystem::FileSystem::GetInstance()->GetLastWriteTime(
-                path2, last_write_time2),
-            MM::Utils::ExecuteResult::SUCCESS);
+  MM::Result<MM::FileSystem::LastWriteTime> last_write_time2 = MM::FileSystem::FileSystem::GetInstance()->GetLastWriteTime(path2).Exception().Move();
+  ASSERT_EQ(last_write_time2.IsSuccess(), true);
   MM::AssetSystem::AssetType::AssetID asset_id2 =
       path2.GetHash() ^
-      static_cast<std::uint64_t>(last_write_time2.time_since_epoch().count());
-  MM::AssetSystem::AssetType::AssetID asset_id2_1, asset_id2_2;
-  ASSERT_EQ(MM::AssetSystem::AssetType::Mesh::CalculateAssetID(
-                path2, 0,
-                MM::AssetSystem::AssetType::BoundingBox::BoundingBoxType::AABB,
-                asset_id2_1),
-            MM::Utils::ExecuteResult::SUCCESS);
-  ASSERT_EQ(
-      MM::AssetSystem::AssetType::Mesh::CalculateAssetID(
-          path2, 0,
-          MM::AssetSystem::AssetType::BoundingBox::BoundingBoxType::CAPSULE,
-          asset_id2_2),
-      MM::Utils::ExecuteResult::SUCCESS);
+      static_cast<std::uint64_t>(last_write_time2.GetResult().time_since_epoch().count());
+  MM::Result<MM::AssetSystem::AssetType::AssetID> asset_id2_1 = MM::AssetSystem::AssetType::Mesh::CalculateAssetID(path2, 0, MM::AssetSystem::AssetType::BoundingBox::BoundingBoxType::AABB).Exception().Move();
+  MM::Result<MM::AssetSystem::AssetType::AssetID> asset_id2_2 = MM::AssetSystem::AssetType::Mesh::CalculateAssetID(path2, 0, MM::AssetSystem::AssetType::BoundingBox::BoundingBoxType::CAPSULE).Exception().Move();
+  ASSERT_EQ(asset_id2_1.IsSuccess(), true);
+  ASSERT_EQ(asset_id2_2.IsSuccess(), true);
+
   // mesh2_1
-  ASSERT_EQ(mesh2_1.GetAssetID(), asset_id2_1);
+  ASSERT_EQ(mesh2_1.GetAssetID(), asset_id2_1.GetResult());
   ASSERT_EQ(mesh2_1.IsValid(), true);
   ASSERT_EQ(mesh2_1.GetAssetName(), path2.GetFileName());
   ASSERT_EQ(mesh2_1.GetAssetPath(), path2);
@@ -451,7 +428,7 @@ TEST(asset_system, mesh) {
   ASSERT_EQ(mesh2_1.GetAssetID(), 0);
   ASSERT_EQ(mesh2_1.IsValid(), false);
   // mesh2_2
-  ASSERT_EQ(mesh2_2.GetAssetID(), asset_id2_2);
+  ASSERT_EQ(mesh2_2.GetAssetID(), asset_id2_2.GetResult());
   ASSERT_EQ(mesh2_2.IsValid(), true);
   ASSERT_EQ(mesh2_2.GetAssetName(), path2.GetFileName());
   ASSERT_EQ(mesh2_2.GetAssetPath(), path2);
@@ -488,27 +465,17 @@ TEST(asset_system, mesh) {
       mesh3_4(
           path3, 1,
           MM::AssetSystem::AssetType::BoundingBox::BoundingBoxType::CAPSULE);
-  MM::FileSystem::LastWriteTime last_write_time3;
-  ASSERT_EQ(MM::FileSystem::FileSystem::GetInstance()->GetLastWriteTime(
-                path3, last_write_time3),
-            MM::Utils::ExecuteResult::SUCCESS);
+  MM::Result<MM::FileSystem::LastWriteTime> last_write_time3 = MM::FileSystem::FileSystem::GetInstance()->GetLastWriteTime(path3).Exception().Move();
+  ASSERT_EQ(last_write_time3.IsSuccess(), true);
   MM::AssetSystem::AssetType::AssetID asset_id3 =
       path3.GetHash() ^
-      static_cast<std::uint64_t>(last_write_time3.time_since_epoch().count());
-  MM::AssetSystem::AssetType::AssetID asset_id3_1, asset_id3_2;
-  ASSERT_EQ(MM::AssetSystem::AssetType::Mesh::CalculateAssetID(
-                path3, 0,
-                MM::AssetSystem::AssetType::BoundingBox::BoundingBoxType::AABB,
-                asset_id3_1),
-            MM::Utils::ExecuteResult::SUCCESS);
-  ASSERT_EQ(
-      MM::AssetSystem::AssetType::Mesh::CalculateAssetID(
-          path3, 0,
-          MM::AssetSystem::AssetType::BoundingBox::BoundingBoxType::CAPSULE,
-          asset_id3_2),
-      MM::Utils::ExecuteResult::SUCCESS);
+      static_cast<std::uint64_t>(last_write_time3.GetResult().time_since_epoch().count());
+  MM::Result<MM::AssetSystem::AssetType::AssetID> asset_id3_1 = MM::AssetSystem::AssetType::Mesh::CalculateAssetID(path3, 0, MM::AssetSystem::AssetType::BoundingBox::BoundingBoxType::AABB).Exception().Move();
+  MM::Result<MM::AssetSystem::AssetType::AssetID> asset_id3_2 = MM::AssetSystem::AssetType::Mesh::CalculateAssetID(path3, 0, MM::AssetSystem::AssetType::BoundingBox::BoundingBoxType::CAPSULE).Exception().Move();
+  ASSERT_EQ(asset_id3_1.IsSuccess(), true);
+  ASSERT_EQ(asset_id3_2.IsSuccess(), true);
   // mesh3_1
-  ASSERT_EQ(mesh3_1.GetAssetID(), asset_id3_1);
+  ASSERT_EQ(mesh3_1.GetAssetID(), asset_id3_1.GetResult());
   ASSERT_EQ(mesh3_1.IsValid(), true);
   ASSERT_EQ(mesh3_1.GetAssetName(), path3.GetFileName());
   ASSERT_EQ(mesh3_1.GetAssetPath(), path3);
@@ -530,7 +497,7 @@ TEST(asset_system, mesh) {
   ASSERT_EQ(mesh3_1.GetAssetID(), 0);
   ASSERT_EQ(mesh3_1.IsValid(), false);
   // mesh3_2
-  ASSERT_EQ(mesh3_2.GetAssetID(), asset_id3_2);
+  ASSERT_EQ(mesh3_2.GetAssetID(), asset_id3_2.GetResult());
   ASSERT_EQ(mesh3_2.IsValid(), true);
   ASSERT_EQ(mesh3_2.GetAssetName(), path3.GetFileName());
   ASSERT_EQ(mesh3_2.GetAssetPath(), path3);
@@ -592,13 +559,11 @@ TEST(asset_system, combination) {
   ASSERT_EQ(image_image_mesh1.IsValid(), false);
 
   // image_image_mesh2
-  MM::FileSystem::LastWriteTime last_write_time_path;
-  ASSERT_EQ(MM::FileSystem::FileSystem::GetInstance()->GetLastWriteTime(
-                json_path2, last_write_time_path),
-            MM::Utils::ExecuteResult::SUCCESS);
+  MM::Result<MM::FileSystem::LastWriteTime> last_write_time_path = MM::FileSystem::FileSystem::GetInstance()->GetLastWriteTime(json_path2).Exception().Move();
+  ASSERT_EQ(last_write_time_path.IsSuccess(), true);
   ASSERT_EQ(
       image_image_mesh2.GetAssetID(),
-      json_path2.GetHash() ^ last_write_time_path.time_since_epoch().count());
+      json_path2.GetHash() ^ last_write_time_path.GetResult().time_since_epoch().count());
   ASSERT_EQ(image_image_mesh2.IsValid(), true);
   auto& image1 = dynamic_cast<MM::AssetSystem::AssetType::Image&>(
       *image_image_mesh2.GetHandler(0).GetObject());
@@ -616,39 +581,26 @@ TEST(asset_system, combination) {
       path3(std::string(MM_TEST_FILE_DIR_TEST) + "/asset_system/monkey.obj"),
       path4(std::string(MM_TEST_FILE_DIR_TEST) + "/asset_system/model.fbx");
 
-  MM::FileSystem::LastWriteTime last_write_time1, last_write_time2,
-      last_write_time3, last_write_time4;
   auto* file_system = MM::FileSystem::FileSystem::GetInstance();
-  ASSERT_EQ(file_system->GetLastWriteTime(path1, last_write_time1),
-            MM::Utils::ExecuteResult::SUCCESS);
-  ASSERT_EQ(file_system->GetLastWriteTime(path2, last_write_time2),
-            MM::Utils::ExecuteResult::SUCCESS);
-  ASSERT_EQ(file_system->GetLastWriteTime(path3, last_write_time3),
-            MM::Utils::ExecuteResult::SUCCESS);
-  ASSERT_EQ(file_system->GetLastWriteTime(path4, last_write_time4),
-            MM::Utils::ExecuteResult::SUCCESS);
-  MM::AssetSystem::AssetType::AssetID asset_id1, asset_id2, asset_id3,
-      asset_id4;
-  ASSERT_EQ(
-      MM::AssetSystem::AssetType::Image::CalculateAssetID(path1, 3, asset_id1),
-      MM::ExecuteResult::SUCCESS);
-  ASSERT_EQ(
-      MM::AssetSystem::AssetType::Image::CalculateAssetID(path2, 4, asset_id2),
-      MM::ExecuteResult::SUCCESS);
-  ASSERT_EQ(MM::AssetSystem::AssetType::Mesh::CalculateAssetID(
-                path3, 0,
-                MM::AssetSystem::AssetType::BoundingBox::BoundingBoxType::AABB,
-                asset_id3),
-            MM::ExecuteResult::SUCCESS);
-  ASSERT_EQ(
-      MM::AssetSystem::AssetType::Mesh::CalculateAssetID(
-          path4, 0,
-          MM::AssetSystem::AssetType::BoundingBox::BoundingBoxType::CAPSULE,
-          asset_id4),
-      MM::ExecuteResult::SUCCESS);
+  ASSERT_EQ(file_system->GetLastWriteTime(path1).Exception().IsSuccess(),
+            true);
+  ASSERT_EQ(file_system->GetLastWriteTime(path2).Exception().IsSuccess(),
+            true);
+  ASSERT_EQ(file_system->GetLastWriteTime(path3).Exception().IsSuccess(),
+            true);
+  ASSERT_EQ(file_system->GetLastWriteTime(path4).Exception().IsSuccess(),
+            true);
+  MM::Result<MM::AssetSystem::AssetType::AssetID> asset_id1 = MM::AssetSystem::AssetType::Image::CalculateAssetID(path1, 3).Exception().Move();
+  MM::Result<MM::AssetSystem::AssetType::AssetID> asset_id2 = MM::AssetSystem::AssetType::Image::CalculateAssetID(path2, 4).Exception().Move();
+  MM::Result<MM::AssetSystem::AssetType::AssetID> asset_id3 = MM::AssetSystem::AssetType::Mesh::CalculateAssetID(path3, 0, MM::AssetSystem::AssetType::BoundingBox::BoundingBoxType::AABB).Exception().Move();
+  MM::Result<MM::AssetSystem::AssetType::AssetID> asset_id4 = MM::AssetSystem::AssetType::Mesh::CalculateAssetID(path4, 0, MM::AssetSystem::AssetType::BoundingBox::BoundingBoxType::CAPSULE).Exception().Move();
+  ASSERT_EQ(asset_id1.IsSuccess(), true);
+  ASSERT_EQ(asset_id2.IsSuccess(), true);
+  ASSERT_EQ(asset_id3.IsSuccess(), true);
+  ASSERT_EQ(asset_id4.IsSuccess(), true);
 
   // image1
-  ASSERT_EQ(image1.GetAssetID(), asset_id1);
+  ASSERT_EQ(image1.GetAssetID(), asset_id1.GetResult());
   ASSERT_EQ(image1.IsValid(), true);
   ASSERT_EQ(image1.GetAssetName(), path1.GetFileName());
   ASSERT_EQ(image1.GetAssetPath(), path1);
@@ -663,20 +615,19 @@ TEST(asset_system, combination) {
   ASSERT_EQ(image1.GetImageSize(),
             image1.GetImageWidth() * image1.GetImageHeight() * 3);
   ASSERT_NE(image1.GetPixelsData(), nullptr);
-  MM::Utils::Json::Document json1;
-  json1.SetObject();
-  ASSERT_EQ(image1.GetJson(json1), MM::Utils::ExecuteResult::SUCCESS);
-  ASSERT_EQ(json1["name"].GetString(), image1.GetAssetName());
-  ASSERT_EQ(json1["path"].GetString(), image1.GetAssetPath().String());
-  ASSERT_EQ(json1["asset id"].GetUint64(), image1.GetAssetID());
-  ASSERT_EQ(json1["image width"].GetUint(), image1.GetImageWidth());
-  ASSERT_EQ(json1["image height"].GetUint(), image1.GetImageHeight());
-  ASSERT_EQ(json1["image channels"].GetUint(), image1.GetImageChannels());
-  ASSERT_EQ(json1["image size"].GetUint(), image1.GetImageSize());
-  ASSERT_EQ(json1["image format"], "RGB");
+  MM::Result<MM::Utils::Json::Document> json1 = image1.GetJson().Exception().Move();
+  ASSERT_EQ(json1.IsSuccess(), true);
+  ASSERT_EQ(json1.GetResult()["name"].GetString(), image1.GetAssetName());
+  ASSERT_EQ(json1.GetResult()["path"].GetString(), image1.GetAssetPath().String());
+  ASSERT_EQ(json1.GetResult()["asset id"].GetUint64(), image1.GetAssetID());
+  ASSERT_EQ(json1.GetResult()["image width"].GetUint(), image1.GetImageWidth());
+  ASSERT_EQ(json1.GetResult()["image height"].GetUint(), image1.GetImageHeight());
+  ASSERT_EQ(json1.GetResult()["image channels"].GetUint(), image1.GetImageChannels());
+  ASSERT_EQ(json1.GetResult()["image size"].GetUint(), image1.GetImageSize());
+  ASSERT_EQ(json1.GetResult()["image format"], "RGB");
 
   // image2
-  ASSERT_EQ(image2.GetAssetID(), asset_id2);
+  ASSERT_EQ(image2.GetAssetID(), asset_id2.GetResult());
   ASSERT_EQ(image2.IsValid(), true);
   ASSERT_EQ(image2.GetAssetName(), path2.GetFileName());
   ASSERT_EQ(image2.GetAssetPath(), path2);
@@ -691,20 +642,19 @@ TEST(asset_system, combination) {
   ASSERT_EQ(image2.GetImageSize(),
             image2.GetImageWidth() * image2.GetImageHeight() * 4);
   ASSERT_NE(image2.GetPixelsData(), nullptr);
-  MM::Utils::Json::Document json2;
-  json2.SetObject();
-  ASSERT_EQ(image2.GetJson(json2), MM::Utils::ExecuteResult::SUCCESS);
-  ASSERT_EQ(json2["name"].GetString(), image2.GetAssetName());
-  ASSERT_EQ(json2["path"].GetString(), image2.GetAssetPath().String());
-  ASSERT_EQ(json2["asset id"].GetUint64(), image2.GetAssetID());
-  ASSERT_EQ(json2["image width"].GetUint(), image2.GetImageWidth());
-  ASSERT_EQ(json2["image height"].GetUint(), image2.GetImageHeight());
-  ASSERT_EQ(json2["image channels"].GetUint(), image2.GetImageChannels());
-  ASSERT_EQ(json2["image size"].GetUint(), image2.GetImageSize());
-  ASSERT_EQ(json2["image format"], "RGB_ALPHA");
+  MM::Result<MM::Utils::Json::Document> json2 = image2.GetJson().Exception().Move();
+  ASSERT_EQ(json2.IsSuccess(), true);
+  ASSERT_EQ(json2.GetResult()["name"].GetString(), image2.GetAssetName());
+  ASSERT_EQ(json2.GetResult()["path"].GetString(), image2.GetAssetPath().String());
+  ASSERT_EQ(json2.GetResult()["asset id"].GetUint64(), image2.GetAssetID());
+  ASSERT_EQ(json2.GetResult()["image width"].GetUint(), image2.GetImageWidth());
+  ASSERT_EQ(json2.GetResult()["image height"].GetUint(), image2.GetImageHeight());
+  ASSERT_EQ(json2.GetResult()["image channels"].GetUint(), image2.GetImageChannels());
+  ASSERT_EQ(json2.GetResult()["image size"].GetUint(), image2.GetImageSize());
+  ASSERT_EQ(json2.GetResult()["image format"], "RGB_ALPHA");
 
   // mesh1
-  ASSERT_EQ(mesh1.GetAssetID(), asset_id3);
+  ASSERT_EQ(mesh1.GetAssetID(), asset_id3.GetResult());
   ASSERT_EQ(mesh1.IsValid(), true);
   ASSERT_EQ(mesh1.GetAssetName(), path3.GetFileName());
   ASSERT_EQ(mesh1.GetAssetPath(), path3);
@@ -724,7 +674,7 @@ TEST(asset_system, combination) {
   ASSERT_FLOAT_EQ(mesh1_box.GetBack(), 0.851562023);
 
   // mesh2
-  ASSERT_EQ(mesh2.GetAssetID(), asset_id4);
+  ASSERT_EQ(mesh2.GetAssetID(), asset_id4.GetResult());
   ASSERT_EQ(mesh2.IsValid(), true);
   ASSERT_EQ(mesh2.GetAssetName(), path4.GetFileName());
   ASSERT_EQ(mesh2.GetAssetPath(), path4);
