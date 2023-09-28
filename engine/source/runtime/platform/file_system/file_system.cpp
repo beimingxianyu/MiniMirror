@@ -638,7 +638,7 @@ MM::FileSystem::FileSystem::GetAll(const Path& path) const {
 }
 
 MM::Result<std::vector<char>, MM::ErrorResult>
-MM::FileSystem::FileSystem::ReadFile(const MM::FileSystem::Path& path) const {
+MM::FileSystem::FileSystem::ReadFile(const MM::FileSystem::Path& path, std::size_t offset, std::size_t read_size) const {
   std::ifstream file(path.CStr(), std::ios::ate | std::ios::binary);
 
   if (!file.is_open()) {
@@ -646,10 +646,23 @@ MM::FileSystem::FileSystem::ReadFile(const MM::FileSystem::Path& path) const {
         st_execute_error, ErrorCode::FILE_OPERATION_ERROR};
   }
 
+  file.seekg(0, std::fstream::end);
   std::size_t file_size = static_cast<std::size_t>(file.tellg());
-  std::vector<char> output_data(file_size);
-  file.seekg(0);
-  file.read(output_data.data(), file_size);
+  std::size_t need_size = 0;
+  if (read_size == UINT64_MAX) {
+    if (offset >= file_size) {
+      return ResultE<>{ErrorCode::FILE_OPERATION_ERROR};
+    }
+    need_size = file_size - offset;
+  } else {
+    if (offset + read_size >= file_size) {
+      return ResultE<>{ErrorCode::FILE_OPERATION_ERROR};
+    }
+    need_size = read_size;
+  }
+  file.seekg(offset);
+  std::vector<char> output_data(need_size);
+  file.read(output_data.data(), need_size);
 
   file.close();
 

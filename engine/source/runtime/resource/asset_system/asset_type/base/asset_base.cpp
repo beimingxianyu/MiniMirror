@@ -109,6 +109,7 @@ std::string MM::AssetSystem::AssetType::AssetBase::GetAssetTypeString() const {
 }
 
 void MM::AssetSystem::AssetType::AssetBase::Release() {
+  asset_path_ = FileSystem::Path();
   asset_path_and_last_editing_time_hash = 0;
 }
 

@@ -363,7 +363,7 @@ class FileSystem {
   Result<LastWriteTime, ErrorResult> GetLastWriteTime(const Path& path) const;
 
   Result<std::vector<char>, ErrorResult> ReadFile(
-      const MM::FileSystem::Path& path) const;
+      const MM::FileSystem::Path& path, std::size_t offset = 0, std::size_t read_size = UINT64_MAX) const;
 
   const Path& GetAssetDir() const;
 
