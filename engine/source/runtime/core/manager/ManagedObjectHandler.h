@@ -792,6 +792,7 @@ class ManagedObjectHandler<KeyType, ManagedType, HashMapTrait> {
         return;
       }
       if (result.GetError().GetErrorCode() == ErrorCode::CUSTOM_ERROR) {
+        result.IgnoreException();
         continue;
       }
 

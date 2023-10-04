@@ -4,7 +4,7 @@
 
 namespace MM {
 namespace Utils {
-#define OFFSET_OF(class_, member) ((::size_t)&((((class_*)0)->member)))
+#define OFFSET_OF(class_, member) offsetof(class_, member)
 
 #define MM_CAT_IMP(a, b) a##b
 
@@ -27,8 +27,6 @@ namespace Utils {
 #define MM_CODE_LOCATION_IMP(line) MM_CODE_LOCATION_IMP_IMP(line)
 
 #define MM_CODE_LOCATION MM_CODE_LOCATION_IMP(__LINE__)
-
-
 
 #define MM_ADD_COUNTER_SUFFIX_IMP_IMP(name, counter) name##counter
 

@@ -187,29 +187,21 @@ std::string MM::AssetSystem::AssetType::Mesh::GetAssetTypeString() const {
 
 MM::Result<MM::Utils::Json::Document, MM::ErrorResult>
 MM::AssetSystem::AssetType::Mesh::GetJson() const {
-  if (!IsValid()) {
-    return ResultE<ErrorResult>{ErrorCode::OBJECT_IS_INVALID};
+  Result<MM::Utils::Json::Document> document_result = AssetBase::GetJson();
+  if (document_result.IsError()) {
+    return document_result;
   }
 
-  Utils::Json::Document document{};
-  document.SetObject();
+  Utils::Json::Document& document = document_result.GetResult();
   auto& allocator = document.GetAllocator();
 
-  document.AddMember("name",
-                     Utils::Json::GenericStringRef<Utils::Json::UTF8<>::Ch>(
-                         GetAssetName().c_str()),
-                     allocator);
-  document.AddMember("path",
-                     Utils::Json::GenericStringRef<Utils::Json::UTF8<>::Ch>(
-                         GetAssetPath().StringView().data()),
-                     allocator);
   document.AddMember("asset id", GetAssetID(), allocator);
   document.AddMember("number of indexes", indexes_.size(), allocator);
   document.AddMember("number of vertices", vertices_.size(), allocator);
   Utils::Json::Value bounding_box = bounding_box_->GetJson(allocator);
   document.AddMember("bounding box", bounding_box, allocator);
 
-  return ResultS{std::move(document)};
+  return document_result;
 }
 
 MM::AssetSystem::AssetType::Mesh::Mesh(

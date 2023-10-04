@@ -127,9 +127,24 @@ MM::AssetSystem::AssetType::AssetBase::GetAssetPath() const {
 
 MM::Result<MM::Utils::Json::Document, MM::ErrorResult>
 MM::AssetSystem::AssetType::AssetBase::GetJson() const {
-  MM_LOG_FATAL("This function should not be called.");
-  return Result<MM::Utils::Json::Document, MM::ErrorResult>{
-      st_execute_error, MM::ErrorCode::UNDEFINED_ERROR};
+  if (!IsValid()) {
+    return ResultE<ErrorResult>{ErrorCode::OBJECT_IS_INVALID};
+  }
+
+  Utils::Json::Document document{};
+  document.SetObject();
+  auto& allocator = document.GetAllocator();
+
+  document.AddMember("name",
+                     Utils::Json::GenericStringRef<Utils::Json::UTF8<>::Ch>(
+                         GetAssetName().c_str()),
+                     allocator);
+  document.AddMember("path",
+                     Utils::Json::GenericStringRef<Utils::Json::UTF8<>::Ch>(
+                         GetAssetPath().StringView().data()),
+                     allocator);
+
+  return ResultS<Utils::Json::Document>{std::move(document)};
 }
 
 void MM::AssetSystem::AssetType::AssetBase::SetAssetID(

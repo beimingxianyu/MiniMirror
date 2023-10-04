@@ -72,9 +72,9 @@ uint64_t MM::AssetSystem::AssetType::Shader::GetSize() const { return size_; }
 
 MM::Result<MM::Utils::Json::Document, MM::ErrorResult>
 MM::AssetSystem::AssetType::Shader::GetJson() const {
-  if (!IsValid()) {
-    return Result<Utils::Json::Document, ErrorResult>(
-        st_execute_error, MM::ErrorCode::OBJECT_IS_INVALID);
+  Result<MM::Utils::Json::Document> document_result = AssetBase::GetJson();
+  if (document_result.IsError()) {
+    return document_result;
   }
 
   Result<FileSystem::Path, ErrorResult> bin_path = GetBinPath();
@@ -84,17 +84,8 @@ MM::AssetSystem::AssetType::Shader::GetJson() const {
                                                       bin_path.GetError());
   }
 
-  Utils::Json::Document document{};
-  document.SetObject();
+  Utils::Json::Document &document = document_result.GetResult();
   auto &allocator = document.GetAllocator();
-  document.AddMember("name",
-                     Utils::Json::GenericStringRef<Utils::Json::UTF8<>::Ch>(
-                         GetAssetName().c_str()),
-                     allocator);
-  document.AddMember("path",
-                     Utils::Json::GenericStringRef<Utils::Json::UTF8<>::Ch>(
-                         GetAssetPath().StringView().data()),
-                     allocator);
   document.AddMember("asset id",
                      Utils::Json::GenericStringRef<Utils::Json::UTF8<>::Ch>(
                          std::to_string(GetAssetID()).c_str()),
@@ -104,7 +95,7 @@ MM::AssetSystem::AssetType::Shader::GetJson() const {
                          GetBinPath().GetResult().CStr()),
                      allocator);
 
-  return ResultS{std::move(document)};
+  return document_result;
 }
 
 std::vector<std::pair<void *, std::uint64_t>>

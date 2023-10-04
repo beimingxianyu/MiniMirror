@@ -43,8 +43,24 @@ std::string Combination::GetAssetTypeString() const {
 
 MM::Result<MM::Utils::Json::Document, ErrorResult> Combination::GetJson()
     const {
-  MM_LOG_FATAL("This function should not be called.");
-  return ResultE<ErrorResult>{ErrorCode::UNDEFINED_ERROR};
+  Result<MM::Utils::Json::Document> document_result = AssetBase::GetJson();
+  if (document_result.IsError()) {
+    return document_result;
+  }
+
+  Utils::Json::Document& document = document_result.GetResult();
+  rapidjson::Value array{rapidjson::Type::kArrayType};
+  for (const auto& sub_asset : asset_handlers_) {
+    Result<Utils::Json::Document> sub_asset_json =
+        sub_asset.GetObject()->GetJson();
+    sub_asset_json.Exception();
+    assert(sub_asset_json.IsSuccess());
+    array.PushBack(sub_asset_json.GetResult(), document.GetAllocator());
+  }
+
+  document.AddMember("sub assets", array, document.GetAllocator());
+
+  return document_result;
 }
 
 void Combination::Release() {
@@ -111,7 +127,7 @@ Combination::Combination(const FileSystem::Path& combination_path)
       LoadImages(combination_path, combination_json, taskflow, future, images,
                  load_result);
   images_load_result.Exception([function_name = MM_FUNCTION_NAME,
-                    this_object = this](ErrorResult error_result) {
+                                this_object = this](ErrorResult error_result) {
     MM_LOG_SYSTEM->CheckResult(
         error_result.GetErrorCode(),
         MM_LOG_DESCRIPTION_MESSAGE(function_name, Failed to load images.),
@@ -126,7 +142,7 @@ Combination::Combination(const FileSystem::Path& combination_path)
       LoadMeshes(combination_path, combination_json, taskflow, future, meshes,
                  load_result);
   meshes_load_result.Exception([function_name = MM_FUNCTION_NAME,
-                   this_object = this](ErrorResult error_result) {
+                                this_object = this](ErrorResult error_result) {
     MM_LOG_SYSTEM->CheckResult(
         error_result.GetErrorCode(),
         MM_LOG_DESCRIPTION_MESSAGE(function_name, Failed to load meshes.),
@@ -145,8 +161,7 @@ Combination::Combination(const FileSystem::Path& combination_path)
     return;
   }
 
-  asset_handlers_.reserve(images.size() +
-                          meshes.size());
+  asset_handlers_.reserve(images.size() + meshes.size());
   for (auto& image : images) {
     asset_handlers_.emplace_back(std::move(image));
   }
@@ -201,21 +216,26 @@ MM::Result<MM::Nil, MM::ErrorResult> Combination::LoadImages(
     taskflow.emplace([asset_manager, image_path_in = image_paths[index],
                       image_desired_channel_in = image_desired_channels[index],
                       &images, index, future, &load_result]() {
-      Result<AssetID> asset_id = MM::AssetSystem::AssetType::Image::CalculateAssetID(image_path_in, image_desired_channel_in).Exception(
-          [function_name = MM_FUNCTION_NAME, &load_result, &future](ErrorResult error_result) {
-            MM_LOG_SYSTEM->CheckResult(error_result.GetErrorCode(),
-                                       MM_LOG_DESCRIPTION_MESSAGE(function_name, Faied to calculate image asset ID.),
-                                       LogSystem::LogSystem::LogLevel::ERROR);
+      Result<AssetID> asset_id =
+          MM::AssetSystem::AssetType::Image::CalculateAssetID(
+              image_path_in, image_desired_channel_in)
+              .Exception([function_name = MM_FUNCTION_NAME, &load_result,
+                          &future](ErrorResult error_result) {
+                MM_LOG_SYSTEM->CheckResult(
+                    error_result.GetErrorCode(),
+                    MM_LOG_DESCRIPTION_MESSAGE(
+                        function_name, Faied to calculate image asset ID.),
+                    LogSystem::LogSystem::LogLevel::ERROR);
 
-            load_result = false;
-            future->cancel();
-          }
-      );
+                load_result = false;
+                future->cancel();
+              });
       if (asset_id.IsError()) return;
 
       std::uint64_t path_hash = image_path_in.GetHash();
 
-      Result<AssetManager::HandlerType> result = asset_manager->GetAssetByAssetID(asset_id.GetResult()).Exception();
+      Result<AssetManager::HandlerType> result =
+          asset_manager->GetAssetByAssetID(asset_id.GetResult()).Exception();
       if (result.IsError()) {
         do {
           std::unique_ptr<Image> image =
@@ -231,27 +251,35 @@ MM::Result<MM::Nil, MM::ErrorResult> Combination::LoadImages(
             return;
           }
           if (asset_manager->Have(asset_id.GetResult())) {
-            asset_id = MM::AssetSystem::AssetType::Image::CalculateAssetID(image_path_in, image_desired_channel_in).Exception(
-          [function_name = MM_FUNCTION_NAME, &load_result, &future](ErrorResult error_result) {
-            MM_LOG_SYSTEM->CheckResult(error_result.GetErrorCode(),
-                                       MM_LOG_DESCRIPTION_MESSAGE(function_name, Faied to calculate image asset ID.),
-                                       LogSystem::LogSystem::LogLevel::ERROR);
+            asset_id =
+                MM::AssetSystem::AssetType::Image::CalculateAssetID(
+                    image_path_in, image_desired_channel_in)
+                    .Exception([function_name = MM_FUNCTION_NAME, &load_result,
+                                &future](ErrorResult error_result) {
+                      MM_LOG_SYSTEM->CheckResult(
+                          error_result.GetErrorCode(),
+                          MM_LOG_DESCRIPTION_MESSAGE(
+                              function_name,
+                              Faied to calculate image asset ID.),
+                          LogSystem::LogSystem::LogLevel::ERROR);
 
-            load_result = false;
-            future->cancel();
-          }
-      );
-           if (asset_id.IsError()) {
-             return;
-           }
+                      load_result = false;
+                      future->cancel();
+                    });
+            if (asset_id.IsError()) {
+              return;
+            }
             continue;
           }
           load_result = false;
           future->cancel();
           return;
-        } while ((result =
-                     asset_manager->GetAssetByAssetID(asset_id.GetResult()).Exception()).GetError().GetErrorCode() ==
-                     ErrorCode::PARENT_OBJECT_NOT_CONTAIN_SPECIFIC_CHILD_OBJECT);
+        } while (
+            (result = asset_manager->GetAssetByAssetID(asset_id.GetResult())
+                          .Exception())
+                .GetError()
+                .GetErrorCode() ==
+            ErrorCode::PARENT_OBJECT_NOT_CONTAIN_SPECIFIC_CHILD_OBJECT);
       }
       if (result.IsError()) {
         MM_LOG_ERROR("Faield to load image.");
@@ -336,19 +364,24 @@ MM::Result<MM::Nil, MM::ErrorResult> Combination::LoadMeshes(
                       mesh_bounding_box_type_in =
                           mesh_bounding_box_types[index],
                       index, future, &load_result]() {
-      Result<AssetID> asset_id = MM::AssetSystem::AssetType::Mesh::CalculateAssetID(
-          mesh_path_in, mesh_index_in, mesh_bounding_box_type_in).Exception(
-            [function_name = MM_FUNCTION_NAME, &load_result, &future](ErrorResult error_result){
-              MM_LOG_SYSTEM->CheckResult(
-                                               error_result.GetErrorCode(),
-                                               MM_LOG_DESCRIPTION_MESSAGE(function_name, Failed to calculate mesh asset id.),
-                                               LogSystem::LogSystem::LogLevel::ERROR
-                                               );
-              load_result = false;
-              future->cancel();
-                                     });
-      if (asset_id.IsError()) {return;}
-      Result<AssetManager::HandlerType> result = asset_manager->GetAssetByAssetID(asset_id.GetResult()).Exception();
+      Result<AssetID> asset_id =
+          MM::AssetSystem::AssetType::Mesh::CalculateAssetID(
+              mesh_path_in, mesh_index_in, mesh_bounding_box_type_in)
+              .Exception([function_name = MM_FUNCTION_NAME, &load_result,
+                          &future](ErrorResult error_result) {
+                MM_LOG_SYSTEM->CheckResult(
+                    error_result.GetErrorCode(),
+                    MM_LOG_DESCRIPTION_MESSAGE(
+                        function_name, Failed to calculate mesh asset id.),
+                    LogSystem::LogSystem::LogLevel::ERROR);
+                load_result = false;
+                future->cancel();
+              });
+      if (asset_id.IsError()) {
+        return;
+      }
+      Result<AssetManager::HandlerType> result =
+          asset_manager->GetAssetByAssetID(asset_id.GetResult()).Exception();
       if (result.IsError()) {
         do {
           std::unique_ptr<Mesh> mesh = std::make_unique<Mesh>(
@@ -364,16 +397,20 @@ MM::Result<MM::Nil, MM::ErrorResult> Combination::LoadMeshes(
             return;
           }
           if (asset_manager->Have(asset_id.GetResult())) {
-            asset_id = MM::AssetSystem::AssetType::Mesh::CalculateAssetID(
-                mesh_path_in, mesh_index_in, mesh_bounding_box_type_in).Exception(
-                               [function_name = MM_FUNCTION_NAME, &load_result, &future](ErrorResult error_result) {
-                                 MM_LOG_SYSTEM->CheckResult(error_result.GetErrorCode(),
-                                                            MM_LOG_DESCRIPTION_MESSAGE(function_name, Faied to calculate image asset ID.),
-                                                            LogSystem::LogSystem::LogLevel::ERROR);
-                                 load_result = false;
-                                 future->cancel();
-                               }
-                               );
+            asset_id =
+                MM::AssetSystem::AssetType::Mesh::CalculateAssetID(
+                    mesh_path_in, mesh_index_in, mesh_bounding_box_type_in)
+                    .Exception([function_name = MM_FUNCTION_NAME, &load_result,
+                                &future](ErrorResult error_result) {
+                      MM_LOG_SYSTEM->CheckResult(
+                          error_result.GetErrorCode(),
+                          MM_LOG_DESCRIPTION_MESSAGE(
+                              function_name,
+                              Faied to calculate image asset ID.),
+                          LogSystem::LogSystem::LogLevel::ERROR);
+                      load_result = false;
+                      future->cancel();
+                    });
             if (asset_id.IsError()) {
               return;
             }
@@ -382,9 +419,12 @@ MM::Result<MM::Nil, MM::ErrorResult> Combination::LoadMeshes(
           load_result = false;
           future->cancel();
           return;
-        } while ((result =
-                      asset_manager->GetAssetByAssetID(asset_id.GetResult()).Exception()).GetError().GetErrorCode() ==
-                 ErrorCode::PARENT_OBJECT_NOT_CONTAIN_SPECIFIC_CHILD_OBJECT);
+        } while (
+            (result = asset_manager->GetAssetByAssetID(asset_id.GetResult())
+                          .Exception())
+                .GetError()
+                .GetErrorCode() ==
+            ErrorCode::PARENT_OBJECT_NOT_CONTAIN_SPECIFIC_CHILD_OBJECT);
       }
 
       if (result.IsError()) {

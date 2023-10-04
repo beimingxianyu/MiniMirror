@@ -155,7 +155,6 @@ TEST(manager, manager_base) {
   handlers2.GetResult().clear();
   handlers3.GetResult().clear();
   handlers4.GetResult().clear();
-  MM::st_get_multiply_object;
   ASSERT_EQ(manager.Have(ID1), false);
   ASSERT_EQ(manager.Count(ID1), 0);
   handler1 = manager.GetObjectByID(ID2).Exception();
