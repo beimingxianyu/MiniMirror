@@ -406,8 +406,7 @@ struct ImageDataInfo {
   AllocationCreateInfo allocation_create_info_{};
   std::vector<ImageSubResourceAttribute> image_sub_resource_attributes_{};
 
-  ExecuteResult GetRenderResourceDataAttributeID(
-      RenderImageDataAttributeID render_image_data_attribute_ID) const;
+  Result<RenderImageDataAttributeID> GetRenderResourceDataAttributeID() const;
 
   void SetImageCreateInfo(std::uint64_t image_size, VkImageLayout image_layout,
                           const VkImageCreateInfo& vk_image_create_info);
@@ -518,8 +517,8 @@ struct BufferDataInfo {
 
   std::vector<BufferSubResourceAttribute> buffer_sub_resource_attributes_{};
 
-  ExecuteResult GetRenderResourceDataAttributeID(
-      RenderImageDataAttributeID& render_image_data_attribute_ID) const;
+  Result<RenderBufferDataAttributeID, ErrorResult>
+  GetRenderResourceDataAttributeID() const;
 
   void SetBufferCreateInfo(const VkBufferCreateInfo& vk_buffer_create_info);
 
@@ -615,8 +614,8 @@ struct ImageViewCreateInfo {
 
   bool IsValid() const;
 
-  ExecuteResult GetRenderImageViewAttributeID(
-      RenderImageViewAttributeID& render_image_view_attribute_ID) const;
+  Result<RenderImageViewAttributeID, ErrorResult>
+  GetRenderImageViewAttributeID() const;
 
   VkImageViewCreateInfo GetVkImageViewCreateInfo() const;
 
@@ -665,8 +664,8 @@ struct SamplerCreateInfo {
 
   bool IsValid() const;
 
-  ExecuteResult GetRenderSamplerAttributeID(
-      RenderSamplerAttributeID& render_sampler_attribute_ID) const;
+  Result<RenderSamplerAttributeID, ErrorResult> GetRenderSamplerAttributeID()
+      const;
 
   VkSamplerCreateInfo GetVkSamplerCreateInfo() const;
 
@@ -709,7 +708,7 @@ class ImageView {
   void Release();
 
  private:
-  static ExecuteResult CheckInitParameters(
+  static Result<Nil, ErrorResult> CheckInitParameters(
       RenderEngine* render_engine,
       const VkImageViewCreateInfo& vk_image_view_create_info);
 
@@ -773,7 +772,7 @@ class Sampler {
   void Reset();
 
  private:
-  static ExecuteResult CheckInitParameters(
+  static Result<Nil, ErrorResult> CheckInitParameters(
       RenderEngine* render_engine,
       const VkSamplerCreateInfo& vk_sampler_create_info);
 
@@ -956,17 +955,15 @@ struct RenderPassCreateInfo {
 
   void Reset();
 
-  ExecuteResult GetRenderPassID(RenderPassID& render_pass_ID) const;
+  Result<RenderPassID, ErrorResult> GetRenderPassID() const;
 
   VkRenderPassCreateInfo GetVkRenderPassCreateInfo() const;
 
-  static ExecuteResult GetRenderPassID(
-      const RenderPassCreateInfo& render_pass_create_info,
-      RenderPassID& render_pass_ID);
+  static Result<RenderPassID, ErrorResult> GetRenderPassID(
+      const RenderPassCreateInfo& render_pass_create_info);
 
-  static ExecuteResult GetRenderPassID(
-      const VkRenderPassCreateInfo& vk_render_pass_create_info,
-      RenderPassID& render_pass_ID);
+  static Result<RenderPassID, ErrorResult> GetRenderPassID(
+      const VkRenderPassCreateInfo& vk_render_pass_create_info);
 
  private:
   const void* next_{nullptr};
@@ -999,13 +996,12 @@ struct FrameBufferCreateInfo {
 
   void Reset();
 
-  ExecuteResult GetRenderFrameID(FrameBufferID& frame_buffer_ID) const;
+  Result<FrameBufferID, ErrorResult> GetRenderFrameID() const;
 
   VkFramebufferCreateInfo GetVkFrameBufferCreateInfo() const;
 
-  static ExecuteResult GetRenderFrameID(
-      const MM::RenderSystem::FrameBufferCreateInfo& frame_buffer_create_info,
-      MM::RenderSystem::FrameBufferID& frame_buffer_ID);
+  static Result<FrameBufferID> GetRenderFrameID(
+      const MM::RenderSystem::FrameBufferCreateInfo& frame_buffer_create_info);
 
  private:
   const void* next_;

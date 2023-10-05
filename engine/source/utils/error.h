@@ -276,9 +276,7 @@ class Result {
 
   const ResultType& GetResult() const { return result_wrapper_.GetResult(); }
 
-  Result&& Move() {
-      return std::move(*this);
-  }
+  Result&& Move() { return std::move(*this); }
 
   Result& Exception() {
     result_wrapper_.Exception();
@@ -335,6 +333,10 @@ class Result {
   bool IsSuccess() const { return result_wrapper_.Success(); }
 
   bool IsError() const { return !result_wrapper_.Success(); }
+
+  void IsSuccess(bool& result) const { return result_wrapper_.Success(); }
+
+  void IsError(bool) const { return !result_wrapper_.Success(); }
 
  private:
   template <typename ResultTypeIn, typename ErrorTypeIn,

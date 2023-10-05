@@ -634,12 +634,13 @@ void MM::RenderSystem::ImageDataInfo::Reset() {
   image_sub_resource_attributes_.clear();
 }
 
-MM::ExecuteResult
-MM::RenderSystem::ImageDataInfo::GetRenderResourceDataAttributeID(
-    RenderImageDataAttributeID render_image_data_attribute_ID) const {
+MM::Result<MM::RenderSystem::RenderImageDataAttributeID, MM::ErrorResult>
+MM::RenderSystem::ImageDataInfo::GetRenderResourceDataAttributeID() const {
   if (!IsValid()) {
-    return ExecuteResult ::OBJECT_IS_INVALID;
+    return ResultE<>{ErrorCode::OBJECT_IS_INVALID};
   }
+
+  RenderImageDataAttributeID render_image_data_attribute_ID{};
 
   std::uint64_t attribute1 = 0, attribute2 = 0, attribute3 = 0;
 
@@ -693,7 +694,7 @@ MM::RenderSystem::ImageDataInfo::GetRenderResourceDataAttributeID(
   render_image_data_attribute_ID.SetSubID2(attribute2);
   render_image_data_attribute_ID.SetSubID3(attribute3);
 
-  return ExecuteResult ::SUCCESS;
+  return ResultS{render_image_data_attribute_ID};
 }
 
 void MM::RenderSystem::ImageDataInfo::SetAllocationCreateInfo(
@@ -968,13 +969,13 @@ bool MM::RenderSystem::ImageViewCreateInfo::IsValid() const {
   return image_ != nullptr;
 }
 
-MM::ExecuteResult
-MM::RenderSystem::ImageViewCreateInfo::GetRenderImageViewAttributeID(
-    MM::RenderSystem::RenderImageViewAttributeID&
-        render_image_view_attribute_ID) const {
+MM::Result<MM::RenderSystem::RenderImageViewAttributeID, MM::ErrorResult>
+MM::RenderSystem::ImageViewCreateInfo::GetRenderImageViewAttributeID() const {
   if (!IsValid()) {
-    return ExecuteResult ::OBJECT_IS_INVALID;
+    return ResultE<>{ErrorCode::OBJECT_IS_INVALID};
   }
+
+  RenderImageViewAttributeID render_image_view_attribute_ID{};
 
   std::uint64_t attribute1 = 0;
   std::uint64_t attribute2 = 0;
@@ -1001,7 +1002,7 @@ MM::RenderSystem::ImageViewCreateInfo::GetRenderImageViewAttributeID(
   render_image_view_attribute_ID.SetSubID1(attribute1);
   render_image_view_attribute_ID.SetSubID2(attribute2);
 
-  return ExecuteResult ::SUCCESS;
+  return ResultS{render_image_view_attribute_ID};
 }
 
 VkImageViewCreateInfo
@@ -1178,13 +1179,13 @@ MM::RenderSystem::SamplerCreateInfo::operator=(
   return *this;
 }
 
-MM::ExecuteResult
-MM::RenderSystem::SamplerCreateInfo::GetRenderSamplerAttributeID(
-    MM::RenderSystem::RenderSamplerAttributeID& render_sampler_attribute_ID)
-    const {
+MM::Result<MM::RenderSystem::RenderSamplerAttributeID, MM::ErrorResult>
+MM::RenderSystem::SamplerCreateInfo::GetRenderSamplerAttributeID() const {
   if (!IsValid()) {
-    return ExecuteResult ::OBJECT_IS_INVALID;
+    return ResultE<>{ErrorCode::OBJECT_IS_INVALID};
   }
+
+  MM::RenderSystem::RenderSamplerAttributeID render_sampler_attribute_ID{};
 
   std::uint64_t attribute1 = 0;
   std::uint64_t attribute2 = 0;
@@ -1227,7 +1228,7 @@ MM::RenderSystem::SamplerCreateInfo::GetRenderSamplerAttributeID(
   render_sampler_attribute_ID.SetSubID1(attribute1);
   render_sampler_attribute_ID.SetSubID2(attribute2);
 
-  return ExecuteResult ::SUCCESS;
+  return ResultS{render_sampler_attribute_ID};
 }
 
 MM::RenderSystem::ImageView::ImageView(
@@ -1236,15 +1237,29 @@ MM::RenderSystem::ImageView::ImageView(
     : image_view_wrapper_(),
       image_view_create_info_(vk_image_view_create_info) {
 #ifdef MM_CHECK_PARAMETERS
-  MM_CHECK(CheckInitParameters(render_engine, vk_image_view_create_info),
-           image_view_create_info_.Reset();
-           return;)
+  Result<Nil, ErrorResult> check_result =
+      CheckInitParameters(render_engine, vk_image_view_create_info);
+  check_result.Exception([function_name = MM_FUNCTION_NAME,
+                          &image_view_create_info = image_view_create_info_](
+                             ErrorResult error_result) {
+    MM_LOG_SYSTEM->CheckResult(
+        error_result.GetErrorCode(),
+        std::string("[") + function_name + "] " +
+            "Failed to create MM::RenderSystem::ImageView because constructor "
+            "parameters are incorrect.",
+        MM::LogSystem::LogSystem::LogLevel::ERROR);
+
+    image_view_create_info.Reset();
+  });
+  if (check_result.IsError()) {
+    return;
+  }
 #endif
   VkImageView image_view;
   MM_VK_CHECK(
       vkCreateImageView(render_engine->GetDevice(), &vk_image_view_create_info,
                         allocator, &image_view),
-      MM_LOG_ERROR("Failed to create MM::Render::ImageView.");
+      MM_LOG_ERROR("Failed to create MM::RenderSystem::ImageView.");
       image_view_create_info_.Reset(); return;)
 
   image_view_wrapper_ = ImageViewWrapper(render_engine, allocator, image_view);
@@ -1257,9 +1272,23 @@ MM::RenderSystem::ImageView::ImageView(
   VkImageViewCreateInfo vk_image_view_create_info =
       image_view_create_info.GetVkImageViewCreateInfo();
 #ifdef MM_CHECK_PARAMETERS
-  MM_CHECK(CheckInitParameters(render_engine, vk_image_view_create_info),
-           image_view_create_info_.Reset();
-           return;)
+  Result<Nil, ErrorResult> check_result =
+      CheckInitParameters(render_engine, vk_image_view_create_info);
+  check_result.Exception([function_name = MM_FUNCTION_NAME,
+                          &image_view_create_info = image_view_create_info_](
+                             ErrorResult error_result) {
+    MM_LOG_SYSTEM->CheckResult(
+        error_result.GetErrorCode(),
+        std::string("[") + function_name + "] " +
+            "Failed to create MM::RenderSystem::ImageView because constructor "
+            "parameters are incorrect.",
+        MM::LogSystem::LogSystem::LogLevel::ERROR);
+
+    image_view_create_info.Reset();
+  });
+  if (check_result.IsError()) {
+    return;
+  }
 #endif
   VkImageView image_view;
   MM_VK_CHECK(
@@ -1314,37 +1343,38 @@ void MM::RenderSystem::ImageView::Release() {
   image_view_wrapper_.Release();
 }
 
-MM::ExecuteResult MM::RenderSystem::ImageView::CheckInitParameters(
+MM::Result<MM::Nil, MM::ErrorResult>
+MM::RenderSystem::ImageView::CheckInitParameters(
     RenderEngine* render_engine,
     const VkImageViewCreateInfo& vk_image_view_create_info) {
   if (render_engine == nullptr || !render_engine->IsValid()) {
     MM_LOG_ERROR("The incoming render_engine parameter pointer is null.");
-    return ExecuteResult ::INITIALIZATION_FAILED;
+    return ResultE<>{ErrorCode::INITIALIZATION_FAILED};
   }
 
   if (vk_image_view_create_info.image == nullptr) {
     MM_LOG_ERROR("The incoming engine parameter pointer is null.");
-    return ExecuteResult ::INITIALIZATION_FAILED;
+    return ResultE<>{ErrorCode::INITIALIZATION_FAILED};
   }
   if (vk_image_view_create_info.viewType == VK_IMAGE_VIEW_TYPE_MAX_ENUM) {
     MM_LOG_ERROR("The image view type is error.");
-    return ExecuteResult ::INITIALIZATION_FAILED;
+    return ResultE<>{ErrorCode::INITIALIZATION_FAILED};
   }
   if (vk_image_view_create_info.flags ==
       VK_IMAGE_VIEW_CREATE_FLAG_BITS_MAX_ENUM) {
     MM_LOG_ERROR("The image view create flags is error.");
-    return ExecuteResult ::INITIALIZATION_FAILED;
+    return ResultE<>{ErrorCode::INITIALIZATION_FAILED};
   }
   if (vk_image_view_create_info.format == VK_FORMAT_MAX_ENUM) {
     MM_LOG_ERROR("The image view format is error.");
-    return ExecuteResult ::INITIALIZATION_FAILED;
+    return ResultE<>{ErrorCode::INITIALIZATION_FAILED};
   }
   if (vk_image_view_create_info.components.r == VK_COMPONENT_SWIZZLE_MAX_ENUM ||
       vk_image_view_create_info.components.g == VK_COMPONENT_SWIZZLE_MAX_ENUM ||
       vk_image_view_create_info.components.b == VK_COMPONENT_SWIZZLE_MAX_ENUM ||
       vk_image_view_create_info.components.a == VK_COMPONENT_SWIZZLE_MAX_ENUM) {
     MM_LOG_ERROR("The image view components is error.");
-    return ExecuteResult ::INITIALIZATION_FAILED;
+    return ResultE<>{ErrorCode::INITIALIZATION_FAILED};
   }
   if (vk_image_view_create_info.subresourceRange.aspectMask ==
           VK_IMAGE_ASPECT_FLAG_BITS_MAX_ENUM ||
@@ -1355,10 +1385,10 @@ MM::ExecuteResult MM::RenderSystem::ImageView::CheckInitParameters(
               vk_image_view_create_info.subresourceRange.layerCount >
           128) {
     MM_LOG_ERROR("The image view subresource range is error");
-    return ExecuteResult ::INITIALIZATION_FAILED;
+    return ResultE<>{ErrorCode::INITIALIZATION_FAILED};
   }
 
-  return ExecuteResult ::SUCCESS;
+  return ResultS<Nil>{};
 }
 
 VkDevice MM::RenderSystem::ImageView::GetDevice() {
@@ -1382,15 +1412,31 @@ MM::RenderSystem::Sampler::Sampler(
     const VkSamplerCreateInfo& vk_sampler_create_info)
     : sampler_wrapper_(nullptr), sampler_create_info_(vk_sampler_create_info) {
 #ifdef MM_CHECK_PARAMETERS
-  MM_CHECK(CheckInitParameters(render_engine, vk_sampler_create_info),
-           render_engine = nullptr;
-           allocator = nullptr; sampler_create_info_.Reset(); return;)
+  Result<Nil, ErrorResult> check_result =
+      CheckInitParameters(render_engine, vk_sampler_create_info);
+  check_result.Exception(
+      [function_name = MM_FUNCTION_NAME,
+       &sampler_create_info = sampler_create_info_](ErrorResult error_result) {
+        MM_LOG_SYSTEM->CheckResult(
+            error_result.GetErrorCode(),
+            std::string("[") + function_name + "] " +
+                "Failed to create MM::RenderSystem::ImageView because "
+                "constructor parameters are incorrect.",
+            MM::LogSystem::LogSystem::LogLevel::ERROR);
+
+        sampler_create_info.Reset();
+      });
+  if (check_result.IsError()) {
+    return;
+  }
 #endif
-  RenderSamplerAttributeID render_sampler_attribute_ID{};
-  MM_CHECK(sampler_create_info_.GetRenderSamplerAttributeID(
-               render_sampler_attribute_ID),
-           sampler_create_info_.Reset();
-           return;)
+  auto render_sampler_attribute_ID_result =
+      sampler_create_info_.GetRenderSamplerAttributeID();
+  render_sampler_attribute_ID_result.Exception(MM_ERROR_DESCRIPTION(
+      Failed to get MM::RenderSystem::RenderSamplerAttributeID.));
+  if (render_sampler_attribute_ID_result.IsError()) return;
+  RenderSamplerAttributeID& render_sampler_attribute_ID =
+      render_sampler_attribute_ID_result.GetResult();
 
   std::pair<const RenderSamplerAttributeID, SamplerWrapper>* find_resource =
       sampler_container_.Find(render_sampler_attribute_ID);
@@ -1443,15 +1489,31 @@ MM::RenderSystem::Sampler::Sampler(RenderEngine* render_engine,
   VkSamplerCreateInfo vk_sampler_create_info =
       sampler_create_info.GetVkSamplerCreateInfo();
 #ifdef MM_CHECK_PARAMETERS
-  MM_CHECK(CheckInitParameters(render_engine, vk_sampler_create_info),
-           render_engine = nullptr;
-           allocator = nullptr; sampler_create_info_.Reset(); return;)
+  Result<Nil, ErrorResult> check_result =
+      CheckInitParameters(render_engine, vk_sampler_create_info);
+  check_result.Exception(
+      [function_name = MM_FUNCTION_NAME,
+       &sampler_create_info = sampler_create_info_](ErrorResult error_result) {
+        MM_LOG_SYSTEM->CheckResult(
+            error_result.GetErrorCode(),
+            std::string("[") + function_name + "] " +
+                "Failed to create MM::RenderSystem::ImageView because "
+                "constructor parameters are incorrect.",
+            MM::LogSystem::LogSystem::LogLevel::ERROR);
+
+        sampler_create_info.Reset();
+      });
+  if (check_result.IsError()) {
+    return;
+  }
 #endif
-  RenderSamplerAttributeID render_sampler_attribute_ID{};
-  MM_CHECK(sampler_create_info_.GetRenderSamplerAttributeID(
-               render_sampler_attribute_ID),
-           sampler_create_info_.Reset();
-           return;)
+  auto render_sampler_attribute_ID_result =
+      sampler_create_info_.GetRenderSamplerAttributeID();
+  render_sampler_attribute_ID_result.Exception(MM_ERROR_DESCRIPTION(
+      Failed to get MM::RenderSystem::RenderSamplerAttributeID.));
+  if (render_sampler_attribute_ID_result.IsError()) return;
+  RenderSamplerAttributeID& render_sampler_attribute_ID =
+      render_sampler_attribute_ID_result.GetResult();
 
   std::pair<const RenderSamplerAttributeID, SamplerWrapper>* find_resource =
       sampler_container_.Find(render_sampler_attribute_ID);
@@ -1547,59 +1609,60 @@ void MM::RenderSystem::Sampler::Reset() {
   sampler_create_info_.Reset();
 }
 
-MM::ExecuteResult MM::RenderSystem::Sampler::CheckInitParameters(
+MM::Result<MM::Nil, MM::ErrorResult>
+MM::RenderSystem::Sampler::CheckInitParameters(
     RenderEngine* render_engine,
     const VkSamplerCreateInfo& vk_sampler_create_info) {
   if (render_engine == nullptr || !render_engine->IsValid()) {
     MM_LOG_ERROR("The incoming render_engine parameter pointer is null.");
-    return ExecuteResult ::INITIALIZATION_FAILED;
+    return ResultE<>{ErrorCode::INITIALIZATION_FAILED};
   }
 
   if (vk_sampler_create_info.flags == VK_SAMPLER_CREATE_FLAG_BITS_MAX_ENUM) {
     MM_LOG_ERROR("The sampler create flags is error.");
-    return ExecuteResult ::INITIALIZATION_FAILED;
+    return ResultE<>{ErrorCode::INITIALIZATION_FAILED};
   }
   if (vk_sampler_create_info.magFilter == VK_FILTER_MAX_ENUM ||
       vk_sampler_create_info.minFilter == VK_FILTER_MAX_ENUM) {
     MM_LOG_ERROR("The sampler filter is error.");
-    return ExecuteResult ::INITIALIZATION_FAILED;
+    return ResultE<>{ErrorCode::INITIALIZATION_FAILED};
   }
   if (vk_sampler_create_info.mipmapMode == VK_SAMPLER_MIPMAP_MODE_MAX_ENUM) {
     MM_LOG_ERROR("The sampler mipmap mode is error.");
-    return ExecuteResult ::INITIALIZATION_FAILED;
+    return ResultE<>{ErrorCode::INITIALIZATION_FAILED};
   }
   if (vk_sampler_create_info.addressModeU == VK_SAMPLER_ADDRESS_MODE_MAX_ENUM ||
       vk_sampler_create_info.addressModeV == VK_SAMPLER_ADDRESS_MODE_MAX_ENUM ||
       vk_sampler_create_info.addressModeW == VK_SAMPLER_ADDRESS_MODE_MAX_ENUM) {
     MM_LOG_ERROR("The sampler address mode is error.");
-    return ExecuteResult ::INITIALIZATION_FAILED;
+    return ResultE<>{ErrorCode::INITIALIZATION_FAILED};
   }
   if (vk_sampler_create_info.mipLodBias < 0 ||
       vk_sampler_create_info.mipLodBias > 1) {
     MM_LOG_ERROR("The sampler mip lod bias is error.");
-    return ExecuteResult ::INITIALIZATION_FAILED;
+    return ResultE<>{ErrorCode::INITIALIZATION_FAILED};
   }
   if (vk_sampler_create_info.anisotropyEnable == VK_TRUE &&
       vk_sampler_create_info.maxAnisotropy < 1) {
     MM_LOG_ERROR("The sampler max anisotropy is error.");
-    return ExecuteResult ::INITIALIZATION_FAILED;
+    return ResultE<>{ErrorCode::INITIALIZATION_FAILED};
   }
   if (vk_sampler_create_info.compareOp == VK_COMPARE_OP_MAX_ENUM) {
     MM_LOG_ERROR("The sampler compare operator is error.");
-    return ExecuteResult ::INITIALIZATION_FAILED;
+    return ResultE<>{ErrorCode::INITIALIZATION_FAILED};
   }
   if (vk_sampler_create_info.minLod < 0 || vk_sampler_create_info.minLod > 1 ||
       vk_sampler_create_info.maxLod < 0 || vk_sampler_create_info.maxLod > 1 ||
       vk_sampler_create_info.maxLod < vk_sampler_create_info.minLod) {
     MM_LOG_ERROR("The sampler min/max lod is error.");
-    return ExecuteResult ::INITIALIZATION_FAILED;
+    return ResultE<>{ErrorCode::INITIALIZATION_FAILED};
   }
   if (vk_sampler_create_info.borderColor == VK_BORDER_COLOR_MAX_ENUM) {
     MM_LOG_ERROR("The sampler border color is error.");
-    return ExecuteResult ::INITIALIZATION_FAILED;
+    return ResultE<>{ErrorCode::INITIALIZATION_FAILED};
   }
 
-  return ExecuteResult ::SUCCESS;
+  return ResultS<Nil>{};
 }
 
 VkDevice MM::RenderSystem::Sampler::GetDevice() {
@@ -1817,12 +1880,13 @@ MM::RenderSystem::BufferCreateInfo::BufferCreateInfo(
   }
 }
 
-MM::ExecuteResult
-MM::RenderSystem::BufferDataInfo::GetRenderResourceDataAttributeID(
-    RenderImageDataAttributeID& render_image_data_attribute_ID) const {
+MM::Result<MM::RenderSystem::RenderImageDataAttributeID, MM::ErrorResult>
+MM::RenderSystem::BufferDataInfo::GetRenderResourceDataAttributeID() const {
   if (!IsValid()) {
-    return ExecuteResult ::OBJECT_IS_INVALID;
+    return ResultE<>{ErrorCode::OBJECT_IS_INVALID};
   }
+
+  RenderImageDataAttributeID render_buffer_data_attribute_ID{};
 
   std::uint64_t attribute1 = 0, attribute2 = 0, attribute3 = 0;
 
@@ -1848,11 +1912,11 @@ MM::RenderSystem::BufferDataInfo::GetRenderResourceDataAttributeID(
   attribute3 |= static_cast<std::uint64_t>(allocation_create_info_.flags_)
                 << 42;
 
-  render_image_data_attribute_ID.SetSubID1(attribute1);
-  render_image_data_attribute_ID.SetSubID2(attribute2);
-  render_image_data_attribute_ID.SetSubID3(attribute3);
+  render_buffer_data_attribute_ID.SetSubID1(attribute1);
+  render_buffer_data_attribute_ID.SetSubID2(attribute2);
+  render_buffer_data_attribute_ID.SetSubID3(attribute3);
 
-  return ExecuteResult ::SUCCESS;
+  return ResultS{render_buffer_data_attribute_ID};
 }
 
 void MM::RenderSystem::BufferDataInfo::SetBufferCreateInfo(
@@ -2811,10 +2875,9 @@ void MM::RenderSystem::RenderPassCreateInfo::Reset() {
   dependencies_.clear();
 }
 
-MM::Utils::ExecuteResult
-MM::RenderSystem::RenderPassCreateInfo::GetRenderPassID(
-    RenderPassID& render_pass_ID) const {
-  return GetRenderPassID(*this, render_pass_ID);
+MM::Result<MM::RenderSystem::RenderPassID, MM::ErrorResult>
+MM::RenderSystem::RenderPassCreateInfo::GetRenderPassID() const {
+  return GetRenderPassID(*this);
 }
 
 VkRenderPassCreateInfo
@@ -2830,13 +2893,14 @@ MM::RenderSystem::RenderPassCreateInfo::GetVkRenderPassCreateInfo() const {
                                 dependencies_.data()};
 }
 
-MM::ExecuteResult MM::RenderSystem::RenderPassCreateInfo::GetRenderPassID(
-    const MM::RenderSystem::RenderPassCreateInfo& render_pass_create_info,
-    MM::RenderSystem::RenderPassID& render_pass_ID) {
+MM::Result<MM::RenderSystem::RenderPassID, MM::ErrorResult>
+MM::RenderSystem::RenderPassCreateInfo::GetRenderPassID(
+    const MM::RenderSystem::RenderPassCreateInfo& render_pass_create_info) {
   if (!render_pass_create_info.IsValid()) {
-    return ExecuteResult ::OBJECT_IS_INVALID;
+    return ResultE<>{ErrorCode::OBJECT_IS_INVALID};
   }
 
+  MM::RenderSystem::RenderPassID render_pass_ID;
   render_pass_ID = RenderPassID{0, 0, 0, 0, 0};
 
   std::uint64_t sub_ID1 = 0;
@@ -2990,7 +3054,7 @@ MM::ExecuteResult MM::RenderSystem::RenderPassCreateInfo::GetRenderPassID(
   render_pass_ID.SetSubID4(sub_ID1);
   render_pass_ID.SetSubID5(sub_ID2);
 
-  return ExecuteResult::SUCCESS;
+  return ResultS{render_pass_ID};
 }
 
 MM::RenderSystem::RenderPassCreateInfo::RenderPassCreateInfo(
@@ -3053,10 +3117,10 @@ MM::RenderSystem::RenderPassCreateInfo::RenderPassCreateInfo(
   }
 }
 
-MM::ExecuteResult MM::RenderSystem::RenderPassCreateInfo::GetRenderPassID(
-    const VkRenderPassCreateInfo& vk_render_pass_create_info,
-    MM::RenderSystem::RenderPassID& render_pass_ID) {
-  render_pass_ID = RenderPassID{0, 0, 0, 0, 0};
+MM::Result<MM::RenderSystem::RenderPassID, MM::ErrorResult>
+MM::RenderSystem::RenderPassCreateInfo::GetRenderPassID(
+    const VkRenderPassCreateInfo& vk_render_pass_create_info) {
+  MM::RenderSystem::RenderPassID render_pass_ID{};
 
   std::uint64_t sub_ID1 = 0;
   std::uint32_t cycle_offset1 = 0;
@@ -3136,49 +3200,49 @@ MM::ExecuteResult MM::RenderSystem::RenderPassCreateInfo::GetRenderPassID(
                << cycle_offset1;
     cycle_offset1 += 5;
     if (cycle_offset1 > 63) cycle_offset1 -= 64;
-    for (std::uint64_t i = 0;
-         i != vk_render_pass_create_info.pSubpasses[i].inputAttachmentCount;
-         ++i) {
-      sub_ID1 |= vk_render_pass_create_info.pSubpasses[i]
-                     .pInputAttachments[i]
+    for (std::uint64_t j = 0;
+         j != vk_render_pass_create_info.pSubpasses[j].inputAttachmentCount;
+         ++j) {
+      sub_ID1 |= vk_render_pass_create_info.pSubpasses[j]
+                     .pInputAttachments[j]
                      .attachment
                  << cycle_offset1;
       cycle_offset1 += 5;
       if (cycle_offset1 > 63) cycle_offset1 -= 64;
       sub_ID1 |=
-          vk_render_pass_create_info.pSubpasses[i].pInputAttachments[i].layout
+          vk_render_pass_create_info.pSubpasses[j].pInputAttachments[j].layout
           << cycle_offset1;
       cycle_offset1 += 5;
       if (cycle_offset1 > 63) cycle_offset1 -= 64;
     }
     if (vk_render_pass_create_info.pSubpasses[i].pColorAttachments) {
-      for (std::uint64_t i = 0;
-           i != vk_render_pass_create_info.pSubpasses[i].colorAttachmentCount;
-           ++i) {
-        sub_ID1 |= vk_render_pass_create_info.pSubpasses[i]
-                       .pColorAttachments[i]
+      for (std::uint64_t j = 0;
+           j != vk_render_pass_create_info.pSubpasses[j].colorAttachmentCount;
+           ++j) {
+        sub_ID1 |= vk_render_pass_create_info.pSubpasses[j]
+                       .pColorAttachments[j]
                        .attachment
                    << cycle_offset1;
         cycle_offset1 += 5;
         if (cycle_offset1 > 63) cycle_offset1 -= 64;
         sub_ID1 |=
-            vk_render_pass_create_info.pSubpasses[i].pColorAttachments[i].layout
+            vk_render_pass_create_info.pSubpasses[j].pColorAttachments[j].layout
             << cycle_offset1;
         cycle_offset1 += 5;
         if (cycle_offset1 > 63) cycle_offset1 -= 64;
       }
     } else if (vk_render_pass_create_info.pSubpasses[i].pResolveAttachments) {
-      for (std::uint64_t i = 0;
-           i != vk_render_pass_create_info.pSubpasses[i].colorAttachmentCount;
-           ++i) {
-        sub_ID1 |= vk_render_pass_create_info.pSubpasses[i]
-                       .pResolveAttachments[i]
+      for (std::uint64_t j = 0;
+           j != vk_render_pass_create_info.pSubpasses[j].colorAttachmentCount;
+           ++j) {
+        sub_ID1 |= vk_render_pass_create_info.pSubpasses[j]
+                       .pResolveAttachments[j]
                        .attachment
                    << cycle_offset1;
         cycle_offset1 += 5;
         if (cycle_offset1 > 63) cycle_offset1 -= 64;
-        sub_ID1 |= vk_render_pass_create_info.pSubpasses[i]
-                       .pResolveAttachments[i]
+        sub_ID1 |= vk_render_pass_create_info.pSubpasses[j]
+                       .pResolveAttachments[j]
                        .layout
                    << cycle_offset1;
         cycle_offset1 += 5;
@@ -3189,9 +3253,9 @@ MM::ExecuteResult MM::RenderSystem::RenderPassCreateInfo::GetRenderPassID(
       cycle_offset1 += 10;
       if (cycle_offset1 > 63) cycle_offset1 -= 64;
     }
-    for (std::uint64_t i = 0;
-         i != vk_render_pass_create_info.pSubpasses[i].colorAttachmentCount;
-         ++i) {
+    for (std::uint64_t j = 0;
+         j != vk_render_pass_create_info.pSubpasses[j].colorAttachmentCount;
+         ++j) {
     }
     cycle_offset1 += 5;
     if (cycle_offset1 > 63) cycle_offset1 -= 64;
@@ -3212,12 +3276,12 @@ MM::ExecuteResult MM::RenderSystem::RenderPassCreateInfo::GetRenderPassID(
       if (cycle_offset1 > 63) cycle_offset1 -= 64;
     }
 
-    for (std::uint64_t i = 0;
-         i != vk_render_pass_create_info.pSubpasses[i].preserveAttachmentCount;
-         ++i) {
+    for (std::uint64_t j = 0;
+         j != vk_render_pass_create_info.pSubpasses[j].preserveAttachmentCount;
+         ++j) {
       sub_ID1 |=
           static_cast<std::uint64_t>(
-              vk_render_pass_create_info.pSubpasses[i].pPreserveAttachments[i])
+              vk_render_pass_create_info.pSubpasses[j].pPreserveAttachments[j])
           << cycle_offset1;
       cycle_offset1 += 5;
       if (cycle_offset1 > 63) cycle_offset1 -= 64;
@@ -3265,7 +3329,7 @@ MM::ExecuteResult MM::RenderSystem::RenderPassCreateInfo::GetRenderPassID(
   render_pass_ID.SetSubID4(sub_ID1);
   render_pass_ID.SetSubID5(sub_ID2);
 
-  return ExecuteResult::SUCCESS;
+  return ResultS{render_pass_ID};
 }
 
 MM::RenderSystem::FrameBufferCreateInfo::FrameBufferCreateInfo(
@@ -3370,9 +3434,9 @@ void MM::RenderSystem::FrameBufferCreateInfo::Reset() {
   layers_ = 0;
 }
 
-MM::ExecuteResult MM::RenderSystem::FrameBufferCreateInfo::GetRenderFrameID(
-    MM::RenderSystem::FrameBufferID& frame_buffer_ID) const {
-  return GetRenderFrameID(*this, frame_buffer_ID);
+MM::Result<MM::RenderSystem::FrameBufferID, MM::ErrorResult>
+MM::RenderSystem::FrameBufferCreateInfo::GetRenderFrameID() const {
+  return GetRenderFrameID(*this);
 }
 
 VkFramebufferCreateInfo
@@ -3389,14 +3453,13 @@ MM::RenderSystem::FrameBufferCreateInfo::GetVkFrameBufferCreateInfo() const {
       layers_};
 }
 
-MM::ExecuteResult MM::RenderSystem::FrameBufferCreateInfo::GetRenderFrameID(
-    const MM::RenderSystem::FrameBufferCreateInfo& frame_buffer_create_info,
-    MM::RenderSystem::FrameBufferID& frame_buffer_ID) {
+MM::Result<MM::RenderSystem::FrameBufferID, MM::ErrorResult>
+MM::RenderSystem::FrameBufferCreateInfo::GetRenderFrameID(
+    const MM::RenderSystem::FrameBufferCreateInfo& frame_buffer_create_info) {
   if (!frame_buffer_create_info.IsValid()) {
-    return ExecuteResult ::OBJECT_IS_INVALID;
+    return ResultE<>{ErrorCode::OBJECT_IS_INVALID};
   }
-
-  frame_buffer_ID = FrameBufferID{0, 0};
+  MM::RenderSystem::FrameBufferID frame_buffer_ID{};
 
   std::uint64_t sub_ID = 0;
 
@@ -3425,7 +3488,7 @@ MM::ExecuteResult MM::RenderSystem::FrameBufferCreateInfo::GetRenderFrameID(
   }
   frame_buffer_ID.SetSubID2(sub_ID);
 
-  return ExecuteResult ::SUCCESS;
+  return ResultS{frame_buffer_ID};
 }
 
 VkComputePipelineCreateInfo
