@@ -8,27 +8,27 @@
 #include "runtime/function/render/AllocatedImage.h"
 #include "runtime/function/render/vk_engine.h"
 
-MM::ExecuteResult MM::RenderSystem::Utils::VkResultToMMResult(
+MM::ErrorCode MM::RenderSystem::Utils::VkResultToMMErrorCode(
     VkResult vk_result) {
-  ExecuteResult MM_result;
+  ErrorCode MM_result;
   switch (vk_result) {
     case VK_SUCCESS:
-      MM_result = ExecuteResult::SUCCESS;
+      MM_result = ErrorCode::SUCCESS;
       break;
     case VK_TIMEOUT:
-      MM_result = ExecuteResult::TIMEOUT;
+      MM_result = ErrorCode::TIMEOUT;
       break;
     case VK_ERROR_OUT_OF_HOST_MEMORY:
-      MM_result = ExecuteResult::OUT_OF_HOST_MEMORY;
+      MM_result = ErrorCode::OUT_OF_HOST_MEMORY;
       break;
     case VK_ERROR_OUT_OF_DEVICE_MEMORY:
-      MM_result = ExecuteResult::OUT_OF_DEVICE_MEMORY;
+      MM_result = ErrorCode::OUT_OF_DEVICE_MEMORY;
       break;
     case VK_ERROR_INITIALIZATION_FAILED:
-      MM_result = ExecuteResult::INITIALIZATION_FAILED;
+      MM_result = ErrorCode::INITIALIZATION_FAILED;
       break;
     default:
-      MM_result = ExecuteResult::UNDEFINED_ERROR;
+      MM_result = ErrorCode::UNDEFINED_ERROR;
   }
 
   return MM_result;
@@ -165,11 +165,17 @@ VkSubmitInfo MM::RenderSystem::Utils::GetCommandSubmitInfo(
   return submit_info;
 }
 
-MM::ExecuteResult MM::RenderSystem::Utils::SubmitCommandBuffers(
+MM::Result<MM::Nil, MM::ErrorResult>
+MM::RenderSystem::Utils::SubmitCommandBuffers(
     VkQueue queue, const std::vector<VkSubmitInfo>& submit_infos,
     VkFence fence) {
-  return VkResultToMMResult(
+  ErrorCode error_code = VkResultToMMErrorCode(
       vkQueueSubmit(queue, submit_infos.size(), submit_infos.data(), fence));
+  if (error_code == ErrorCode::SUCCESS) {
+    return ResultS<Nil>{};
+  }
+
+  return ResultE<>{error_code};
 }
 
 VkImageMemoryBarrier2 MM::RenderSystem::Utils::GetVkImageMemoryBarrier2(
@@ -939,26 +945,26 @@ VkCopyImageInfo2 MM::RenderSystem::Utils::GetVkCopyImageInfo2(
                           copy_regions};
 }
 
-MM::ExecuteResult MM::RenderSystem::Utils::GetEndSizeAndOffset(
+MM::Result<std::pair<VkDeviceSize, VkDeviceSize>, MM::ErrorResult>
+MM::RenderSystem::Utils::GetEndSizeAndOffset(
     const AllocatedBuffer& buffer,
-    std::list<std::shared_ptr<BufferChunkInfo>>& buffer_chunks_info,
-    VkDeviceSize& output_end_size, VkDeviceSize& output_offset) {
+    std::list<std::shared_ptr<BufferChunkInfo>>& buffer_chunks_info) {
 #ifdef MM_CHECK_PARAMETERS
   if (!buffer.IsValid()) {
     MM_LOG_ERROR("The buffer is invalid.");
-    return ExecuteResult::OBJECT_IS_INVALID;
+    return ResultE<>{ErrorCode::OBJECT_IS_INVALID};
   }
 
   for (const auto& buffer_chunk_info : buffer_chunks_info) {
     if (!buffer_chunk_info->IsValid()) {
       MM_LOG_ERROR("The buffer_chunk_info is Invalid.");
-      return ExecuteResult::OBJECT_IS_INVALID;
+      return ResultE<>{ErrorCode::OBJECT_IS_INVALID};
     }
   }
 #endif
   if (buffer_chunks_info.empty()) {
-    output_offset = 0;
-    output_end_size = buffer.GetBufferSize();
+    return ResultS{
+        std::pair<VkDeviceSize, VkDeviceSize>{0, buffer.GetBufferSize()}};
   } else {
     auto end_element = --buffer_chunks_info.end();
     while (end_element->use_count() == 1) {
@@ -969,15 +975,16 @@ MM::ExecuteResult MM::RenderSystem::Utils::GetEndSizeAndOffset(
       end_element = --end_element;
     }
     if (buffer_chunks_info.empty()) {
-      output_offset = 0;
-      output_end_size = buffer.GetBufferSize();
+      return ResultS{
+          std::pair<VkDeviceSize, VkDeviceSize>{0, buffer.GetBufferSize()}};
     } else {
-      output_offset = (*end_element)->GetOffset() + (*end_element)->GetSize();
-      output_end_size = buffer.GetBufferSize() - output_offset;
+      VkDeviceSize output_offset =
+          (*end_element)->GetOffset() + (*end_element)->GetSize();
+      VkDeviceSize output_end_size = buffer.GetBufferSize() - output_offset;
+      return ResultS{std::pair<VkDeviceSize, VkDeviceSize>{output_offset,
+                                                           output_end_size}};
     }
   }
-
-  return ExecuteResult::SUCCESS;
 }
 
 VkCommandBufferBeginInfo MM::RenderSystem::Utils::GetCommandBufferBeginInfo(
@@ -987,20 +994,33 @@ VkCommandBufferBeginInfo MM::RenderSystem::Utils::GetCommandBufferBeginInfo(
                                   nullptr, flags, inheritance_info};
 }
 
-MM::ExecuteResult MM::RenderSystem::Utils::BeginCommandBuffer(
+MM::Result<MM::Nil, MM::ErrorResult>
+MM::RenderSystem::Utils::BeginCommandBuffer(
     AllocatedCommandBuffer& command_buffer, VkCommandBufferUsageFlags flags,
     const VkCommandBufferInheritanceInfo* inheritance_info) {
   const VkCommandBufferBeginInfo command_buffer_begin_info =
       GetCommandBufferBeginInfo(flags, inheritance_info);
 
-  return VkResultToMMResult(vkBeginCommandBuffer(
+  ErrorCode error_code = VkResultToMMErrorCode(vkBeginCommandBuffer(
       command_buffer.GetCommandBuffer(), &command_buffer_begin_info));
+
+  if (error_code == ErrorCode::SUCCESS) {
+    return ResultS<Nil>{};
+  }
+
+  return ResultE<>{error_code};
 }
 
-MM::ExecuteResult MM::RenderSystem::Utils::EndCommandBuffer(
+MM::Result<MM::Nil, MM::ErrorResult> MM::RenderSystem::Utils::EndCommandBuffer(
     AllocatedCommandBuffer& command_buffer) {
-  return VkResultToMMResult(
+  ErrorCode error_code = VkResultToMMErrorCode(
       vkEndCommandBuffer(command_buffer.GetCommandBuffer()));
+
+  if (error_code == ErrorCode::SUCCESS) {
+    return ResultS<Nil>{};
+  }
+
+  return ResultE<>{error_code};
 }
 
 std::uint64_t MM::RenderSystem::Utils::ConvertVkFormatToContinuousValue(
@@ -1195,97 +1215,99 @@ std::uint64_t MM::RenderSystem::Utils::ConvertVkImageLayoutToContinuousValue(
   return 0;
 }
 
-MM::ExecuteResult MM::RenderSystem::Utils::CheckVkImageCreateInfo(
+MM::Result<MM::Nil, MM::ErrorResult>
+MM::RenderSystem::Utils::CheckVkImageCreateInfo(
     const VkImageCreateInfo* vk_image_create_info) {
   if (vk_image_create_info == nullptr) {
     MM_LOG_ERROR("The vk image create info is nullptr.");
-    return ExecuteResult ::OBJECT_IS_INVALID;
+    return ResultE<>{ErrorCode::OBJECT_IS_INVALID};
   }
 
   if (vk_image_create_info->sType != VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO) {
     MM_LOG_ERROR("The vk image create info sType is error.");
-    return ExecuteResult ::OBJECT_IS_INVALID;
+    return ResultE<>{ErrorCode::OBJECT_IS_INVALID};
   }
   if (vk_image_create_info->flags == VK_IMAGE_CREATE_FLAG_BITS_MAX_ENUM) {
     MM_LOG_ERROR("The vk image create info flags is error.");
-    return ExecuteResult ::OBJECT_IS_INVALID;
+    return ResultE<>{ErrorCode::OBJECT_IS_INVALID};
   }
   if (vk_image_create_info->imageType == VK_IMAGE_TYPE_MAX_ENUM) {
     MM_LOG_ERROR("The vk image create info imageType is error.");
-    return ExecuteResult ::OBJECT_IS_INVALID;
+    return ResultE<>{ErrorCode::OBJECT_IS_INVALID};
   }
   if (vk_image_create_info->format == VK_FORMAT_MAX_ENUM) {
     MM_LOG_ERROR("The vk image create info format is error.");
-    return ExecuteResult ::OBJECT_IS_INVALID;
+    return ResultE<>{ErrorCode::OBJECT_IS_INVALID};
   }
   if (vk_image_create_info->extent.width > 8192 ||
       vk_image_create_info->extent.height > 8192 ||
       vk_image_create_info->extent.depth > 8192) {
     MM_LOG_ERROR("The vk image create info extent is error.");
-    return ExecuteResult ::OBJECT_IS_INVALID;
+    return ResultE<>{ErrorCode::OBJECT_IS_INVALID};
   }
   if (vk_image_create_info->mipLevels < 128) {
     MM_LOG_ERROR("The vk image create info mipLevels is error.");
-    return ExecuteResult ::OBJECT_IS_INVALID;
+    return ResultE<>{ErrorCode::OBJECT_IS_INVALID};
   }
   if (vk_image_create_info->mipLevels != 1 &&
       (vk_image_create_info->usage & VK_IMAGE_USAGE_SAMPLED_BIT)) {
     MM_LOG_ERROR("The vk image create info mipLevels is error.");
-    return ExecuteResult ::OBJECT_IS_INVALID;
+    return ResultE<>{ErrorCode::OBJECT_IS_INVALID};
   }
   // Currently, only 1 layer of images are supported.
   if (vk_image_create_info->arrayLayers != 1) {
     MM_LOG_ERROR("The vk image create info arrayLayers is error.");
-    return ExecuteResult ::OBJECT_IS_INVALID;
+    return ResultE<>{ErrorCode::OBJECT_IS_INVALID};
   }
   if (vk_image_create_info->samples == VK_SAMPLE_COUNT_FLAG_BITS_MAX_ENUM) {
     MM_LOG_ERROR("The vk image create info samples is error.");
-    return ExecuteResult ::OBJECT_IS_INVALID;
+    return ResultE<>{ErrorCode::OBJECT_IS_INVALID};
   }
   if (vk_image_create_info->tiling == VK_IMAGE_TILING_MAX_ENUM) {
     MM_LOG_ERROR("The vk image create info tiling is error.");
-    return ExecuteResult ::OBJECT_IS_INVALID;
+    return ResultE<>{ErrorCode::OBJECT_IS_INVALID};
   }
   if (vk_image_create_info->usage == VK_IMAGE_USAGE_FLAG_BITS_MAX_ENUM) {
     MM_LOG_ERROR("The vk image create info usage is error.");
-    return ExecuteResult ::OBJECT_IS_INVALID;
+    return ResultE<>{ErrorCode::OBJECT_IS_INVALID};
   }
   if (((vk_image_create_info->usage & VK_IMAGE_USAGE_STORAGE_BIT) ==
        VK_IMAGE_USAGE_STORAGE_BIT) &&
       (vk_image_create_info->samples != VK_SAMPLE_COUNT_1_BIT)) {
     MM_LOG_ERROR("The vk image create info usage is error.");
-    return ExecuteResult ::OBJECT_IS_INVALID;
+    return ResultE<>{ErrorCode::OBJECT_IS_INVALID};
   }
   if (vk_image_create_info->sharingMode != VK_SHARING_MODE_EXCLUSIVE ||
       vk_image_create_info->queueFamilyIndexCount != 1 ||
       vk_image_create_info->pQueueFamilyIndices == nullptr) {
     MM_LOG_ERROR("The vk image create info queue family is error.");
-    return ExecuteResult ::OBJECT_IS_INVALID;
+    return ResultE<>{ErrorCode::OBJECT_IS_INVALID};
   }
   if (vk_image_create_info->initialLayout != VK_IMAGE_LAYOUT_UNDEFINED &&
       vk_image_create_info->initialLayout != VK_IMAGE_LAYOUT_PREINITIALIZED) {
     MM_LOG_ERROR("The vk image create info initialLayout is error.");
-    return ExecuteResult ::OBJECT_IS_INVALID;
+    return ResultE<>{ErrorCode::OBJECT_IS_INVALID};
   }
 
-  return ExecuteResult ::SUCCESS;
+  return ResultS<Nil>{};
 }
 
-MM::ExecuteResult MM::RenderSystem::Utils::CheckVmaAllocationCreateInfo(
+MM::Result<MM::Nil, MM::ErrorResult>
+MM::RenderSystem::Utils::CheckVmaAllocationCreateInfo(
     const VmaAllocationCreateInfo* vma_allocation_create_info) {
   if (vma_allocation_create_info == nullptr) {
     MM_LOG_ERROR("The vma allocation create info is nullptr.");
-    return ExecuteResult ::OBJECT_IS_INVALID;
+    return ResultE<>{ErrorCode::OBJECT_IS_INVALID};
   }
 
   if (vma_allocation_create_info->flags ==
       VMA_ALLOCATION_CREATE_FLAG_BITS_MAX_ENUM) {
     MM_LOG_ERROR("The vma allocation create info flags is error.");
-    return ExecuteResult ::OBJECT_IS_INVALID;
+    return ResultE<>{ErrorCode::OBJECT_IS_INVALID};
   }
   if (vma_allocation_create_info->usage == VMA_MEMORY_USAGE_MAX_ENUM) {
     MM_LOG_ERROR("The vma allocation create info usage is error.");
-    return ExecuteResult ::OBJECT_IS_INVALID;
+    return ResultE<>{ErrorCode::OBJECT_IS_INVALID};
   }
   if (vma_allocation_create_info->requiredFlags ==
           VK_MEMORY_PROPERTY_FLAG_BITS_MAX_ENUM ||
@@ -1294,48 +1316,49 @@ MM::ExecuteResult MM::RenderSystem::Utils::CheckVmaAllocationCreateInfo(
     MM_LOG_ERROR(
         "The vma allocation create info requiredFlags/preferredFlags is "
         "error.");
-    return ExecuteResult ::OBJECT_IS_INVALID;
+    return ResultE<>{ErrorCode::OBJECT_IS_INVALID};
   }
   if (vma_allocation_create_info->memoryTypeBits > 64) {
     MM_LOG_ERROR("The vma allocation create info memoryTypeBits is error.");
-    return ExecuteResult ::OBJECT_IS_INVALID;
+    return ResultE<>{ErrorCode::OBJECT_IS_INVALID};
   }
   if (vma_allocation_create_info->priority > 0 ||
       vma_allocation_create_info->priority < 1) {
     MM_LOG_ERROR("The vma allocation create info priority is error.");
-    return ExecuteResult ::OBJECT_IS_INVALID;
+    return ResultE<>{ErrorCode::OBJECT_IS_INVALID};
   }
 
-  return ExecuteResult ::SUCCESS;
+  return ResultS<Nil>{};
 }
 
-MM::ExecuteResult MM::RenderSystem::Utils::CheckVkBufferCreateInfo(
+MM::Result<MM::Nil, MM::ErrorResult>
+MM::RenderSystem::Utils::CheckVkBufferCreateInfo(
     const VkBufferCreateInfo* vk_buffer_create_info) {
   if (vk_buffer_create_info == nullptr) {
     MM_LOG_ERROR("The vk buffer create info is nullptr.");
-    return ExecuteResult ::OBJECT_IS_INVALID;
+    return ResultE<>{ErrorCode::OBJECT_IS_INVALID};
   }
 
   if (vk_buffer_create_info->flags == VK_BUFFER_CREATE_FLAG_BITS_MAX_ENUM) {
     MM_LOG_ERROR("The vk buffer create info flags is error.");
-    return ExecuteResult ::OBJECT_IS_INVALID;
+    return ResultE<>{ErrorCode::OBJECT_IS_INVALID};
   }
   if (vk_buffer_create_info->size == 0) {
     MM_LOG_ERROR("The vk buffer create info size is error.");
-    return ExecuteResult ::OBJECT_IS_INVALID;
+    return ResultE<>{ErrorCode::OBJECT_IS_INVALID};
   }
   if (vk_buffer_create_info->usage == VK_BUFFER_USAGE_FLAG_BITS_MAX_ENUM) {
     MM_LOG_ERROR("The vk buffer create info usage is error.");
-    return ExecuteResult ::OBJECT_IS_INVALID;
+    return ResultE<>{ErrorCode::OBJECT_IS_INVALID};
   }
   if (vk_buffer_create_info->sharingMode == VK_SHARING_MODE_EXCLUSIVE ||
       vk_buffer_create_info->queueFamilyIndexCount != 1 ||
       vk_buffer_create_info->pQueueFamilyIndices == nullptr) {
     MM_LOG_ERROR("The vk buffer create info queue family index mode is error.");
-    return ExecuteResult ::OBJECT_IS_INVALID;
+    return ResultE<>{ErrorCode::OBJECT_IS_INVALID};
   }
 
-  return ExecuteResult ::SUCCESS;
+  return ResultS<Nil>{};
 }
 
 VkBufferCreateInfo MM::RenderSystem::Utils::GetVkBufferCreateInfo(
@@ -1363,12 +1386,13 @@ VmaAllocationCreateInfo MM::RenderSystem::Utils::GetVmaAllocationCreateInfo(
       pool,  user_data, priority};
 }
 
-MM::ExecuteResult MM::RenderSystem::Utils::CreateBuffer(
+MM::Result<MM::RenderSystem::AllocatedBuffer, MM::ErrorResult>
+MM::RenderSystem::Utils::CreateBuffer(
     MM::RenderSystem::RenderEngine* render_engine,
+    const std::string& object_name,
     const VkBufferCreateInfo& vk_buffer_create_info,
     const VmaAllocationCreateInfo& vma_allocation_create_info,
-    VmaAllocationInfo* vma_allocation_info,
-    MM::RenderSystem::AllocatedBuffer& allocated_buffer) {
+    VmaAllocationInfo* vma_allocation_info) {
   VkBuffer temp_buffer{};
   VmaAllocation temp_allocation{};
 
@@ -1377,21 +1401,31 @@ MM::ExecuteResult MM::RenderSystem::Utils::CreateBuffer(
                       &vma_allocation_create_info, &temp_buffer,
                       &temp_allocation, vma_allocation_info),
       MM_LOG_ERROR("Failed to create buffer.");
-      return ExecuteResult::CREATE_OBJECT_FAILED;)
+      return ResultE<>{VkResultToMMErrorCode(MM_VK_RESULT_CODE)};)
 
   BufferDataInfo buffer_data_info{
       BufferCreateInfo(vk_buffer_create_info),
       AllocationCreateInfo(vma_allocation_create_info)};
-  RenderResourceDataAttributeID render_resource_data_attribute_ID{};
-  buffer_data_info.GetRenderResourceDataAttributeID(
-      render_resource_data_attribute_ID);
-  allocated_buffer = AllocatedBuffer(
-      allocated_buffer.GetObjectName(),
-      RenderResourceDataID{0, render_resource_data_attribute_ID}, render_engine,
-      buffer_data_info, render_engine->GetAllocator(), temp_buffer,
-      temp_allocation);
+  Result<RenderResourceDataAttributeID, ErrorResult>
+      render_resource_data_attribute_ID_result =
+          buffer_data_info.GetRenderResourceDataAttributeID();
+  render_resource_data_attribute_ID_result.Exception(MM_ERROR_DESCRIPTION(
+      Failed to MM::RenderSystem::RenderResourceDataAttributeID.));
+  if (render_resource_data_attribute_ID_result.IsError())
+    return ResultE<>{
+        render_resource_data_attribute_ID_result.GetError().GetErrorCode()};
+  RenderResourceDataAttributeID& render_resource_data_attribute_ID =
+      render_resource_data_attribute_ID_result.GetResult();
+  AllocatedBuffer allocated_buffer = AllocatedBuffer(
+      object_name, RenderResourceDataID{0, render_resource_data_attribute_ID},
+      render_engine, buffer_data_info, render_engine->GetAllocator(),
+      temp_buffer, temp_allocation);
 
-  return ExecuteResult ::SUCCESS;
+  if (allocated_buffer.IsValid()) {
+    return ResultS{std::move(allocated_buffer)};
+  }
+
+  return ResultE<>{ErrorCode::CREATE_OBJECT_FAILED};
 }
 
 VkDependencyInfo MM::RenderSystem::Utils::GetVkDependencyInfo(
@@ -2094,14 +2128,15 @@ MM::RenderSystem::Utils::ConvertVkDynamicStateToDynamicState(
       return DynamicState::DYNAMIC_STATE_MAX_ENUM;
   }
 }
-MM::ExecuteResult MM::RenderSystem::Utils::SavePiplineCache(
+
+MM::Result<MM::Nil, MM::ErrorResult> MM::RenderSystem::Utils::SavePiplineCache(
     VkDevice device, VkPipelineCache pipeline_cache) {
   size_t cacheSize = 0;
 
   if (vkGetPipelineCacheData(device, pipeline_cache, &cacheSize, nullptr) !=
       VK_SUCCESS) {
     MM_LOG_ERROR("Getting cache size fail from pipelinecache.");
-    return ExecuteResult ::UNDEFINED_ERROR;
+    return ResultE<>{ErrorCode::UNDEFINED_ERROR};
   }
 
   auto cache_data = std::vector<char>(sizeof(char) * cacheSize, 0);
@@ -2109,7 +2144,7 @@ MM::ExecuteResult MM::RenderSystem::Utils::SavePiplineCache(
   if (vkGetPipelineCacheData(device, pipeline_cache, &cacheSize,
                              &cache_data[0]) != VK_SUCCESS) {
     MM_LOG_ERROR("getting cache fail from pipelinecache.");
-    return ExecuteResult ::UNDEFINED_ERROR;
+    return ResultE<>{ErrorCode::UNDEFINED_ERROR};
   }
 
   FileSystem::Path pipeline_cache_path =
@@ -2120,10 +2155,10 @@ MM::ExecuteResult MM::RenderSystem::Utils::SavePiplineCache(
     stream.close();
   } else {
     MM_LOG_ERROR("Open pipeline cache data target file failed.");
-    return ExecuteResult ::UNDEFINED_ERROR;
+    return ResultE<>{ErrorCode::UNDEFINED_ERROR};
   }
 
-  return ExecuteResult ::SUCCESS;
+  return ResultS<Nil>{};
 }
 
 bool MM::RenderSystem::Utils::VkVertexInputBindingDescriptionIsEqual(

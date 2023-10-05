@@ -21,7 +21,7 @@ class RenderEngine;
 class BufferChunkInfo;
 
 namespace Utils {
-ExecuteResult VkResultToMMResult(VkResult vk_result);
+ErrorCode VkResultToMMErrorCode(VkResult vk_result);
 
 // TODO Add default value annotations for various functions that obtain creation
 // information, such as the \ref GetSamplerCreateInfo function.
@@ -65,7 +65,7 @@ VkSubmitInfo GetCommandSubmitInfo(
 VkSubmitInfo GetCommandSubmitInfo(
     const std::vector<AllocatedCommandBuffer>& command_buffers);
 
-ExecuteResult SubmitCommandBuffers(
+Result<Nil, ErrorResult> SubmitCommandBuffers(
     VkQueue queue, const std::vector<VkSubmitInfo>& submit_infos,
     VkFence fence);
 
@@ -283,11 +283,11 @@ bool DescriptorTypeIsUniformBuffer(const VkDescriptorType& descriptor_type);
 
 bool DescriptorTypeIsTexelBuffer(const VkDescriptorType& descriptor_type);
 
-ExecuteResult CreateBuffer(
-    RenderEngine* render_engine,
+Result<AllocatedBuffer, ErrorResult> CreateBuffer(
+    RenderEngine* render_engine, const std::string& object_name,
     const VkBufferCreateInfo& vk_buffer_create_info,
     const VmaAllocationCreateInfo& vma_allocation_create_info,
-    VmaAllocationInfo* vma_allocation_info, AllocatedBuffer& allocated_buffer);
+    VmaAllocationInfo* vma_allocation_info);
 
 VkBufferCopy2 GetVkBufferCopy2(const VkDeviceSize& size,
                                const VkDeviceSize& src_offset = 0,
@@ -369,33 +369,33 @@ VkCopyImageInfo2 GetVkCopyImageInfo2(VkImage src_image, VkImage dest_image,
                                      uint32_t regions_count,
                                      const VkImageCopy2* copy_regions);
 
-ExecuteResult GetEndSizeAndOffset(
+Result<std::pair<VkDeviceSize, VkDeviceSize>, ErrorResult> GetEndSizeAndOffset(
     const AllocatedBuffer& buffer,
-    std::list<std::shared_ptr<BufferChunkInfo>>& buffer_chunks_info,
-    VkDeviceSize& output_end_size, VkDeviceSize& output_offset);
+    std::list<std::shared_ptr<BufferChunkInfo>>& buffer_chunks_info);
 
 VkCommandBufferBeginInfo GetCommandBufferBeginInfo(
     VkCommandBufferUsageFlags flags = 0,
     const VkCommandBufferInheritanceInfo* inheritance_info = nullptr);
 
-ExecuteResult BeginCommandBuffer(
+Result<Nil, ErrorResult> BeginCommandBuffer(
     AllocatedCommandBuffer& command_buffer, VkCommandBufferUsageFlags flags = 0,
     const VkCommandBufferInheritanceInfo* inheritance_info = nullptr);
 
-ExecuteResult EndCommandBuffer(AllocatedCommandBuffer& command_buffer);
+Result<Nil, ErrorResult> EndCommandBuffer(
+    AllocatedCommandBuffer& command_buffer);
 
 std::uint64_t ConvertVkFormatToContinuousValue(VkFormat vk_format);
 
 std::uint64_t ConvertVkImageLayoutToContinuousValue(
     VkImageLayout vk_image_layout);
 
-ExecuteResult CheckVkImageCreateInfo(
+Result<Nil, ErrorResult> CheckVkImageCreateInfo(
     const VkImageCreateInfo* vk_image_create_info);
 
-ExecuteResult CheckVmaAllocationCreateInfo(
+Result<Nil, ErrorResult> CheckVmaAllocationCreateInfo(
     const VmaAllocationCreateInfo* vma_allocation_create_info);
 
-ExecuteResult CheckVkBufferCreateInfo(
+Result<Nil, ErrorResult> CheckVkBufferCreateInfo(
     const VkBufferCreateInfo* vk_buffer_create_info);
 
 bool ImageLayoutSupportDepthTest(VkImageLayout vk_image_layout);
@@ -456,7 +456,8 @@ bool LayoutSupportImageSamplerCombine(VkImageLayout layout);
 DynamicState ConvertVkDynamicStateToDynamicState(
     VkDynamicState vk_dynamic_state);
 
-ExecuteResult SavePiplineCache(VkDevice device, VkPipelineCache pipeline_cache);
+Result<Nil, ErrorResult> SavePiplineCache(VkDevice device,
+                                          VkPipelineCache pipeline_cache);
 
 bool VkVertexInputBindingDescriptionIsEqual(
     const VkVertexInputBindingDescription& lhs,
