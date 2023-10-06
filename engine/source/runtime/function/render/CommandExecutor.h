@@ -1,6 +1,9 @@
 //
 // Created by beimingxianyu on 23-10-5.
 //
+#pragma once
+
+#include "runtime/function/render/CommandTask.h"
 #include "runtime/function/render/CommandTaskFlow.h"
 #include "runtime/function/render/RenderFuture.h"
 
@@ -43,10 +46,10 @@ class CommandExecutor {
   void AcquireGeneralGraphCommandBuffer(
       std::unique_ptr<AllocatedCommandBuffer>& output);
 
-  ExecuteResult AcquireGeneralComputeCommandBuffer(
+  Result<Nil, ErrorResult> AcquireGeneralComputeCommandBuffer(
       std::unique_ptr<AllocatedCommandBuffer>& output);
 
-  ExecuteResult AcquireGeneralTransformCommandBuffer(
+  Result<Nil, ErrorResult> AcquireGeneralTransformCommandBuffer(
       std::unique_ptr<AllocatedCommandBuffer>& output);
 
   void ReleaseGeneralCommandBuffer(
@@ -60,7 +63,7 @@ class CommandExecutor {
   /**
    * \remark The \ref command_task_flow is invalid after call this function.
    */
-  ExecuteResult RunAndWait(CommandTaskFlow&& command_task_flow);
+  Result<Nil, ErrorResult> RunAndWait(CommandTaskFlow&& command_task_flow);
 
   /**
    * \remark \ref command_task_flow is invalid after call this function.
@@ -70,7 +73,7 @@ class CommandExecutor {
   /**
    * \remark The \ref command_task_flow is invalid after call this function.
    */
-  ExecuteResult RunAndWait(CommandTaskFlow& command_task_flow);
+  Result<Nil, ErrorResult> RunAndWait(CommandTaskFlow& command_task_flow);
 
   // TODO RunOneFrame
   ///**
@@ -95,12 +98,12 @@ class CommandExecutor {
       std::vector<VkCommandPool>& compute_command_pools,
       std::vector<VkCommandPool>& transform_command_pools);
 
-  ExecuteResult InitCommandPolls(
+  Result<Nil, ErrorResult> InitCommandPolls(
       std::vector<VkCommandPool>& graph_command_pools,
       std::vector<VkCommandPool>& compute_command_pools,
       std::vector<VkCommandPool>& transform_command_pools);
 
-  ExecuteResult InitCommandBuffers(
+  Result<Nil, ErrorResult> InitCommandBuffers(
       std::vector<VkCommandPool>& graph_command_pools,
       std::vector<VkCommandPool>& compute_command_pools,
       std::vector<VkCommandPool>& transform_command_pools,
@@ -108,7 +111,7 @@ class CommandExecutor {
       std::vector<VkCommandBuffer>& compute_command_buffers,
       std::vector<VkCommandBuffer>& transform_command_buffers);
 
-  ExecuteResult InitGeneralAllocatedCommandBuffers(
+  Result<Nil, ErrorResult> InitGeneralAllocatedCommandBuffers(
       std::vector<VkCommandPool>& graph_command_pools,
       std::vector<VkCommandPool>& compute_command_pools,
       std::vector<VkCommandPool>& transform_command_pools,
@@ -116,7 +119,7 @@ class CommandExecutor {
       std::vector<VkCommandBuffer>& compute_command_buffers,
       std::vector<VkCommandBuffer>& transform_command_buffers);
 
-  ExecuteResult InitAllocateCommandBuffers(
+  Result<Nil, ErrorResult> InitAllocatedCommandBuffers(
       std::vector<VkCommandPool>& graph_command_pools,
       std::vector<VkCommandPool>& compute_command_pools,
       std::vector<VkCommandPool>& transform_command_pools,
@@ -124,21 +127,22 @@ class CommandExecutor {
       std::vector<VkCommandBuffer>& compute_command_buffers,
       std::vector<VkCommandBuffer>& transform_command_buffers);
 
-  ExecuteResult InitSemaphores(
+  Result<Nil, ErrorResult> InitSemaphores(
       const std::uint32_t& need_semaphore_number,
       std::vector<VkCommandPool>& graph_command_pools,
       std::vector<VkCommandPool>& compute_command_pools,
       std::vector<VkCommandPool>& transform_command_pools);
 
-  ExecuteResult AddCommandBuffer(const CommandType& command_type,
-                                 const std::uint32_t& new_command_buffer_num);
+  Result<Nil, ErrorResult> AddCommandBuffer(
+      const CommandType& command_type,
+      const std::uint32_t& new_command_buffer_num);
 
   struct CommandTaskFlowToBeRun {
     CommandTaskFlowToBeRun() = delete;
     ~CommandTaskFlowToBeRun() = default;
     CommandTaskFlowToBeRun(
         CommandTaskFlow&& command_task_flow, const std::uint32_t& task_flow_ID,
-        const std::shared_ptr<ExecuteResult>& execute_result,
+        const std::shared_ptr<Result<Nil, ErrorResult>>& execute_result,
         const std::shared_ptr<CommandCompleteState>& complete_state);
     CommandTaskFlowToBeRun(const CommandTaskFlowToBeRun& other) = delete;
     CommandTaskFlowToBeRun(CommandTaskFlowToBeRun&& other) noexcept;
@@ -148,7 +152,7 @@ class CommandExecutor {
 
     CommandTaskFlow command_task_flow_{};
     std::uint32_t task_flow_ID_{0};
-    std::shared_ptr<ExecuteResult> execute_result_{};
+    std::shared_ptr<Result<Nil, ErrorResult>> execute_result_{};
     std::weak_ptr<CommandCompleteState> complete_state_{};
 
     std::uint32_t the_maximum_number_of_graph_buffers_required_for_one_task_{0};
@@ -197,7 +201,7 @@ class CommandExecutor {
     std::uint32_t task_flow_ID_{0};
     bool initialize_or_not_{false};
     bool have_wait_one_task_{false};
-    std::shared_ptr<ExecuteResult> execute_result_{};
+    std::shared_ptr<Result<Nil, ErrorResult>> execute_result_{};
     std::weak_ptr<CommandCompleteState> complete_state_{};
 
     std::unordered_set<std::unique_ptr<CommandTask>*>
@@ -265,7 +269,7 @@ class CommandExecutor {
         const std::shared_ptr<ExecutingCommandTaskFlow>& command_task_flow,
         std::vector<std::unique_ptr<AllocatedCommandBuffer>>&& command_buffer,
         std::unique_ptr<CommandTask>&& command_task,
-        const std::weak_ptr<ExecuteResult>& execute_result,
+        const std::weak_ptr<Result<Nil, ErrorResult>>& execute_result,
         const std::weak_ptr<CommandCompleteState>& complete_state,
         std::vector<std::vector<VkSemaphore>>&& default_wait_semaphore,
         std::vector<std::vector<VkSemaphore>>&& default_signal_semaphore);
@@ -334,15 +338,16 @@ class CommandExecutor {
   void ProcessNextStepCanSubmitTask(
       const std::shared_ptr<ExecutingCommandTaskFlow>& command_task_flow);
 
-  MM::ExecuteResult RecordAndSubmitCommandSync(
+  Result<Nil, ErrorResult> RecordAndSubmitCommandSync(
       std::unique_ptr<ExecutingTask>& input_tasks);
 
-  MM::ExecuteResult RecordAndSubmitCommandASync(
+  Result<Nil, ErrorResult> RecordAndSubmitCommandASync(
       std::unique_ptr<ExecutingTask>& input_tasks);
 
   void PostProcessOfSubmitTask(
       std::shared_ptr<ExecutingCommandTaskFlow>& command_task_flow,
-      std::unique_ptr<ExecutingTask>& input_tasks, ExecuteResult& result);
+      std::unique_ptr<ExecutingTask>& input_tasks,
+      Result<Nil, ErrorResult>& result);
 
   void SubmitTasksSync(
       std::shared_ptr<ExecutingCommandTaskFlow>& command_task_flow,

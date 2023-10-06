@@ -4,6 +4,8 @@
 
 #include "runtime/function/render/CommandTaskFlow.h"
 
+#include "runtime/function/render/CommandTask.h"
+
 MM::RenderSystem::CommandTaskFlow::CommandTaskFlow(
     CommandTaskFlow&& other) noexcept {
   std::lock(task_sync_, other.task_sync_);
@@ -32,16 +34,13 @@ MM::RenderSystem::CommandTaskFlow& MM::RenderSystem::CommandTaskFlow::operator=(
 }
 
 MM::RenderSystem::CommandTask& MM::RenderSystem::CommandTaskFlow::AddTask(
-    CommandType command_type,
-    const std::function<
-        MM::ExecuteResult(MM::RenderSystem::AllocatedCommandBuffer&)>& commands,
+    CommandType command_type, const TaskType& commands,
     std::uint32_t use_render_resource_count,
     const std::vector<MM::RenderSystem::WaitAllocatedSemaphore>&
         wait_semaphores,
     const std::vector<MM::RenderSystem::AllocateSemaphore>& signal_semaphores) {
   assert(command_type != CommandType::UNDEFINED);
-  const std::vector<std::function<ExecuteResult(AllocatedCommandBuffer & cmd)>>
-      temp{commands};
+  const std::vector<TaskType> temp{commands};
   std::unique_lock<std::shared_mutex> guard(task_sync_);
 
   tasks_.emplace_back(std::unique_ptr<CommandTask>(new CommandTask(
@@ -67,9 +66,7 @@ MM::RenderSystem::CommandTask& MM::RenderSystem::CommandTaskFlow::AddTask(
 }
 
 MM::RenderSystem::CommandTask& MM::RenderSystem::CommandTaskFlow::AddTask(
-    CommandType command_type,
-    const std::vector<
-        std::function<ExecuteResult(AllocatedCommandBuffer& cmd)>>& commands,
+    CommandType command_type, const std::vector<TaskType>& commands,
     std::uint32_t use_render_resource_count,
     const std::vector<WaitAllocatedSemaphore>& wait_semaphores,
     const std::vector<AllocateSemaphore>& signal_semaphores) {

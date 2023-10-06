@@ -16,17 +16,14 @@ MM::RenderSystem::CommandTask::GetCommandTaskFlow() const {
   return *task_flow_;
 }
 
-const std::vector<std::function<
-    MM::ExecuteResult(MM::RenderSystem::AllocatedCommandBuffer& cmd)>>&
+const std::vector<MM::RenderSystem::CommandTask::TaskType>&
 MM::RenderSystem::CommandTask::GetCommands() const {
   return commands_;
 }
 
-std::vector<const std::function<
-    MM::ExecuteResult(MM::RenderSystem::AllocatedCommandBuffer& cmd)>*>
+std::vector<const MM::RenderSystem::CommandTask::TaskType*>
 MM::RenderSystem::CommandTask::GetCommandsIncludeSubTasks() const {
-  std::vector<const std::function<ExecuteResult(AllocatedCommandBuffer & cmd)>*>
-      result;
+  std::vector<const TaskType*> result;
   result.reserve(commands_.size());
 
   for (const auto& main_command : commands_) {
@@ -122,9 +119,7 @@ bool MM::RenderSystem::CommandTask::IsValid() const {
 
 MM::RenderSystem::CommandTask::CommandTask(
     CommandTaskFlow* task_flow, uint32_t command_task_ID,
-    const CommandType& command_type,
-    const std::vector<
-        std::function<ExecuteResult(AllocatedCommandBuffer& cmd)>>& commands,
+    const CommandType& command_type, const std::vector<TaskType>& commands,
     std::uint32_t use_render_resource_count,
     const std::vector<WaitAllocatedSemaphore>& wait_semaphore,
     const std::vector<AllocateSemaphore>& signal_semaphore)
@@ -154,7 +149,7 @@ void MM::RenderSystem::CommandTask::AddCrossTaskFLowSyncRenderResourceIDs(
       cross_task_flow_sync_render_resource_IDs_.end(),
       render_resource_IDs.begin(), render_resource_IDs.end());
 }
-std::uint32_t MM::RenderSystem::CommandTask::GetCommandTaskID() {
+std::uint32_t MM::RenderSystem::CommandTask::GetCommandTaskID() const {
   return command_task_ID_;
 }
 
@@ -163,13 +158,13 @@ void MM::RenderSystem::CommandTask::AddCrossTaskFLowSyncRenderResourceIDs(
   cross_task_flow_sync_render_resource_IDs_.emplace_back(render_resource_ID);
 }
 
-std::uint32_t MM::RenderSystem::CommandTask::GetUseRenderResourceCount() {
+std::uint32_t MM::RenderSystem::CommandTask::GetUseRenderResourceCount() const {
   return use_render_resource_count_;
 }
 
 void MM::RenderSystem::CommandTask::SetUseRenderResourceCount(
     std::uint32_t new_use_render_resource_count) {
-  new_use_render_resource_count = new_use_render_resource_count;
+  use_render_resource_count_ = new_use_render_resource_count;
 }
 
 MM::RenderSystem::CommandTask::~CommandTask() = default;

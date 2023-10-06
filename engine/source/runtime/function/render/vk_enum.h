@@ -22,12 +22,12 @@ enum class ResourceType {
 /**
  * \brief Memory operations allowed for rendering resources.
  */
-enum class MemoryOperate { UNDEFINE, READ, WRITE, READ_AND_WRITE, UNDEFINED };
+enum class MemoryOperate { READ, WRITE, READ_AND_WRITE, UNDEFINED };
 
-enum class CommandBufferType { UNDEFINE, GRAPH, COMPUTE, TRANSFORM, UNDEFINED };
+enum class CommandBufferType { GRAPH, COMPUTE, TRANSFORM, UNDEFINED };
 
 enum class DescriptorType {
-  UNDEFINE,
+  UNDEFINED,
 
   SAMPLER_TEXTURE2D,
   SAMPLER_TEXTURE3D,
@@ -38,7 +38,7 @@ enum class DescriptorType {
 };
 
 enum class DynamicState : std::uint64_t {
-  UNDEFINE,
+  UNDEFINED,
 
   DYNAMIC_STATE_VIEWPORT = static_cast<std::uint64_t>(0x1) << 0,
   DYNAMIC_STATE_SCISSOR = static_cast<std::uint64_t>(0x1) << 1,
@@ -121,7 +121,7 @@ DynamicState& operator&=(DynamicState& lhs, const DynamicState& rhs);
 // MM::RenderSystem::PipelineLayout::pipeline_layout_ managed by
 // MM::RenderSystem::DescriptorManager.
 enum class PipelineLayoutType {
-  UNDEFINE,
+  UNDEFINED,
   GRAPHICS,
   COMPUTE,
   RAY,
@@ -167,7 +167,7 @@ ShaderStage operator&(const ShaderStage& lhs, const ShaderStage& rhs);
 ShaderStage& operator&=(ShaderStage& lhs, const ShaderStage& rhs);
 
 enum class ShaderSlotCount : std::uint64_t {
-  UNDEFINE = 0,
+  UNDEFINED = 0,
 
   // GRAPHICS
   SHADER_STAGE_VERTEX_0_SLOT_BIT = (0x1 << 0) + (0x0 << 0),

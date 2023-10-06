@@ -1,6 +1,8 @@
 //
 // Created by beimingxianyu on 23-10-5.
 //
+#pragma once
+
 #include "runtime/function/render/vk_command_pre.h"
 
 namespace MM {
@@ -20,14 +22,14 @@ class RenderFuture {
   RenderFuture& operator=(RenderFuture&& other) noexcept;
 
  public:
-  ExecuteResult Get();
+  Result<Nil, ErrorResult> Get();
 
   bool IsValid();
 
  private:
   RenderFuture(
       CommandExecutor* command_executor, const std::uint32_t& task_flow_ID,
-      const std::shared_ptr<ExecuteResult>& future_execute_result,
+      const std::shared_ptr<Result<Nil, ErrorResult>>& future_execute_result,
       const std::shared_ptr<CommandCompleteState>& command_complete_states);
 
  private:
@@ -37,7 +39,7 @@ class RenderFuture {
  private:
   CommandExecutor* command_executor_{nullptr};
   std::uint32_t task_flow_ID_{0};
-  std::shared_ptr<ExecuteResult> execute_result_{};
+  std::shared_ptr<Result<Nil, ErrorResult>> execute_result_{};
   std::shared_ptr<CommandCompleteState> command_complete_state_{0};
 };
 }  // namespace RenderSystem

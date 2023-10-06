@@ -92,8 +92,8 @@ class PipelineLayout {
 
  private:
   RenderEngine* render_engine_{nullptr};
-  PipelineLayoutType pipeline_layout_type_{PipelineLayoutType::UNDEFINE};
-  ShaderSlotCount shader_slot_count_{ShaderSlotCount::UNDEFINE};
+  PipelineLayoutType pipeline_layout_type_{PipelineLayoutType::UNDEFINED};
+  ShaderSlotCount shader_slot_count_{ShaderSlotCount::UNDEFINED};
 
   VkPipelineLayout pipeline_layout_{nullptr};
 };

@@ -19,8 +19,8 @@ MM::RenderSystem::PipelineLayout::PipelineLayout(
 #ifdef MM_CHECK_PARAMETERS
   MM_CHECK(CheckInitParameters(), MM_LOG_ERROR("Input parameters are error.");
            render_engine_ = nullptr;
-           pipeline_layout_type = PipelineLayoutType::UNDEFINE;
-           shader_slot_count = ShaderSlotCount::UNDEFINE; return;)
+           pipeline_layout_type = PipelineLayoutType::UNDEFINED;
+           shader_slot_count = ShaderSlotCount::UNDEFINED; return;)
 #endif
 
   if (IsDefaultPipelineLayout()) {
@@ -101,8 +101,8 @@ MM::RenderSystem::PipelineLayout::PipelineLayout(
   MM_CHECK(InitPipelineLayoutWhenNotUseDefault(),
            MM_LOG_ERROR("Failed to initialization VkPipelineLayout.");
            render_engine_ = nullptr;
-           pipeline_layout_type = PipelineLayoutType::UNDEFINE;
-           shader_slot_count = ShaderSlotCount::UNDEFINE;)
+           pipeline_layout_type = PipelineLayoutType::UNDEFINED;
+           shader_slot_count = ShaderSlotCount::UNDEFINED;)
 }
 
 MM::RenderSystem::PipelineLayout::PipelineLayout(
@@ -112,8 +112,8 @@ MM::RenderSystem::PipelineLayout::PipelineLayout(
       shader_slot_count_(other.shader_slot_count_),
       pipeline_layout_(other.pipeline_layout_) {
   other.render_engine_ = nullptr;
-  other.pipeline_layout_type_ = PipelineLayoutType::UNDEFINE;
-  other.shader_slot_count_ = ShaderSlotCount::UNDEFINE;
+  other.pipeline_layout_type_ = PipelineLayoutType::UNDEFINED;
+  other.shader_slot_count_ = ShaderSlotCount::UNDEFINED;
   other.pipeline_layout_ = nullptr;
 }
 
@@ -131,8 +131,8 @@ MM::RenderSystem::PipelineLayout &MM::RenderSystem::PipelineLayout::operator=(
   pipeline_layout_ = other.pipeline_layout_;
 
   other.render_engine_ = nullptr;
-  other.pipeline_layout_type_ = PipelineLayoutType::UNDEFINE;
-  other.shader_slot_count_ = ShaderSlotCount::UNDEFINE;
+  other.pipeline_layout_type_ = PipelineLayoutType::UNDEFINED;
+  other.shader_slot_count_ = ShaderSlotCount::UNDEFINED;
   other.pipeline_layout_ = nullptr;
 
   return *this;
@@ -272,7 +272,7 @@ std::uint8_t MM::RenderSystem::PipelineLayout::AllGraphicsShaderSlotCount() {
   ShaderSlotCount temp = ShaderSlotCount{static_cast<std::uint64_t>(
       (static_cast<std::uint64_t>(shader_slot_count_)) &
       static_cast<std::uint64_t>(0x1FFFFFF))};
-  if (temp == ShaderSlotCount::UNDEFINE) {
+  if (temp == ShaderSlotCount::UNDEFINED) {
     return 0;
   }
 
@@ -512,8 +512,8 @@ std::uint8_t MM::RenderSystem::PipelineLayout::AllShaderSlotCount() {
 
 bool MM::RenderSystem::PipelineLayout::IsValid() const {
   return render_engine_ != nullptr &&
-         pipeline_layout_type_ != PipelineLayoutType::UNDEFINE &&
-         shader_slot_count_ != ShaderSlotCount::UNDEFINE &&
+         pipeline_layout_type_ != PipelineLayoutType::UNDEFINED &&
+         shader_slot_count_ != ShaderSlotCount::UNDEFINED &&
          pipeline_layout_ != nullptr;
 }
 
@@ -522,8 +522,8 @@ void MM::RenderSystem::PipelineLayout::Release() {
     vkDestroyPipelineLayout(render_engine_->GetDevice(), pipeline_layout_,
                             nullptr);
     render_engine_ == nullptr;
-    pipeline_layout_type_ = PipelineLayoutType::UNDEFINE;
-    shader_slot_count_ = ShaderSlotCount::UNDEFINE;
+    pipeline_layout_type_ = PipelineLayoutType::UNDEFINED;
+    shader_slot_count_ = ShaderSlotCount::UNDEFINED;
     pipeline_layout_ = nullptr;
   }
 }
@@ -534,7 +534,7 @@ MM::ExecuteResult MM::RenderSystem::PipelineLayout::CheckInitParameters() {
     return ExecuteResult ::INITIALIZATION_FAILED;
   }
 
-  if (pipeline_layout_type_ == PipelineLayoutType::UNDEFINE) {
+  if (pipeline_layout_type_ == PipelineLayoutType::UNDEFINED) {
     MM_LOG_ERROR("The input parameters pipeline_layout_type is error.");
     return ExecuteResult ::INITIALIZATION_FAILED;
   }

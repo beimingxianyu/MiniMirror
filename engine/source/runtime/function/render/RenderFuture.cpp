@@ -4,13 +4,15 @@
 
 #include "runtime/function/render/RenderFuture.h"
 
+#include "runtime/function/render/CommandExecutor.h"
+
 std::mutex MM::RenderSystem::RenderFuture::wait_mutex_{};
 std::condition_variable
     MM::RenderSystem::RenderFuture::wait_condition_variable_;
 
 MM::RenderSystem::RenderFuture::RenderFuture(
     CommandExecutor* command_executor, const std::uint32_t& task_flow_ID,
-    const std::shared_ptr<ExecuteResult>& future_execute_result,
+    const std::shared_ptr<Result<Nil, ErrorResult>>& future_execute_result,
     const std::shared_ptr<CommandCompleteState>& command_complete_state)
     : command_executor_(command_executor),
       task_flow_ID_(task_flow_ID),
@@ -45,9 +47,9 @@ MM::RenderSystem::RenderFuture& MM::RenderSystem::RenderFuture::operator=(
   return *this;
 }
 
-MM::ExecuteResult MM::RenderSystem::RenderFuture::Get() {
+MM::Result<MM::Nil, MM::ErrorResult> MM::RenderSystem::RenderFuture::Get() {
   if (!IsValid()) {
-    return ExecuteResult::OBJECT_IS_INVALID;
+    return ResultE<>{ErrorCode::OBJECT_IS_INVALID};
   }
 
   std::unique_lock<std::mutex> guard{command_executor_->wait_tasks_mutex_};

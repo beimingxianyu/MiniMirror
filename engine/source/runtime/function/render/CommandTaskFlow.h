@@ -1,7 +1,8 @@
 //
 // Created by beimingxianyu on 23-10-5.
 //
-#include "runtime/function/render/CommandTask.h"
+#pragma once
+
 #include "runtime/function/render/vk_command_pre.h"
 
 namespace MM {
@@ -9,6 +10,10 @@ namespace RenderSystem {
 class CommandTaskFlow {
   friend class CommandTask;
   friend class CommandExecutor;
+
+ public:
+  using TaskType =
+      std::function<Result<Nil, ErrorResult>(AllocatedCommandBuffer& cmd)>;
 
  public:
   CommandTaskFlow() = default;
@@ -23,9 +28,7 @@ class CommandTaskFlow {
    * \remark The commands must not contain VkQueueSubmit().
    */
   MM::RenderSystem::CommandTask& AddTask(
-      CommandType command_type,
-      const std::function<MM::ExecuteResult(
-          MM::RenderSystem::AllocatedCommandBuffer&)>& commands,
+      CommandType command_type, const TaskType& commands,
       std::uint32_t use_render_resource_count,
       const std::vector<MM::RenderSystem::WaitAllocatedSemaphore>&
           wait_semaphores,
@@ -36,9 +39,7 @@ class CommandTaskFlow {
    * \remark The commands must not contain VkQueueSubmit().
    */
   CommandTask& AddTask(
-      CommandType command_type,
-      const std::vector<
-          std::function<ExecuteResult(AllocatedCommandBuffer& cmd)>>& commands,
+      CommandType command_type, const std::vector<TaskType>& commands,
       std::uint32_t use_render_resource_count,
       const std::vector<WaitAllocatedSemaphore>& wait_semaphores,
       const std::vector<AllocateSemaphore>& signal_semaphores);
