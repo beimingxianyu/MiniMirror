@@ -45,4 +45,5 @@
 /CMakeSettings.json
 /cmake-build-debug/
 /.idea
+/.vscode
 /source_trail/
