@@ -334,15 +334,18 @@ class Result {
 
   bool IsError() const { return !result_wrapper_.Success(); }
 
-  void IsSuccess(bool& result) const { return result_wrapper_.Success(); }
+  void IsSuccess(bool& result) const { result = result_wrapper_.Success(); }
 
-  void IsError(bool) const { return !result_wrapper_.Success(); }
+  void IsError(bool& result) const { result = !result_wrapper_.Success(); }
 
  private:
-  template <typename ResultTypeIn, typename ErrorTypeIn,
+  template <typename ResultTypeIn, typename ErrorTypeIn, bool IsRValueReference,
             typename ErrorTypeInIsBaseOnErrorTypeBase = std::enable_if_t<
                 std::is_base_of_v<ErrorTypeBase, ErrorTypeIn>, void>>
-  class ResultWrapper {
+  class ResultWrapper;
+
+  template <typename ResultTypeIn, typename ErrorTypeIn>
+  class ResultWrapper<ResultTypeIn, ErrorTypeIn, false, void> {
    public:
     ResultWrapper() = delete;
     ~ResultWrapper() {
@@ -654,7 +657,321 @@ class Result {
 #endif
   };
 
+  template <typename ResultTypeIn, typename ErrorTypeIn>
+  class ResultWrapper<ResultTypeIn, ErrorTypeIn, true, void> {
+   public:
+    ResultWrapper() = delete;
+    ~ResultWrapper() {
+#ifdef MM_CHECK_ALL_EXCEPTION_PROCESS
+      if (!exception_processed_) {
+        std::cout << "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n"
+                  << "!!!!!!!!!!! Have exception not processed !!!!!!!!!!!\n"
+                  << "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+                  << std::endl;
+        abort();
+      }
+#endif
+    };
+    explicit ResultWrapper(const ResultType& result)
+        : result_(result),
+          error_()
+#ifdef MM_CHECK_ALL_EXCEPTION_PROCESS
+          ,
+          exception_processed_(true)
+#endif
+    {
+    }
+    explicit ResultWrapper(ResultType&& result)
+        : result_(result),
+          error_()
+#ifdef MM_CHECK_ALL_EXCEPTION_PROCESS
+          ,
+          exception_processed_(true)
+#endif
+    {
+    }
+    explicit ResultWrapper(const ErrorType& error)
+        : result_(),
+          error_(error)
+#ifdef MM_CHECK_ALL_EXCEPTION_PROCESS
+          ,
+          exception_processed_(false)
+#endif
+    {
+    }
+    explicit ResultWrapper(ErrorType&& error)
+        : result_(),
+          error_(std::move(error))
+#ifdef MM_CHECK_ALL_EXCEPTION_PROCESS
+          ,
+          exception_processed_(false)
+#endif
+    {
+    }
+    template <typename... Args>
+    explicit ResultWrapper(StaticTrait::Success, Args... args)
+        : result_(args...),
+          error_()
+#ifdef MM_CHECK_ALL_EXCEPTION_PROCESS
+          ,
+          exception_processed_(true)
+#endif
+    {
+    }
+    template <typename... Args>
+    explicit ResultWrapper(StaticTrait::Error, Args... args)
+        : result_(),
+          error_(std::forward<Args>(args)...)
+#ifdef MM_CHECK_ALL_EXCEPTION_PROCESS
+          ,
+          exception_processed_(false)
+#endif
+    {
+    }
+    ResultWrapper(const ResultWrapper& other) = default;
+    ResultWrapper(ResultWrapper&& other) noexcept
+        : result_(other.result_),
+          error_(std::move(other.error_))
+#ifdef MM_CHECK_ALL_EXCEPTION_PROCESS
+          ,
+          exception_processed_(other.exception_processed_)
+#endif
+    {
+#ifdef MM_CHECK_ALL_EXCEPTION_PROCESS
+      other.exception_processed_ = true;
+#endif
+    }
+    ResultWrapper& operator=(const ResultWrapper& other) {
+      if (std::addressof(other) == this) {
+        return *this;
+      }
+
+#ifdef MM_CHECK_ALL_EXCEPTION_PROCESS
+      if (!exception_processed_) {
+        std::cout << "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n"
+                  << "!!!!!!!!!!! Have exception not processed !!!!!!!!!!!\n"
+                  << "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+                  << std::endl;
+        abort();
+      }
+#endif
+
+      result_ = other.result_;
+      error_ = other.error_;
+#ifdef MM_CHECK_ALL_EXCEPTION_PROCESS
+      exception_processed_ = other.exception_processed_;
+#endif
+
+      return *this;
+    }
+    ResultWrapper& operator=(ResultWrapper&& other) noexcept {
+      if (std::addressof(other) == this) {
+        return *this;
+      }
+
+#ifdef MM_CHECK_ALL_EXCEPTION_PROCESS
+      if (!exception_processed_) {
+        std::cout << "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n"
+                  << "!!!!!!!!!!! Have exception not processed !!!!!!!!!!!\n"
+                  << "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+                  << std::endl;
+        abort();
+      }
+#endif
+
+      result_ = other.result_;
+      error_ = std::move(other.error_);
+#ifdef MM_CHECK_ALL_EXCEPTION_PROCESS
+      exception_processed_ = other.exception_processed_;
+      other.exception_processed_ = true;
+#endif
+
+      return *this;
+    }
+
+   public:
+    explicit operator bool() const { return error_.IsSuccess(); }
+
+   public:
+    ErrorTypeIn& GetError() { return error_; }
+
+    const ErrorTypeIn& GetError() const { return error_; }
+
+    ResultTypeIn& GetResult() { return result_; }
+
+    const ResultTypeIn& GetResult() const { return result_; }
+
+    void IgnoreException() {
+#ifdef MM_CHECK_ALL_EXCEPTION_PROCESS
+      exception_processed_ = true;
+#endif
+    }
+
+    void Exception() {
+      if (error_.IsSuccess()) {
+        return;
+      }
+
+      error_.Exception();
+
+      IgnoreException();
+    }
+
+    void Exception() const {
+      if (error_.IsSuccess()) {
+        return;
+      }
+
+      error_.Exception();
+
+      IgnoreException();
+    }
+
+    void Exception(void callback()) const {
+      if (error_.IsSuccess()) {
+        return;
+      }
+
+      error_.Exception();
+      callback();
+
+      IgnoreException();
+    }
+
+    void Exception(void callback(ResultType&, const ErrorType&)) {
+      if (error_.IsSuccess()) {
+        return;
+      }
+
+      error_.Exception();
+      callback(result_, error_);
+
+      IgnoreException();
+    }
+
+    void Exception(void callback(ErrorType&)) {
+      if (error_.IsSuccess()) {
+        return;
+      }
+
+      error_.Exception();
+      callback(error_);
+
+      IgnoreException();
+    }
+
+    void Exception(void callback(const ErrorType&)) {
+      if (error_.IsSuccess()) {
+        return;
+      }
+
+      error_.Exception();
+      callback(error_);
+
+      IgnoreException();
+    }
+
+    void Exception(void callback(const ErrorType&)) const {
+      if (error_.IsSuccess()) {
+        return;
+      }
+
+      error_.Exception();
+      callback(error_);
+
+      IgnoreException();
+    }
+
+    template <typename CallbackType>
+    void Exception(CallbackType&& callback) {
+      constexpr bool callback_signature1 =
+          std::is_invocable_v<CallbackType, ResultType&, const ErrorType&>;
+      constexpr bool callback_signature2 =
+          std::is_invocable_v<CallbackType, ErrorType&>;
+      constexpr bool callback_signature3 =
+          std::is_invocable_v<CallbackType, const ErrorType&>;
+      constexpr bool callback_signature4 =
+          std::is_invocable_v<CallbackType, ErrorType>;
+      constexpr bool callback_signature5 =
+          std::is_invocable_v<CallbackType, ResultType&, ErrorType>;
+      constexpr bool callback_signature6 =
+          std::is_invocable_v<CallbackType, ResultType&>;
+      constexpr bool callback_signature7 = std::is_invocable_v<CallbackType>;
+
+      static_assert(callback_signature1 || callback_signature2 ||
+                        callback_signature3 || callback_signature4 ||
+                        callback_signature5 || callback_signature6 ||
+                        callback_signature7,
+                    "Callback signature is invalid.");
+
+      if (error_.IsSuccess()) {
+        return;
+      }
+
+      error_.Exception();
+
+      if constexpr (callback_signature1 || callback_signature5) {
+        callback(result_, error_);
+
+        IgnoreException();
+        return;
+      } else if constexpr (callback_signature2) {
+        callback(error_);
+
+        IgnoreException();
+        return;
+      } else if constexpr (callback_signature3 || callback_signature4) {
+        callback(error_);
+
+        IgnoreException();
+        return;
+      } else if constexpr (callback_signature6) {
+        callback(result_);
+
+        IgnoreException();
+        return;
+      } else if constexpr (callback_signature7) {
+        callback();
+
+        IgnoreException();
+        return;
+      }
+    }
+
+    template <typename CallBackType>
+    void Exception(CallBackType&& callback) const {
+      constexpr bool callback_signature1 =
+          std::is_invocable_v<CallBackType, const ErrorType&>;
+      constexpr bool callback_signature2 =
+          std::is_invocable_v<CallBackType, ErrorType>;
+      constexpr bool callback_signature3 = std::is_invocable_v<CallBackType>;
+      static_assert(
+          callback_signature1 || callback_signature2 || callback_signature3,
+          "Callback signature is invalid.");
+
+      if constexpr (callback_signature1 || callback_signature2) {
+        error_.Exception();
+        callback(error_);
+      } else {
+        callback();
+      }
+
+      IgnoreException();
+    }
+
+    bool Success() const { return error_.IsSuccess(); }
+
+   private:
+    ResultType result_{};
+    ErrorType error_{};
+
+#ifdef MM_CHECK_ALL_EXCEPTION_PROCESS
+    bool exception_processed_{false};
+#endif
+  };
+
  private:
-  ResultWrapper<ResultType, ErrorType> result_wrapper_{};
+  ResultWrapper<ResultType, ErrorType, std::is_lvalue_reference_v<ResultType>>
+      result_wrapper_{};
 };
 }  // namespace MM

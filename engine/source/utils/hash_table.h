@@ -7,7 +7,6 @@
 #include <mutex>
 #include <shared_mutex>
 
-#include "runtime/platform/base/cross_platform_header.h"
 #include "utils.h"
 #include "utils/error.h"
 #include "utils/type_utils.h"
@@ -186,14 +185,17 @@ class HashTable {
 
   Result<Nil, ErrorResult> Erase(const ObjectType* object_ptr) {
     if (object_ptr == nullptr) {
-       return Result<Nil, ErrorResult>(st_execute_error, ErrorCode::INPUT_PARAMETERS_ARE_NOT_SUITABLE);
+      return Result<Nil, ErrorResult>(
+          st_execute_error, ErrorCode::INPUT_PARAMETERS_ARE_NOT_SUITABLE);
     }
 
     std::uint64_t hash_code = GetObjectHash(*object_ptr);
 
     std::uint64_t data_offset = hash_code % bucket_count_;
     if (data_[data_offset].object_ == nullptr) {
-        return Result<Nil, ErrorResult>(st_execute_error, ErrorCode::PARENT_OBJECT_NOT_CONTAIN_SPECIFIC_CHILD_OBJECT);
+      return Result<Nil, ErrorResult>(
+          st_execute_error,
+          ErrorCode::PARENT_OBJECT_NOT_CONTAIN_SPECIFIC_CHILD_OBJECT);
     }
 
     Node* first_node = &data_[data_offset];
@@ -222,10 +224,12 @@ class HashTable {
       delete old_next_node;
       --size_;
 
-        return Result<Nil, ErrorResult>{st_execute_success};
+      return Result<Nil, ErrorResult>{st_execute_success};
     }
 
-      return Result<Nil, ErrorResult>(st_execute_error, ErrorCode::PARENT_OBJECT_NOT_CONTAIN_SPECIFIC_CHILD_OBJECT);
+    return Result<Nil, ErrorResult>(
+        st_execute_error,
+        ErrorCode::PARENT_OBJECT_NOT_CONTAIN_SPECIFIC_CHILD_OBJECT);
   }
 
   Result<Nil, ErrorResult> Erase(ObjectType* object_ptr) {
@@ -722,7 +726,7 @@ class ConcurrentHashTable {
 #else
     std::shared_lock<std::shared_mutex>
 #endif
-       guard0{other.data_mutex0_, std::adopt_lock},
+        guard0{other.data_mutex0_, std::adopt_lock},
         guard1{other.data_mutex1_, std::adopt_lock},
         guard2{other.data_mutex2_, std::adopt_lock},
         guard3{other.data_mutex3_, std::adopt_lock},
@@ -800,9 +804,9 @@ class ConcurrentHashTable {
               other.data_mutex15_);
     LockAllGuard main_guard{*this, std::adopt_lock};
 #if MM_COMPILER == MM_COMPILER_MSVC
-      std::lock_guard<std::shared_mutex>
+    std::lock_guard<std::shared_mutex>
 #else
-      std::shared_lock<std::shared_mutex>
+    std::shared_lock<std::shared_mutex>
 #endif
         guard0{other.data_mutex0_, std::adopt_lock},
         guard1{other.data_mutex1_, std::adopt_lock},
@@ -928,7 +932,8 @@ class ConcurrentHashTable {
 
   Result<Nil, ErrorResult> Erase(ObjectType* object_ptr) {
     if (object_ptr == nullptr) {
-       return Result<Nil, ErrorResult>(st_execute_error, ErrorCode::INPUT_PARAMETERS_ARE_NOT_SUITABLE);
+      return Result<Nil, ErrorResult>(
+          st_execute_error, ErrorCode::INPUT_PARAMETERS_ARE_NOT_SUITABLE);
     }
 
     std::uint64_t hash_code = GetObjectHash(*object_ptr);
@@ -942,7 +947,9 @@ class ConcurrentHashTable {
 
     std::uint64_t data_offset = hash_code % bucket_count_;
     if (data_[data_offset].object_ == nullptr) {
-        return Result<Nil, ErrorResult>(st_execute_error, ErrorCode::PARENT_OBJECT_NOT_CONTAIN_SPECIFIC_CHILD_OBJECT);
+      return Result<Nil, ErrorResult>(
+          st_execute_error,
+          ErrorCode::PARENT_OBJECT_NOT_CONTAIN_SPECIFIC_CHILD_OBJECT);
     }
 
     Node* first_node = &data_[data_offset];
@@ -956,7 +963,7 @@ class ConcurrentHashTable {
       }
       size_.fetch_sub(1, std::memory_order_relaxed);
 
-     return Result<Nil, ErrorResult>(st_execute_success);
+      return Result<Nil, ErrorResult>(st_execute_success);
     }
 
     while (first_node->next_node_ != nullptr &&
@@ -971,16 +978,18 @@ class ConcurrentHashTable {
       delete old_next_node;
       size_.fetch_sub(1, std::memory_order_relaxed);
 
-        return Result<Nil, ErrorResult>(st_execute_success);
+      return Result<Nil, ErrorResult>(st_execute_success);
     }
 
-
-      return Result<Nil, ErrorResult>(st_execute_error, ErrorCode::PARENT_OBJECT_NOT_CONTAIN_SPECIFIC_CHILD_OBJECT);
+    return Result<Nil, ErrorResult>(
+        st_execute_error,
+        ErrorCode::PARENT_OBJECT_NOT_CONTAIN_SPECIFIC_CHILD_OBJECT);
   }
 
   Result<Nil, ErrorResult> Erase(const ObjectType* object_ptr) {
     if (object_ptr == nullptr) {
-        return Result<Nil, ErrorResult>(st_execute_error, ErrorCode::INPUT_PARAMETERS_ARE_NOT_SUITABLE);
+      return Result<Nil, ErrorResult>(
+          st_execute_error, ErrorCode::INPUT_PARAMETERS_ARE_NOT_SUITABLE);
     }
 
     std::uint64_t hash_code = GetObjectHash(*object_ptr);
@@ -994,7 +1003,9 @@ class ConcurrentHashTable {
 
     std::uint64_t data_offset = hash_code % bucket_count_;
     if (data_[data_offset].object_ == nullptr) {
-        return Result<Nil, ErrorResult>(st_execute_error, ErrorCode::PARENT_OBJECT_NOT_CONTAIN_SPECIFIC_CHILD_OBJECT);
+      return Result<Nil, ErrorResult>(
+          st_execute_error,
+          ErrorCode::PARENT_OBJECT_NOT_CONTAIN_SPECIFIC_CHILD_OBJECT);
     }
 
     Node* first_node = &data_[data_offset];
@@ -1008,7 +1019,7 @@ class ConcurrentHashTable {
       }
       size_.fetch_sub(1, std::memory_order_relaxed);
 
-        return Result<Nil, ErrorResult>(st_execute_success);
+      return Result<Nil, ErrorResult>(st_execute_success);
     }
 
     while (first_node->next_node_ != nullptr &&
@@ -1023,10 +1034,12 @@ class ConcurrentHashTable {
       delete old_next_node;
       size_.fetch_sub(1, std::memory_order_relaxed);
 
-        return Result<Nil, ErrorResult>(st_execute_success);
+      return Result<Nil, ErrorResult>(st_execute_success);
     }
 
-      return Result<Nil, ErrorResult>(st_execute_error, ErrorCode::PARENT_OBJECT_NOT_CONTAIN_SPECIFIC_CHILD_OBJECT);
+    return Result<Nil, ErrorResult>(
+        st_execute_error,
+        ErrorCode::PARENT_OBJECT_NOT_CONTAIN_SPECIFIC_CHILD_OBJECT);
   }
 
   template <typename K>
