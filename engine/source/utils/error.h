@@ -144,6 +144,8 @@ class ResultS {
  public:
   ResultS() = default;
   ~ResultS() = default;
+  explicit ResultS(const ResultTypeArg& result) : result_(result) {}
+  explicit ResultS(ResultTypeArg&& result) : result_(std::move(result)) {}
   template <typename... Args>
   explicit ResultS(Args... args) : result_(std::forward<Args>(args)...) {}
   ResultS(const ResultS& other) : result_(other.result_) {}
@@ -327,7 +329,10 @@ class Result {
     return *this;
   }
 
-  void IgnoreException() { result_wrapper_.IgnoreException(); }
+  Result& IgnoreException() {
+    result_wrapper_.IgnoreException();
+    return *this;
+  }
 
   bool IsSuccess() const { return result_wrapper_.Success(); }
 

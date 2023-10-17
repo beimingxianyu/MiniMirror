@@ -6,15 +6,24 @@
 
 #include "runtime/function/render/CommandTask.h"
 
-MM::RenderSystem::CommandTaskFlow::CommandTaskFlow(
-    CommandTaskFlow&& other) noexcept {
-  std::lock(task_sync_, other.task_sync_);
-  std::lock_guard<std::shared_mutex> guard1(task_sync_, std::adopt_lock);
-  std::lock_guard<std::shared_mutex> guard2(other.task_sync_, std::adopt_lock);
+std::atomic<MM::RenderSystem::CommandTaskFlowID>
+    MM::RenderSystem::CommandTaskFlow::current_command_task_flow_ID_{1};
 
-  root_tasks_ = std::move(other.root_tasks_);
-  tasks_ = std::move(other.tasks_);
-  task_numbers_ = other.task_numbers_;
+MM::RenderSystem::CommandTaskFlow::CommandTaskFlow()
+    : task_flow_ID_(current_command_task_flow_ID_.fetch_add(
+          2, std::memory_order_acq_rel)),
+      root_command_task_IDs_(),
+      tasks_(),
+      task_numbers_{0, 0, 0} {}
+
+MM::RenderSystem::CommandTaskFlow::CommandTaskFlow(
+    CommandTaskFlow&& other) noexcept
+    : task_flow_ID_(other.task_flow_ID_),
+      root_command_task_IDs_(std::move(other.root_command_task_IDs_)),
+      tasks_(std::move(other.tasks_)),
+      task_numbers_(std::move(other.task_numbers_)) {
+  other.task_flow_ID_ = 0;
+  std::fill(other.task_numbers_.begin(), other.task_numbers_.end(), 0);
 }
 
 MM::RenderSystem::CommandTaskFlow& MM::RenderSystem::CommandTaskFlow::operator=(
@@ -22,33 +31,27 @@ MM::RenderSystem::CommandTaskFlow& MM::RenderSystem::CommandTaskFlow::operator=(
   if (&other == this) {
     return *this;
   }
-  std::lock(task_sync_, other.task_sync_);
-  std::lock_guard<std::shared_mutex> guard1(task_sync_, std::adopt_lock);
-  std::lock_guard<std::shared_mutex> guard2(other.task_sync_, std::adopt_lock);
 
-  root_tasks_ = std::move(other.root_tasks_);
+  task_flow_ID_ = other.task_flow_ID_;
+  root_command_task_IDs_ = std::move(other.root_command_task_IDs_);
   tasks_ = std::move(other.tasks_);
-  task_numbers_ = other.task_numbers_;
+  task_numbers_ = std::move(other.task_numbers_);
+
+  other.task_flow_ID_ = 0;
+  std::fill(other.task_numbers_.begin(), other.task_numbers_.end(), 0);
 
   return *this;
 }
 
 MM::RenderSystem::CommandTask& MM::RenderSystem::CommandTaskFlow::AddTask(
-    CommandType command_type, const TaskType& commands,
-    std::uint32_t use_render_resource_count,
-    const std::vector<MM::RenderSystem::WaitAllocatedSemaphore>&
-        wait_semaphores,
-    const std::vector<MM::RenderSystem::AllocateSemaphore>& signal_semaphores) {
-  assert(command_type != CommandType::UNDEFINED);
+    CommandType command_type, const TaskType& commands, bool is_async_record) {
+  assert(command_type != CommandType::UNDEFINED && IsValid());
   const std::vector<TaskType> temp{commands};
-  std::unique_lock<std::shared_mutex> guard(task_sync_);
 
-  tasks_.emplace_back(std::unique_ptr<CommandTask>(new CommandTask(
-      this, ++increase_task_ID_, command_type, temp, use_render_resource_count,
-      wait_semaphores, signal_semaphores)));
+  CommandTask new_command_task(this, command_type, temp, is_async_record);
+  tasks_.emplace_back(std::move(new_command_task));
 
-  root_tasks_.emplace_back(&(tasks_.back()));
-  tasks_.back()->this_unique_ptr_ = &(tasks_.back());
+  root_command_task_IDs_.emplace_back(tasks_.back().GetCommandTaskID());
 
   switch (command_type) {
     case CommandType::GRAPH:
@@ -62,24 +65,18 @@ MM::RenderSystem::CommandTask& MM::RenderSystem::CommandTaskFlow::AddTask(
       break;
   }
 
-  return *tasks_.back();
+  return tasks_.back();
 }
 
 MM::RenderSystem::CommandTask& MM::RenderSystem::CommandTaskFlow::AddTask(
     CommandType command_type, const std::vector<TaskType>& commands,
-    std::uint32_t use_render_resource_count,
-    const std::vector<WaitAllocatedSemaphore>& wait_semaphores,
-    const std::vector<AllocateSemaphore>& signal_semaphores) {
-  assert(!commands.empty());
+    bool is_async_record) {
+  assert(!commands.empty() && IsValid());
 
-  std::unique_lock<std::shared_mutex> guard(task_sync_);
+  CommandTask new_command_task(this, command_type, commands, is_async_record);
+  tasks_.emplace_back(std::move(new_command_task));
 
-  tasks_.emplace_back(std::unique_ptr<CommandTask>(new CommandTask(
-      this, ++increase_task_ID_, command_type, commands,
-      use_render_resource_count, wait_semaphores, signal_semaphores)));
-
-  root_tasks_.emplace_back(&(tasks_.back()));
-  tasks_.back()->this_unique_ptr_ = &(tasks_.back());
+  root_command_task_IDs_.emplace_back(tasks_.back().GetCommandTaskID());
 
   switch (command_type) {
     case CommandType::GRAPH:
@@ -93,126 +90,293 @@ MM::RenderSystem::CommandTask& MM::RenderSystem::CommandTaskFlow::AddTask(
       break;
   }
 
-  return *tasks_.back();
+  return tasks_.back();
 }
 
 std::uint32_t MM::RenderSystem::CommandTaskFlow::GetTaskNumber() const {
+  assert(IsValid());
   return task_numbers_.at(0) + task_numbers_.at(1) + task_numbers_.at(2);
 }
 
 std::uint32_t MM::RenderSystem::CommandTaskFlow::GetGraphNumber() const {
+  assert(IsValid());
   return task_numbers_.at(0);
 }
 
 std::uint32_t MM::RenderSystem::CommandTaskFlow::GetComputeNumber() const {
+  assert(IsValid());
   return task_numbers_.at(1);
 }
 
 std::uint32_t MM::RenderSystem::CommandTaskFlow::GetTransformNumber() const {
+  assert(IsValid());
   return task_numbers_.at(2);
 }
 
 bool MM::RenderSystem::CommandTaskFlow::IsRootTask(
-    const CommandTask& command_task) const {
-  return std::find(root_tasks_.begin(), root_tasks_.end(),
-                   command_task.this_unique_ptr_) != root_tasks_.end();
+    MM::RenderSystem::CommandTaskID command_task_ID) const {
+  assert(IsValid());
+  return std::find(root_command_task_IDs_.begin(), root_command_task_IDs_.end(),
+                   command_task_ID) != root_command_task_IDs_.end();
 }
 
 void MM::RenderSystem::CommandTaskFlow::Clear() {
-  root_tasks_.clear();
+  root_command_task_IDs_.clear();
   tasks_.clear();
   task_numbers_.fill(0);
 }
 
 bool MM::RenderSystem::CommandTaskFlow::HaveRing() const {
+  assert(IsValid());
   std::uint32_t task_count = GetTaskNumber();
   if (task_count == 0 || task_count == 1) {
     return false;
   }
 
-  const std::vector<CommandTaskEdge> command_task_edges = GetCommandTaskEdges();
-
-  std::unordered_map<const std::unique_ptr<CommandTask>*, std::uint32_t>
-      penetrations;
-  for (const auto& task_edge : command_task_edges) {
-    ++penetrations[task_edge.end_command_task_];
-  }
-
-  std::stack<const std::unique_ptr<CommandTask>*> penetration_zero;
-
-  for (const auto& count : penetrations) {
-    if (count.second == 0) {
-      penetration_zero.push(count.first);
+  std::unordered_set<CommandTaskID> old_command_task_ID{};
+  for (CommandTaskID root_command_task_ID : root_command_task_IDs_) {
+    if (!HaveRingImp(old_command_task_ID, root_command_task_ID)) {
+      return false;
     }
   }
 
-  task_count -= task_count - penetrations.size();
-  task_count -= penetration_zero.size();
-  if (task_count == 0) {
-    return true;
-  }
+  return true;
+}
 
-  while (!penetration_zero.empty()) {
-    const std::unique_ptr<CommandTask>* no_penetration_task =
-        penetration_zero.top();
-    penetration_zero.pop();
-    for (const auto& post_task : (*no_penetration_task)->post_tasks_) {
-      if (--penetrations[post_task] == 0) {
-        penetration_zero.push(post_task);
-        --task_count;
-      }
+bool MM::RenderSystem::CommandTaskFlow::HaveRingImp(
+    std::unordered_set<CommandTaskID>& old_command_task_ID,
+    MM::RenderSystem::CommandTaskID current_command_task_ID) const {
+  if (old_command_task_ID.count(current_command_task_ID)) {
+    return false;
+  }
+  old_command_task_ID.insert(current_command_task_ID);
+
+  Result<std::vector<const CommandTask*>, ErrorResult> sub_cemmand_tasks =
+      GetSubCommandTask(current_command_task_ID);
+  assert(sub_cemmand_tasks.IgnoreException().IsSuccess());
+
+  for (const CommandTask* sub_command_task : sub_cemmand_tasks.GetResult()) {
+    if (!HaveRingImp(old_command_task_ID,
+                     sub_command_task->GetCommandTaskID())) {
+      return false;
     }
   }
 
-  return task_count == 0;
+  old_command_task_ID.erase(current_command_task_ID);
+
+  return true;
 }
 
 bool MM::RenderSystem::CommandTaskFlow::IsValid() const {
-  return GetTaskNumber() != 0 && !HaveRing();
+  return task_flow_ID_ != 0;
 }
 
-MM::RenderSystem::CommandTaskFlow::CommandTaskEdge::CommandTaskEdge(
-    const std::unique_ptr<CommandTask>* start,
-    const std::unique_ptr<CommandTask>* end)
-    : start_command_task_(start), end_command_task_(end) {}
-
-bool MM::RenderSystem::CommandTaskFlow::CommandTaskEdge::operator<(
-    const CommandTaskEdge& other) const {
-  return start_command_task_ < other.start_command_task_ &&
-         end_command_task_ < other.end_command_task_;
-}
-
-void MM::RenderSystem::CommandTaskFlow::RemoveRootTask(
-    const CommandTask& command_task) {
-  const auto target_task = std::find(root_tasks_.begin(), root_tasks_.end(),
-                                     command_task.this_unique_ptr_);
-  if (target_task == root_tasks_.end()) {
-    return;
-  }
-  root_tasks_.erase(target_task);
-}
-
-std::vector<MM::RenderSystem::CommandTaskFlow::CommandTaskEdge>
-MM::RenderSystem ::CommandTaskFlow::GetCommandTaskEdges() const {
-  std::vector<CommandTaskEdge> command_task_edges;
-  for (const auto& task : tasks_) {
-    if (task->is_sub_task_) {
-      continue;
-    }
-    for (const auto& last_task : task->post_tasks_) {
-      command_task_edges.emplace_back(&task, last_task);
+MM::Result<const std::vector<MM::RenderSystem::TaskType>*, MM::ErrorResult>
+MM::RenderSystem::CommandTaskFlow::GetCommands(
+    MM::RenderSystem::CommandTaskID command_task_ID) const {
+  assert(IsValid());
+  for (const CommandTask& command_task : tasks_) {
+    if (command_task_ID == command_task.GetCommandTaskID()) {
+      return Result<const std::vector<TaskType>*>{&command_task.GetCommands()};
     }
   }
 
-  return command_task_edges;
+  return ResultE<>{ErrorCode::PARENT_OBJECT_NOT_CONTAIN_SPECIFIC_CHILD_OBJECT};
 }
 
-void MM::RenderSystem::CommandTaskFlow::RemoveTask(CommandTask& command_task) {
-  for (auto iter = tasks_.begin(); iter != tasks_.end();) {
-    if (&(*iter) == command_task.this_unique_ptr_) {
-      iter = tasks_.erase(iter);
-      continue;
+MM::Result<std::vector<const MM::RenderSystem::TaskType*>, MM::ErrorResult>
+MM::RenderSystem::CommandTaskFlow::GetCommandsIncludeSubCommandTask(
+    MM::RenderSystem::CommandTaskID command_task_ID) const {
+  assert(IsValid());
+  for (const CommandTask& command_task : tasks_) {
+    if (command_task_ID == command_task.GetCommandTaskID()) {
+      std::vector<const TaskType*> result{};
+      if (command_task.HaveSubCommandTasks()) {
+        result.reserve(command_task.GetCommands().size() * 2);
+      } else {
+        result.reserve(command_task.GetCommands().size());
+      }
+      const std::vector<TaskType>& main_commands = command_task.GetCommands();
+      for (const auto& main_command : main_commands) {
+        result.emplace_back(&main_command);
+      }
+
+      for (const auto& sub_command_task : command_task.GetSubCommandTasks()) {
+        const std::vector<TaskType>& sub_commands =
+            sub_command_task->GetCommands();
+        for (const auto& sub_command : sub_commands) {
+          result.emplace_back(&sub_command);
+        }
+      }
+
+      return ResultS<std::vector<const TaskType*>>{std::move(result)};
     }
-    ++iter;
   }
+
+  return ResultE<>{ErrorCode::PARENT_OBJECT_NOT_CONTAIN_SPECIFIC_CHILD_OBJECT};
 }
+
+MM::Result<const MM::RenderSystem::CommandTask*, MM::ErrorResult>
+MM::RenderSystem::CommandTaskFlow::GetCommandTask(
+    MM::RenderSystem::CommandTaskID command_task_ID) const {
+  assert(IsValid());
+  for (const CommandTask& command_task : tasks_) {
+    if (command_task_ID == command_task.GetCommandTaskID()) {
+      return ResultS{&command_task};
+    }
+  }
+
+  return ResultE<>{ErrorCode::PARENT_OBJECT_NOT_CONTAIN_SPECIFIC_CHILD_OBJECT};
+}
+
+MM::Result<std::vector<const MM::RenderSystem::CommandTask*>, MM::ErrorResult>
+MM::RenderSystem::CommandTaskFlow::GetSubCommandTask(
+    MM::RenderSystem::CommandTaskID command_task_ID) const {
+  assert(IsValid());
+  Result<const CommandTask*> main_command_task =
+      GetCommandTask(command_task_ID);
+  if (main_command_task
+          .Exception(MM_ERROR_DESCRIPTION(
+              Failed to get main MM::RenderSystem::CommandTask.))
+          .IsError()) {
+    return ResultE<>{main_command_task.GetError().GetErrorCode()};
+  }
+
+  const std::vector<CommandTaskID>& sub_task_IDs =
+      main_command_task.GetResult()->sub_tasks_;
+  std::vector<const CommandTask*> result{};
+  result.reserve(sub_task_IDs.size());
+  for (CommandTaskID sub_task_ID : sub_task_IDs) {
+    Result<const CommandTask*> sub_command_task = GetCommandTask(sub_task_ID);
+    assert(sub_command_task.IgnoreException().IsSuccess());
+    result.emplace_back(sub_command_task.GetResult());
+  }
+
+  return ResultS{std::move(result)};
+}
+
+MM::Result<uint32_t, MM::ErrorResult>
+MM::RenderSystem::CommandTaskFlow::GetRequireCommandBufferNumber(
+    MM::RenderSystem::CommandTaskID command_task_ID) const {
+  assert(IsValid());
+  Result<const CommandTask*> command_task = GetCommandTask(command_task_ID);
+  if (command_task
+          .Exception(MM_ERROR_DESCRIPTION(
+              Failed to get MM::RenderSystem::CommandTask.))
+          .IsError()) {
+    return ResultE<>{command_task.GetError().GetErrorCode()};
+  }
+
+  return ResultS{command_task.GetResult()->GetRequireCommandBufferNumber()};
+}
+
+MM::Result<std::vector<const MM::RenderSystem::CommandTask*>, MM::ErrorResult>
+MM::RenderSystem::CommandTaskFlow::GetCommandTaskIncludeSubCommandTask(
+    MM::RenderSystem::CommandTaskID command_task_ID) const {
+  assert(IsValid());
+  Result<const CommandTask*> main_command_task =
+      GetCommandTask(command_task_ID);
+  if (main_command_task
+          .Exception(MM_ERROR_DESCRIPTION(
+              Failed to get main MM::RenderSystem::CommandTask.))
+          .IsError()) {
+    return ResultE<>{main_command_task.GetError().GetErrorCode()};
+  }
+
+  const std::vector<CommandTaskID>& sub_task_IDs =
+      main_command_task.GetResult()->sub_tasks_;
+  std::vector<const CommandTask*> result{};
+  result.reserve(sub_task_IDs.size() + 1);
+  result.emplace_back(main_command_task.GetResult());
+  for (CommandTaskID sub_task_ID : sub_task_IDs) {
+    Result<const CommandTask*> sub_command_task = GetCommandTask(sub_task_ID);
+    assert(sub_command_task.IgnoreException().IsSuccess());
+    result.emplace_back(sub_command_task.GetResult());
+  }
+
+  return ResultS{std::move(result)};
+}
+
+MM::Result<std::vector<const MM::RenderSystem::TaskType*>, MM::ErrorResult>
+MM::RenderSystem::CommandTaskFlow::GetSubCommands(
+    MM::RenderSystem::CommandTaskID command_task_ID) const {
+  assert(IsValid());
+  for (const CommandTask& command_task : tasks_) {
+    if (command_task_ID == command_task.GetCommandTaskID()) {
+      std::vector<const TaskType*> result{};
+
+      for (const auto& sub_command_task : command_task.GetSubCommandTasks()) {
+        const std::vector<TaskType>& sub_commands =
+            sub_command_task->GetCommands();
+        for (const auto& sub_command : sub_commands) {
+          result.emplace_back(&sub_command);
+        }
+      }
+
+      return ResultS<std::vector<const TaskType*>>{std::move(result)};
+    }
+  }
+
+  return ResultE<>{ErrorCode::PARENT_OBJECT_NOT_CONTAIN_SPECIFIC_CHILD_OBJECT};
+}
+
+MM::Result<uint32_t, MM::ErrorResult> MM::RenderSystem::CommandTaskFlow::
+    GetRequireCommandBufferNumberIncludeSubCommandTasks(
+        CommandTaskID command_task_ID) const {
+  assert(IsValid());
+  for (const CommandTask& command_task : tasks_) {
+    if (command_task_ID == command_task.GetCommandTaskID()) {
+      std::uint32_t result = 0;
+      result += command_task.GetRequireCommandBufferNumber();
+
+      for (const auto& sub_command_task : command_task.GetSubCommandTasks()) {
+        result += sub_command_task->GetRequireCommandBufferNumber();
+      }
+
+      return ResultS{result};
+    }
+  }
+
+  return ResultE<>{ErrorCode::PARENT_OBJECT_NOT_CONTAIN_SPECIFIC_CHILD_OBJECT};
+}
+
+MM::Result<uint32_t, MM::ErrorResult>
+MM::RenderSystem::CommandTaskFlow::GetSubCommandTaskRequireCommandBufferNumber(
+    MM::RenderSystem::CommandTaskID command_task_ID) const {
+  assert(IsValid());
+  for (const CommandTask& command_task : tasks_) {
+    if (command_task_ID == command_task.GetCommandTaskID()) {
+      std::uint32_t result = 0;
+
+      for (const auto& sub_command_task : command_task.GetSubCommandTasks()) {
+        result += sub_command_task->GetRequireCommandBufferNumber();
+      }
+
+      return ResultS{result};
+    }
+  }
+
+  return ResultE<>{ErrorCode::PARENT_OBJECT_NOT_CONTAIN_SPECIFIC_CHILD_OBJECT};
+}
+
+// void MM::RenderSystem::CommandTaskFlow::RemoveRootTask(
+//     const CommandTask& command_task) {
+//   const auto target_task = std::find(root_command_task_IDs_.begin(),
+//   root_command_task_IDs_.end(),
+//                                      command_task.this_unique_ptr_);
+//   if (target_task == root_command_task_IDs_.end()) {
+//     return;
+//   }
+//   root_command_task_IDs_.erase(target_task);
+// }
+//
+// void MM::RenderSystem::CommandTaskFlow::RemoveTask(CommandTask& command_task)
+// {
+//   for (auto iter = tasks_.begin(); iter != tasks_.end();) {
+//     if (&(*iter) == command_task.this_unique_ptr_) {
+//       iter = tasks_.erase(iter);
+//       continue;
+//     }
+//     ++iter;
+//   }
+// }

@@ -149,5 +149,10 @@ class AllocatedCommandBuffer {
   CommandBufferInfo command_buffer_info_{};
   std::unique_ptr<AllocatedCommandBufferWrapper> wrapper_{nullptr};
 };
+
+using CommandTaskID = std::uint32_t;
+using CommandTaskFlowID = std::uint32_t;
+using TaskType =
+    std::function<Result<Nil, ErrorResult>(AllocatedCommandBuffer& cmd)>;
 }  // namespace RenderSystem
 }  // namespace MM

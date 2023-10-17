@@ -4,133 +4,91 @@
 
 #include "runtime/function/render/CommandTask.h"
 
-#include "runtime/function/render/CommandTaskFlow.h"
+std::atomic<MM::RenderSystem::CommandTaskID>
+    MM::RenderSystem::CommandTask::current_command_tast_ID_{1};
 
 const MM::RenderSystem::CommandBufferType&
 MM::RenderSystem::CommandTask::GetCommandType() const {
+  assert(IsValid());
   return command_type_;
 }
 
 const MM::RenderSystem::CommandTaskFlow&
 MM::RenderSystem::CommandTask::GetCommandTaskFlow() const {
+  assert(IsValid());
   return *task_flow_;
 }
 
-const std::vector<MM::RenderSystem::CommandTask::TaskType>&
+const std::vector<MM::RenderSystem::TaskType>&
 MM::RenderSystem::CommandTask::GetCommands() const {
+  assert(IsValid());
   return commands_;
 }
 
-std::vector<const MM::RenderSystem::CommandTask::TaskType*>
-MM::RenderSystem::CommandTask::GetCommandsIncludeSubTasks() const {
-  std::vector<const TaskType*> result;
-  result.reserve(commands_.size());
+std::vector<const MM::RenderSystem::TaskType*>
+MM::RenderSystem::CommandTask::GetCommandsIncludeSubCommandTasks() const {
+  assert(IsValid());
+  Result<std::vector<const MM::RenderSystem::TaskType*>> result =
+      task_flow_->GetCommandsIncludeSubCommandTask(command_task_ID_);
+  assert(result.Exception().IsSuccess());
 
-  for (const auto& main_command : commands_) {
-    result.emplace_back(&main_command);
-  }
-
-  for (const auto& sub_task : sub_tasks_) {
-    for (const auto& sub_command : sub_task->commands_) {
-      result.emplace_back(&sub_command);
-    }
-  }
-
-  return result;
+  return result.GetResult();
 }
 
 std::uint32_t MM::RenderSystem::CommandTask::GetRequireCommandBufferNumber()
     const {
+  assert(IsValid());
   return commands_.size();
 }
 
-std::uint32_t
-MM::RenderSystem::CommandTask::GetRequireCommandBufferNumberIncludeSuBTasks()
-    const {
-  std::uint32_t require_command_number = commands_.size();
-  for (const auto& sub_task : sub_tasks_) {
-    require_command_number += sub_task->GetRequireCommandBufferNumber();
-  }
-  return require_command_number;
+std::uint32_t MM::RenderSystem::CommandTask::
+    GetRequireCommandBufferNumberIncludeSubCommandTasks() const {
+  assert(IsValid());
+  Result<std::uint32_t> result =
+      task_flow_->GetRequireCommandBufferNumberIncludeSubCommandTasks(
+          command_task_ID_);
+  assert(result.Exception().IsSuccess());
+
+  return result.GetResult();
 }
 
-const std::vector<MM::RenderSystem::WaitAllocatedSemaphore>&
-MM::RenderSystem::CommandTask::GetWaitSemaphore() const {
-  return wait_semaphore_;
+std::vector<const MM::RenderSystem::CommandTask*>
+MM::RenderSystem::CommandTask::GetSubCommandTasks() const {
+  assert(IsValid());
+  Result<std::vector<const CommandTask*>> result =
+      task_flow_->GetSubCommandTask(command_task_ID_);
+  assert(result.Exception().IsSuccess());
+
+  return result.GetResult();
 }
 
-std::vector<const MM::RenderSystem::WaitAllocatedSemaphore*>
-MM::RenderSystem::CommandTask::GetWaitSemaphoreIncludeSubTasks() const {
-  std::vector<const MM::RenderSystem::WaitAllocatedSemaphore*> result;
-  result.reserve(wait_semaphore_.size());
-
-  for (const auto& main_semaphore : wait_semaphore_) {
-    result.emplace_back(&main_semaphore);
-  }
-
-  for (const auto& sub_task : sub_tasks_) {
-    for (const auto& sub_semaphore : sub_task->wait_semaphore_) {
-      result.emplace_back(&sub_semaphore);
-    }
-  }
-
-  return result;
-}
-
-const std::vector<MM::RenderSystem::AllocateSemaphore>&
-MM::RenderSystem::CommandTask::GetSignalSemaphore() const {
-  return signal_semaphore_;
-}
-
-std::vector<const MM::RenderSystem::AllocateSemaphore*>
-MM::RenderSystem::CommandTask::GetSignalSemaphoreIncludeTasks() const {
-  std::vector<const AllocateSemaphore*> result;
-  result.reserve(signal_semaphore_.size());
-
-  for (const auto& main_semaphore : signal_semaphore_) {
-    result.emplace_back(&main_semaphore);
-  }
-
-  for (const auto& sub_task : sub_tasks_) {
-    for (const auto& sub_semaphore : sub_task->signal_semaphore_) {
-      result.emplace_back(&sub_semaphore);
-    }
-  }
-
-  return result;
-}
-
-const std::vector<std::unique_ptr<MM::RenderSystem::CommandTask>>&
-MM::RenderSystem::CommandTask::GetSubTasks() const {
-  return sub_tasks_;
-}
-
-std::uint32_t MM::RenderSystem::CommandTask::GetSubTasksNumber() const {
+std::uint32_t MM::RenderSystem::CommandTask::GetSubCommandTasksNumber() const {
+  assert(IsValid());
   return sub_tasks_.size();
 }
 
-bool MM::RenderSystem::CommandTask::HaveSubTasks() const {
+bool MM::RenderSystem::CommandTask::HaveSubCommandTasks() const {
+  assert(IsValid());
   return !sub_tasks_.empty();
 }
 
 bool MM::RenderSystem::CommandTask::IsValid() const {
-  return task_flow_ != nullptr && !commands_.empty();
+  return command_task_ID_ != 0;
 }
 
 MM::RenderSystem::CommandTask::CommandTask(
-    CommandTaskFlow* task_flow, uint32_t command_task_ID,
-    const CommandType& command_type, const std::vector<TaskType>& commands,
-    std::uint32_t use_render_resource_count,
-    const std::vector<WaitAllocatedSemaphore>& wait_semaphore,
-    const std::vector<AllocateSemaphore>& signal_semaphore)
+    CommandTaskFlow* task_flow, const CommandType& command_type,
+    const std::vector<TaskType>& commands, bool is_async_record)
     : task_flow_(task_flow),
-      command_task_ID_(command_task_ID),
+      command_task_ID_(
+          current_command_tast_ID_.fetch_add(2, std::memory_order_acq_rel)),
       command_type_(command_type),
       commands_(commands),
-      wait_semaphore_(wait_semaphore),
-      signal_semaphore_(signal_semaphore),
-      use_render_resource_count_(use_render_resource_count),
-      cross_task_flow_sync_render_resource_IDs_() {}
+      is_sub_task_(false),
+      is_async_record_(is_async_record),
+      cross_task_flow_sync_render_resource_IDs_() {
+  assert(task_flow_ != nullptr && task_flow_->IsValid());
+}
 
 void MM::RenderSystem::CommandTask::AddCrossTaskFLowSyncRenderResourceIDs(
     const std::vector<RenderResourceDataID>& render_resource_IDs) {
@@ -149,7 +107,9 @@ void MM::RenderSystem::CommandTask::AddCrossTaskFLowSyncRenderResourceIDs(
       cross_task_flow_sync_render_resource_IDs_.end(),
       render_resource_IDs.begin(), render_resource_IDs.end());
 }
-std::uint32_t MM::RenderSystem::CommandTask::GetCommandTaskID() const {
+
+MM::RenderSystem::CommandTaskID
+MM::RenderSystem::CommandTask::GetCommandTaskID() const {
   return command_task_ID_;
 }
 
@@ -158,13 +118,104 @@ void MM::RenderSystem::CommandTask::AddCrossTaskFLowSyncRenderResourceIDs(
   cross_task_flow_sync_render_resource_IDs_.emplace_back(render_resource_ID);
 }
 
-std::uint32_t MM::RenderSystem::CommandTask::GetUseRenderResourceCount() const {
-  return use_render_resource_count_;
+MM::RenderSystem::CommandTask::CommandTask(
+    MM::RenderSystem::CommandTask&& other) noexcept
+    : task_flow_(other.task_flow_),
+      command_task_ID_(other.command_task_ID_),
+      command_type_(other.command_type_),
+      commands_(std::move(other.commands_)),
+      pre_tasks_(std::move(other.pre_tasks_)),
+      post_tasks_(std::move(other.post_tasks_)),
+      sub_tasks_(std::move(other.sub_tasks_)),
+      is_sub_task_(other.is_sub_task_),
+      is_async_record_(other.is_async_record_),
+      cross_task_flow_sync_render_resource_IDs_(
+          std::move(other.cross_task_flow_sync_render_resource_IDs_)) {
+  other.task_flow_ = nullptr;
+  other.command_task_ID_ = 0;
+  other.command_type_ = CommandType ::UNDEFINED;
+  other.is_sub_task_ = false;
+  other.is_async_record_ = false;
 }
 
-void MM::RenderSystem::CommandTask::SetUseRenderResourceCount(
-    std::uint32_t new_use_render_resource_count) {
-  use_render_resource_count_ = new_use_render_resource_count;
+MM::RenderSystem::CommandTask& MM::RenderSystem::CommandTask::operator=(
+    MM::RenderSystem::CommandTask&& other) noexcept {
+  if (std::addressof(other) == this) {
+    return *this;
+  }
+
+  task_flow_ = other.task_flow_;
+  command_task_ID_ = other.command_task_ID_;
+  command_type_ = other.command_type_;
+  commands_ = std::move(other.commands_);
+  pre_tasks_ = std::move(other.pre_tasks_);
+  post_tasks_ = std::move(other.post_tasks_);
+  sub_tasks_ = std::move(other.sub_tasks_);
+  is_sub_task_ = other.is_sub_task_;
+  is_async_record_ = other.is_async_record_;
+  cross_task_flow_sync_render_resource_IDs_ =
+      std::move(other.cross_task_flow_sync_render_resource_IDs_);
+
+  other.task_flow_ = nullptr;
+  other.command_task_ID_ = 0;
+  other.command_type_ = CommandType ::UNDEFINED;
+  other.is_sub_task_ = false;
+  other.is_async_record_ = false;
+
+  return *this;
+}
+
+bool MM::RenderSystem::CommandTask::IsAsyncRecord() const {
+  return is_async_record_;
+}
+
+void MM::RenderSystem::CommandTask::SetAsyncRecord() {
+  is_async_record_ = true;
+}
+
+void MM::RenderSystem::CommandTask::SetSyncRecord() {
+  is_async_record_ = false;
+}
+
+MM::Result<MM::Nil, MM::ErrorResult>
+MM::RenderSystem::CommandTask::AddPreCommandTask(
+    MM::RenderSystem::CommandTaskID pre_command_task_ID) {
+  assert(IsValid());
+  return task_flow_->AddPreCommandTask(command_task_ID_, pre_command_task_ID);
+}
+
+MM::Result<MM::Nil, MM::ErrorResult>
+MM::RenderSystem::CommandTask::AddPreCommandTask(
+    const std::vector<CommandTaskID>& pre_command_task_IDs) {
+  assert(IsValid());
+  return task_flow_->AddPreCommandTask(command_task_ID_, pre_command_task_IDs);
+}
+
+MM::Result<MM::Nil, MM::ErrorResult>
+MM::RenderSystem::CommandTask::AddPostCommandTask(
+    MM::RenderSystem::CommandTaskID post_command_task_ID) {
+  assert(IsValid());
+  return task_flow_->AddPostCommandTask(command_task_ID_, post_command_task_ID);
+}
+
+MM::Result<MM::Nil, MM::ErrorResult>
+MM::RenderSystem::CommandTask::AddPostCommandTask(
+    const std::vector<CommandTaskID>& post_command_task_IDs) {
+  assert(IsValid());
+  return task_flow_->AddPostCommandTask(command_task_ID_,
+                                        post_command_task_IDs);
+}
+
+MM::Result<MM::Nil, MM::ErrorResult> MM::RenderSystem::CommandTask::Merge(
+    MM::RenderSystem::CommandTaskID sub_command_task_ID) {
+  assert(IsValid());
+  return task_flow_->Merge(command_task_ID_, sub_command_task_ID);
+}
+
+MM::Result<MM::Nil, MM::ErrorResult> MM::RenderSystem::CommandTask::Merge(
+    const std::vector<CommandTaskID>& sub_command_task_IDs) {
+  assert(IsValid());
+  return task_flow_->Merge(command_task_ID_, sub_command_task_IDs);
 }
 
 MM::RenderSystem::CommandTask::~CommandTask() = default;

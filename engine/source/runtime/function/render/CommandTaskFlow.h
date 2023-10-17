@@ -12,11 +12,7 @@ class CommandTaskFlow {
   friend class CommandExecutor;
 
  public:
-  using TaskType =
-      std::function<Result<Nil, ErrorResult>(AllocatedCommandBuffer& cmd)>;
-
- public:
-  CommandTaskFlow() = default;
+  CommandTaskFlow();
   ~CommandTaskFlow() = default;
   CommandTaskFlow(const CommandTaskFlow& other) = delete;
   CommandTaskFlow(CommandTaskFlow&& other) noexcept;
@@ -27,22 +23,44 @@ class CommandTaskFlow {
   /**
    * \remark The commands must not contain VkQueueSubmit().
    */
-  MM::RenderSystem::CommandTask& AddTask(
-      CommandType command_type, const TaskType& commands,
-      std::uint32_t use_render_resource_count,
-      const std::vector<MM::RenderSystem::WaitAllocatedSemaphore>&
-          wait_semaphores,
-      const std::vector<MM::RenderSystem::AllocateSemaphore>&
-          signal_semaphores);
+  CommandTask& AddTask(CommandType command_type, const TaskType& commands,
+                       bool is_async_record);
 
   /**
    * \remark The commands must not contain VkQueueSubmit().
    */
-  CommandTask& AddTask(
-      CommandType command_type, const std::vector<TaskType>& commands,
-      std::uint32_t use_render_resource_count,
-      const std::vector<WaitAllocatedSemaphore>& wait_semaphores,
-      const std::vector<AllocateSemaphore>& signal_semaphores);
+  CommandTask& AddTask(CommandType command_type,
+                       const std::vector<TaskType>& commands,
+                       bool is_async_record);
+
+  Result<const std::vector<TaskType>*, ErrorResult> GetCommands(
+      CommandTaskID command_task_ID) const;
+
+  Result<std::vector<const TaskType*>, ErrorResult> GetSubCommands(
+      CommandTaskID command_task_ID) const;
+
+  Result<std::vector<const TaskType*>, ErrorResult>
+  GetCommandsIncludeSubCommandTask(CommandTaskID command_task_ID) const;
+
+  Result<const CommandTask*, ErrorResult> GetCommandTask(
+      CommandTaskID command_task_ID) const;
+
+  Result<std::vector<const CommandTask*>, ErrorResult> GetSubCommandTask(
+      CommandTaskID command_task_ID) const;
+
+  Result<std::vector<const CommandTask*>, ErrorResult>
+  GetCommandTaskIncludeSubCommandTask(CommandTaskID command_task_ID) const;
+
+  Result<std::uint32_t, ErrorResult> GetRequireCommandBufferNumber(
+      CommandTaskID command_task_ID) const;
+
+  Result<std::uint32_t, ErrorResult>
+  GetSubCommandTaskRequireCommandBufferNumber(
+      CommandTaskID command_task_ID) const;
+
+  Result<std::uint32_t, ErrorResult>
+  GetRequireCommandBufferNumberIncludeSubCommandTasks(
+      CommandTaskID command_task_ID) const;
 
   std::uint32_t GetTaskNumber() const;
 
@@ -52,40 +70,55 @@ class CommandTaskFlow {
 
   std::uint32_t GetTransformNumber() const;
 
-  bool IsRootTask(const CommandTask& command_task) const;
+  bool IsRootTask(CommandTaskID command_task_ID) const;
+
+  Result<Nil, ErrorResult> AddPreCommandTask(CommandTaskID main_command_task_ID,
+                                             CommandTaskID pre_command_task_ID);
+
+  Result<Nil, ErrorResult> AddPreCommandTask(
+      CommandTaskID main_command_task_ID,
+      const std::vector<CommandTaskID>& pre_command_task_IDs);
+
+  Result<Nil, ErrorResult> AddPostCommandTask(
+      CommandTaskID main_command_task_ID, CommandTaskID post_command_task_ID);
+
+  Result<Nil, ErrorResult> AddPostCommandTask(
+      CommandTaskID main_command_task_ID,
+      const std::vector<CommandTaskID>& post_command_task_IDs);
+
+  Result<Nil, ErrorResult> Merge(CommandTaskID main_command_task_ID,
+                                 CommandTaskID sub_command_task_ID);
+
+  Result<Nil, ErrorResult> Merge(
+      CommandTaskID main_command_task_ID,
+      const std::vector<CommandTaskID>& sub_command_task_ID);
 
   void Clear();
 
   bool HaveRing() const;
 
+  bool SubCommandTaskRelationshipIsValid() const;
+
+  bool IsValidSubmissionObject() const;
+
   bool IsValid() const;
 
  private:
-  struct CommandTaskEdge {
-    CommandTaskEdge(const std::unique_ptr<CommandTask>* start,
-                    const std::unique_ptr<CommandTask>* end);
-
-    const std::unique_ptr<CommandTask>* start_command_task_{nullptr};
-    const std::unique_ptr<CommandTask>* end_command_task_{nullptr};
-
-    bool operator<(const CommandTaskEdge& other) const;
-  };
-
   void RemoveRootTask(const CommandTask& command_task);
-
-  std::vector<CommandTaskEdge> GetCommandTaskEdges() const;
 
   void RemoveTask(CommandTask& command_task);
 
+  bool HaveRingImp(std::unordered_set<CommandTaskID>& old_command_task_ID,
+                   CommandTaskID current_command_task_ID) const;
+
  private:
-  std::list<std::unique_ptr<CommandTask>*> root_tasks_{};
-  std::list<std::unique_ptr<CommandTask>> tasks_{};
+  static std::atomic<CommandTaskFlowID> current_command_task_flow_ID_;
+
+  CommandTaskFlowID task_flow_ID_{0};
+  std::vector<CommandTaskID> root_command_task_IDs_{};
+  std::list<CommandTask> tasks_{};
 
   std::array<std::uint32_t, 3> task_numbers_{};
-
-  std::uint32_t increase_task_ID_{0};
-
-  std::shared_mutex task_sync_{};
 };
 }  // namespace RenderSystem
 }  // namespace MM

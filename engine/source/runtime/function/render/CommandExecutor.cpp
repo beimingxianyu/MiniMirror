@@ -711,8 +711,8 @@ MM::RenderSystem::CommandExecutor::CommandTaskFlowToBeRun::
       the_maximum_number_of_transform_buffers_required_for_one_task_(0) {
   for (const auto& task : command_task_flow_.tasks_) {
     std::uint32_t require_command_number =
-        task->HaveSubTasks()
-            ? task->GetRequireCommandBufferNumberIncludeSuBTasks()
+        task->HaveSubCommandTasks()
+            ? task->GetRequireCommandBufferNumberIncludeSubCommandTasks()
             : task->GetRequireCommandBufferNumber();
     if (task->command_type_ == CommandType::GRAPH) {
       if (require_command_number >
@@ -1526,7 +1526,8 @@ void MM::RenderSystem::CommandExecutor::ProcessRootTaskAndSubTask(
     const std::shared_ptr<
         MM::RenderSystem::CommandExecutor::ExecutingCommandTaskFlow>&
         command_task_flow) {
-  for (auto& root_task : command_task_flow->command_task_flow_.root_tasks_) {
+  for (auto& root_task :
+       command_task_flow->command_task_flow_.root_command_task_IDs_) {
     for (auto iter = command_task_flow->command_task_flow_.tasks_.begin();
          iter != command_task_flow->command_task_flow_.tasks_.end();) {
       if (&(*iter) == root_task) {
@@ -1617,7 +1618,7 @@ void MM::RenderSystem::CommandExecutor::ProcessOneCanSubmitTask(
       free_compute_command_buffer_number, free_transform_command_buffer_number);
 
   const std::uint32_t require_command_buffer_numbers =
-      command_task_to_be_submit->command_task_->HaveSubTasks()
+      command_task_to_be_submit->command_task_->HaveSubCommandTasks()
           ? command_task_to_be_submit->require_command_buffer_include_sub_task_
           : command_task_to_be_submit->require_command_buffer_;
 
@@ -2226,7 +2227,8 @@ MM::ExecuteResult MM::RenderSystem::CommandExecutor::RecordAndSubmitCommandSync(
   }
 
   std::vector<VkSubmitInfo> submit_infos;
-  submit_infos.reserve(1 + input_tasks->command_task_->GetSubTasksNumber());
+  submit_infos.reserve(1 +
+                       input_tasks->command_task_->GetSubCommandTasksNumber());
 
   std::vector<std::vector<VkCommandBuffer>> command_buffers;
   command_buffers.reserve(submit_infos.size());
@@ -2301,7 +2303,7 @@ MM::RenderSystem::CommandExecutor::RecordAndSubmitCommandASync(
                                        &result = result]() {
     std::vector<VkSubmitInfo> submit_infos;
     submit_infos.reserve(
-        1 + execute_command_task->command_task_->GetSubTasksNumber());
+        1 + execute_command_task->command_task_->GetSubCommandTasksNumber());
 
     std::vector<std::vector<VkCommandBuffer>> command_buffers;
     command_buffers.reserve(submit_infos.size());

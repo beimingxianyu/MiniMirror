@@ -1,5 +1,3 @@
-include(CMAKE)
-
 function(PrintMessage print_data)
     message("[MiniMirror] -- ${print_data}")
 endfunction()

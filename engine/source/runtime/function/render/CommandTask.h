@@ -4,7 +4,6 @@
 #pragma once
 
 #include "runtime/function/render/CommandTaskFlow.h"
-#include "runtime/function/render/vk_command_pre.h"
 
 namespace MM {
 namespace RenderSystem {
@@ -13,15 +12,12 @@ class CommandTask {
   friend class CommandTaskFlow;
 
  public:
-  using TaskType = CommandTaskFlow::TaskType;
-
- public:
   CommandTask() = delete;
   ~CommandTask();
   CommandTask(const CommandTask& other) = delete;
-  CommandTask(CommandTask&& other) = delete;
+  CommandTask(CommandTask&& other) noexcept;
   CommandTask& operator=(const CommandTask& other) = delete;
-  CommandTask& operator=(CommandTask&& other) = delete;
+  CommandTask& operator=(CommandTask&& other) noexcept;
 
  public:
   const CommandBufferType& GetCommandType() const;
@@ -30,24 +26,31 @@ class CommandTask {
 
   const std::vector<TaskType>& GetCommands() const;
 
-  std::vector<const TaskType*> GetCommandsIncludeSubTasks() const;
+  std::vector<const TaskType*> GetCommandsIncludeSubCommandTasks() const;
 
   std::uint32_t GetRequireCommandBufferNumber() const;
 
-  std::uint32_t GetRequireCommandBufferNumberIncludeSuBTasks() const;
+  std::uint32_t GetRequireCommandBufferNumberIncludeSubCommandTasks() const;
 
-  const std::vector<WaitAllocatedSemaphore>& GetWaitSemaphore() const;
+  std::vector<const CommandTask*> GetSubCommandTasks() const;
 
-  std::vector<const WaitAllocatedSemaphore*> GetWaitSemaphoreIncludeSubTasks()
-      const;
+  std::uint32_t GetSubCommandTasksNumber() const;
 
-  const std::vector<AllocateSemaphore>& GetSignalSemaphore() const;
+  Result<Nil, ErrorResult> AddPreCommandTask(CommandTaskID pre_command_task_ID);
 
-  std::vector<const AllocateSemaphore*> GetSignalSemaphoreIncludeTasks() const;
+  Result<Nil, ErrorResult> AddPreCommandTask(
+      const std::vector<CommandTaskID>& pre_command_task_IDs);
 
-  const std::vector<std::unique_ptr<CommandTask>>& GetSubTasks() const;
+  Result<Nil, ErrorResult> AddPostCommandTask(
+      CommandTaskID post_command_task_ID);
 
-  std::uint32_t GetSubTasksNumber() const;
+  Result<Nil, ErrorResult> AddPostCommandTask(
+      const std::vector<CommandTaskID>& post_command_task_IDs);
+
+  Result<Nil, ErrorResult> Merge(CommandTaskID sub_command_task_ID);
+
+  Result<Nil, ErrorResult> Merge(
+      const std::vector<CommandTaskID>& sub_command_task_IDs);
 
   template <typename... CommandTasks>
   Result<Nil, ErrorResult> Merge(CommandTasks&&... command_tasks);
@@ -58,7 +61,7 @@ class CommandTask {
   template <typename... CommandTasks>
   Result<Nil, ErrorResult> IsPostTaskTo(CommandTasks&&... command_tasks);
 
-  bool HaveSubTasks() const;
+  bool HaveSubCommandTasks() const;
 
   void AddCrossTaskFLowSyncRenderResourceIDs(
       const RenderResourceDataID& render_resource_ID);
@@ -69,37 +72,33 @@ class CommandTask {
   void AddCrossTaskFLowSyncRenderResourceIDs(
       std::vector<RenderResourceDataID>&& render_resource_IDs);
 
-  std::uint32_t GetCommandTaskID() const;
+  CommandTaskID GetCommandTaskID() const;
 
-  std::uint32_t GetUseRenderResourceCount() const;
+  bool IsAsyncRecord() const;
 
-  void SetUseRenderResourceCount(std::uint32_t new_use_render_resource_count);
+  void SetAsyncRecord();
+
+  void SetSyncRecord();
 
   bool IsValid() const;
 
  private:
-  CommandTask(CommandTaskFlow* task_flow, uint32_t command_task_ID,
-              const CommandType& command_type,
-              const std::vector<TaskType>& commands,
-              std::uint32_t use_render_resource_count,
-              const std::vector<WaitAllocatedSemaphore>& wait_semaphore,
-              const std::vector<AllocateSemaphore>& signal_semaphore);
+  CommandTask(CommandTaskFlow* task_flow, const CommandType& command_type,
+              const std::vector<TaskType>& commands, bool is_async_record);
 
  private:
+  static std::atomic<CommandTaskID> current_command_tast_ID_;
+
   CommandTaskFlow* task_flow_;
-  std::uint32_t command_task_ID_{0};
-  std::unique_ptr<CommandTask>* this_unique_ptr_{nullptr};
+  CommandTaskID command_task_ID_{0};
   CommandType command_type_{CommandType::UNDEFINED};
   std::vector<TaskType> commands_{};
-  std::vector<WaitAllocatedSemaphore> wait_semaphore_{};
-  std::vector<AllocateSemaphore> signal_semaphore_{};
-  mutable std::list<std::unique_ptr<CommandTask>*> pre_tasks_{};
-  mutable std::list<std::unique_ptr<CommandTask>*> post_tasks_{};
+  mutable std::vector<CommandTaskID> pre_tasks_{};
+  mutable std::vector<CommandTaskID> post_tasks_{};
 
-  mutable std::vector<std::unique_ptr<CommandTask>> sub_tasks_{};
+  mutable std::vector<CommandTaskID> sub_tasks_{};
   bool is_sub_task_{false};
-
-  std::uint32_t use_render_resource_count_{1};
+  bool is_async_record_{false};
   std::vector<RenderResourceDataID> cross_task_flow_sync_render_resource_IDs_;
 };
 
@@ -138,7 +137,7 @@ Result<Nil, ErrorResult> CommandTask::Merge(CommandTasks&&... command_tasks) {
     return ResultE<>{ErrorCode::INPUT_PARAMETERS_ARE_INCORRECT};
   }
   // TODO Optimize the algorithm to remove this limitation.
-  ((input_parameters_is_right &= (!command_tasks.HaveSubTasks())), ...);
+  ((input_parameters_is_right &= (!command_tasks.HaveSubCommandTasks())), ...);
   if (!input_parameters_is_right) {
     MM_LOG_ERROR("Cannot nest merge MM::RenderSystem::CommandTask.");
     return ResultE<>{ErrorCode::INPUT_PARAMETERS_ARE_INCORRECT};
