@@ -33,6 +33,8 @@ class CommandTaskFlow {
                        const std::vector<TaskType>& commands,
                        bool is_async_record);
 
+  bool HaveCommandTask(CommandTaskID command_task_ID) const;
+
   Result<const std::vector<TaskType>*, ErrorResult> GetCommands(
       CommandTaskID command_task_ID) const;
 
@@ -95,15 +97,15 @@ class CommandTaskFlow {
 
   void Clear();
 
-  bool HaveRing() const;
-
-  bool SubCommandTaskRelationshipIsValid() const;
-
   bool IsValidSubmissionObject() const;
 
   bool IsValid() const;
 
  private:
+  bool HaveRing() const;
+
+  bool SubCommandTaskRelationshipIsValid() const;
+
   void RemoveRootTask(const CommandTask& command_task);
 
   void RemoveTask(CommandTask& command_task);

@@ -50,7 +50,8 @@
         MM::LogSystem::LogSystem::LogLevel::ERROR);                  \
   }
 
-#define MM_FATAL_DESCRIPTION(description) function_name = MM_FUNCTION_NAME](MM::ErrorResult error_result){ \
+#define MM_FATAL_DESCRIPTION(description)                           \
+  [function_name = MM_FUNCTION_NAME](MM::ErrorResult error_result){ \
     MM_LOG_SYSTEM->CheckResult(                                                                            \
         error_result.GetErrorCode(),                                                                       \
         std::string("[") + function_name + "] " + #description,                                         \
