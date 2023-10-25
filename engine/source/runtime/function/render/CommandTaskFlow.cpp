@@ -4,6 +4,7 @@
 
 #include "runtime/function/render/CommandTaskFlow.h"
 #include <stdlib.h>
+#include <unordered_set>
 #include <vector>
 
 #include "runtime/core/log/log_system.h"
@@ -145,7 +146,7 @@ bool MM::RenderSystem::CommandTaskFlow::HaveRing() const {
 
   std::unordered_set<CommandTaskID> old_command_task_ID{};
   for (CommandTaskID root_command_task_ID : root_command_task_IDs_) {
-    if (!HaveRingImp(old_command_task_ID, root_command_task_ID)) {
+    if (!HaveRingHelp(old_command_task_ID, root_command_task_ID)) {
       return false;
     }
   }
@@ -153,7 +154,7 @@ bool MM::RenderSystem::CommandTaskFlow::HaveRing() const {
   return true;
 }
 
-bool MM::RenderSystem::CommandTaskFlow::HaveRingImp(
+bool MM::RenderSystem::CommandTaskFlow::HaveRingHelp(
     std::unordered_set<CommandTaskID>& old_command_task_ID,
     MM::RenderSystem::CommandTaskID current_command_task_ID) const {
   if (old_command_task_ID.count(current_command_task_ID)) {
@@ -161,13 +162,14 @@ bool MM::RenderSystem::CommandTaskFlow::HaveRingImp(
   }
   old_command_task_ID.insert(current_command_task_ID);
 
-  Result<std::vector<const CommandTask*>, ErrorResult> sub_cemmand_tasks =
-      GetSubCommandTask(current_command_task_ID);
-  assert(sub_cemmand_tasks.IgnoreException().IsSuccess());
+  Result<std::vector<const CommandTask*>, ErrorResult> post_cemmand_tasks =
+      GetPostCommandTask(current_command_task_ID);
+  post_cemmand_tasks.IgnoreException();
+  assert(post_cemmand_tasks.IsSuccess());
 
-  for (const CommandTask* sub_command_task : sub_cemmand_tasks.GetResult()) {
-    if (!HaveRingImp(old_command_task_ID,
-                     sub_command_task->GetCommandTaskID())) {
+  for (const CommandTask* post_command_task : post_cemmand_tasks.GetResult()) {
+    if (!HaveRingHelp(old_command_task_ID,
+                     post_command_task->GetCommandTaskID())) {
       return false;
     }
   }
@@ -258,8 +260,64 @@ MM::RenderSystem::CommandTaskFlow::GetSubCommandTask(
   result.reserve(sub_task_IDs.size());
   for (CommandTaskID sub_task_ID : sub_task_IDs) {
     Result<const CommandTask*> sub_command_task = GetCommandTask(sub_task_ID);
-    assert(sub_command_task.IgnoreException().IsSuccess());
+    sub_command_task.IgnoreException();
+    assert(sub_command_task.IsSuccess());
     result.emplace_back(sub_command_task.GetResult());
+  }
+
+  return ResultS{std::move(result)};
+}
+
+
+MM::Result<std::vector<const MM::RenderSystem::CommandTask*>, MM::ErrorResult>
+MM::RenderSystem::CommandTaskFlow::GetPreCommandTask(
+    MM::RenderSystem::CommandTaskID command_task_ID) const {
+  assert(IsValid());
+  Result<const CommandTask*> main_command_task =
+      GetCommandTask(command_task_ID);
+  if (main_command_task
+          .Exception(MM_ERROR_DESCRIPTION(
+              Failed to get main MM::RenderSystem::CommandTask.))
+          .IsError()) {
+    return ResultE<>{main_command_task.GetError().GetErrorCode()};
+  }
+
+  const std::vector<CommandTaskID>& pre_task_IDs =
+      main_command_task.GetResult()->pre_tasks_;
+  std::vector<const CommandTask*> result{};
+  result.reserve(pre_task_IDs.size());
+  for (CommandTaskID pre_task_ID : pre_task_IDs) {
+    Result<const CommandTask*> pre_command_task = GetCommandTask(pre_task_ID);
+    pre_command_task.IgnoreException();
+    assert(pre_command_task.IsSuccess());
+    result.emplace_back(pre_command_task.GetResult());
+  }
+
+  return ResultS{std::move(result)};
+}
+
+MM::Result<std::vector<const MM::RenderSystem::CommandTask*>, MM::ErrorResult>
+MM::RenderSystem::CommandTaskFlow::GetPostCommandTask(
+    MM::RenderSystem::CommandTaskID command_task_ID) const {
+  assert(IsValid());
+  Result<const CommandTask*> main_command_task =
+      GetCommandTask(command_task_ID);
+  if (main_command_task
+          .Exception(MM_ERROR_DESCRIPTION(
+              Failed to get main MM::RenderSystem::CommandTask.))
+          .IsError()) {
+    return ResultE<>{main_command_task.GetError().GetErrorCode()};
+  }
+
+  const std::vector<CommandTaskID>& post_task_IDs =
+      main_command_task.GetResult()->post_tasks_;
+  std::vector<const CommandTask*> result{};
+  result.reserve(post_task_IDs.size());
+  for (CommandTaskID post_task_ID : post_task_IDs) {
+    Result<const CommandTask*> post_command_task = GetCommandTask(post_task_ID);
+    post_command_task.IgnoreException();
+    assert(post_command_task.IsSuccess());
+    result.emplace_back(post_command_task.GetResult());
   }
 
   return ResultS{std::move(result)};
@@ -300,7 +358,8 @@ MM::RenderSystem::CommandTaskFlow::GetCommandTaskIncludeSubCommandTask(
   result.emplace_back(main_command_task.GetResult());
   for (CommandTaskID sub_task_ID : sub_task_IDs) {
     Result<const CommandTask*> sub_command_task = GetCommandTask(sub_task_ID);
-    assert(sub_command_task.IgnoreException().IsSuccess());
+    sub_command_task.IgnoreException();
+    assert(sub_command_task.IsSuccess());
     result.emplace_back(sub_command_task.GetResult());
   }
 
@@ -539,37 +598,68 @@ const std::vector<CommandTaskID>& sub_command_task_IDs)  {
 bool MM::RenderSystem::CommandTaskFlow::SubCommandTaskRelationshipIsValid() const {
   assert(IsValid());  
 
-  // Based on the assumption that there are fewer MM::RenderSystem::CommandTask in a MM::RenderSystem::CommandTaskFlow.
-  std::vector<CommandTaskID> pre_command_tasks{};
-  std::vector<CommandTaskID> post_command_tasks{};
+
+  std::unordered_set<CommandTaskID> pre_command_task_IDs{};
 
   for (const CommandTask& main_command_task: tasks_) {
     if (!main_command_task.sub_tasks_.empty()) {
-      MM_ERROR_DESCRIPTION(description)
+      continue;
     }
+
+    for (CommandTaskID pre_command_task_ID: main_command_task.pre_tasks_) {
+      pre_command_task_IDs.insert(pre_command_task_ID);
+    }
+
+    for (CommandTaskID sub_command_task_ID: main_command_task.sub_tasks_) {
+      HelpGetAllPreCommandTaskIDs(pre_command_task_IDs, sub_command_task_ID);
+    }
+
+    for (CommandTaskID post_command_task_ID: main_command_task.post_tasks_) {
+      if (!HelpCheckAllPostCommandTaskIDs(pre_command_task_IDs, post_command_task_ID)) {
+        return false;
+      }
+    }
+
+    pre_command_task_IDs.clear();
   }
 
   return true;
 }
 
-// void MM::RenderSystem::CommandTaskFlow::RemoveRootTask(
-//     const CommandTask& command_task) {
-//   const auto target_task = std::find(root_command_task_IDs_.begin(),
-//   root_command_task_IDs_.end(),
-//                                      command_task.this_unique_ptr_);
-//   if (target_task == root_command_task_IDs_.end()) {
-//     return;
-//   }
-//   root_command_task_IDs_.erase(target_task);
-// }
-//
-// void MM::RenderSystem::CommandTaskFlow::RemoveTask(CommandTask& command_task)
-// {
-//   for (auto iter = tasks_.begin(); iter != tasks_.end();) {
-//     if (&(*iter) == command_task.this_unique_ptr_) {
-//       iter = tasks_.erase(iter);
-//       continue;
-//     }
-//     ++iter;
-//   }
-// }
+void MM::RenderSystem::CommandTaskFlow::HelpGetAllPreCommandTaskIDs(
+    std::unordered_set<CommandTaskID>& pre_command_task_IDs,
+    CommandTaskID current_command_task_ID) const {
+  pre_command_task_IDs.insert(current_command_task_ID);
+
+  Result<std::vector<const CommandTask*>, ErrorResult> pre_command_tasks =
+      GetPreCommandTask(current_command_task_ID);
+  pre_command_tasks.IgnoreException();
+  assert(pre_command_tasks.IsSuccess());
+
+  for (const CommandTask* pre_command_task : pre_command_tasks.GetResult()) {
+    HelpGetAllPreCommandTaskIDs(pre_command_task_IDs, pre_command_task->GetCommandTaskID());
+  }
+}
+
+bool MM::RenderSystem::CommandTaskFlow::HelpCheckAllPostCommandTaskIDs(
+  std::unordered_set<CommandTaskID>& pre_command_task_IDs,
+  CommandTaskID current_command_task_ID) const {
+  if (pre_command_task_IDs.count(current_command_task_ID)) {
+    return false;
+  }
+
+  Result<std::vector<const CommandTask*>, ErrorResult> post_command_tasks =
+      GetPostCommandTask(current_command_task_ID);
+  post_command_tasks.IgnoreException();
+  assert(post_command_tasks.IsSuccess());
+
+  bool result = true;
+  for (const CommandTask* post_command_task : post_command_tasks.GetResult()) {
+    result &= HelpCheckAllPostCommandTaskIDs(pre_command_task_IDs, post_command_task->GetCommandTaskID());
+    if (!result) {
+      return result;
+    }
+  }
+
+  return result;
+}

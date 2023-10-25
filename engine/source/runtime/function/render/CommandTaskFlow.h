@@ -50,6 +50,12 @@ class CommandTaskFlow {
   Result<std::vector<const CommandTask*>, ErrorResult> GetSubCommandTask(
       CommandTaskID command_task_ID) const;
 
+  Result<std::vector<const CommandTask*>, ErrorResult> GetPreCommandTask(
+      CommandTaskID command_task_ID) const;
+
+  Result<std::vector<const CommandTask*>, ErrorResult> GetPostCommandTask(
+      CommandTaskID command_task_ID) const;
+
   Result<std::vector<const CommandTask*>, ErrorResult>
   GetCommandTaskIncludeSubCommandTask(CommandTaskID command_task_ID) const;
 
@@ -89,7 +95,7 @@ class CommandTaskFlow {
       const std::vector<CommandTaskID>& post_command_task_IDs);
 
   Result<Nil, ErrorResult> Merge(CommandTaskID main_command_task_ID,
-                                 CommandTaskID sub_command_task_ID);
+                                 CommandTaskID sub_command_task_ID); 
 
   Result<Nil, ErrorResult> Merge(
       CommandTaskID main_command_task_ID,
@@ -104,14 +110,31 @@ class CommandTaskFlow {
  private:
   bool HaveRing() const;
 
+  /**
+  * \note This function can only be called when there is no ring in the command flow.
+  */ 
   bool SubCommandTaskRelationshipIsValid() const;
 
   void RemoveRootTask(const CommandTask& command_task);
 
   void RemoveTask(CommandTask& command_task);
 
-  bool HaveRingImp(std::unordered_set<CommandTaskID>& old_command_task_ID,
+  bool HaveRingHelp(std::unordered_set<CommandTaskID>& old_command_task_ID,
                    CommandTaskID current_command_task_ID) const;
+
+  /**
+  * \note This function can only be called when there is no ring in the command flow.
+  */
+  void HelpGetAllPreCommandTaskIDs(
+      std::unordered_set<CommandTaskID>& pre_command_task_IDs,
+      CommandTaskID current_command_task_ID) const;
+
+  /**
+  * \note This function can only be called when there is no ring in the command flow.
+  */
+  bool HelpCheckAllPostCommandTaskIDs(
+      std::unordered_set<CommandTaskID>& pre_command_task_IDs,
+      CommandTaskID current_command_task_ID) const;
 
  private:
   static std::atomic<CommandTaskFlowID> current_command_task_flow_ID_;
