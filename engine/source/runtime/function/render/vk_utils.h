@@ -20,7 +20,6 @@ class AllocatedCommandBuffer;
 class RenderEngine;
 class BufferChunkInfo;
 
-namespace Utils {
 ErrorCode VkResultToMMErrorCode(VkResult vk_result);
 
 // TODO Add default value annotations for various functions that obtain creation
@@ -68,17 +67,6 @@ VkSubmitInfo GetCommandSubmitInfo(
 Result<Nil, ErrorResult> SubmitCommandBuffers(
     VkQueue queue, const std::vector<VkSubmitInfo>& submit_infos,
     VkFence fence);
-
-enum class ImageTransferMode {
-  INIT_TO_ATTACHMENT,
-  INIT_TO_TRANSFER_DESTINATION,
-  TRANSFER_DESTINATION_TO_SHARED_READABLE,
-  TRANSFER_DESTINATION_TO_SHARED_PRESENT,
-  ATTACHMENT_TO_PRESENT,
-  INIT_TO_DEPTH_TEST,
-  ATTACHMENT_TO_TRANSFER_SOURCE,
-  TRANSFER_DESTINATION_TO_TRANSFER_SOURCE
-};
 
 /**
  * \brief Get \ref VkImageMemoryBarrier2, but performance is poor.
@@ -474,6 +462,5 @@ bool VkRect2DIsEqual(const VkRect2D& lhs, const VkRect2D& rhs);
 bool VkPipelineViewportStateCreateInfoIsEqual(
     const VkPipelineViewportStateCreateInfo& lhs,
     const VkPipelineViewportStateCreateInfo& rhs);
-}  // namespace Utils
 }  // namespace RenderSystem
 }  // namespace MM

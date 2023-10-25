@@ -8,7 +8,7 @@
 #include "runtime/function/render/AllocatedImage.h"
 #include "runtime/function/render/vk_engine.h"
 
-MM::ErrorCode MM::RenderSystem::Utils::VkResultToMMErrorCode(
+MM::ErrorCode MM::RenderSystem::VkResultToMMErrorCode(
     VkResult vk_result) {
   ErrorCode MM_result;
   switch (vk_result) {
@@ -34,7 +34,7 @@ MM::ErrorCode MM::RenderSystem::Utils::VkResultToMMErrorCode(
   return MM_result;
 }
 
-VkCommandPoolCreateInfo MM::RenderSystem::Utils::GetCommandPoolCreateInfo(
+VkCommandPoolCreateInfo MM::RenderSystem::GetCommandPoolCreateInfo(
     const uint32_t& queue_family_index, const VkCommandPoolCreateFlags& flags) {
   VkCommandPoolCreateInfo info = {};
   info.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
@@ -46,7 +46,7 @@ VkCommandPoolCreateInfo MM::RenderSystem::Utils::GetCommandPoolCreateInfo(
 }
 
 VkCommandBufferAllocateInfo
-MM::RenderSystem::Utils::GetCommandBufferAllocateInfo(
+MM::RenderSystem::GetCommandBufferAllocateInfo(
     const VkCommandPool& command_pool, const uint32_t& count,
     const VkCommandBufferLevel& level) {
   VkCommandBufferAllocateInfo info = {};
@@ -59,7 +59,7 @@ MM::RenderSystem::Utils::GetCommandBufferAllocateInfo(
   return info;
 }
 
-VmaAllocationCreateInfo MM::RenderSystem::Utils::GetVmaAllocationCreateInfo(
+VmaAllocationCreateInfo MM::RenderSystem::GetVmaAllocationCreateInfo(
     const VmaMemoryUsage& usage, const VmaAllocationCreateFlags& flags) {
   VmaAllocationCreateInfo allocation_create_info{};
 
@@ -71,7 +71,7 @@ VmaAllocationCreateInfo MM::RenderSystem::Utils::GetVmaAllocationCreateInfo(
   return allocation_create_info;
 }
 
-VkCommandBufferBeginInfo MM::RenderSystem::Utils::GetCommandBufferBeginInfo(
+VkCommandBufferBeginInfo MM::RenderSystem::GetCommandBufferBeginInfo(
     const VkCommandBufferUsageFlags& flags) {
   VkCommandBufferBeginInfo command_buffer_begin_info{};
   command_buffer_begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
@@ -82,7 +82,7 @@ VkCommandBufferBeginInfo MM::RenderSystem::Utils::GetCommandBufferBeginInfo(
   return command_buffer_begin_info;
 }
 
-VkFenceCreateInfo MM::RenderSystem::Utils::GetFenceCreateInfo(
+VkFenceCreateInfo MM::RenderSystem::GetFenceCreateInfo(
     const VkFenceCreateFlags& flags) {
   VkFenceCreateInfo fence_create_info{};
   fence_create_info.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
@@ -92,7 +92,7 @@ VkFenceCreateInfo MM::RenderSystem::Utils::GetFenceCreateInfo(
   return fence_create_info;
 }
 
-VkFence MM::RenderSystem::Utils::GetVkFence(const VkDevice& device,
+VkFence MM::RenderSystem::GetVkFence(const VkDevice& device,
                                             const bool& is_signaled) {
   VkFenceCreateInfo fence_create_info{};
   if (is_signaled) {
@@ -107,7 +107,7 @@ VkFence MM::RenderSystem::Utils::GetVkFence(const VkDevice& device,
   return fence;
 }
 
-VkSubmitInfo MM::RenderSystem::Utils::GetCommandSubmitInfo(
+VkSubmitInfo MM::RenderSystem::GetCommandSubmitInfo(
     const VkCommandBuffer& command_buffer, const uint32_t& command_count) {
   VkSubmitInfo submit_info = {};
   submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
@@ -124,7 +124,7 @@ VkSubmitInfo MM::RenderSystem::Utils::GetCommandSubmitInfo(
   return submit_info;
 }
 
-VkSubmitInfo MM::RenderSystem::Utils::GetCommandSubmitInfo(
+VkSubmitInfo MM::RenderSystem::GetCommandSubmitInfo(
     const std::vector<VkCommandBuffer>& command_buffers) {
   VkSubmitInfo submit_info = {};
   submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
@@ -141,7 +141,7 @@ VkSubmitInfo MM::RenderSystem::Utils::GetCommandSubmitInfo(
   return submit_info;
 }
 
-VkSubmitInfo MM::RenderSystem::Utils::GetCommandSubmitInfo(
+VkSubmitInfo MM::RenderSystem::GetCommandSubmitInfo(
     const std::vector<AllocatedCommandBuffer>& command_buffers) {
   std::vector<VkCommandBuffer> vk_command_buffers;
   vk_command_buffers.reserve(command_buffers.size());
@@ -166,7 +166,7 @@ VkSubmitInfo MM::RenderSystem::Utils::GetCommandSubmitInfo(
 }
 
 MM::Result<MM::Nil, MM::ErrorResult>
-MM::RenderSystem::Utils::SubmitCommandBuffers(
+MM::RenderSystem::SubmitCommandBuffers(
     VkQueue queue, const std::vector<VkSubmitInfo>& submit_infos,
     VkFence fence) {
   ErrorCode error_code = VkResultToMMErrorCode(
@@ -178,7 +178,7 @@ MM::RenderSystem::Utils::SubmitCommandBuffers(
   return ResultE<>{error_code};
 }
 
-VkImageMemoryBarrier2 MM::RenderSystem::Utils::GetVkImageMemoryBarrier2(
+VkImageMemoryBarrier2 MM::RenderSystem::GetVkImageMemoryBarrier2(
     MM::RenderSystem::AllocatedImage& image,
     const ImageTransferMode& transfer_mode) {
   VkImageMemoryBarrier2 image_barrier{};
@@ -284,7 +284,7 @@ VkImageMemoryBarrier2 MM::RenderSystem::Utils::GetVkImageMemoryBarrier2(
   return image_barrier;
 }
 
-VkImageMemoryBarrier2 MM::RenderSystem::Utils::GetVkImageMemoryBarrier2(
+VkImageMemoryBarrier2 MM::RenderSystem::GetVkImageMemoryBarrier2(
     AllocatedImage& image, const VkImageLayout& old_layout,
     const VkImageLayout& new_layout) {
   VkImageMemoryBarrier2 image_barrier{};
@@ -315,7 +315,7 @@ VkImageMemoryBarrier2 MM::RenderSystem::Utils::GetVkImageMemoryBarrier2(
   return image_barrier;
 }
 
-VkDependencyInfo MM::RenderSystem::Utils::GetVkImageDependencyInfo(
+VkDependencyInfo MM::RenderSystem::GetVkImageDependencyInfo(
     VkImageMemoryBarrier2& image_barrier, const VkDependencyFlags& flags) {
   VkDependencyInfo dep_info{};
   dep_info.sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO;
@@ -329,7 +329,7 @@ VkDependencyInfo MM::RenderSystem::Utils::GetVkImageDependencyInfo(
   return dep_info;
 }
 
-VkMemoryBarrier2 MM::RenderSystem::Utils::GetVkMemoryBarrier2(
+VkMemoryBarrier2 MM::RenderSystem::GetVkMemoryBarrier2(
     VkPipelineStageFlags2 src_stage, VkAccessFlags2 src_access,
     VkPipelineStageFlags2 dest_stage, VkAccessFlags2 dest_access) {
   return VkMemoryBarrier2{VK_STRUCTURE_TYPE_MEMORY_BARRIER_2,
@@ -340,7 +340,7 @@ VkMemoryBarrier2 MM::RenderSystem::Utils::GetVkMemoryBarrier2(
                           dest_access};
 }
 
-VkBufferMemoryBarrier2 MM::RenderSystem::Utils::GetVkBufferMemoryBarrier2(
+VkBufferMemoryBarrier2 MM::RenderSystem::GetVkBufferMemoryBarrier2(
     VkPipelineStageFlags2 src_stage, VkAccessFlags2 src_access,
     VkPipelineStageFlags2 dest_stage, VkAccessFlags2 dest_access,
     std::uint32_t src_queue_family_index, std::uint32_t dest_queue_family_index,
@@ -358,7 +358,7 @@ VkBufferMemoryBarrier2 MM::RenderSystem::Utils::GetVkBufferMemoryBarrier2(
                                 size};
 }
 
-VkImageMemoryBarrier2 MM::RenderSystem::Utils::GetVkImageMemoryBarrier2(
+VkImageMemoryBarrier2 MM::RenderSystem::GetVkImageMemoryBarrier2(
     VkPipelineStageFlags2 src_stage, VkAccessFlags2 src_access,
     VkPipelineStageFlags2 dest_stage, VkAccessFlags2 dest_access,
     VkImageLayout old_layout, VkImageLayout new_layout,
@@ -379,7 +379,7 @@ VkImageMemoryBarrier2 MM::RenderSystem::Utils::GetVkImageMemoryBarrier2(
                                sub_resource_range};
 }
 
-VkImageMemoryBarrier2 MM::RenderSystem::Utils::GetImageMemoryBarrier(
+VkImageMemoryBarrier2 MM::RenderSystem::GetImageMemoryBarrier(
     VkPipelineStageFlags2 src_stage, VkAccessFlags2 src_access,
     VkPipelineStageFlags2 dest_stage, VkAccessFlags2 dest_access,
     VkImageLayout old_layout, VkImageLayout new_layout,
@@ -403,7 +403,7 @@ VkImageMemoryBarrier2 MM::RenderSystem::Utils::GetImageMemoryBarrier(
                               base_array_layer, layer_count}};
 }
 
-VkDependencyInfo MM::RenderSystem::Utils::GetMemoryDependencyInfo(
+VkDependencyInfo MM::RenderSystem::GetMemoryDependencyInfo(
     const std::vector<VkMemoryBarrier2>& memory_barriers,
     VkDependencyFlags dependency_flags) {
   return VkDependencyInfo{VK_STRUCTURE_TYPE_DEPENDENCY_INFO,
@@ -417,7 +417,7 @@ VkDependencyInfo MM::RenderSystem::Utils::GetMemoryDependencyInfo(
                           nullptr};
 }
 
-VkDependencyInfo MM::RenderSystem::Utils::GetMemoryDependencyInfo(
+VkDependencyInfo MM::RenderSystem::GetMemoryDependencyInfo(
     const VkMemoryBarrier2& memory_barriers,
     VkDependencyFlags dependency_flags) {
   return VkDependencyInfo{VK_STRUCTURE_TYPE_DEPENDENCY_INFO,
@@ -431,7 +431,7 @@ VkDependencyInfo MM::RenderSystem::Utils::GetMemoryDependencyInfo(
                           nullptr};
 }
 
-VkDependencyInfo MM::RenderSystem::Utils::GetBufferMemoryDependencyInfo(
+VkDependencyInfo MM::RenderSystem::GetBufferMemoryDependencyInfo(
     const std::vector<VkBufferMemoryBarrier2>& buffer_barriers,
     VkDependencyFlags dependency_flags) {
   return VkDependencyInfo{VK_STRUCTURE_TYPE_DEPENDENCY_INFO,
@@ -445,7 +445,7 @@ VkDependencyInfo MM::RenderSystem::Utils::GetBufferMemoryDependencyInfo(
                           nullptr};
 }
 
-VkDependencyInfo MM::RenderSystem::Utils::GetBufferMemoryDependencyInfo(
+VkDependencyInfo MM::RenderSystem::GetBufferMemoryDependencyInfo(
     const VkBufferMemoryBarrier2& buffer_barriers,
     VkDependencyFlags dependency_flags) {
   return VkDependencyInfo{VK_STRUCTURE_TYPE_DEPENDENCY_INFO,
@@ -459,7 +459,7 @@ VkDependencyInfo MM::RenderSystem::Utils::GetBufferMemoryDependencyInfo(
                           nullptr};
 }
 
-VkDependencyInfo MM::RenderSystem::Utils::GetImageMemoryDependencyInfo(
+VkDependencyInfo MM::RenderSystem::GetImageMemoryDependencyInfo(
     const std::vector<VkImageMemoryBarrier2>& image_barriers,
     VkDependencyFlags dependency_flags) {
   return VkDependencyInfo{VK_STRUCTURE_TYPE_DEPENDENCY_INFO,
@@ -473,7 +473,7 @@ VkDependencyInfo MM::RenderSystem::Utils::GetImageMemoryDependencyInfo(
                           image_barriers.data()};
 }
 
-VkDependencyInfo MM::RenderSystem::Utils::GetImageMemoryDependencyInfo(
+VkDependencyInfo MM::RenderSystem::GetImageMemoryDependencyInfo(
     const VkImageMemoryBarrier2& image_barriers,
     VkDependencyFlags dependency_flags) {
   return VkDependencyInfo{VK_STRUCTURE_TYPE_DEPENDENCY_INFO,
@@ -487,7 +487,7 @@ VkDependencyInfo MM::RenderSystem::Utils::GetImageMemoryDependencyInfo(
                           &image_barriers};
 }
 
-VkDependencyInfo MM::RenderSystem::Utils::GetVkDependencyInfo(
+VkDependencyInfo MM::RenderSystem::GetVkDependencyInfo(
     const std::vector<VkMemoryBarrier2>* memory_barriers,
     const std::vector<VkBufferMemoryBarrier2>* buffer_barriers,
     const std::vector<VkImageMemoryBarrier2>* image_barriers,
@@ -509,53 +509,53 @@ VkDependencyInfo MM::RenderSystem::Utils::GetVkDependencyInfo(
   return dependency_info;
 }
 
-void MM::RenderSystem::Utils::AddTransferImageCommands(
+void MM::RenderSystem::AddTransferImageCommands(
     VkCommandBuffer& command_buffer, AllocatedImage& image,
     const ImageTransferMode& transfer_mode, const VkDependencyFlags& flags) {
-  auto image_barrier = Utils::GetVkImageMemoryBarrier2(image, transfer_mode);
+  auto image_barrier = GetVkImageMemoryBarrier2(image, transfer_mode);
   const auto image_transfer_dependency =
-      Utils::GetVkImageDependencyInfo(image_barrier, flags);
+      GetVkImageDependencyInfo(image_barrier, flags);
 
   vkCmdPipelineBarrier2(command_buffer, &image_transfer_dependency);
 }
 
-void MM::RenderSystem::Utils::AddTransferImageCommands(
+void MM::RenderSystem::AddTransferImageCommands(
     VkCommandBuffer& command_buffer, AllocatedImage& image,
     const VkImageLayout& old_layout, const VkImageLayout& new_layout,
     const VkDependencyFlags& flags) {
   auto image_barrier =
-      Utils::GetVkImageMemoryBarrier2(image, old_layout, new_layout);
+      GetVkImageMemoryBarrier2(image, old_layout, new_layout);
   auto image_transfer_dependency =
-      Utils::GetVkImageDependencyInfo(image_barrier, flags);
+      GetVkImageDependencyInfo(image_barrier, flags);
 
   vkCmdPipelineBarrier2(command_buffer, &image_transfer_dependency);
 }
 
-void MM::RenderSystem::Utils::AddTransferImageCommands(
+void MM::RenderSystem::AddTransferImageCommands(
     AllocatedCommandBuffer& command_buffer, AllocatedImage& image,
     const ImageTransferMode& transfer_mode, const VkDependencyFlags& flags) {
-  auto image_barrier = Utils::GetVkImageMemoryBarrier2(image, transfer_mode);
+  auto image_barrier = GetVkImageMemoryBarrier2(image, transfer_mode);
   const auto image_transfer_dependency =
-      Utils::GetVkImageDependencyInfo(image_barrier, flags);
+      GetVkImageDependencyInfo(image_barrier, flags);
 
   vkCmdPipelineBarrier2(command_buffer.GetCommandBuffer(),
                         &image_transfer_dependency);
 }
 
-void MM::RenderSystem::Utils::AddTransferImageCommands(
+void MM::RenderSystem::AddTransferImageCommands(
     AllocatedCommandBuffer& command_buffer, AllocatedImage& image,
     const VkImageLayout& old_layout, const VkImageLayout& new_layout,
     const VkDependencyFlags& flags) {
   auto image_barrier =
-      Utils::GetVkImageMemoryBarrier2(image, old_layout, new_layout);
+      GetVkImageMemoryBarrier2(image, old_layout, new_layout);
   auto image_transfer_dependency =
-      Utils::GetVkImageDependencyInfo(image_barrier, flags);
+      GetVkImageDependencyInfo(image_barrier, flags);
 
   vkCmdPipelineBarrier2(command_buffer.GetCommandBuffer(),
                         &image_transfer_dependency);
 }
 
-VkBufferImageCopy MM::RenderSystem::Utils::GetBufferToImageCopyRegion(
+VkBufferImageCopy MM::RenderSystem::GetBufferToImageCopyRegion(
     const VkImageAspectFlagBits& aspect, const VkExtent3D& image_extent,
     const VkDeviceSize& buffer_offset, const VkOffset3D& image_offset) {
   VkBufferImageCopy copy_region = {};
@@ -573,7 +573,7 @@ VkBufferImageCopy MM::RenderSystem::Utils::GetBufferToImageCopyRegion(
   return copy_region;
 }
 
-bool MM::RenderSystem::Utils::DescriptorTypeIsImage(
+bool MM::RenderSystem::DescriptorTypeIsImage(
     const VkDescriptorType& descriptor_type) {
   return descriptor_type == VK_DESCRIPTOR_TYPE_SAMPLER ||
          descriptor_type == VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER ||
@@ -582,14 +582,14 @@ bool MM::RenderSystem::Utils::DescriptorTypeIsImage(
          descriptor_type == VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT;
 }
 
-bool MM::RenderSystem::Utils::DescriptorTypeIsImageSampler(
+bool MM::RenderSystem::DescriptorTypeIsImageSampler(
     const VkDescriptorType& descriptor_type) {
   return descriptor_type == VK_DESCRIPTOR_TYPE_SAMPLER ||
          descriptor_type == VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER ||
          descriptor_type == VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
 }
 
-VkImageViewCreateInfo MM::RenderSystem::Utils::GetImageViewCreateInfo(
+VkImageViewCreateInfo MM::RenderSystem::GetImageViewCreateInfo(
     const AllocatedImage& image, const VkFormat& format,
     const VkImageViewType& view_type, const VkImageAspectFlags& aspect_flags,
     const VkImageViewCreateFlags& flags) {
@@ -611,7 +611,7 @@ VkImageViewCreateInfo MM::RenderSystem::Utils::GetImageViewCreateInfo(
   return image_view_create_info;
 }
 
-VkSamplerCreateInfo MM::RenderSystem::Utils::GetSamplerCreateInfo(
+VkSamplerCreateInfo MM::RenderSystem::GetSamplerCreateInfo(
     const VkPhysicalDevice& physical_device) {
   VkSamplerCreateInfo sampler_create_info{};
   sampler_create_info.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
@@ -638,7 +638,7 @@ VkSamplerCreateInfo MM::RenderSystem::Utils::GetSamplerCreateInfo(
   return sampler_create_info;
 }
 
-VkSemaphoreCreateInfo MM::RenderSystem::Utils::GetSemaphoreCreateInfo(
+VkSemaphoreCreateInfo MM::RenderSystem::GetSemaphoreCreateInfo(
     const VkSemaphoreCreateFlags& flags) {
   VkSemaphoreCreateInfo semaphore_create_info{};
   semaphore_create_info.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
@@ -648,13 +648,13 @@ VkSemaphoreCreateInfo MM::RenderSystem::Utils::GetSemaphoreCreateInfo(
   return semaphore_create_info;
 }
 
-bool MM::RenderSystem::Utils::DescriptorTypeIsDynamicBuffer(
+bool MM::RenderSystem::DescriptorTypeIsDynamicBuffer(
     const VkDescriptorType& descriptor_type) {
   return descriptor_type == VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC ||
          descriptor_type == VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC;
 }
 
-bool MM::RenderSystem::Utils::DescriptorTypeIsBuffer(
+bool MM::RenderSystem::DescriptorTypeIsBuffer(
     const VkDescriptorType& descriptor_type) {
   switch (descriptor_type) {
     case VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER:
@@ -669,7 +669,7 @@ bool MM::RenderSystem::Utils::DescriptorTypeIsBuffer(
   }
 }
 
-bool MM::RenderSystem::Utils::CanBeMapped(
+bool MM::RenderSystem::CanBeMapped(
     const VmaMemoryUsage& memory_usage,
     const VmaAllocationCreateFlags& allocation_flags) {
   switch (memory_usage) {
@@ -691,7 +691,7 @@ bool MM::RenderSystem::Utils::CanBeMapped(
   }
 }
 
-VkDeviceSize MM::RenderSystem::Utils::GetMinAlignmentSizeFromOriginalSize(
+VkDeviceSize MM::RenderSystem::GetMinAlignmentSizeFromOriginalSize(
     const VkDeviceSize& min_alignment, const VkDeviceSize& original_size) {
   // Calculate required alignment based on minimum device offset alignment
   VkDeviceSize alignedSize = original_size;
@@ -701,7 +701,7 @@ VkDeviceSize MM::RenderSystem::Utils::GetMinAlignmentSizeFromOriginalSize(
   return alignedSize;
 }
 
-bool MM::RenderSystem::Utils::DescriptorTypeIsStorageBuffer(
+bool MM::RenderSystem::DescriptorTypeIsStorageBuffer(
     const VkDescriptorType& descriptor_type) {
   switch (descriptor_type) {
     case VK_DESCRIPTOR_TYPE_STORAGE_BUFFER:
@@ -713,7 +713,7 @@ bool MM::RenderSystem::Utils::DescriptorTypeIsStorageBuffer(
   }
 }
 
-bool MM::RenderSystem::Utils::DescriptorTypeIsStorageImage(
+bool MM::RenderSystem::DescriptorTypeIsStorageImage(
     const VkDescriptorType& descriptor_type) {
   if (!DescriptorTypeIsImage(descriptor_type)) {
     return false;
@@ -721,12 +721,12 @@ bool MM::RenderSystem::Utils::DescriptorTypeIsStorageImage(
   return descriptor_type & VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
 }
 
-bool MM::RenderSystem::Utils::DescriptorTypeIsUniformBuffer(
+bool MM::RenderSystem::DescriptorTypeIsUniformBuffer(
     const VkDescriptorType& descriptor_type) {
   return !DescriptorTypeIsStorageBuffer(descriptor_type);
 }
 
-bool MM::RenderSystem::Utils::DescriptorTypeIsTexelBuffer(
+bool MM::RenderSystem::DescriptorTypeIsTexelBuffer(
     const VkDescriptorType& descriptor_type) {
   switch (descriptor_type) {
     case VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER:
@@ -737,7 +737,7 @@ bool MM::RenderSystem::Utils::DescriptorTypeIsTexelBuffer(
   }
 }
 
-VkBufferCopy2 MM::RenderSystem::Utils::GetVkBufferCopy2(
+VkBufferCopy2 MM::RenderSystem::GetVkBufferCopy2(
     const VkDeviceSize& size, const VkDeviceSize& src_offset,
     const VkDeviceSize& dest_offset) {
   VkBufferCopy2 buffer_copy_region{};
@@ -751,7 +751,7 @@ VkBufferCopy2 MM::RenderSystem::Utils::GetVkBufferCopy2(
   return buffer_copy_region;
 }
 
-VkCopyBufferInfo2 MM::RenderSystem::Utils::GetVkCopyBufferInfo2(
+VkCopyBufferInfo2 MM::RenderSystem::GetVkCopyBufferInfo2(
     AllocatedBuffer& src_buffer, AllocatedBuffer& dest_buffer,
     const std::vector<VkBufferCopy2>& regions) {
   VkCopyBufferInfo2 copy_buffer_info{};
@@ -766,7 +766,7 @@ VkCopyBufferInfo2 MM::RenderSystem::Utils::GetVkCopyBufferInfo2(
   return copy_buffer_info;
 }
 
-VkCopyBufferInfo2 MM::RenderSystem::Utils::GetVkCopyBufferInfo2(
+VkCopyBufferInfo2 MM::RenderSystem::GetVkCopyBufferInfo2(
     const AllocatedBuffer& src_buffer, AllocatedBuffer& dest_buffer,
     const std::vector<VkBufferCopy2>& regions) {
   VkCopyBufferInfo2 copy_buffer_info{};
@@ -781,32 +781,32 @@ VkCopyBufferInfo2 MM::RenderSystem::Utils::GetVkCopyBufferInfo2(
   return copy_buffer_info;
 }
 
-bool MM::RenderSystem::Utils::IsTransformSrcBuffer(
+bool MM::RenderSystem::IsTransformSrcBuffer(
     const VkBufferUsageFlags& flags) {
   return flags & VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
 }
 
-bool MM::RenderSystem::Utils::IsTransformDestBuffer(
+bool MM::RenderSystem::IsTransformDestBuffer(
     const VkBufferUsageFlags& flags) {
   return flags & VK_BUFFER_USAGE_TRANSFER_DST_BIT;
 }
 
-bool MM::RenderSystem::Utils::IsTransformSrcImage(
+bool MM::RenderSystem::IsTransformSrcImage(
     const VkImageUsageFlags& flags) {
   return flags & VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
 }
 
-bool MM::RenderSystem::Utils::IsTransformDestImage(
+bool MM::RenderSystem::IsTransformDestImage(
     const VkImageUsageFlags& flags) {
   return flags & VK_IMAGE_USAGE_TRANSFER_DST_BIT;
 }
 
-bool MM::RenderSystem::Utils::ResourceImageCanWrite(
+bool MM::RenderSystem::ResourceImageCanWrite(
     const VkDescriptorType& descriptor_type) {
-  return Utils::DescriptorTypeIsStorageImage(descriptor_type);
+  return DescriptorTypeIsStorageImage(descriptor_type);
 }
 
-bool MM::RenderSystem::Utils::ResourceBufferCanWrite(
+bool MM::RenderSystem::ResourceBufferCanWrite(
     const VkDescriptorType& descriptor_type) {
   if (!DescriptorTypeIsBuffer(descriptor_type)) {
     return false;
@@ -814,7 +814,7 @@ bool MM::RenderSystem::Utils::ResourceBufferCanWrite(
   return DescriptorTypeIsStorageBuffer(descriptor_type);
 }
 
-bool MM::RenderSystem::Utils::GetImageUsageFromDescriptorType(
+bool MM::RenderSystem::GetImageUsageFromDescriptorType(
     const VkDescriptorType& descriptor_type,
     VkImageUsageFlags& output_image_usage) {
   if (DescriptorTypeIsImage(descriptor_type)) {
@@ -827,7 +827,7 @@ bool MM::RenderSystem::Utils::GetImageUsageFromDescriptorType(
   return false;
 }
 
-bool MM::RenderSystem::Utils::GetBufferUsageFromDescriptorType(
+bool MM::RenderSystem::GetBufferUsageFromDescriptorType(
     const VkDescriptorType& descriptor_type,
     VkImageUsageFlags& output_buffer_usage) {
   if (DescriptorTypeIsUniformBuffer(descriptor_type)) {
@@ -849,7 +849,7 @@ bool MM::RenderSystem::Utils::GetBufferUsageFromDescriptorType(
   return false;
 }
 
-bool MM::RenderSystem::Utils::ImageRegionIsOverlap(
+bool MM::RenderSystem::ImageRegionIsOverlap(
     const VkOffset3D& src_offset, const VkOffset3D& dest_offset,
     const VkExtent3D& extent) {
   return ((dest_offset.x > src_offset.x &&
@@ -872,7 +872,7 @@ bool MM::RenderSystem::Utils::ImageRegionIsOverlap(
            dest_offset.z + extent.width < src_offset.z + extent.width));
 }
 
-bool MM::RenderSystem::Utils::ImageRegionAreaLessThanImageExtent(
+bool MM::RenderSystem::ImageRegionAreaLessThanImageExtent(
     const VkOffset3D& offset, const VkExtent3D& extent,
     const AllocatedImage& image) {
   const VkExtent3D& image_extent = image.GetImageExtent();
@@ -881,7 +881,7 @@ bool MM::RenderSystem::Utils::ImageRegionAreaLessThanImageExtent(
          offset.z + extent.depth < image_extent.height;
 }
 
-VkImageSubresourceLayers MM::RenderSystem::Utils::GetVkImageSubResourceLayers(
+VkImageSubresourceLayers MM::RenderSystem::GetVkImageSubResourceLayers(
     const VkImageAspectFlags& aspect, const std::uint32_t& mipmap_level,
     const std::uint32_t& base_array_layer,
     const std::uint32_t& array_layer_count) {
@@ -889,7 +889,7 @@ VkImageSubresourceLayers MM::RenderSystem::Utils::GetVkImageSubResourceLayers(
                                   array_layer_count};
 }
 
-VkImageCopy2 MM::RenderSystem::Utils::GetVkImageCopy2(
+VkImageCopy2 MM::RenderSystem::GetVkImageCopy2(
     const VkImageSubresourceLayers& src_sub_resource,
     const VkImageSubresourceLayers& dest_sub_resource,
     const VkOffset3D& src_offset, const VkOffset3D& dest_offset,
@@ -903,7 +903,7 @@ VkImageCopy2 MM::RenderSystem::Utils::GetVkImageCopy2(
                       extent};
 }
 
-VkCopyImageInfo2 MM::RenderSystem::Utils::GetVkCopyImageInfo2(
+VkCopyImageInfo2 MM::RenderSystem::GetVkCopyImageInfo2(
     AllocatedImage& src_image, AllocatedImage& dest_image,
     const VkImageLayout& src_layout, const VkImageLayout& dest_layout,
     const std::vector<VkImageCopy2>& copy_regions) {
@@ -917,7 +917,7 @@ VkCopyImageInfo2 MM::RenderSystem::Utils::GetVkCopyImageInfo2(
                           copy_regions.data()};
 }
 
-VkCopyImageInfo2 MM::RenderSystem::Utils::GetVkCopyImageInfo2(
+VkCopyImageInfo2 MM::RenderSystem::GetVkCopyImageInfo2(
     const AllocatedImage& src_image, AllocatedImage& dest_image,
     const VkImageLayout& src_layout, const VkImageLayout& dest_layout,
     const std::vector<VkImageCopy2>& copy_regions) {
@@ -931,7 +931,7 @@ VkCopyImageInfo2 MM::RenderSystem::Utils::GetVkCopyImageInfo2(
                           copy_regions.data()};
 }
 
-VkCopyImageInfo2 MM::RenderSystem::Utils::GetVkCopyImageInfo2(
+VkCopyImageInfo2 MM::RenderSystem::GetVkCopyImageInfo2(
     VkImage src_image, VkImage dest_image, void* next, VkImageLayout src_layout,
     VkImageLayout dest_layout, std::uint32_t regions_count,
     const VkImageCopy2* copy_regions) {
@@ -946,7 +946,7 @@ VkCopyImageInfo2 MM::RenderSystem::Utils::GetVkCopyImageInfo2(
 }
 
 MM::Result<std::pair<VkDeviceSize, VkDeviceSize>, MM::ErrorResult>
-MM::RenderSystem::Utils::GetEndSizeAndOffset(
+MM::RenderSystem::GetEndSizeAndOffset(
     const AllocatedBuffer& buffer,
     std::list<std::shared_ptr<BufferChunkInfo>>& buffer_chunks_info) {
 #ifdef MM_CHECK_PARAMETERS
@@ -987,7 +987,7 @@ MM::RenderSystem::Utils::GetEndSizeAndOffset(
   }
 }
 
-VkCommandBufferBeginInfo MM::RenderSystem::Utils::GetCommandBufferBeginInfo(
+VkCommandBufferBeginInfo MM::RenderSystem::GetCommandBufferBeginInfo(
     VkCommandBufferUsageFlags flags,
     const VkCommandBufferInheritanceInfo* inheritance_info) {
   return VkCommandBufferBeginInfo{VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
@@ -995,7 +995,7 @@ VkCommandBufferBeginInfo MM::RenderSystem::Utils::GetCommandBufferBeginInfo(
 }
 
 MM::Result<MM::Nil, MM::ErrorResult>
-MM::RenderSystem::Utils::BeginCommandBuffer(
+MM::RenderSystem::BeginCommandBuffer(
     AllocatedCommandBuffer& command_buffer, VkCommandBufferUsageFlags flags,
     const VkCommandBufferInheritanceInfo* inheritance_info) {
   const VkCommandBufferBeginInfo command_buffer_begin_info =
@@ -1011,7 +1011,7 @@ MM::RenderSystem::Utils::BeginCommandBuffer(
   return ResultE<>{error_code};
 }
 
-MM::Result<MM::Nil, MM::ErrorResult> MM::RenderSystem::Utils::EndCommandBuffer(
+MM::Result<MM::Nil, MM::ErrorResult> MM::RenderSystem::EndCommandBuffer(
     AllocatedCommandBuffer& command_buffer) {
   ErrorCode error_code = VkResultToMMErrorCode(
       vkEndCommandBuffer(command_buffer.GetCommandBuffer()));
@@ -1023,7 +1023,7 @@ MM::Result<MM::Nil, MM::ErrorResult> MM::RenderSystem::Utils::EndCommandBuffer(
   return ResultE<>{error_code};
 }
 
-std::uint64_t MM::RenderSystem::Utils::ConvertVkFormatToContinuousValue(
+std::uint64_t MM::RenderSystem::ConvertVkFormatToContinuousValue(
     VkFormat vk_format) {
   if (vk_format < 1000054000) {
     return static_cast<std::uint64_t>(vk_format);
@@ -1161,7 +1161,7 @@ std::uint64_t MM::RenderSystem::Utils::ConvertVkFormatToContinuousValue(
   return 0;
 }
 
-std::uint64_t MM::RenderSystem::Utils::ConvertVkImageLayoutToContinuousValue(
+std::uint64_t MM::RenderSystem::ConvertVkImageLayoutToContinuousValue(
     VkImageLayout vk_image_layout) {
   if (vk_image_layout < 1000001002) {
     return vk_image_layout;
@@ -1216,7 +1216,7 @@ std::uint64_t MM::RenderSystem::Utils::ConvertVkImageLayoutToContinuousValue(
 }
 
 MM::Result<MM::Nil, MM::ErrorResult>
-MM::RenderSystem::Utils::CheckVkImageCreateInfo(
+MM::RenderSystem::CheckVkImageCreateInfo(
     const VkImageCreateInfo* vk_image_create_info) {
   if (vk_image_create_info == nullptr) {
     MM_LOG_ERROR("The vk image create info is nullptr.");
@@ -1293,7 +1293,7 @@ MM::RenderSystem::Utils::CheckVkImageCreateInfo(
 }
 
 MM::Result<MM::Nil, MM::ErrorResult>
-MM::RenderSystem::Utils::CheckVmaAllocationCreateInfo(
+MM::RenderSystem::CheckVmaAllocationCreateInfo(
     const VmaAllocationCreateInfo* vma_allocation_create_info) {
   if (vma_allocation_create_info == nullptr) {
     MM_LOG_ERROR("The vma allocation create info is nullptr.");
@@ -1332,7 +1332,7 @@ MM::RenderSystem::Utils::CheckVmaAllocationCreateInfo(
 }
 
 MM::Result<MM::Nil, MM::ErrorResult>
-MM::RenderSystem::Utils::CheckVkBufferCreateInfo(
+MM::RenderSystem::CheckVkBufferCreateInfo(
     const VkBufferCreateInfo* vk_buffer_create_info) {
   if (vk_buffer_create_info == nullptr) {
     MM_LOG_ERROR("The vk buffer create info is nullptr.");
@@ -1361,7 +1361,7 @@ MM::RenderSystem::Utils::CheckVkBufferCreateInfo(
   return ResultS<Nil>{};
 }
 
-VkBufferCreateInfo MM::RenderSystem::Utils::GetVkBufferCreateInfo(
+VkBufferCreateInfo MM::RenderSystem::GetVkBufferCreateInfo(
     const void* next, VkBufferCreateFlags flags, VkDeviceSize size,
     VkBufferUsageFlags usage, VkSharingMode sharing_mode,
     std::uint32_t queue_family_index_count,
@@ -1376,7 +1376,7 @@ VkBufferCreateInfo MM::RenderSystem::Utils::GetVkBufferCreateInfo(
                             queue_family_indices};
 }
 
-VmaAllocationCreateInfo MM::RenderSystem::Utils::GetVmaAllocationCreateInfo(
+VmaAllocationCreateInfo MM::RenderSystem::GetVmaAllocationCreateInfo(
     VmaAllocatorCreateFlags flags, VmaMemoryUsage usage,
     VkMemoryPropertyFlags required_flags, VkMemoryPropertyFlags preferred_flags,
     std::uint32_t memory_type_bits, VmaPool pool, void* user_data,
@@ -1387,7 +1387,7 @@ VmaAllocationCreateInfo MM::RenderSystem::Utils::GetVmaAllocationCreateInfo(
 }
 
 MM::Result<MM::RenderSystem::AllocatedBuffer, MM::ErrorResult>
-MM::RenderSystem::Utils::CreateBuffer(
+MM::RenderSystem::CreateBuffer(
     MM::RenderSystem::RenderEngine* render_engine,
     const std::string& object_name,
     const VkBufferCreateInfo& vk_buffer_create_info,
@@ -1428,7 +1428,7 @@ MM::RenderSystem::Utils::CreateBuffer(
   return ResultE<>{ErrorCode::CREATE_OBJECT_FAILED};
 }
 
-VkDependencyInfo MM::RenderSystem::Utils::GetVkDependencyInfo(
+VkDependencyInfo MM::RenderSystem::GetVkDependencyInfo(
     std::uint32_t memory_barriers_count,
     const VkMemoryBarrier2* memory_barriers,
     std::uint32_t buffer_barriers_count,
@@ -1447,7 +1447,7 @@ VkDependencyInfo MM::RenderSystem::Utils::GetVkDependencyInfo(
                           image_barriers};
 }
 
-VkImageMemoryBarrier2 MM::RenderSystem::Utils::GetVkImageMemoryBarrier2(
+VkImageMemoryBarrier2 MM::RenderSystem::GetVkImageMemoryBarrier2(
     VkPipelineStageFlags2 src_stage_mask, VkAccessFlags2 src_access_mask,
     VkPipelineStageFlags2 dst_stage_mask, VkAccessFlags2 dst_access_mask,
     VkImageLayout old_layout, VkImageLayout new_layout,
@@ -1467,7 +1467,7 @@ VkImageMemoryBarrier2 MM::RenderSystem::Utils::GetVkImageMemoryBarrier2(
                                subresource_range};
 }
 
-bool MM::RenderSystem::Utils::ImageLayoutSupportDepthTest(
+bool MM::RenderSystem::ImageLayoutSupportDepthTest(
     VkImageLayout vk_image_layout) {
   switch (vk_image_layout) {
     case VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL:
@@ -1482,7 +1482,7 @@ bool MM::RenderSystem::Utils::ImageLayoutSupportDepthTest(
   }
 }
 
-bool MM::RenderSystem::Utils::ImageLayoutSupportStencilTest(
+bool MM::RenderSystem::ImageLayoutSupportStencilTest(
     VkImageLayout vk_image_layout) {
   switch (vk_image_layout) {
     case VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL:
@@ -1497,7 +1497,7 @@ bool MM::RenderSystem::Utils::ImageLayoutSupportStencilTest(
   }
 }
 
-VkImageAspectFlags MM::RenderSystem::Utils::ChooseImageAspectFlags(
+VkImageAspectFlags MM::RenderSystem::ChooseImageAspectFlags(
     VkImageLayout vk_image_layout) {
   switch (vk_image_layout) {
     case VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL:
@@ -1516,7 +1516,7 @@ VkImageAspectFlags MM::RenderSystem::Utils::ChooseImageAspectFlags(
   }
 }
 
-VkImageSubresourceRange MM::RenderSystem::Utils::GetVkImageSubresourceRange(
+VkImageSubresourceRange MM::RenderSystem::GetVkImageSubresourceRange(
     VkImageAspectFlags vk_image_aspect_flags, std::uint32_t base_mipmap_level,
     std::uint32_t mipmap_level_count, std::uint32_t base_array_level,
     std::uint32_t array_count) {
@@ -1525,7 +1525,7 @@ VkImageSubresourceRange MM::RenderSystem::Utils::GetVkImageSubresourceRange(
                                  array_count};
 }
 
-VkBufferImageCopy2 MM::RenderSystem::Utils::GetVkBufferImageCopy2(
+VkBufferImageCopy2 MM::RenderSystem::GetVkBufferImageCopy2(
     const void* next, VkDeviceSize buffer_offset, uint32_t buffer_row_length,
     uint32_t buffer_image_height, VkImageSubresourceLayers image_sub_resource,
     VkOffset3D image_offset, VkExtent3D image_extent) {
@@ -1539,7 +1539,7 @@ VkBufferImageCopy2 MM::RenderSystem::Utils::GetVkBufferImageCopy2(
                             image_extent};
 }
 
-VkCopyBufferToImageInfo2 MM::RenderSystem::Utils::GetVkCopyBufferToImageInfo2(
+VkCopyBufferToImageInfo2 MM::RenderSystem::GetVkCopyBufferToImageInfo2(
     const void* next, MM::RenderSystem::AllocatedBuffer& src_buffer,
     MM::RenderSystem::AllocatedImage& dest_image,
     VkImageLayout dest_image_layout, uint32_t region_count,
@@ -1553,12 +1553,12 @@ VkCopyBufferToImageInfo2 MM::RenderSystem::Utils::GetVkCopyBufferToImageInfo2(
                                   regions};
 }
 
-bool MM::RenderSystem::Utils::ImageUseToSampler(
+bool MM::RenderSystem::ImageUseToSampler(
     VkImageUsageFlags vk_image_usage_flags) {
   return vk_image_usage_flags & VK_IMAGE_USAGE_SAMPLED_BIT;
 }
 
-VkImageBlit2 MM::RenderSystem::Utils::GetImageBlit2(
+VkImageBlit2 MM::RenderSystem::GetImageBlit2(
     const void* next, VkImageSubresourceLayers src_sub_resource,
     VkOffset3D* src_offsets, VkImageSubresourceLayers dest_sub_resource,
     VkOffset3D* dest_offsets) {
@@ -1571,7 +1571,7 @@ VkImageBlit2 MM::RenderSystem::Utils::GetImageBlit2(
 }
 
 MM::RenderSystem::CommandBufferType
-MM::RenderSystem::Utils::ChooseCommandBufferType(
+MM::RenderSystem::ChooseCommandBufferType(
     MM::RenderSystem::RenderEngine* render_engine, std::uint32_t queue_index) {
   assert(render_engine != nullptr);
 
@@ -1587,7 +1587,7 @@ MM::RenderSystem::Utils::ChooseCommandBufferType(
   return CommandBufferType ::UNDEFINED;
 }
 
-VkBufferMemoryBarrier2 MM::RenderSystem::Utils::GetVkBufferMemoryBarrier2(
+VkBufferMemoryBarrier2 MM::RenderSystem::GetVkBufferMemoryBarrier2(
     VkPipelineStageFlags2 src_stage, VkAccessFlags2 src_access,
     VkPipelineStageFlags2 dest_stage, VkAccessFlags2 dest_access,
     std::uint32_t src_queue_family_index, std::uint32_t dest_queue_family_index,
@@ -1605,7 +1605,7 @@ VkBufferMemoryBarrier2 MM::RenderSystem::Utils::GetVkBufferMemoryBarrier2(
                                 size};
 }
 
-VkCopyBufferInfo2 MM::RenderSystem::Utils::GetVkCopyBufferInfo2(
+VkCopyBufferInfo2 MM::RenderSystem::GetVkCopyBufferInfo2(
     const AllocatedBuffer& src_buffer, AllocatedBuffer& dest_buffer,
     std::uint32_t regions_count, const VkBufferCopy2* regions) {
   return VkCopyBufferInfo2{VK_STRUCTURE_TYPE_COPY_BUFFER_INFO_2,
@@ -1616,7 +1616,7 @@ VkCopyBufferInfo2 MM::RenderSystem::Utils::GetVkCopyBufferInfo2(
                            regions};
 }
 
-VkCopyBufferInfo2 MM::RenderSystem::Utils::GetVkCopyBufferInfo2(
+VkCopyBufferInfo2 MM::RenderSystem::GetVkCopyBufferInfo2(
     AllocatedBuffer& src_buffer, AllocatedBuffer& dest_buffer,
     std::uint32_t regions_count, const VkBufferCopy2* regions) {
   return VkCopyBufferInfo2{VK_STRUCTURE_TYPE_COPY_BUFFER_INFO_2,
@@ -1627,7 +1627,7 @@ VkCopyBufferInfo2 MM::RenderSystem::Utils::GetVkCopyBufferInfo2(
                            regions};
 }
 
-VkCopyBufferInfo2 MM::RenderSystem::Utils::GetVkCopyBufferInfo2(
+VkCopyBufferInfo2 MM::RenderSystem::GetVkCopyBufferInfo2(
     void* next, VkBuffer src_buffer, VkBuffer dest_buffer,
     std::uint32_t regions_count, const VkBufferCopy2* regions) {
   return VkCopyBufferInfo2{VK_STRUCTURE_TYPE_COPY_BUFFER_INFO_2,
@@ -1638,7 +1638,7 @@ VkCopyBufferInfo2 MM::RenderSystem::Utils::GetVkCopyBufferInfo2(
                            regions};
 }
 
-VkSubmitInfo MM::RenderSystem::Utils::GetVkSubmitInfo(
+VkSubmitInfo MM::RenderSystem::GetVkSubmitInfo(
     void* next, uint32_t wait_semaphore_info_count,
     const VkSemaphore* wait_semaphore_infos,
     const VkPipelineStageFlags* wait_dst_stage_mask,
@@ -1656,7 +1656,7 @@ VkSubmitInfo MM::RenderSystem::Utils::GetVkSubmitInfo(
                       signal_semaphore_infos};
 }
 
-bool MM::RenderSystem::Utils::IsValidPipelineCacheData(
+bool MM::RenderSystem::IsValidPipelineCacheData(
     const std::string& filename, const char* buffer, uint32_t size,
     const VkPhysicalDeviceProperties& gpu_properties) {
   if (size > 32) {
@@ -1724,7 +1724,7 @@ bool MM::RenderSystem::Utils::IsValidPipelineCacheData(
   return false;
 }
 
-VkImageCreateInfo MM::RenderSystem::Utils::GetVkImageCreateInfo(
+VkImageCreateInfo MM::RenderSystem::GetVkImageCreateInfo(
     const void* next, VkImageCreateFlags flags, VkImageType image_type,
     VkFormat format, VkExtent3D extent, uint32_t mipmap_levels,
     uint32_t array_layers, VkSampleCountFlags samples, VkImageTiling tiling,
@@ -1748,7 +1748,7 @@ VkImageCreateInfo MM::RenderSystem::Utils::GetVkImageCreateInfo(
                            initial_layout};
 }
 
-std::uint64_t MM::RenderSystem::Utils::GetVkFormatSize(VkFormat vk_format) {
+std::uint64_t MM::RenderSystem::GetVkFormatSize(VkFormat vk_format) {
   switch (vk_format) {
     case VK_FORMAT_UNDEFINED:
       return 0;
@@ -2011,7 +2011,7 @@ std::uint64_t MM::RenderSystem::Utils::GetVkFormatSize(VkFormat vk_format) {
   }
 }
 
-VkFormat MM::RenderSystem::Utils::GetVkFormatFromImageFormat(
+VkFormat MM::RenderSystem::GetVkFormatFromImageFormat(
     MM::AssetSystem::AssetType::ImageFormat image_format) {
   switch (image_format) {
     case AssetSystem::AssetType::ImageFormat::UNDEFINED:
@@ -2027,7 +2027,7 @@ VkFormat MM::RenderSystem::Utils::GetVkFormatFromImageFormat(
   }
 }
 
-bool MM::RenderSystem::Utils::LayoutSupportImageSamplerCombine(
+bool MM::RenderSystem::LayoutSupportImageSamplerCombine(
     VkImageLayout layout) {
   switch (layout) {
     case VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL:
@@ -2047,7 +2047,7 @@ bool MM::RenderSystem::Utils::LayoutSupportImageSamplerCombine(
 }
 
 MM::RenderSystem::DynamicState
-MM::RenderSystem::Utils::ConvertVkDynamicStateToDynamicState(
+MM::RenderSystem::ConvertVkDynamicStateToDynamicState(
     VkDynamicState vk_dynamic_state) {
   switch (vk_dynamic_state) {
     case VK_DYNAMIC_STATE_VIEWPORT:
@@ -2129,7 +2129,7 @@ MM::RenderSystem::Utils::ConvertVkDynamicStateToDynamicState(
   }
 }
 
-MM::Result<MM::Nil, MM::ErrorResult> MM::RenderSystem::Utils::SavePiplineCache(
+MM::Result<MM::Nil, MM::ErrorResult> MM::RenderSystem::SavePiplineCache(
     VkDevice device, VkPipelineCache pipeline_cache) {
   size_t cacheSize = 0;
 
@@ -2161,35 +2161,35 @@ MM::Result<MM::Nil, MM::ErrorResult> MM::RenderSystem::Utils::SavePiplineCache(
   return ResultS<Nil>{};
 }
 
-bool MM::RenderSystem::Utils::VkVertexInputBindingDescriptionIsEqual(
+bool MM::RenderSystem::VkVertexInputBindingDescriptionIsEqual(
     const VkVertexInputBindingDescription& lhs,
     const VkVertexInputBindingDescription& rhs) {
   return lhs.binding == rhs.binding && lhs.stride == rhs.stride &&
          lhs.inputRate == rhs.inputRate;
 }
 
-bool MM::RenderSystem::Utils::VkVertexInputAttributeDescriptionIsEqual(
+bool MM::RenderSystem::VkVertexInputAttributeDescriptionIsEqual(
     const VkVertexInputAttributeDescription& lhs,
     const VkVertexInputAttributeDescription& rhs) {
   return lhs.binding == rhs.binding && lhs.location == rhs.location &&
          lhs.format == rhs.format && lhs.offset == rhs.offset;
 }
 
-bool MM::RenderSystem::Utils::VkViewportIsEqual(const VkViewport& lhs,
+bool MM::RenderSystem::VkViewportIsEqual(const VkViewport& lhs,
                                                 const VkViewport& rhs) {
   return lhs.x == rhs.x && lhs.y == rhs.y && lhs.width == rhs.width &&
          lhs.height == rhs.height && lhs.minDepth == rhs.minDepth &&
          lhs.maxDepth == rhs.maxDepth;
 }
 
-bool MM::RenderSystem::Utils::VkRect2DIsEqual(const VkRect2D& lhs,
+bool MM::RenderSystem::VkRect2DIsEqual(const VkRect2D& lhs,
                                               const VkRect2D& rhs) {
   return lhs.offset.x == rhs.offset.x && lhs.offset.y == rhs.offset.y &&
          lhs.extent.width == rhs.extent.width &&
          lhs.extent.height == rhs.extent.height;
 }
 
-bool MM::RenderSystem::Utils::VkPipelineViewportStateCreateInfoIsEqual(
+bool MM::RenderSystem::VkPipelineViewportStateCreateInfoIsEqual(
     const VkPipelineViewportStateCreateInfo& lhs,
     const VkPipelineViewportStateCreateInfo& rhs) {
   bool result = lhs.flags == rhs.flags &&
