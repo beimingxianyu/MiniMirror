@@ -9,13 +9,15 @@
 #include <GLFW/glfw3.h>
 #define GLFW_EXPOSE_NATIVE_WIN32
 #include <GLFW/glfw3native.h>
+#ifdef ERROR
+    #undef ERROR
+#endif
 
 #include <atomic>
 #include <optional>
 #include <string>
 #include <vector>
 
-#include "runtime/core/log/log_system.h"
 #include "runtime/function/render/AllocatedBuffer.h"
 #include "runtime/function/render/AllocatedImage.h"
 #include "runtime/function/render/AllocatedMeshBuffer.h"

@@ -29,7 +29,8 @@ class RenderEngine;
 
 using QueueIndex = std::uint32_t;
 using VertexIndex = std::uint32_t;
-using RenderFutureState = std::atomic<RenderFutureStateEnum>;
+using AtomicRenderFutureState = std::atomic<RenderFutureState>;
+using AtomicCommandTaskRunningState = std::atomic<CommandTaskRunningState>;
 
 struct QueueFamilyIndices {
   std::optional<uint32_t> graphics_family_;

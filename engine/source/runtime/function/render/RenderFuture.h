@@ -40,9 +40,9 @@ class RenderFuture {
 
       void Notify();
 
-      void SetState(RenderFutureStateEnum state);
+      void SetState(RenderFutureState state);
 
-      RenderFutureStateEnum GetState() const;
+      RenderFutureState GetState() const;
 
       void Wait();
 
@@ -59,12 +59,15 @@ class RenderFuture {
       }
 
     private:
-      RenderFutureState state_{RenderFutureStateEnum::RUNNING};
-      RenderFutureCVM* cvm_{nullptr};
+      AtomicRenderFutureState state_{RenderFutureState::RUNNING};
+      RenderFutureCVM* cvm_{new RenderFutureCVM{}};
   };
 
  public:
-  RenderFuture() = delete;
+  using RenderFutureStateManagerRef = std::shared_ptr<RenderFutureStateManager>;
+
+ public:
+  RenderFuture() = default;
   ~RenderFuture() = default;
   RenderFuture(const RenderFuture& other) = delete;
   RenderFuture(RenderFuture&& other) noexcept;
@@ -72,14 +75,14 @@ class RenderFuture {
   RenderFuture& operator=(RenderFuture&& other) noexcept;
 
  public:
-  RenderFutureStateEnum Wait();
+  RenderFutureState Wait();
 
   template< class Rep, class Period >
-  RenderFutureStateEnum WaitFor(const std::chrono::duration<Rep, Period>& rel_time) {
+  RenderFutureState WaitFor(const std::chrono::duration<Rep, Period>& rel_time) {
     assert(IsValid());
 
-    RenderFutureStateEnum state = state_manager_->GetState();
-    if (state == RenderFutureStateEnum::RUNNING) {
+    RenderFutureState state = state_manager_->GetState();
+    if (state == RenderFutureState::RUNNING) {
       state_manager_->WaitFor(rel_time); 
       state = state_manager_->GetState();
     }
@@ -88,11 +91,11 @@ class RenderFuture {
   }
 
   template< class Rep, class Period >
-  RenderFutureStateEnum WaitUntil(const std::chrono::duration<Rep, Period>& rel_time) {
+  RenderFutureState WaitUntil(const std::chrono::duration<Rep, Period>& rel_time) {
     assert(IsValid());
 
-    RenderFutureStateEnum state = state_manager_->GetState();
-    if (state == RenderFutureStateEnum::RUNNING) {
+    RenderFutureState state = state_manager_->GetState();
+    if (state == RenderFutureState::RUNNING) {
       state_manager_->WaitUntil(rel_time); 
       state = state_manager_->GetState();
     }
@@ -105,18 +108,14 @@ class RenderFuture {
   bool IsValid() const;
 
  private:
-  RenderFuture(CommandExecutor* command_executor,
-               const CommandTaskFlowID& task_flow_ID,
-               std::shared_ptr<RenderFutureStateManager> state_manager);
+  explicit RenderFuture(RenderFutureStateManagerRef state_manager);
 
  private:
   static std::mutex wait_mutex_;
   static std::condition_variable wait_condition_variable_;
 
  private:
-  CommandExecutor* command_executor_{nullptr};
-  CommandTaskFlowID task_flow_ID_{0};
-  std::shared_ptr<RenderFutureStateManager> state_manager_{nullptr};
+  RenderFutureStateManagerRef state_manager_{nullptr};
 };
 }  // namespace RenderSystem
 }  // namespace MM

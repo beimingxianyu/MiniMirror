@@ -26,7 +26,9 @@ enum class MemoryOperate { READ, WRITE, READ_AND_WRITE, UNDEFINED };
 
 enum class CommandBufferType { GRAPH, COMPUTE, TRANSFORM, UNDEFINED };
 
-enum class RenderFutureStateEnum {UNDEFINED, RUNNING, CANCELLED, FAILED, SUCCESS};
+enum class RenderFutureState {UNDEFINED, RUNNING, CANCELLED, FAILED, SUCCESS};
+
+enum class CommandTaskRunningState {UNDEFINED, WAIT, RECORDING, Executiong, COMPLETED};
 
 enum class ImageTransferMode {
   INIT_TO_ATTACHMENT,

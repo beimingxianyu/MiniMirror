@@ -71,6 +71,8 @@ class CommandTask {
 
   void SetSyncRecord();
 
+  bool IsSubTask() const;
+
   bool IsValid() const;
 
  private:
@@ -80,7 +82,7 @@ class CommandTask {
  private:
   static std::atomic<CommandTaskID> current_command_tast_ID_;
 
-  CommandTaskFlow* task_flow_;
+  CommandTaskFlow* task_flow_{nullptr};
   CommandTaskID command_task_ID_{0};
   CommandType command_type_{CommandType::UNDEFINED};
   std::vector<TaskType> commands_{};

@@ -219,3 +219,4 @@ MM::Result<MM::Nil, MM::ErrorResult> MM::RenderSystem::CommandTask::Merge(
 }
 
 MM::RenderSystem::CommandTask::~CommandTask() = default;
+bool MM::RenderSystem::CommandTask::IsSubTask() const { return is_sub_task_; }

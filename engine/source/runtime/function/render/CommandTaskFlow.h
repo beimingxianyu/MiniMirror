@@ -140,8 +140,7 @@ class CommandTaskFlow {
   static std::atomic<CommandTaskFlowID> current_command_task_flow_ID_;
 
   CommandTaskFlowID task_flow_ID_{0};
-  std::vector<CommandTaskID> root_command_task_IDs_{};
-  std::list<CommandTask> tasks_{};
+  std::vector<CommandTask> tasks_{};
 
   std::array<std::uint32_t, 3> task_numbers_{};
 };
