@@ -5,6 +5,7 @@
 #include "runtime/function/render/CommandExecutor.h"
 
 #include <memory>
+#include <thread>
 
 
 #include "runtime/function/render/RenderFuture.h"
@@ -238,7 +239,7 @@ MM::Result<MM::RenderSystem::RenderFuture, MM::ErrorResult> MM::RenderSystem::Co
     return ResultS<RenderFuture>{task_flow_submit_during_lockdown_.back().external_info_.state_manager_};
   } else {
       std::lock_guard<std::mutex> guard{task_flow_queue_mutex_};
-      task_flow_queue_.emplace_back(std::move(command_task_flow));
+      wait_task_flow_queue_.emplace_back(std::move(command_task_flow));
 
       if (!processing_task_flow_queue_) {
         TaskSystem::Taskflow task_flow;
@@ -247,7 +248,7 @@ MM::Result<MM::RenderSystem::RenderFuture, MM::ErrorResult> MM::RenderSystem::Co
         processing_task_flow_queue_ = true;
       }
 
-      return ResultS<RenderFuture>{task_flow_queue_.back().external_info_.state_manager_};
+      return ResultS<RenderFuture>{wait_task_flow_queue_.back().external_info_.state_manager_};
   }
 }
 
@@ -697,7 +698,7 @@ void MM::RenderSystem::CommandExecutor::UnlockExecutor() {
     std::lock_guard guard1(task_flow_queue_mutex_, std::adopt_lock),
         guard2(task_flow_submit_during_lockdown_mutex_, std::adopt_lock);
 
-    task_flow_queue_.splice(task_flow_queue_.end(),
+    wait_task_flow_queue_.splice(wait_task_flow_queue_.end(),
                             task_flow_submit_during_lockdown_);
   }
 }
@@ -950,3 +951,44 @@ bool MM::RenderSystem::CommandExecutorGeneralCommandBufferGuard::IsValid()
     const {
   return general_command_buffer_ != nullptr;
 }
+
+
+/*-------------------------------------------------------------------------------------*/
+
+void MM::RenderSystem::CommandExecutor::ProcessTask() {
+  do {
+    ProcessCompleteTask();
+
+
+    std::this_thread::yield();
+  } while(HaveCommandTaskToBeProcess());
+
+  processing_task_flow_queue_ = false;
+}
+
+bool MM::RenderSystem::CommandExecutor::HaveCommandTaskToBeProcess() const {
+  return !wait_task_flow_queue_.empty() || !executing_task_flow_queue_.empty() || !submit_failed_to_be_recycled_command_buffer_.empty();
+}
+
+void MM::RenderSystem::CommandExecutor::ProcessCompleteTask() {
+  std::unique_lock<std::mutex> recycled_command_buffer_guard{
+      submit_failed_to_be_recycled_command_buffer_mutex_};
+  for (auto& command_buffer : submit_failed_to_be_recycled_command_buffer_) {
+    command_buffer->ResetCommandBuffer();
+    if (command_buffer->GetCommandBufferType() == CommandBufferType::GRAPH) {
+      free_graph_command_buffers_.push(std::move(command_buffer));
+    } else if (command_buffer->GetCommandBufferType() ==
+               CommandBufferType::COMPUTE) {
+      free_compute_command_buffers_.push(std::move(command_buffer));
+    } else if (command_buffer->GetCommandBufferType() ==
+               CommandBufferType::TRANSFORM) {
+      free_transform_command_buffers_.push(std::move(command_buffer));
+    }
+  }
+  submit_failed_to_be_recycled_command_buffer_.clear();
+  recycled_command_buffer_guard.unlock();
+
+
+}
+
+/*-------------------------------------------------------------------------------------*/

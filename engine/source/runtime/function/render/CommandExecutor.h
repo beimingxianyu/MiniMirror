@@ -6,6 +6,7 @@
 #include <vulkan/vulkan_core.h>
 #include <atomic>
 #include <memory>
+#include <unordered_map>
 #include <vector>
 #include "runtime/core/log/log_system.h"
 #include "runtime/function/render/CommandTask.h"
@@ -221,7 +222,7 @@ class CommandExecutor {
 
   std::vector<VkSemaphore> GetSemaphore(std::uint32_t require_number);
 
-  void RecycledSemaphoreThatSubmittedFailed();
+  bool HaveCommandTaskToBeProcess() const;
 
   void ProcessCompleteTask();
 
@@ -280,10 +281,13 @@ class CommandExecutor {
   bool processing_task_flow_queue_{false};
   std::mutex task_flow_queue_mutex_{};
 
-  std::list<CommandTaskFlowToBeRun> task_flow_queue_{};
+  std::list<CommandTaskFlowToBeRun> wait_task_flow_queue_{};
 
   std::list<std::uint32_t> wait_tasks_;
   std::mutex wait_tasks_mutex_{};
+
+  std::list<CommandTaskExecuting> executing_task_flow_queue_{};
+  std::unordered_map<CommandTaskID, CommandTaskExecuting> executing_command_task_{};
 
   std::list<std::unique_ptr<AllocatedCommandBuffer>>
       submit_failed_to_be_recycled_command_buffer_{};
