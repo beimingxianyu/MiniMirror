@@ -115,12 +115,14 @@ class CommandExecutor {
     std::atomic_uint32_t pre_command_task_not_submit_count_{0};
     std::vector<VkSemaphore> wait_semaphore_{};
     std::vector<VkSemaphore> signal_semaphore_{};
+    std::vector<std::unique_ptr<AllocatedCommandBuffer>> command_buffers_{};
 
     // When the \ref waiting_coefficient is greater than the number of command
     // buffers required by the task, it will wait for the task.
     std::uint32_t wait_coefficient_{0}; 
   };
 
+  struct CommandTaskExecuting;
   struct CommandTaskFlowExecuting;
 
   struct CommandTaskContent {
@@ -128,8 +130,8 @@ class CommandExecutor {
     CommandTaskID command_task_ID_{0};
     CommandType command_type_{CommandType::UNDEFINED};
     std::vector<TaskType> commands_{};
-    std::vector<CommandTaskID> post_tasks_{};
-    std::vector<CommandTaskID> sub_tasks_{};
+    std::vector<CommandTaskExecuting*> post_tasks_{};
+    std::vector<CommandTaskExecuting*> sub_tasks_{};
     bool is_sub_task_{false};
     bool is_async_record_{false};
     std::vector<RenderResourceDataID> cross_task_flow_sync_render_resource_IDs_;
@@ -220,9 +222,15 @@ class CommandExecutor {
       const CommandType& command_type,
       const std::uint32_t& new_command_buffer_num);
 
+ private:
+  bool ExecutingCommandTaskIsComplete(
+      const CommandTaskExecuting& command_task) const;
+
   std::vector<VkSemaphore> GetSemaphore(std::uint32_t require_number);
 
   bool HaveCommandTaskToBeProcess() const;
+
+  void ProcessRunningFailed();
 
   void ProcessCompleteTask();
 
@@ -286,12 +294,12 @@ class CommandExecutor {
   std::list<std::uint32_t> wait_tasks_;
   std::mutex wait_tasks_mutex_{};
 
-  std::list<CommandTaskExecuting> executing_task_flow_queue_{};
-  std::unordered_map<CommandTaskID, CommandTaskExecuting> executing_command_task_{};
+  std::list<CommandTaskFlowExecuting> executing_task_flow_queue_{};
+  std::unordered_map<CommandTaskID, CommandTaskExecuting> executing_command_task_map_{};
 
   std::list<std::unique_ptr<AllocatedCommandBuffer>>
-      submit_failed_to_be_recycled_command_buffer_{};
-  std::mutex submit_failed_to_be_recycled_command_buffer_mutex_{};
+      submit_failed_to_be_recovery_command_buffer_{};
+  std::mutex submit_failed_to_be_recovery_command_buffer_mutex_{};
 
   std::atomic_uint32_t lock_count_{};
   std::mutex task_flow_submit_during_lockdown_mutex_{};

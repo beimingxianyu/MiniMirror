@@ -31,6 +31,7 @@ using QueueIndex = std::uint32_t;
 using VertexIndex = std::uint32_t;
 using AtomicRenderFutureState = std::atomic<RenderFutureState>;
 using AtomicCommandTaskRunningState = std::atomic<CommandTaskRunningState>;
+using CommandTaskFlowExecutingState = RenderFutureState;
 
 struct QueueFamilyIndices {
   std::optional<uint32_t> graphics_family_;
