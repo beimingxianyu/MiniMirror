@@ -21,46 +21,61 @@ class RenderFuture {
 
  private:
   struct RenderFutureCVM {
-      std::mutex mutex_;
-      std::condition_variable condition_variable_;
+    std::mutex mutex_;
+    std::condition_variable condition_variable_;
   };
 
   class RenderFutureStateManager {
-    public:
-      RenderFutureStateManager() = default;
-      ~RenderFutureStateManager() = default;
-      RenderFutureStateManager(const RenderFutureStateManager& other) = delete;
-      RenderFutureStateManager(RenderFutureStateManager&& other) noexcept;
-      RenderFutureStateManager& operator=(const RenderFutureStateManager& other) = delete;
-      RenderFutureStateManager& operator=(
-          RenderFutureStateManager&& other) noexcept;
+   public:
+    RenderFutureStateManager() = default;
+    ~RenderFutureStateManager() = default;
+    RenderFutureStateManager(const RenderFutureStateManager& other) = delete;
+    RenderFutureStateManager(RenderFutureStateManager&& other) noexcept;
+    RenderFutureStateManager& operator=(const RenderFutureStateManager& other) =
+        delete;
+    RenderFutureStateManager& operator=(
+        RenderFutureStateManager&& other) noexcept;
 
-     public:
-      bool IsValid() const;
+   public:
+    bool IsValid() const;
 
-      void Notify();
+    void Notify();
 
-      void SetState(RenderFutureState state);
+    void SetState(RenderFutureState state);
 
-      RenderFutureState GetState() const;
+    RenderFutureState GetState() const;
 
-      void Wait();
+    void Wait();
 
-      template< class Rep, class Period >
-      bool WaitFor(const std::chrono::duration<Rep, Period>& rel_time) {
-        std::unique_lock<std::mutex> um{cvm_->mutex_};
-        return cvm_->condition_variable_.wait_for(um, rel_time) != std::cv_status::timeout;
+    template <class Rep, class Period>
+    bool WaitFor(const std::chrono::duration<Rep, Period>& rel_time) {
+      std::unique_lock<std::mutex> um{cvm_->mutex_};
+      CommandTaskFlowExecutingState state =
+          state_.load(std::memory_order_relaxed);
+
+      if (state == CommandTaskFlowExecutingState::WAIT ||
+          state == CommandTaskFlowExecutingState::RUNNING) {
+        return cvm_->condition_variable_.wait_for(um, rel_time) !=
+               std::cv_status::timeout;
       }
+    }
 
-      template< class Rep, class Period >
-      bool WaitUntil(const std::chrono::duration<Rep, Period>& rel_time) {
-        std::unique_lock<std::mutex> um{cvm_->mutex_};
-        return cvm_->condition_variable_.wait(um, rel_time) != std::cv_status::timeout;
+    template <class Rep, class Period>
+    bool WaitUntil(const std::chrono::duration<Rep, Period>& rel_time) {
+      std::unique_lock<std::mutex> um{cvm_->mutex_};
+      CommandTaskFlowExecutingState state =
+          state_.load(std::memory_order_relaxed);
+
+      if (state == CommandTaskFlowExecutingState::WAIT ||
+          state == CommandTaskFlowExecutingState::RUNNING) {
+        return cvm_->condition_variable_.wait_until(um, rel_time) !=
+               std::cv_status::timeout;
       }
+    }
 
-    private:
-      AtomicRenderFutureState state_{RenderFutureState::RUNNING};
-      RenderFutureCVM* cvm_{new RenderFutureCVM{}};
+   private:
+    AtomicRenderFutureState state_{RenderFutureState::RUNNING};
+    RenderFutureCVM* cvm_{new RenderFutureCVM{}};
   };
 
  public:
@@ -69,38 +84,56 @@ class RenderFuture {
  public:
   RenderFuture() = default;
   ~RenderFuture() = default;
+  explicit RenderFuture(CommandExecutor* command_executor,
+                        CommandTaskFlowID command_task_flow_ID,
+                        RenderFutureStateManagerRef state_manager);
   RenderFuture(const RenderFuture& other) = delete;
   RenderFuture(RenderFuture&& other) noexcept;
   RenderFuture& operator=(const RenderFuture& other) = delete;
   RenderFuture& operator=(RenderFuture&& other) noexcept;
 
+ private:
+  void AddToWaitList();
+
  public:
   RenderFutureState Wait();
 
-  template< class Rep, class Period >
-  RenderFutureState WaitFor(const std::chrono::duration<Rep, Period>& rel_time) {
+  template <class Rep, class Period>
+  std::pair<RenderFutureState, bool> WaitFor(
+      const std::chrono::duration<Rep, Period>& rel_time) {
     assert(IsValid());
 
+    bool wait_result = true;
     RenderFutureState state = state_manager_->GetState();
-    if (state == RenderFutureState::RUNNING) {
-      state_manager_->WaitFor(rel_time); 
+    if (state == RenderFutureState::WAIT) {
+      AddToWaitList();
+      wait_result = state_manager_->WaitFor(rel_time);
+      state = state_manager_->GetState();
+    } else if (state == RenderFutureState::RUNNING) {
+      wait_result = state_manager_->WaitFor(rel_time);
       state = state_manager_->GetState();
     }
-    
-    return state;
+
+    return std::make_pair(state, wait_result);
   }
 
-  template< class Rep, class Period >
-  RenderFutureState WaitUntil(const std::chrono::duration<Rep, Period>& rel_time) {
+  template <class Rep, class Period>
+  std::pair<RenderFutureState, bool> WaitUntil(
+      const std::chrono::duration<Rep, Period>& rel_time) {
     assert(IsValid());
 
+    bool wait_result = true;
     RenderFutureState state = state_manager_->GetState();
-    if (state == RenderFutureState::RUNNING) {
-      state_manager_->WaitUntil(rel_time); 
+    if (state == RenderFutureState::WAIT) {
+      AddToWaitList();
+      wait_result = state_manager_->WaitUntil(rel_time);
+      state = state_manager_->GetState();
+    } else if (state == RenderFutureState::RUNNING) {
+      wait_result = state_manager_->WaitUntil(rel_time);
       state = state_manager_->GetState();
     }
-    
-    return state;
+
+    return std::make_pair(state, wait_result);
   }
 
   void Cancel();
@@ -108,13 +141,8 @@ class RenderFuture {
   bool IsValid() const;
 
  private:
-  explicit RenderFuture(RenderFutureStateManagerRef state_manager);
-
- private:
-  static std::mutex wait_mutex_;
-  static std::condition_variable wait_condition_variable_;
-
- private:
+  CommandExecutor* command_executor_{nullptr};
+  CommandTaskFlowID command_task_flow_ID_{0};
   RenderFutureStateManagerRef state_manager_{nullptr};
 };
 }  // namespace RenderSystem

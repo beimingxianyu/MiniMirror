@@ -3,6 +3,7 @@
 //
 
 #include "runtime/function/render/RenderFuture.h"
+
 #include <atomic>
 
 #include "runtime/core/log/log_system.h"
@@ -14,8 +15,7 @@
 MM::RenderSystem::RenderFuture::RenderFutureStateManager::
     RenderFutureStateManager(RenderFutureStateManager&& other) noexcept
     : state_(other.state_.load(std::memory_order_acquire)), cvm_(other.cvm_) {
-  other.state_.store(RenderFutureState::UNDEFINED,
-                     std::memory_order_release);
+  other.state_.store(RenderFutureState::UNDEFINED, std::memory_order_release);
   other.cvm_ = nullptr;
 }
 
@@ -30,8 +30,7 @@ MM::RenderSystem::RenderFuture::RenderFutureStateManager::operator=(
                std::memory_order_release);
   cvm_ = other.cvm_;
 
-  other.state_.store(RenderFutureState::UNDEFINED,
-                     std::memory_order_release);
+  other.state_.store(RenderFutureState::UNDEFINED, std::memory_order_release);
   other.cvm_ = nullptr;
 
   return *this;
@@ -63,11 +62,20 @@ MM::RenderSystem::RenderFuture::RenderFutureStateManager::GetState() const {
 
 void MM::RenderSystem::RenderFuture::RenderFutureStateManager::Wait() {
   std::unique_lock<std::mutex> um{cvm_->mutex_};
-  cvm_->condition_variable_.wait(um);
+  CommandTaskFlowExecutingState state = state_.load(std::memory_order_relaxed);
+
+  if (state == CommandTaskFlowExecutingState::WAIT ||
+      state == CommandTaskFlowExecutingState::RUNNING) {
+    cvm_->condition_variable_.wait(um);
+  }
 }
 
 MM::RenderSystem::RenderFuture::RenderFuture(RenderFuture&& other) noexcept
-    : state_manager_(std::move(other.state_manager_)) {
+    : command_executor_(other.command_executor_),
+      command_task_flow_ID_(other.command_task_flow_ID_),
+      state_manager_(std::move(other.state_manager_)) {
+  other.command_executor_ = nullptr;
+  other.command_task_flow_ID_ = 0;
 }
 
 MM::RenderSystem::RenderFuture& MM::RenderSystem::RenderFuture::operator=(
@@ -76,7 +84,12 @@ MM::RenderSystem::RenderFuture& MM::RenderSystem::RenderFuture::operator=(
     return *this;
   }
 
+  command_executor_ = other.command_executor_;
+  command_task_flow_ID_ = other.command_task_flow_ID_;
   state_manager_ = std::move(other.state_manager_);
+
+  other.command_executor_ = nullptr;
+  other.command_task_flow_ID_ = 0;
 
   return *this;
 }
@@ -84,7 +97,12 @@ MM::RenderSystem::RenderFutureState MM::RenderSystem::RenderFuture::Wait() {
   assert(IsValid());
 
   RenderFutureState state = state_manager_->GetState();
-  if (state == RenderFutureState::RUNNING) {
+  if (state == RenderFutureState::WAIT) {
+    AddToWaitList();
+    state_manager_->Wait();
+    state = state_manager_->GetState();
+    assert(state != RenderFutureState::RUNNING);
+  } else if (state == RenderFutureState::RUNNING) {
     state_manager_->Wait();
     state = state_manager_->GetState();
     assert(state != RenderFutureState::RUNNING);
@@ -97,12 +115,22 @@ void MM::RenderSystem::RenderFuture::Cancel() {
 
   state_manager_->SetState(RenderFutureState::CANCELLED);
 }
+
 bool MM::RenderSystem::RenderFuture::IsValid() const {
-  return state_manager_ != nullptr;
+  return command_executor_ != nullptr && state_manager_ != nullptr;
 }
 
-MM::RenderSystem::RenderFuture::RenderFuture( 
+MM::RenderSystem::RenderFuture::RenderFuture(
+    CommandExecutor* command_exector, CommandTaskFlowID command_task_flow_ID,
     RenderFutureStateManagerRef state_manager)
-    : state_manager_(std::move(state_manager)) {
+    : command_executor_(command_exector),
+      command_task_flow_ID_(command_task_flow_ID),
+      state_manager_(std::move(state_manager)) {
   assert(IsValid());
+}
+
+void MM::RenderSystem::RenderFuture::AddToWaitList() {
+  std::unique_lock<std::mutex> wait_list_guard(
+      command_executor_->wait_task_flows_mutex_);
+  command_executor_->wait_task_flows_.push_back(command_task_flow_ID_);
 }
