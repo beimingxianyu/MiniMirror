@@ -4,10 +4,12 @@
 #pragma once
 
 #include <vulkan/vulkan_core.h>
+
 #include <atomic>
 #include <memory>
 #include <unordered_map>
 #include <vector>
+
 #include "runtime/core/log/log_system.h"
 #include "runtime/function/render/CommandTask.h"
 #include "runtime/function/render/CommandTaskFlow.h"
@@ -17,11 +19,9 @@
 #include "runtime/function/render/vk_type_define.h"
 #include "utils/error.h"
 
-
 namespace MM {
 namespace RenderSystem {
 using CommandType = CommandBufferType;
-
 class CommandExecutor {
   friend class RenderFuture;
 
@@ -58,7 +58,8 @@ class CommandExecutor {
 
   std::unique_ptr<AllocatedCommandBuffer> AcquireGeneralComputeCommandBuffer();
 
-  std::unique_ptr<AllocatedCommandBuffer> AcquireGeneralTransformCommandBuffer();
+  std::unique_ptr<AllocatedCommandBuffer>
+  AcquireGeneralTransformCommandBuffer();
 
   void ReleaseGeneralCommandBuffer(
       std::unique_ptr<AllocatedCommandBuffer>&& output);
@@ -71,7 +72,8 @@ class CommandExecutor {
   /**
    * \remark The \ref command_task_flow is invalid after call this function.
    */
-  Result<RenderFutureState , ErrorResult> RunAndWait(CommandTaskFlow&& command_task_flow);
+  Result<RenderFutureState, ErrorResult> RunAndWait(
+      CommandTaskFlow&& command_task_flow);
 
   void LockExecutor();
 
@@ -82,11 +84,6 @@ class CommandExecutor {
  private:
   struct CommandTaskFlowToBeRunExternalInfo {
     RenderFuture::RenderFutureStateManagerRef state_manager_{nullptr};
-    std::uint32_t the_maximum_number_of_graph_buffers_required_for_one_task_{0};
-    std::uint32_t the_maximum_number_of_compute_buffers_required_for_one_task_{
-        0};
-    std::uint32_t
-        the_maximum_number_of_transform_buffers_required_for_one_task_{0};
   };
 
   struct CommandTaskFlowToBeRun {
@@ -100,17 +97,18 @@ class CommandExecutor {
     CommandTaskFlowToBeRun(CommandTaskFlowToBeRun&& other) noexcept = default;
     CommandTaskFlowToBeRun& operator=(const CommandTaskFlowToBeRun& other) =
         delete;
-    CommandTaskFlowToBeRun& operator=(CommandTaskFlowToBeRun&& other) noexcept = default;
+    CommandTaskFlowToBeRun& operator=(CommandTaskFlowToBeRun&& other) noexcept =
+        default;
 
     ContentType command_task_flow_{};
     ExternalInfoType external_info_{};
   };
 
   struct CommandTaskExecutingExternalInfo {
-    AtomicCommandTaskRunningState state_{CommandTaskRunningState::UNDEFINED};
+    AtomicCommandTaskRunningState state_{CommandTaskExecutingState::UNDEFINED};
 
     // include sub command task require command buffer.
-    std::uint32_t require_command_buffer_{0};
+    std::uint32_t require_command_buffer_count_{0};
 
     std::atomic_uint32_t pre_command_task_not_submit_count_{0};
     std::vector<VkSemaphore> wait_semaphore_{};
@@ -119,7 +117,7 @@ class CommandExecutor {
 
     // When the \ref waiting_coefficient is greater than the number of command
     // buffers required by the task, it will wait for the task.
-    std::uint32_t wait_coefficient_{0}; 
+    std::uint32_t wait_coefficient_{0};
   };
 
   struct CommandTaskExecuting;
@@ -130,36 +128,46 @@ class CommandExecutor {
     CommandTaskID command_task_ID_{0};
     CommandType command_type_{CommandType::UNDEFINED};
     std::vector<TaskType> commands_{};
-    std::vector<CommandTaskExecuting*> post_tasks_{};
-    std::vector<CommandTaskExecuting*> sub_tasks_{};
+    std::vector<CommandTaskID> post_tasks_{};
+    std::vector<CommandTaskID> sub_tasks_{};
     bool is_sub_task_{false};
     bool is_async_record_{false};
     std::vector<RenderResourceDataID> cross_task_flow_sync_render_resource_IDs_;
   };
- 
+
   struct CommandTaskExecuting {
     using ExternalInfoType = CommandTaskExecutingExternalInfo;
     using ContentType = CommandTaskContent;
 
     CommandTaskExecuting() = default;
     ~CommandTaskExecuting() = default;
+    CommandTaskExecuting(CommandTaskFlowExecuting* command_task_flow,
+                         MM::RenderSystem::CommandTask&& command_task);
     CommandTaskExecuting(const CommandTaskExecuting& other) = delete;
     CommandTaskExecuting(CommandTaskExecuting&& other) noexcept = delete;
     CommandTaskExecuting& operator=(const CommandTaskExecuting& other) = delete;
-    CommandTaskExecuting& operator=(CommandTaskExecuting&& other) noexcept = delete;
+    CommandTaskExecuting& operator=(CommandTaskExecuting&& other) noexcept =
+        delete;
 
     ContentType command_task_{};
     ExternalInfoType external_info_{};
+
+    void ComputeRequireCommandBufferCount();
   };
 
   struct CommandTaskFlowExecutingExternalInfo {
-    CommandExecutor* executor_{nullptr};
+    CommandExecutor* command_executor_{nullptr};
     RenderFuture::RenderFutureStateManagerRef state_manager_{nullptr};
+    std::uint32_t completed_command_task_count_{0};
+
+    std::uint32_t current_need_graph_command_buffers_{0};
+    std::uint32_t current_need_compute_command_buffers_{0};
+    std::uint32_t current_need_transform_command_buffers_{0};
   };
 
   struct CommandTaskFlowExecutingContent {
     CommandTaskFlowID task_flow_ID_{0};
-    std::vector<CommandTaskExecuting*> tasks_{};
+    std::vector<CommandTaskID> command_task_IDs_{};
   };
 
   struct CommandTaskFlowExecuting {
@@ -168,14 +176,25 @@ class CommandExecutor {
 
     CommandTaskFlowExecuting() = default;
     ~CommandTaskFlowExecuting() = default;
+    CommandTaskFlowExecuting(
+        CommandExecutor* command_executor,
+        CommandTaskFlowToBeRun&& command_task_flow_to_be_run);
     CommandTaskFlowExecuting(const CommandTaskFlowExecuting& other) = delete;
-    CommandTaskFlowExecuting(CommandTaskFlowExecuting&& other) noexcept = default;
-    CommandTaskFlowExecuting& operator=(const CommandTaskFlowExecuting& other) = delete;
-    CommandTaskFlowExecuting& operator=(CommandTaskFlowExecuting&& other) noexcept = default;
+    CommandTaskFlowExecuting(CommandTaskFlowExecuting&& other) noexcept =
+        default;
+    CommandTaskFlowExecuting& operator=(const CommandTaskFlowExecuting& other) =
+        delete;
+    CommandTaskFlowExecuting& operator=(
+        CommandTaskFlowExecuting&& other) noexcept = default;
 
     ContentType command_task_flow_{};
     ExternalInfoType external_info_{};
   };
+
+  using WaitCommandTaskFlowQueueType = std::list<CommandTaskFlowToBeRun>;
+  using ExecutingCommandTaskFlowQueueType = std::list<CommandTaskFlowExecuting>;
+  using ExecutingCommandTaskMapType =
+      std::unordered_map<CommandTaskID, CommandTaskExecuting>;
 
  private:
   void ClearWhenConstructFailed(
@@ -230,9 +249,12 @@ class CommandExecutor {
 
   bool HaveCommandTaskToBeProcess() const;
 
-  void ProcessRunningFailed();
+  void AddCommandTaskFlowToExecutingQueue(
+      WaitCommandTaskFlowQueueType::iterator command_task_flow_to_be_run_iter);
 
   void ProcessCompleteTask();
+
+  void ProcessExecutingFailedOrCancelled();
 
   void ProcessWaitTask();
 
@@ -278,7 +300,7 @@ class CommandExecutor {
       free_compute_command_buffers_{};
   std::stack<std::unique_ptr<AllocatedCommandBuffer>>
       free_transform_command_buffers_{};
-  std::stack<VkSemaphore> semaphores_;
+  std::stack<VkSemaphore> free_semaphores_;
 
   std::array<std::array<std::unique_ptr<AllocatedCommandBuffer>, 3>, 3>
       general_command_buffers_{};
@@ -289,13 +311,15 @@ class CommandExecutor {
   bool processing_task_flow_queue_{false};
   std::mutex task_flow_queue_mutex_{};
 
-  std::list<CommandTaskFlowToBeRun> wait_task_flow_queue_{};
+  WaitCommandTaskFlowQueueType wait_task_flow_queue_{};
 
-  std::list<std::uint32_t> wait_tasks_;
-  std::mutex wait_tasks_mutex_{};
+  std::list<CommandTaskFlowID> wait_task_flows_;
+  std::mutex wait_task_flows_mutex_{};
 
-  std::list<CommandTaskFlowExecuting> executing_task_flow_queue_{};
-  std::unordered_map<CommandTaskID, CommandTaskExecuting> executing_command_task_map_{};
+  ExecutingCommandTaskFlowQueueType executing_task_flow_queue_{};
+  ExecutingCommandTaskMapType executing_command_task_map_{};
+  std::unordered_map<RenderResourceDataID, std::list<CommandTaskID>>
+      block_render_resources_;
 
   std::list<std::unique_ptr<AllocatedCommandBuffer>>
       submit_failed_to_be_recovery_command_buffer_{};
