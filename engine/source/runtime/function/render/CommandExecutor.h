@@ -175,7 +175,7 @@ class CommandExecutor {
     using ExternalInfoType = CommandTaskFlowExecutingExternalInfo;
 
     CommandTaskFlowExecuting() = default;
-    ~CommandTaskFlowExecuting() = default;
+    ~CommandTaskFlowExecuting();
     CommandTaskFlowExecuting(
         CommandExecutor* command_executor,
         CommandTaskFlowToBeRun&& command_task_flow_to_be_run);
