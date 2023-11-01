@@ -160,9 +160,9 @@ class CommandExecutor {
     RenderFuture::RenderFutureStateManagerRef state_manager_{nullptr};
     std::uint32_t completed_command_task_count_{0};
 
-    std::uint32_t current_need_graph_command_buffers_{0};
-    std::uint32_t current_need_compute_command_buffers_{0};
-    std::uint32_t current_need_transform_command_buffers_{0};
+    std::uint32_t current_need_graph_command_buffer_count_{0};
+    std::uint32_t current_need_compute_command_buffer_count_{0};
+    std::uint32_t current_need_transform_command_buffer_count_{0};
   };
 
   struct CommandTaskFlowExecutingContent {
@@ -249,16 +249,15 @@ class CommandExecutor {
 
   bool HaveCommandTaskToBeProcess() const;
 
-  void AddCommandTaskFlowToExecutingQueue(
-      WaitCommandTaskFlowQueueType::iterator command_task_flow_to_be_run_iter);
-
   void ProcessCompleteTask();
 
   void ProcessExecutingFailedOrCancelled();
 
-  void ProcessWaitTask();
+  void ProcessWaitTaskFlow();
 
-  void ProcessCommandFlowList();
+  void ProcessCurrentNeedCommandBufferCount();
+
+  void ProcessCommandTaskFlowQueue();
 
   void ProcessPreTaskNoSubmitTask();
 
@@ -309,17 +308,20 @@ class CommandExecutor {
       general_command_buffers_acquire_release_condition_variable_{};
 
   bool processing_task_flow_queue_{false};
-  std::mutex task_flow_queue_mutex_{};
 
+  std::mutex wait_task_flow_queue_mutex_{};
   WaitCommandTaskFlowQueueType wait_task_flow_queue_{};
-
-  std::list<CommandTaskFlowID> wait_task_flows_;
+  std::list<CommandTaskFlowID> need_wait_task_flow_IDs_{};
+  WaitCommandTaskFlowQueueType need_wait_task_flow_queue_{};
   std::mutex wait_task_flows_mutex_{};
 
-  ExecutingCommandTaskFlowQueueType executing_task_flow_queue_{};
+  ExecutingCommandTaskFlowQueueType executing_command_task_flow_queue_{};
   ExecutingCommandTaskMapType executing_command_task_map_{};
   std::unordered_map<RenderResourceDataID, std::list<CommandTaskID>>
       block_render_resources_;
+  std::uint32_t total_current_need_graph_command_buffer_count_{0};
+  std::uint32_t total_current_need_transform_command_buffer_count_{0};
+  std::uint32_t total_current_need_compute_command_buffer_count_{0};
 
   std::list<std::unique_ptr<AllocatedCommandBuffer>>
       submit_failed_to_be_recovery_command_buffer_{};

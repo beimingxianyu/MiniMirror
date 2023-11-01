@@ -8,8 +8,10 @@
 
 #include <atomic>
 #include <memory>
+#include <mutex>
 #include <thread>
 
+#include "runtime/function/render/CommandTaskFlow.h"
 #include "runtime/function/render/RenderFuture.h"
 #include "runtime/function/render/vk_command_pre.h"
 #include "runtime/function/render/vk_engine.h"
@@ -237,7 +239,7 @@ MM::RenderSystem::CommandExecutor::Run(CommandTaskFlow&& command_task_flow) {
         this, this_command_task_flow.command_task_flow_.task_flow_ID_,
         this_command_task_flow.external_info_.state_manager_};
   } else {
-    std::lock_guard<std::mutex> guard{task_flow_queue_mutex_};
+    std::lock_guard<std::mutex> guard{wait_task_flow_queue_mutex_};
     wait_task_flow_queue_.emplace_back(std::move(command_task_flow));
 
     if (!processing_task_flow_queue_) {
@@ -708,9 +710,9 @@ MM::RenderSystem::CommandExecutor::CommandTaskFlowExecuting::
       command_task_flow_to_be_run.command_task_flow_.task_flow_ID_;
   command_task_flow_.command_task_IDs_.reserve(
       command_task_flow_to_be_run.command_task_flow_.tasks_.size());
-  external_info_.current_need_graph_command_buffers_ = 0;
-  external_info_.current_need_transform_command_buffers_ = 0;
-  external_info_.current_need_compute_command_buffers_ = 0;
+  external_info_.current_need_graph_command_buffer_count_ = 0;
+  external_info_.current_need_transform_command_buffer_count_ = 0;
+  external_info_.current_need_compute_command_buffer_count_ = 0;
   for (const auto& command_task :
        command_task_flow_to_be_run.command_task_flow_.tasks_) {
     command_task_flow_.command_task_IDs_.emplace_back(
@@ -718,15 +720,15 @@ MM::RenderSystem::CommandExecutor::CommandTaskFlowExecuting::
     if (command_task.pre_tasks_.empty()) {
       switch (command_task.GetCommandType()) {
         case CommandBufferType::GRAPH:
-          external_info_.current_need_graph_command_buffers_ +=
+          external_info_.current_need_graph_command_buffer_count_ +=
               command_task.GetRequireCommandBufferNumber();
           break;
         case CommandBufferType::TRANSFORM:
-          external_info_.current_need_transform_command_buffers_ +=
+          external_info_.current_need_transform_command_buffer_count_ +=
               command_task.GetRequireCommandBufferNumber();
           break;
         case CommandBufferType::COMPUTE:
-          external_info_.current_need_compute_command_buffers_ +=
+          external_info_.current_need_compute_command_buffer_count_ +=
               command_task.GetRequireCommandBufferNumber();
           break;
         default:
@@ -796,8 +798,8 @@ void MM::RenderSystem::CommandExecutor::UnlockExecutor() {
 
   assert(lock_count_.load(std::memory_order_acquire) != 0);
   if (lock_count_.fetch_sub(1, std::memory_order_acq_rel) == 1) {
-    std::lock(task_flow_queue_mutex_, task_flow_submit_during_lockdown_mutex_);
-    std::lock_guard guard1(task_flow_queue_mutex_, std::adopt_lock),
+    std::lock(wait_task_flow_queue_mutex_, task_flow_submit_during_lockdown_mutex_);
+    std::lock_guard guard1(wait_task_flow_queue_mutex_, std::adopt_lock),
         guard2(task_flow_submit_during_lockdown_mutex_, std::adopt_lock);
 
     wait_task_flow_queue_.splice(wait_task_flow_queue_.end(),
@@ -1085,6 +1087,9 @@ void MM::RenderSystem::CommandExecutor::ProcessTask() {
   do {
     ProcessCompleteTask();
     ProcessExecutingFailedOrCancelled();
+    ProcessWaitTaskFlow();
+    ProcessCurrentNeedCommandBufferCount();
+    ProcessCommandTaskFlowQueue();
 
     std::this_thread::yield();
   } while (HaveCommandTaskToBeProcess());
@@ -1110,8 +1115,8 @@ void MM::RenderSystem::CommandExecutor::ProcessCompleteTask() {
   submit_failed_to_be_recovery_command_buffer_.clear();
   recycled_command_buffer_guard.unlock();
 
-  for (auto command_task_flow_iter = executing_task_flow_queue_.begin();
-       command_task_flow_iter != executing_task_flow_queue_.end();
+  for (auto command_task_flow_iter = executing_command_task_flow_queue_.begin();
+       command_task_flow_iter != executing_command_task_flow_queue_.end();
        ++command_task_flow_iter) {
     CommandTaskFlowExecuting& executing_task_flow = *command_task_flow_iter;
     for (CommandTaskID command_task_ID :
@@ -1326,14 +1331,14 @@ void MM::RenderSystem::CommandExecutor::ProcessCompleteTask() {
       executing_task_flow.external_info_.state_manager_->SetState(
           CommandTaskFlowExecutingState::SUCCESS);
       executing_task_flow.external_info_.state_manager_->Notify();
-      executing_task_flow_queue_.erase(command_task_flow_iter);
+      executing_command_task_flow_queue_.erase(command_task_flow_iter);
     }
   }
 }
 
 void MM::RenderSystem::CommandExecutor::ProcessExecutingFailedOrCancelled() {
-  for (auto command_task_flow_iter = executing_task_flow_queue_.begin();
-       command_task_flow_iter != executing_task_flow_queue_.end();
+  for (auto command_task_flow_iter = executing_command_task_flow_queue_.begin();
+       command_task_flow_iter != executing_command_task_flow_queue_.end();
        ++command_task_flow_iter) {
     CommandTaskFlowExecuting& executing_task_flow = *command_task_flow_iter;
     CommandTaskFlowExecutingState command_task_flow_executing_state =
@@ -1438,20 +1443,94 @@ void MM::RenderSystem::CommandExecutor::ProcessExecutingFailedOrCancelled() {
       if (executing_task_flow.external_info_.completed_command_task_count_ ==
           executing_task_flow.command_task_flow_.command_task_IDs_.size()) {
         executing_task_flow.external_info_.state_manager_->Notify();
-        executing_task_flow_queue_.erase(command_task_flow_iter);
+        executing_command_task_flow_queue_.erase(command_task_flow_iter);
       }
     }
   }
 }
 
-bool MM::RenderSystem::CommandExecutor::HaveCommandTaskToBeProcess() const {
-  return !wait_task_flow_queue_.empty() ||
-         !executing_task_flow_queue_.empty() ||
-         !submit_failed_to_be_recovery_command_buffer_.empty();
+void MM::RenderSystem::CommandExecutor::ProcessWaitTaskFlow() {
+  {
+    std::unique_lock<std::mutex> wait_task_flow_queue_guard{wait_task_flow_queue_mutex_};
+    for (CommandTaskFlowID wait_task_flow_ID: need_wait_task_flow_IDs_) {
+      for (WaitCommandTaskFlowQueueType::iterator wait_command_task_flow = wait_task_flow_queue_.begin(); wait_command_task_flow != wait_task_flow_queue_.end(); ++wait_command_task_flow) {
+        if (wait_task_flow_ID == wait_command_task_flow->command_task_flow_.task_flow_ID_) {
+          need_wait_task_flow_queue_.emplace_back(std::move(*wait_command_task_flow));
+          wait_command_task_flow = wait_task_flow_queue_.erase(wait_command_task_flow);
+          break;
+        }
+      }
+    }
+
+    need_wait_task_flow_IDs_.clear();
+  }
+
+  while (!need_wait_task_flow_queue_.empty()) {
+    executing_command_task_flow_queue_.emplace_back(this, std::move(need_wait_task_flow_queue_.front()));
+    need_wait_task_flow_queue_.erase(need_wait_task_flow_queue_.begin());
+  }
 }
 
-void MM::RenderSystem::CommandExecutor::AddCommandTaskFlowToExecutingQueue(
-    MM::RenderSystem::CommandExecutor::WaitCommandTaskFlowQueueType::iterator
-        command_task_flow_to_be_run_iter) {}
+void MM::RenderSystem::CommandExecutor::ProcessCurrentNeedCommandBufferCount() {
+  total_current_need_graph_command_buffer_count_ = 0;
+  total_current_need_compute_command_buffer_count_ = 0;
+  total_current_need_transform_command_buffer_count_ = 0;
 
+  for (CommandTaskFlowExecuting& executing_command_task_flow: executing_command_task_flow_queue_) {
+    executing_command_task_flow.external_info_.current_need_graph_command_buffer_count_ = 0;
+    executing_command_task_flow.external_info_.current_need_transform_command_buffer_count_ = 0;
+    executing_command_task_flow.external_info_.current_need_compute_command_buffer_count_ = 0;
+    for (CommandTaskID command_task_ID: executing_command_task_flow.command_task_flow_.command_task_IDs_) {
+      CommandTaskExecuting& executing_command_task = executing_command_task_map_[command_task_ID];
+      assert(executing_command_task.command_task_.task_flow_ != nullptr);
+
+      CommandTaskExecutingState state = executing_command_task.external_info_.state_.load(std::memory_order_acquire);
+      if (state == CommandTaskExecutingState::WAIT && executing_command_task.external_info_.pre_command_task_not_submit_count_ == 0) {
+        switch (executing_command_task.command_task_.command_type_) {
+          case CommandType::GRAPH:
+            total_current_need_graph_command_buffer_count_ += executing_command_task.command_task_.commands_.size();
+            executing_command_task_flow.external_info_.current_need_graph_command_buffer_count_ += executing_command_task.command_task_.commands_.size();
+            break;
+          case CommandType::TRANSFORM:
+            total_current_need_transform_command_buffer_count_ += executing_command_task.command_task_.commands_.size();
+            executing_command_task_flow.external_info_.current_need_transform_command_buffer_count_ += executing_command_task.command_task_.commands_.size();
+            break;
+          case CommandType::COMPUTE:
+            total_current_need_compute_command_buffer_count_ += executing_command_task.command_task_.commands_.size();
+            executing_command_task_flow.external_info_.current_need_compute_command_buffer_count_ += executing_command_task.command_task_.commands_.size();
+            break;
+          case CommandType::UNDEFINED:
+            assert(false);
+        }
+      } else if (state == CommandTaskExecutingState::RUNNING) {
+        switch (executing_command_task.command_task_.command_type_) {
+          case CommandType::GRAPH:
+            total_current_need_graph_command_buffer_count_ += executing_command_task.command_task_.commands_.size();
+            executing_command_task_flow.external_info_.current_need_graph_command_buffer_count_ += executing_command_task.command_task_.commands_.size();
+            break;
+          case CommandType::TRANSFORM:
+            total_current_need_transform_command_buffer_count_ += executing_command_task.command_task_.commands_.size();
+            executing_command_task_flow.external_info_.current_need_transform_command_buffer_count_ += executing_command_task.command_task_.commands_.size();
+            break;
+          case CommandType::COMPUTE:
+            total_current_need_compute_command_buffer_count_ += executing_command_task.command_task_.commands_.size();
+            executing_command_task_flow.external_info_.current_need_compute_command_buffer_count_ += executing_command_task.command_task_.commands_.size();
+            break;
+          case CommandType::UNDEFINED:
+            assert(false);
+        }
+      }
+    }
+  }
+}
+
+void MM::RenderSystem::CommandExecutor::ProcessCommandTaskFlowQueue() {
+  
+}
+
+bool MM::RenderSystem::CommandExecutor::HaveCommandTaskToBeProcess() const {
+  return !wait_task_flow_queue_.empty() ||
+         !executing_command_task_flow_queue_.empty() ||
+         !submit_failed_to_be_recovery_command_buffer_.empty();
+}
 /*-------------------------------------------------------------------------------------*/

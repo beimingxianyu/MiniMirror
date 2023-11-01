@@ -132,5 +132,5 @@ MM::RenderSystem::RenderFuture::RenderFuture(
 void MM::RenderSystem::RenderFuture::AddToWaitList() {
   std::unique_lock<std::mutex> wait_list_guard(
       command_executor_->wait_task_flows_mutex_);
-  command_executor_->wait_task_flows_.push_back(command_task_flow_ID_);
+  command_executor_->need_wait_task_flow_IDs_.push_back(command_task_flow_ID_);
 }
