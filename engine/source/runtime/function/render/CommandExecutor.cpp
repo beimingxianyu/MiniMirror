@@ -92,7 +92,7 @@ MM::RenderSystem::CommandExecutor::CommandExecutor(RenderEngine* engine)
 
 MM::RenderSystem::CommandExecutor::~CommandExecutor() {
   std::unique_lock<std::mutex> guard{wait_task_flows_mutex_};
-  wait_task_flows_.clear();
+  wait_task_flow_queue_.clear();
   guard.unlock();
   while (processing_task_flow_queue_) {
     std::this_thread::sleep_for(std::chrono::nanoseconds(100000));
@@ -648,8 +648,8 @@ MM::RenderSystem::CommandExecutor::CommandTaskExecuting::CommandTaskExecuting(
                     command_task.command_task_ID_,
                     command_task.command_type_,
                     std::move(command_task.commands_),
-                    std::move(command_task.post_tasks_),
-                    std::move(command_task.sub_tasks_),
+                    std::vector<CommandTaskExecuting*>{},
+                    std::vector<CommandTaskExecuting*>{},
                     command_task.is_sub_task_,
                     command_task.is_async_record_,
                     std::move(command_task
@@ -675,16 +675,29 @@ void MM::RenderSystem::CommandExecutor::CommandTaskExecuting::
   } else {
     external_info_.require_command_buffer_count_ =
         command_task_.commands_.size();
-    ExecutingCommandTaskMapType& command_task_map =
-        command_task_.task_flow_->external_info_.command_executor_
-            ->executing_command_task_map_;
-    for (CommandTaskID sub_command_task_ID : command_task_.sub_tasks_) {
-      CommandTaskExecuting& sub_command_task =
-          command_task_map[sub_command_task_ID];
-      assert(sub_command_task.command_task_.task_flow_ != nullptr);
-
+    for (CommandTaskExecuting* sub_command_task: command_task_.sub_tasks_) {
       external_info_.require_command_buffer_count_ +=
-          sub_command_task.command_task_.commands_.size();
+          sub_command_task->command_task_.commands_.size();
+    }
+  }
+}
+
+void MM::RenderSystem::CommandExecutor::CommandTaskExecuting::
+    LinkPostCommandTaskAndSubTask(MM::RenderSystem::CommandTask&& old_command_task) {
+  command_task_.post_tasks_.reserve(old_command_task.post_tasks_.size());
+  command_task_.sub_tasks_.reserve(old_command_task.sub_tasks_.size());
+  for (CommandTaskID post_command_task_ID: old_command_task.post_tasks_) {
+    for (CommandTaskExecuting& command_task: command_task_.task_flow_->command_task_flow_.command_tasks_) {
+      if (command_task.command_task_.command_task_ID_ == post_command_task_ID) {
+        command_task_.post_tasks_.emplace_back(&command_task);
+      }
+    }
+  }
+  for (CommandTaskID sub_command_task_ID: old_command_task.sub_tasks_) {
+    for (CommandTaskExecuting& command_task: command_task_.task_flow_->command_task_flow_.command_tasks_) {
+      if (command_task.command_task_.command_task_ID_ == sub_command_task_ID) {
+        command_task_.sub_tasks_.emplace_back(&command_task);
+      }
     }
   }
 }
@@ -692,12 +705,7 @@ void MM::RenderSystem::CommandExecutor::CommandTaskExecuting::
 MM::RenderSystem::CommandExecutor::CommandTaskFlowExecuting::
     ~CommandTaskFlowExecuting() {
   assert(external_info_.completed_command_task_count_ ==
-         command_task_flow_.command_task_IDs_.size());
-
-  for (CommandTaskID command_task_ID : command_task_flow_.command_task_IDs_) {
-    external_info_.command_executor_->executing_command_task_map_.erase(
-        command_task_ID);
-  }
+         command_task_flow_.command_tasks_.size());
 }
 
 MM::RenderSystem::CommandExecutor::CommandTaskFlowExecuting::
@@ -708,15 +716,14 @@ MM::RenderSystem::CommandExecutor::CommandTaskFlowExecuting::
     : command_task_flow_(), external_info_() {
   command_task_flow_.task_flow_ID_ =
       command_task_flow_to_be_run.command_task_flow_.task_flow_ID_;
-  command_task_flow_.command_task_IDs_.reserve(
+  command_task_flow_.command_tasks_.reserve(
       command_task_flow_to_be_run.command_task_flow_.tasks_.size());
   external_info_.current_need_graph_command_buffer_count_ = 0;
   external_info_.current_need_transform_command_buffer_count_ = 0;
   external_info_.current_need_compute_command_buffer_count_ = 0;
-  for (const auto& command_task :
+  for (auto& command_task :
        command_task_flow_to_be_run.command_task_flow_.tasks_) {
-    command_task_flow_.command_task_IDs_.emplace_back(
-        command_task.GetCommandTaskID());
+    command_task_flow_.command_tasks_.emplace_back(this, std::move(command_task));
     if (command_task.pre_tasks_.empty()) {
       switch (command_task.GetCommandType()) {
         case CommandBufferType::GRAPH:
@@ -737,28 +744,17 @@ MM::RenderSystem::CommandExecutor::CommandTaskFlowExecuting::
     }
   }
 
+  auto old_command_task_iter = command_task_flow_to_be_run.command_task_flow_.tasks_.begin();
+  for (CommandTaskExecuting& command_task : command_task_flow_.command_tasks_) {
+    command_task.LinkPostCommandTaskAndSubTask(std::move(*old_command_task_iter));
+    command_task.ComputeRequireCommandBufferCount();
+    ++old_command_task_iter;
+  }
+
   external_info_.command_executor_ = command_executor;
   external_info_.state_manager_ =
       std::move(command_task_flow_to_be_run.external_info_.state_manager_);
   external_info_.completed_command_task_count_ = 0;
-
-  for (CommandTask& command_task :
-       command_task_flow_to_be_run.command_task_flow_.tasks_) {
-    std::pair<ExecutingCommandTaskMapType::iterator, bool> emplace_result =
-        command_executor->executing_command_task_map_.emplace(
-            this, std::move(command_task));
-    assert(emplace_result.second);
-    CommandTaskExecuting& new_executing_command_task =
-        emplace_result.first->second;
-    command_task_flow_.command_task_IDs_.emplace_back(
-        new_executing_command_task.command_task_.command_task_ID_);
-  }
-
-  for (CommandTaskID command_task_ID : command_task_flow_.command_task_IDs_) {
-    external_info_.command_executor_
-        ->executing_command_task_map_[command_task_ID]
-        .ComputeRequireCommandBufferCount();
-  }
 }
 
 std::vector<VkSemaphore> MM::RenderSystem::CommandExecutor::GetSemaphore(
@@ -1119,11 +1115,8 @@ void MM::RenderSystem::CommandExecutor::ProcessCompleteTask() {
        command_task_flow_iter != executing_command_task_flow_queue_.end();
        ++command_task_flow_iter) {
     CommandTaskFlowExecuting& executing_task_flow = *command_task_flow_iter;
-    for (CommandTaskID command_task_ID :
-         executing_task_flow.command_task_flow_.command_task_IDs_) {
-      CommandTaskExecuting& executing_command_task =
-          executing_command_task_map_[command_task_ID];
-      assert(executing_command_task.command_task_.task_flow_ != nullptr);
+    for (CommandTaskExecuting& executing_command_task:
+         executing_task_flow.command_task_flow_.command_tasks_) {
 
       CommandTaskExecutingState command_task_running_state =
           executing_command_task.external_info_.state_.load(
@@ -1132,31 +1125,21 @@ void MM::RenderSystem::CommandExecutor::ProcessCompleteTask() {
           !executing_command_task.command_task_.is_sub_task_ &&
           ExecutingCommandTaskIsComplete(executing_command_task)) {
         // update post command task \ref pre_command_task_not_submit_count_
-        for (CommandTaskID post_command_task_ID :
+        for (CommandTaskExecuting* post_command_task :
              executing_command_task.command_task_.post_tasks_) {
-          CommandTaskExecuting& post_command_task =
-              executing_command_task_map_[post_command_task_ID];
-          assert(post_command_task.command_task_.task_flow_ != nullptr);
           std::uint32_t old_count =
-              post_command_task.external_info_
+              post_command_task->external_info_
                   .pre_command_task_not_submit_count_.fetch_sub(
                       std::memory_order_acq_rel);
           assert(old_count != 0);
         }
-        for (CommandTaskID sub_command_task_ID :
+        for (CommandTaskExecuting* sub_command_task:
              executing_command_task.command_task_.sub_tasks_) {
-          CommandTaskExecuting& sub_command_task =
-              executing_command_task_map_[sub_command_task_ID];
-          assert(sub_command_task.command_task_.task_flow_ != nullptr);
-
-          for (CommandTaskID post_command_task_ID :
-               sub_command_task.command_task_.post_tasks_) {
-            CommandTaskExecuting& post_command_task =
-                executing_command_task_map_[post_command_task_ID];
-            assert(post_command_task.command_task_.task_flow_ != nullptr);
-
+          // update post command task \ref pre_command_task_not_submit_count_
+          for (CommandTaskExecuting* post_command_task:
+               sub_command_task->command_task_.post_tasks_) {
             std::uint32_t old_count =
-                post_command_task.external_info_
+                post_command_task->external_info_
                     .pre_command_task_not_submit_count_.fetch_sub(
                         std::memory_order_acq_rel);
             assert(old_count != 0);
@@ -1169,17 +1152,13 @@ void MM::RenderSystem::CommandExecutor::ProcessCompleteTask() {
           free_semaphores_.push(wait_semaphore);
         }
         executing_command_task.external_info_.wait_semaphore_.clear();
-        for (CommandTaskID sub_command_task_ID :
+        for (CommandTaskExecuting* sub_command_task:
              executing_command_task.command_task_.sub_tasks_) {
-          CommandTaskExecuting& sub_command_task =
-              executing_command_task_map_[sub_command_task_ID];
-          assert(sub_command_task.command_task_.task_flow_ != nullptr);
-
           for (VkSemaphore wait_semaphore :
-               sub_command_task.external_info_.wait_semaphore_) {
+               sub_command_task->external_info_.wait_semaphore_) {
             free_semaphores_.push(wait_semaphore);
           }
-          sub_command_task.external_info_.wait_semaphore_.clear();
+          sub_command_task->external_info_.wait_semaphore_.clear();
         }
 
         // recovery AllocatedCommandBuffer
@@ -1218,39 +1197,35 @@ void MM::RenderSystem::CommandExecutor::ProcessCompleteTask() {
         }
         executing_command_task.external_info_.command_buffers_.clear();
 
-        for (CommandTaskID sub_command_task_ID :
+        for (CommandTaskExecuting* sub_command_task :
              executing_command_task.command_task_.sub_tasks_) {
-          CommandTaskExecuting& sub_command_task =
-              executing_command_task_map_[sub_command_task_ID];
-          assert(sub_command_task.command_task_.task_flow_ != nullptr);
-
-          assert(sub_command_task.command_task_.command_type_ !=
+          assert(sub_command_task->command_task_.command_type_ !=
                  CommandType::UNDEFINED);
-          if (sub_command_task.command_task_.command_type_ ==
+          if (sub_command_task->command_task_.command_type_ ==
               CommandType::GRAPH) {
             for (std::unique_ptr<AllocatedCommandBuffer>&
                      allocated_command_buffer :
-                 sub_command_task.external_info_.command_buffers_) {
+                 sub_command_task->external_info_.command_buffers_) {
               allocated_command_buffer->ResetFence();
               allocated_command_buffer->ResetCommandBuffer();
               free_graph_command_buffers_.push(
                   std::move(allocated_command_buffer));
             }
-          } else if (sub_command_task.command_task_.command_type_ ==
+          } else if (sub_command_task->command_task_.command_type_ ==
                      CommandType::TRANSFORM) {
             for (std::unique_ptr<AllocatedCommandBuffer>&
                      allocated_command_buffer :
-                 sub_command_task.external_info_.command_buffers_) {
+                 sub_command_task->external_info_.command_buffers_) {
               allocated_command_buffer->ResetFence();
               allocated_command_buffer->ResetCommandBuffer();
               free_transform_command_buffers_.push(
                   std::move(allocated_command_buffer));
             }
-          } else if (sub_command_task.command_task_.command_type_ ==
+          } else if (sub_command_task->command_task_.command_type_ ==
                      CommandType::COMPUTE) {
             for (std::unique_ptr<AllocatedCommandBuffer>&
                      allocated_command_buffer :
-                 sub_command_task.external_info_.command_buffers_) {
+                 sub_command_task->external_info_.command_buffers_) {
               allocated_command_buffer->ResetFence();
               allocated_command_buffer->ResetCommandBuffer();
               free_compute_command_buffers_.push(
@@ -1258,7 +1233,7 @@ void MM::RenderSystem::CommandExecutor::ProcessCompleteTask() {
             }
           }
 
-          sub_command_task.external_info_.command_buffers_.clear();
+          sub_command_task->external_info_.command_buffers_.clear();
         }
 
         // remvoe block resource
@@ -1281,21 +1256,17 @@ void MM::RenderSystem::CommandExecutor::ProcessCompleteTask() {
         }
         executing_command_task.command_task_
             .cross_task_flow_sync_render_resource_IDs_.clear();
-        for (CommandTaskID sub_command_task_ID :
+        for (CommandTaskExecuting* sub_command_task :
              executing_command_task.command_task_.sub_tasks_) {
-          CommandTaskExecuting& sub_command_task =
-              executing_command_task_map_[sub_command_task_ID];
-          assert(sub_command_task.command_task_.task_flow_ != nullptr);
-
           for (RenderResourceDataID block_resource_ID :
-               sub_command_task.command_task_
+               sub_command_task->command_task_
                    .cross_task_flow_sync_render_resource_IDs_) {
             auto iter = block_render_resources_.find(block_resource_ID);
             assert(iter != block_render_resources_.end());
             for (auto command_task_ID_iter = iter->second.begin();
                  command_task_ID_iter != iter->second.end(); ++iter) {
               if (*command_task_ID_iter ==
-                  sub_command_task.command_task_.command_task_ID_) {
+                  sub_command_task->command_task_.command_task_ID_) {
                 iter->second.erase(command_task_ID_iter);
                 break;
               }
@@ -1304,20 +1275,16 @@ void MM::RenderSystem::CommandExecutor::ProcessCompleteTask() {
               block_render_resources_.erase(iter);
             }
           }
-          sub_command_task.command_task_
+          sub_command_task->command_task_
               .cross_task_flow_sync_render_resource_IDs_.clear();
         }
 
         // mark this is completed
         executing_command_task.external_info_.state_.store(
             CommandTaskExecutingState::COMPLETED, std::memory_order_relaxed);
-        for (CommandTaskID sub_command_task_ID :
+        for (CommandTaskExecuting* sub_command_task :
              executing_command_task.command_task_.sub_tasks_) {
-          CommandTaskExecuting& sub_command_task =
-              executing_command_task_map_[sub_command_task_ID];
-          assert(sub_command_task.command_task_.task_flow_ != nullptr);
-
-          sub_command_task.external_info_.state_.store(
+          sub_command_task->external_info_.state_.store(
               CommandTaskExecutingState::COMPLETED, std::memory_order_relaxed);
         }
         executing_task_flow.external_info_.completed_command_task_count_ +=
@@ -1327,7 +1294,7 @@ void MM::RenderSystem::CommandExecutor::ProcessCompleteTask() {
 
     // remove this task flow when completed
     if (executing_task_flow.external_info_.completed_command_task_count_ ==
-        executing_task_flow.command_task_flow_.command_task_IDs_.size()) {
+        executing_task_flow.command_task_flow_.command_tasks_.size()) {
       executing_task_flow.external_info_.state_manager_->SetState(
           CommandTaskFlowExecutingState::SUCCESS);
       executing_task_flow.external_info_.state_manager_->Notify();
@@ -1350,11 +1317,8 @@ void MM::RenderSystem::CommandExecutor::ProcessExecutingFailedOrCancelled() {
       // Wait for all asynchronous tasks to complete before starting
       // recycling.
       bool have_command_task_recording_or_running = false;
-      for (CommandTaskID command_task_ID :
-           executing_task_flow.command_task_flow_.command_task_IDs_) {
-        CommandTaskExecuting& command_task =
-            executing_command_task_map_[command_task_ID];
-        assert(command_task.command_task_.task_flow_ != nullptr);
+      for (CommandTaskExecuting& command_task :
+           executing_task_flow.command_task_flow_.command_tasks_) {
         CommandTaskExecutingState state =
             command_task.external_info_.state_.load(std::memory_order_acquire);
         if (state == CommandTaskExecutingState::RECORDING ||
@@ -1367,12 +1331,8 @@ void MM::RenderSystem::CommandExecutor::ProcessExecutingFailedOrCancelled() {
         break;
       }
 
-      for (CommandTaskID command_task_ID :
-           executing_task_flow.command_task_flow_.command_task_IDs_) {
-        CommandTaskExecuting& command_task =
-            executing_command_task_map_[command_task_ID];
-        assert(command_task.command_task_.task_flow_ != nullptr);
-
+      for (CommandTaskExecuting& command_task :
+           executing_task_flow.command_task_flow_.command_tasks_) {
         // destruct VkSemaphore
         for (VkSemaphore wait_semaphore :
              command_task.external_info_.wait_semaphore_) {
@@ -1441,7 +1401,7 @@ void MM::RenderSystem::CommandExecutor::ProcessExecutingFailedOrCancelled() {
 
       // remove this task flow when failed or cancelled
       if (executing_task_flow.external_info_.completed_command_task_count_ ==
-          executing_task_flow.command_task_flow_.command_task_IDs_.size()) {
+          executing_task_flow.command_task_flow_.command_tasks_.size()) {
         executing_task_flow.external_info_.state_manager_->Notify();
         executing_command_task_flow_queue_.erase(command_task_flow_iter);
       }
@@ -1480,10 +1440,8 @@ void MM::RenderSystem::CommandExecutor::ProcessCurrentNeedCommandBufferCount() {
     executing_command_task_flow.external_info_.current_need_graph_command_buffer_count_ = 0;
     executing_command_task_flow.external_info_.current_need_transform_command_buffer_count_ = 0;
     executing_command_task_flow.external_info_.current_need_compute_command_buffer_count_ = 0;
-    for (CommandTaskID command_task_ID: executing_command_task_flow.command_task_flow_.command_task_IDs_) {
-      CommandTaskExecuting& executing_command_task = executing_command_task_map_[command_task_ID];
-      assert(executing_command_task.command_task_.task_flow_ != nullptr);
-
+    for (CommandTaskExecuting& executing_command_task :
+           executing_command_task_flow.command_task_flow_.command_tasks_) {
       CommandTaskExecutingState state = executing_command_task.external_info_.state_.load(std::memory_order_acquire);
       if (state == CommandTaskExecutingState::WAIT && executing_command_task.external_info_.pre_command_task_not_submit_count_ == 0) {
         switch (executing_command_task.command_task_.command_type_) {
@@ -1525,7 +1483,7 @@ void MM::RenderSystem::CommandExecutor::ProcessCurrentNeedCommandBufferCount() {
 }
 
 void MM::RenderSystem::CommandExecutor::ProcessCommandTaskFlowQueue() {
-  
+
 }
 
 bool MM::RenderSystem::CommandExecutor::HaveCommandTaskToBeProcess() const {

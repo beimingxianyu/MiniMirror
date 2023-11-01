@@ -123,13 +123,13 @@ class CommandExecutor {
   struct CommandTaskExecuting;
   struct CommandTaskFlowExecuting;
 
-  struct CommandTaskContent {
+  struct CommandTaskExecutingContent {
     CommandTaskFlowExecuting* task_flow_{nullptr};
     CommandTaskID command_task_ID_{0};
     CommandType command_type_{CommandType::UNDEFINED};
     std::vector<TaskType> commands_{};
-    std::vector<CommandTaskID> post_tasks_{};
-    std::vector<CommandTaskID> sub_tasks_{};
+    std::vector<CommandTaskExecuting*> post_tasks_{};
+    std::vector<CommandTaskExecuting*> sub_tasks_{};
     bool is_sub_task_{false};
     bool is_async_record_{false};
     std::vector<RenderResourceDataID> cross_task_flow_sync_render_resource_IDs_;
@@ -137,7 +137,7 @@ class CommandExecutor {
 
   struct CommandTaskExecuting {
     using ExternalInfoType = CommandTaskExecutingExternalInfo;
-    using ContentType = CommandTaskContent;
+    using ContentType = CommandTaskExecutingContent;
 
     CommandTaskExecuting() = default;
     ~CommandTaskExecuting() = default;
@@ -153,6 +153,8 @@ class CommandExecutor {
     ExternalInfoType external_info_{};
 
     void ComputeRequireCommandBufferCount();
+
+    void LinkPostCommandTaskAndSubTask(CommandTask&& command_task);
   };
 
   struct CommandTaskFlowExecutingExternalInfo {
@@ -167,7 +169,7 @@ class CommandExecutor {
 
   struct CommandTaskFlowExecutingContent {
     CommandTaskFlowID task_flow_ID_{0};
-    std::vector<CommandTaskID> command_task_IDs_{};
+    std::vector<CommandTaskExecuting> command_tasks_{};
   };
 
   struct CommandTaskFlowExecuting {
@@ -316,7 +318,6 @@ class CommandExecutor {
   std::mutex wait_task_flows_mutex_{};
 
   ExecutingCommandTaskFlowQueueType executing_command_task_flow_queue_{};
-  ExecutingCommandTaskMapType executing_command_task_map_{};
   std::unordered_map<RenderResourceDataID, std::list<CommandTaskID>>
       block_render_resources_;
   std::uint32_t total_current_need_graph_command_buffer_count_{0};
