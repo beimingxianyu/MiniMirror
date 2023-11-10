@@ -5,6 +5,7 @@
 
 #include <vulkan/vulkan_core.h>
 
+#include <array>
 #include <atomic>
 #include <memory>
 #include <unordered_map>
@@ -84,6 +85,12 @@ class CommandExecutor {
  private:
   struct CommandTaskFlowToBeRunExternalInfo {
     RenderFuture::RenderFutureStateManagerRef state_manager_{nullptr};
+
+    std::uint32_t current_need_graph_command_buffer_count_{0};
+    std::uint32_t current_need_compute_command_buffer_count_{0};
+    std::uint32_t current_need_transform_command_buffer_count_{0};
+
+    std::uint32_t reject_number_{0}; 
   };
 
   struct CommandTaskFlowToBeRun {
@@ -257,9 +264,9 @@ class CommandExecutor {
 
   void ProcessWaitTaskFlow();
 
-  void ProcessCurrentNeedCommandBufferCount();
+  std::array<std::uint32_t, 3> ProcessCurrentNeedCommandBufferCount();
 
-  void ProcessCommandTaskFlowQueue();
+  void ProcessCommandTaskFlowQueue(std::array<std::uint32_t, 3> total_current_need_command_buffer_count);
 
   void ProcessPreTaskNoSubmitTask();
 
@@ -320,9 +327,6 @@ class CommandExecutor {
   ExecutingCommandTaskFlowQueueType executing_command_task_flow_queue_{};
   std::unordered_map<RenderResourceDataID, std::list<CommandTaskID>>
       block_render_resources_;
-  std::uint32_t total_current_need_graph_command_buffer_count_{0};
-  std::uint32_t total_current_need_transform_command_buffer_count_{0};
-  std::uint32_t total_current_need_compute_command_buffer_count_{0};
 
   std::list<std::unique_ptr<AllocatedCommandBuffer>>
       submit_failed_to_be_recovery_command_buffer_{};

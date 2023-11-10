@@ -4,13 +4,16 @@
 
 #include "runtime/function/render/CommandExecutor.h"
 
+#include <stdint.h>
 #include <vulkan/vulkan_core.h>
 
+#include <array>
 #include <atomic>
 #include <memory>
 #include <mutex>
 #include <thread>
 
+#include "runtime/function/render/CommandTask.h"
 #include "runtime/function/render/CommandTaskFlow.h"
 #include "runtime/function/render/RenderFuture.h"
 #include "runtime/function/render/vk_command_pre.h"
@@ -639,7 +642,25 @@ MM::RenderSystem::CommandExecutor::CommandTaskFlowToBeRun::
     CommandTaskFlowToBeRun(CommandTaskFlow&& command_task_flow)
     : command_task_flow_(std::move(command_task_flow)),
       external_info_{
-          std::make_shared<RenderFuture::RenderFutureStateManager>()} {}
+          std::make_shared<RenderFuture::RenderFutureStateManager>(), 0, 0, 0, 0} {
+  for (CommandTask& command_task: command_task_flow.tasks_) {
+    if (command_task.pre_tasks_.empty()) {
+      switch (command_task.GetCommandType()) {
+        case CommandType::GRAPH:
+          external_info_.current_need_graph_command_buffer_count_ += command_task.GetRequireCommandBufferNumberIncludeSubCommandTasks();
+          break; 
+        case CommandType::TRANSFORM:
+          external_info_.current_need_transform_command_buffer_count_ += command_task.GetRequireCommandBufferNumberIncludeSubCommandTasks();
+          break;
+        case CommandType::COMPUTE:
+          external_info_.current_need_compute_command_buffer_count_ += command_task.GetRequireCommandBufferNumberIncludeSubCommandTasks();
+          break;
+        default:
+          assert(false);
+      }
+    }
+  }
+}
 
 MM::RenderSystem::CommandExecutor::CommandTaskExecuting::CommandTaskExecuting(
     CommandTaskFlowExecuting* command_task_flow,
@@ -718,30 +739,17 @@ MM::RenderSystem::CommandExecutor::CommandTaskFlowExecuting::
       command_task_flow_to_be_run.command_task_flow_.task_flow_ID_;
   command_task_flow_.command_tasks_.reserve(
       command_task_flow_to_be_run.command_task_flow_.tasks_.size());
-  external_info_.current_need_graph_command_buffer_count_ = 0;
-  external_info_.current_need_transform_command_buffer_count_ = 0;
-  external_info_.current_need_compute_command_buffer_count_ = 0;
+
+  external_info_.current_need_graph_command_buffer_count_ = command_task_flow_to_be_run.external_info_.current_need_graph_command_buffer_count_;
+  external_info_.current_need_transform_command_buffer_count_ = command_task_flow_to_be_run.external_info_.current_need_transform_command_buffer_count_;
+  external_info_.current_need_compute_command_buffer_count_ = command_task_flow_to_be_run.external_info_.current_need_compute_command_buffer_count_;
+  command_task_flow_to_be_run.external_info_.current_need_graph_command_buffer_count_ = UINT32_MAX;
+  command_task_flow_to_be_run.external_info_.current_need_transform_command_buffer_count_ = UINT32_MAX;
+  command_task_flow_to_be_run.external_info_.current_need_compute_command_buffer_count_ = UINT32_MAX;
+  
   for (auto& command_task :
        command_task_flow_to_be_run.command_task_flow_.tasks_) {
     command_task_flow_.command_tasks_.emplace_back(this, std::move(command_task));
-    if (command_task.pre_tasks_.empty()) {
-      switch (command_task.GetCommandType()) {
-        case CommandBufferType::GRAPH:
-          external_info_.current_need_graph_command_buffer_count_ +=
-              command_task.GetRequireCommandBufferNumber();
-          break;
-        case CommandBufferType::TRANSFORM:
-          external_info_.current_need_transform_command_buffer_count_ +=
-              command_task.GetRequireCommandBufferNumber();
-          break;
-        case CommandBufferType::COMPUTE:
-          external_info_.current_need_compute_command_buffer_count_ +=
-              command_task.GetRequireCommandBufferNumber();
-          break;
-        default:
-          assert(false);
-      }
-    }
   }
 
   auto old_command_task_iter = command_task_flow_to_be_run.command_task_flow_.tasks_.begin();
@@ -1084,8 +1092,8 @@ void MM::RenderSystem::CommandExecutor::ProcessTask() {
     ProcessCompleteTask();
     ProcessExecutingFailedOrCancelled();
     ProcessWaitTaskFlow();
-    ProcessCurrentNeedCommandBufferCount();
-    ProcessCommandTaskFlowQueue();
+    std::array<std::uint32_t, 3> curent_need_command_buffer_count = ProcessCurrentNeedCommandBufferCount();
+    ProcessCommandTaskFlowQueue(curent_need_command_buffer_count);
 
     std::this_thread::yield();
   } while (HaveCommandTaskToBeProcess());
@@ -1431,10 +1439,10 @@ void MM::RenderSystem::CommandExecutor::ProcessWaitTaskFlow() {
   }
 }
 
-void MM::RenderSystem::CommandExecutor::ProcessCurrentNeedCommandBufferCount() {
-  total_current_need_graph_command_buffer_count_ = 0;
-  total_current_need_compute_command_buffer_count_ = 0;
-  total_current_need_transform_command_buffer_count_ = 0;
+std::array<std::uint32_t, 3> MM::RenderSystem::CommandExecutor::ProcessCurrentNeedCommandBufferCount() {
+  std::uint32_t total_current_need_graph_command_buffer_count_ = 0;
+  std::uint32_t total_current_need_compute_command_buffer_count_ = 0;
+  std::uint32_t total_current_need_transform_command_buffer_count_ = 0;
 
   for (CommandTaskFlowExecuting& executing_command_task_flow: executing_command_task_flow_queue_) {
     executing_command_task_flow.external_info_.current_need_graph_command_buffer_count_ = 0;
@@ -1480,10 +1488,50 @@ void MM::RenderSystem::CommandExecutor::ProcessCurrentNeedCommandBufferCount() {
       }
     }
   }
+
+  return std::array<std::uint32_t, 3>{total_current_need_graph_command_buffer_count_, total_current_need_transform_command_buffer_count_, total_current_need_compute_command_buffer_count_};
 }
 
-void MM::RenderSystem::CommandExecutor::ProcessCommandTaskFlowQueue() {
+void MM::RenderSystem::CommandExecutor::ProcessCommandTaskFlowQueue(std::array<std::uint32_t, 3> total_current_need_command_buffer_count) {
+  for (auto wait_command_task_flow_iter = wait_task_flow_queue_.begin();
+       wait_command_task_flow_iter != wait_task_flow_queue_.end();) {
+    std::uint32_t free_graph_command_buffer_count = 
+      total_current_need_command_buffer_count[0] > free_graph_command_buffers_.size() ? 
+        0 :
+        free_graph_command_buffers_.size() - total_current_need_command_buffer_count[0];
+    std::uint32_t free_transform_command_buffer_count =
+      total_current_need_command_buffer_count[1] > free_transform_command_buffers_.size() ? 
+        0 :
+        free_transform_command_buffers_.size() - total_current_need_command_buffer_count[1];
+    std::uint32_t free_compute_command_buffer_count = 
+      total_current_need_command_buffer_count[2] > free_compute_command_buffers_.size() ?
+        0 :
+        free_compute_command_buffers_.size() - total_current_need_command_buffer_count[2];
 
+    CommandTaskFlowToBeRun::ExternalInfoType& external_info = wait_command_task_flow_iter->external_info_;
+    if (external_info.current_need_graph_command_buffer_count_ <= free_graph_command_buffer_count &&
+        external_info.current_need_transform_command_buffer_count_ <= free_transform_command_buffer_count &&
+        external_info.current_need_compute_command_buffer_count_ <= free_compute_command_buffer_count) {
+          free_graph_command_buffer_count -= external_info.current_need_graph_command_buffer_count_;
+          free_transform_command_buffer_count -= external_info.current_need_transform_command_buffer_count_;
+          free_compute_command_buffer_count -= external_info.current_need_compute_command_buffer_count_;
+
+          executing_command_task_flow_queue_.emplace_back(this, std::move(*wait_command_task_flow_iter));
+          wait_command_task_flow_iter = wait_task_flow_queue_.erase(wait_command_task_flow_iter);
+          continue;
+    } else if (std::uint32_t addition_num = external_info.reject_number_ / executing_command_task_flow_queue_.size();
+        external_info.current_need_graph_command_buffer_count_ <= free_graph_command_buffer_count + addition_num &&
+        external_info.current_need_transform_command_buffer_count_ <= free_transform_command_buffer_count + addition_num &&
+        external_info.current_need_compute_command_buffer_count_ <= free_compute_command_buffer_count + addition_num) {
+
+    } else {
+      if (external_info.reject_number_ < 15) {
+        external_info.reject_number_ += 1;
+      }
+    }
+
+    ++wait_command_task_flow_iter;
+  }
 }
 
 bool MM::RenderSystem::CommandExecutor::HaveCommandTaskToBeProcess() const {
