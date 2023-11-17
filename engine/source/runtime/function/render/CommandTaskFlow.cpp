@@ -3,7 +3,10 @@
 //
 
 #include "runtime/function/render/CommandTaskFlow.h"
+
 #include <stdlib.h>
+
+#include <cassert>
 #include <unordered_set>
 #include <vector>
 
@@ -126,7 +129,8 @@ bool MM::RenderSystem::CommandTaskFlow::IsRootTask(
     return false;
   }
 
-  if (!(command_task.GetResult()->is_sub_task_) && command_task.GetResult()->pre_tasks_.empty()) {
+  if (!(command_task.GetResult()->is_sub_task_) &&
+      command_task.GetResult()->pre_tasks_.empty()) {
     return true;
   }
 
@@ -172,7 +176,7 @@ bool MM::RenderSystem::CommandTaskFlow::HaveRingHelp(
 
   for (const CommandTask* post_command_task : post_cemmand_tasks.GetResult()) {
     if (!HaveRingHelp(old_command_task_ID,
-                     post_command_task->GetCommandTaskID())) {
+                      post_command_task->GetCommandTaskID())) {
       return false;
     }
   }
@@ -270,7 +274,6 @@ MM::RenderSystem::CommandTaskFlow::GetSubCommandTask(
 
   return ResultS{std::move(result)};
 }
-
 
 MM::Result<std::vector<const MM::RenderSystem::CommandTask*>, MM::ErrorResult>
 MM::RenderSystem::CommandTaskFlow::GetPreCommandTask(
@@ -427,7 +430,7 @@ MM::RenderSystem::CommandTaskFlow::GetSubCommandTaskRequireCommandBufferNumber(
       return ResultS{result};
     }
   }
-   
+
   return ResultE<>{ErrorCode::PARENT_OBJECT_NOT_CONTAIN_SPECIFIC_CHILD_OBJECT};
 }
 
@@ -443,7 +446,8 @@ bool MM::RenderSystem::CommandTaskFlow::IsValidSubmissionObject() const {
   return true;
 }
 
-bool MM::RenderSystem::CommandTaskFlow::HaveCommandTask(MM::RenderSystem::CommandTaskID command_task_ID) const {
+bool MM::RenderSystem::CommandTaskFlow::HaveCommandTask(
+    MM::RenderSystem::CommandTaskID command_task_ID) const {
   assert(IsValid());
   for (const CommandTask& command_task : tasks_) {
     if (command_task_ID == command_task.GetCommandTaskID()) {
@@ -454,197 +458,216 @@ bool MM::RenderSystem::CommandTaskFlow::HaveCommandTask(MM::RenderSystem::Comman
   return false;
 }
 
-MM::Result<MM::Nil, MM::ErrorResult> 
+MM::Result<MM::Nil, MM::ErrorResult>
 MM::RenderSystem::CommandTaskFlow::AddPreCommandTask(
-CommandTaskID main_command_task_ID,
-CommandTaskID pre_command_task_ID) {
+    CommandTaskID main_command_task_ID, CommandTaskID pre_command_task_ID) {
   assert(IsValid());
 
-  Result<const CommandTask*> main_command_task = GetCommandTask(main_command_task_ID); 
-  main_command_task.Exception(MM_ERROR_DESCRIPTION(Main command task is not exist.));
+  Result<const CommandTask*> main_command_task =
+      GetCommandTask(main_command_task_ID);
+  main_command_task.Exception(
+      MM_ERROR_DESCRIPTION(Main command task is not exist.));
   if (main_command_task.IsError()) {
     return ResultE<>{main_command_task.GetError().GetErrorCode()};
   }
 
   if (!HaveCommandTask(pre_command_task_ID)) {
     MM_LOG_ERROR("Pre command task is not exist.");
-    return ResultE<>{ErrorCode::PARENT_OBJECT_NOT_CONTAIN_SPECIFIC_CHILD_OBJECT};
+    return ResultE<>{
+        ErrorCode::PARENT_OBJECT_NOT_CONTAIN_SPECIFIC_CHILD_OBJECT};
   }
-
 
   main_command_task.GetResult()->pre_tasks_.push_back(pre_command_task_ID);
 
   return ResultS<Nil>{};
 }
 
-MM::Result<MM::Nil, MM::ErrorResult> 
+MM::Result<MM::Nil, MM::ErrorResult>
 MM::RenderSystem::CommandTaskFlow::AddPreCommandTask(
-CommandTaskID main_command_task_ID,
-const std::vector<CommandTaskID>& pre_command_task_IDs) {
+    CommandTaskID main_command_task_ID,
+    const std::vector<CommandTaskID>& pre_command_task_IDs) {
   assert(IsValid());
 
-  Result<const CommandTask*> main_command_task = GetCommandTask(main_command_task_ID); 
-  main_command_task.Exception(MM_ERROR_DESCRIPTION(Main command task is not exist.));
+  Result<const CommandTask*> main_command_task =
+      GetCommandTask(main_command_task_ID);
+  main_command_task.Exception(
+      MM_ERROR_DESCRIPTION(Main command task is not exist.));
   if (main_command_task.IsError()) {
     return ResultE<>{main_command_task.GetError().GetErrorCode()};
   }
 
-  for (CommandTaskID pre_command_task_ID: pre_command_task_IDs) {
+  for (CommandTaskID pre_command_task_ID : pre_command_task_IDs) {
     if (!HaveCommandTask(pre_command_task_ID)) {
       MM_LOG_ERROR("Pre command task is not exist.");
-      return ResultE<>{ErrorCode::PARENT_OBJECT_NOT_CONTAIN_SPECIFIC_CHILD_OBJECT};
+      return ResultE<>{
+          ErrorCode::PARENT_OBJECT_NOT_CONTAIN_SPECIFIC_CHILD_OBJECT};
     }
   }
 
-  for (CommandTaskID pre_command_task_ID: pre_command_task_IDs) {
+  for (CommandTaskID pre_command_task_ID : pre_command_task_IDs) {
     main_command_task.GetResult()->pre_tasks_.push_back(pre_command_task_ID);
   }
 
   return ResultS<Nil>{};
 }
 
-MM::Result<MM::Nil, MM::ErrorResult> 
+MM::Result<MM::Nil, MM::ErrorResult>
 MM::RenderSystem::CommandTaskFlow::AddPostCommandTask(
-CommandTaskID main_command_task_ID,
-CommandTaskID post_command_task_ID) {
+    CommandTaskID main_command_task_ID, CommandTaskID post_command_task_ID) {
   assert(IsValid());
 
-  Result<const CommandTask*> main_command_task = GetCommandTask(main_command_task_ID); 
-  main_command_task.Exception(MM_ERROR_DESCRIPTION(Main command task is not exist.));
+  Result<const CommandTask*> main_command_task =
+      GetCommandTask(main_command_task_ID);
+  main_command_task.Exception(
+      MM_ERROR_DESCRIPTION(Main command task is not exist.));
   if (main_command_task.IsError()) {
     return ResultE<>{main_command_task.GetError().GetErrorCode()};
   }
 
   if (!HaveCommandTask(post_command_task_ID)) {
     MM_LOG_ERROR("post command task is not exist.");
-    return ResultE<>{ErrorCode::PARENT_OBJECT_NOT_CONTAIN_SPECIFIC_CHILD_OBJECT};
+    return ResultE<>{
+        ErrorCode::PARENT_OBJECT_NOT_CONTAIN_SPECIFIC_CHILD_OBJECT};
   }
-
 
   main_command_task.GetResult()->post_tasks_.push_back(post_command_task_ID);
 
   return ResultS<Nil>{};
 }
 
-MM::Result<MM::Nil, MM::ErrorResult> 
+MM::Result<MM::Nil, MM::ErrorResult>
 MM::RenderSystem::CommandTaskFlow::AddPostCommandTask(
-CommandTaskID main_command_task_ID,
-const std::vector<CommandTaskID>& post_command_task_IDs) {
+    CommandTaskID main_command_task_ID,
+    const std::vector<CommandTaskID>& post_command_task_IDs) {
   assert(IsValid());
 
-  Result<const CommandTask*> main_command_task = GetCommandTask(main_command_task_ID); 
-  main_command_task.Exception(MM_ERROR_DESCRIPTION(Main command task is not exist.));
+  Result<const CommandTask*> main_command_task =
+      GetCommandTask(main_command_task_ID);
+  main_command_task.Exception(
+      MM_ERROR_DESCRIPTION(Main command task is not exist.));
   if (main_command_task.IsError()) {
     return ResultE<>{main_command_task.GetError().GetErrorCode()};
   }
 
-  for (CommandTaskID post_command_task_ID: post_command_task_IDs) {
+  for (CommandTaskID post_command_task_ID : post_command_task_IDs) {
     if (!HaveCommandTask(post_command_task_ID)) {
       MM_LOG_ERROR("post command task is not exist.");
-      return ResultE<>{ErrorCode::PARENT_OBJECT_NOT_CONTAIN_SPECIFIC_CHILD_OBJECT};
+      return ResultE<>{
+          ErrorCode::PARENT_OBJECT_NOT_CONTAIN_SPECIFIC_CHILD_OBJECT};
     }
   }
 
-  for (CommandTaskID post_command_task_ID: post_command_task_IDs) {
+  for (CommandTaskID post_command_task_ID : post_command_task_IDs) {
     main_command_task.GetResult()->post_tasks_.push_back(post_command_task_ID);
   }
 
   return ResultS<Nil>{};
 }
 
-MM::Result<MM::Nil, MM::ErrorResult>
-MM::RenderSystem::CommandTaskFlow::Merge(CommandTaskID main_command_task_ID,
-CommandTaskID sub_command_task_ID) {
+MM::Result<MM::Nil, MM::ErrorResult> MM::RenderSystem::CommandTaskFlow::Merge(
+    CommandTaskID main_command_task_ID, CommandTaskID sub_command_task_ID) {
   assert(IsValid());
 
-  Result<const CommandTask*> main_command_task = GetCommandTask(main_command_task_ID); 
-  main_command_task.Exception(MM_ERROR_DESCRIPTION(Main command task is not exist.));
+  Result<const CommandTask*> main_command_task =
+      GetCommandTask(main_command_task_ID);
+  main_command_task.Exception(
+      MM_ERROR_DESCRIPTION(Main command task is not exist.));
   if (main_command_task.IsError()) {
     return ResultE<>{main_command_task.GetError().GetErrorCode()};
   }
 
-  Result<const CommandTask*> sub_command_task = GetCommandTask(sub_command_task_ID);
+  Result<const CommandTask*> sub_command_task =
+      GetCommandTask(sub_command_task_ID);
   sub_command_task.Exception("Sub command task is not exist.");
   if (sub_command_task.IsError()) {
     return ResultE<>{sub_command_task.GetError().GetErrorCode()};
   }
 
-  if (sub_command_task.GetResult()->IsSubTask()) {
+  if (sub_command_task.GetResult()->IsSubTask() ||
+      sub_command_task.GetResult()->GetCommandType() !=
+          main_command_task.GetResult()->GetCommandType()) {
     return ResultE<>{ErrorCode::INPUT_PARAMETERS_ARE_NOT_SUITABLE};
   }
 
-    for (CommandTaskID old_sub_command_task_ID: main_command_task.GetResult()->sub_tasks_) {
-      if (old_sub_command_task_ID == sub_command_task_ID) {
-        return ResultS<Nil>{};
-      }
+  for (CommandTaskID old_sub_command_task_ID :
+       main_command_task.GetResult()->sub_tasks_) {
+    if (old_sub_command_task_ID == sub_command_task_ID) {
+      return ResultS<Nil>{};
     }
+  }
 
   main_command_task.GetResult()->sub_tasks_.push_back(sub_command_task_ID);
-  const_cast<CommandTask*>(sub_command_task.GetResult())->is_sub_task_ = true; 
+  const_cast<CommandTask*>(sub_command_task.GetResult())->is_sub_task_ = true;
 
   return ResultS<Nil>{};
 }
-
-MM::Result<MM::Nil, MM::ErrorResult>
-MM::RenderSystem::CommandTaskFlow::Merge(CommandTaskID main_command_task_ID,
-const std::vector<CommandTaskID>& sub_command_task_IDs)  {
+MM::Result<MM::Nil, MM::ErrorResult> MM::RenderSystem::CommandTaskFlow::Merge(
+    CommandTaskID main_command_task_ID,
+    const std::vector<CommandTaskID>& sub_command_task_IDs) {
   assert(IsValid());
 
-  Result<const CommandTask*> main_command_task = GetCommandTask(main_command_task_ID); 
-  main_command_task.Exception(MM_ERROR_DESCRIPTION(Main command task is not exist.));
+  Result<const CommandTask*> main_command_task =
+      GetCommandTask(main_command_task_ID);
+  main_command_task.Exception(
+      MM_ERROR_DESCRIPTION(Main command task is not exist.));
   if (main_command_task.IsError()) {
     return ResultE<>{main_command_task.GetError().GetErrorCode()};
   }
 
-  for (CommandTaskID pre_command_task_ID: sub_command_task_IDs) {
-    if (!HaveCommandTask(pre_command_task_ID)) {
-      MM_LOG_ERROR("sub command task is not exist.");
-      return ResultE<>{ErrorCode::PARENT_OBJECT_NOT_CONTAIN_SPECIFIC_CHILD_OBJECT};
+  for (CommandTaskID sub_command_task_ID : sub_command_task_IDs) {
+    if (!HaveCommandTask(sub_command_task_ID)) {
+      return ResultE<>{
+          ErrorCode::PARENT_OBJECT_NOT_CONTAIN_SPECIFIC_CHILD_OBJECT};
     }
   }
 
-  for (CommandTaskID sub_command_task_ID: sub_command_task_IDs) {
-    Result<const CommandTask*> sub_command_task = GetCommandTask(sub_command_task_ID);
+  for (CommandTaskID sub_command_task_ID : sub_command_task_IDs) {
+    Result<const CommandTask*> sub_command_task =
+        GetCommandTask(sub_command_task_ID);
     sub_command_task.IgnoreException();
     assert(sub_command_task.IsSuccess());
-    if (sub_command_task.GetResult()->IsSubTask()) {
+    if (sub_command_task.GetResult()->IsSubTask() ||
+        sub_command_task.GetResult()->GetCommandType() !=
+            main_command_task.GetResult()->GetCommandType()) {
       return ResultE<>{ErrorCode::INPUT_PARAMETERS_ARE_NOT_SUITABLE};
     }
 
-    for (CommandTaskID old_sub_command_task_ID: main_command_task.GetResult()->sub_tasks_) {
+    for (CommandTaskID old_sub_command_task_ID :
+         main_command_task.GetResult()->sub_tasks_) {
       if (old_sub_command_task_ID == sub_command_task_ID) {
         continue;
       }
     }
 
     main_command_task.GetResult()->sub_tasks_.push_back(sub_command_task_ID);
-    const_cast<CommandTask*>(sub_command_task.GetResult())->is_sub_task_ = true; 
+    const_cast<CommandTask*>(sub_command_task.GetResult())->is_sub_task_ = true;
   }
 
   return ResultS<Nil>{};
 }
 
-bool MM::RenderSystem::CommandTaskFlow::SubCommandTaskRelationshipIsValid() const {
-  assert(IsValid());  
-
+bool MM::RenderSystem::CommandTaskFlow::SubCommandTaskRelationshipIsValid()
+    const {
+  assert(IsValid());
 
   std::unordered_set<CommandTaskID> pre_command_task_IDs{};
 
-  for (const CommandTask& main_command_task: tasks_) {
+  for (const CommandTask& main_command_task : tasks_) {
     if (!main_command_task.sub_tasks_.empty()) {
       continue;
     }
 
-    for (CommandTaskID pre_command_task_ID: main_command_task.pre_tasks_) {
+    for (CommandTaskID pre_command_task_ID : main_command_task.pre_tasks_) {
       pre_command_task_IDs.insert(pre_command_task_ID);
     }
 
-    for (CommandTaskID sub_command_task_ID: main_command_task.sub_tasks_) {
+    for (CommandTaskID sub_command_task_ID : main_command_task.sub_tasks_) {
       HelpGetAllPreCommandTaskIDs(pre_command_task_IDs, sub_command_task_ID);
     }
 
-    for (CommandTaskID post_command_task_ID: main_command_task.post_tasks_) {
-      if (!HelpCheckAllPostCommandTaskIDs(pre_command_task_IDs, post_command_task_ID)) {
+    for (CommandTaskID post_command_task_ID : main_command_task.post_tasks_) {
+      if (!HelpCheckAllPostCommandTaskIDs(pre_command_task_IDs,
+                                          post_command_task_ID)) {
         return false;
       }
     }
@@ -666,13 +689,14 @@ void MM::RenderSystem::CommandTaskFlow::HelpGetAllPreCommandTaskIDs(
   assert(pre_command_tasks.IsSuccess());
 
   for (const CommandTask* pre_command_task : pre_command_tasks.GetResult()) {
-    HelpGetAllPreCommandTaskIDs(pre_command_task_IDs, pre_command_task->GetCommandTaskID());
+    HelpGetAllPreCommandTaskIDs(pre_command_task_IDs,
+                                pre_command_task->GetCommandTaskID());
   }
 }
 
 bool MM::RenderSystem::CommandTaskFlow::HelpCheckAllPostCommandTaskIDs(
-  std::unordered_set<CommandTaskID>& pre_command_task_IDs,
-  CommandTaskID current_command_task_ID) const {
+    std::unordered_set<CommandTaskID>& pre_command_task_IDs,
+    CommandTaskID current_command_task_ID) const {
   if (pre_command_task_IDs.count(current_command_task_ID)) {
     return false;
   }
@@ -684,7 +708,8 @@ bool MM::RenderSystem::CommandTaskFlow::HelpCheckAllPostCommandTaskIDs(
 
   bool result = true;
   for (const CommandTask* post_command_task : post_command_tasks.GetResult()) {
-    result &= HelpCheckAllPostCommandTaskIDs(pre_command_task_IDs, post_command_task->GetCommandTaskID());
+    result &= HelpCheckAllPostCommandTaskIDs(
+        pre_command_task_IDs, post_command_task->GetCommandTaskID());
     if (!result) {
       return result;
     }

@@ -2,6 +2,8 @@
 
 #include <set>
 
+#include "runtime/function/render/vk_enum.h"
+
 const std::string MM::RenderSystem::RenderEngine::validation_layers_name{
     "VK_LAYER_KHRONOS_validation"};
 
@@ -82,40 +84,64 @@ const VkDevice_T* MM::RenderSystem::RenderEngine::GetDevice() const {
   return device_;
 }
 
-const std::uint32_t& MM::RenderSystem::RenderEngine::GetGraphQueueIndex()
-    const {
+std::uint32_t MM::RenderSystem::RenderEngine::GetGraphQueueIndex() const {
   return queue_family_indices_.graphics_family_.value();
 }
 
-const std::uint32_t& MM::RenderSystem::RenderEngine::GetTransformQueueIndex()
-    const {
+std::uint32_t MM::RenderSystem::RenderEngine::GetTransformQueueIndex() const {
   return queue_family_indices_.transform_family_.value();
 }
 
-const std::uint32_t& MM::RenderSystem::RenderEngine::GetPresentQueueIndex()
-    const {
+std::uint32_t MM::RenderSystem::RenderEngine::GetPresentQueueIndex() const {
   return queue_family_indices_.present_family_.value();
 }
 
-const std::uint32_t& MM::RenderSystem::RenderEngine::GetComputeQueueIndex()
-    const {
+std::uint32_t MM::RenderSystem::RenderEngine::GetComputeQueueIndex() const {
   return queue_family_indices_.compute_family_.value();
 }
 
-const VkQueue& MM::RenderSystem::RenderEngine::GetGraphQueue() const {
+VkQueue MM::RenderSystem::RenderEngine::GetGraphQueue() const {
   return graphics_queue_;
 }
 
-const VkQueue& MM::RenderSystem::RenderEngine::GetTransformQueue() const {
+VkQueue MM::RenderSystem::RenderEngine::GetTransformQueue() const {
   return transform_queue_;
 }
 
-const VkQueue& MM::RenderSystem::RenderEngine::GetPresentQueue() const {
+VkQueue MM::RenderSystem::RenderEngine::GetPresentQueue() const {
   return present_queue_;
 }
 
-const VkQueue& MM::RenderSystem::RenderEngine::GetComputeQueue() const {
+VkQueue MM::RenderSystem::RenderEngine::GetComputeQueue() const {
   return compute_queue_;
+}
+
+VkQueue MM::RenderSystem::RenderEngine::GetQueue(
+    CommandBufferType command_buffer_type) const {
+  switch (command_buffer_type) {
+    case CommandBufferType::GRAPH:
+      return graphics_queue_;
+    case CommandBufferType::COMPUTE:
+      return compute_queue_;
+    case CommandBufferType::TRANSFORM:
+      return transform_queue_;
+    case CommandBufferType::UNDEFINED:
+      assert(false);
+  }
+}
+
+std::uint32_t MM::RenderSystem::RenderEngine::GetQueueIndex(
+    MM::RenderSystem::CommandBufferType command_buffer_type) const {
+  switch (command_buffer_type) {
+    case CommandBufferType::GRAPH:
+      return queue_family_indices_.graphics_family_.value();
+    case CommandBufferType::COMPUTE:
+      return queue_family_indices_.compute_family_.value();
+    case CommandBufferType::TRANSFORM:
+      return queue_family_indices_.transform_family_.value();
+    case CommandBufferType::UNDEFINED:
+      assert(false);
+  }
 }
 
 MM::RenderSystem::RenderFuture MM::RenderSystem::RenderEngine::RunCommand(

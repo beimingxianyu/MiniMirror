@@ -15,6 +15,7 @@
 #include "runtime/function/render/CommandTask.h"
 #include "runtime/function/render/CommandTaskFlow.h"
 #include "runtime/function/render/RenderFuture.h"
+#include "runtime/function/render/RenderResourceDataID.h"
 #include "runtime/function/render/vk_command_pre.h"
 #include "runtime/function/render/vk_enum.h"
 #include "runtime/function/render/vk_type_define.h"
@@ -30,9 +31,12 @@ class CommandExecutor {
   CommandExecutor() = delete;
   explicit CommandExecutor(RenderEngine* engine);
   ~CommandExecutor();
-  CommandExecutor(RenderEngine* engine, const uint32_t& graph_command_number,
-                  const uint32_t& compute_command_number,
-                  const uint32_t& transform_command_number);
+  CommandExecutor(RenderEngine* engine,
+                  const std::uint32_t& graph_command_number,
+                  const std::uint32_t& compute_command_number,
+                  const std::uint32_t& transform_command_number,
+                  const std::uint32_t& waiting_coefficient = 3,
+                  const std::uint32_t& max_post_command_task_number = 1024);
   CommandExecutor(const CommandExecutor& other) = delete;
   CommandExecutor(CommandExecutor&& other) = delete;
   CommandExecutor& operator=(const CommandExecutor& other) = delete;
@@ -45,11 +49,11 @@ class CommandExecutor {
 
   std::uint32_t GetTransformCommandNumber() const;
 
-  std::uint32_t GetFreeGraphCommandNumber() const;
+  std::uint32_t GetFreeGraphCommandBufferNumber() const;
 
-  std::uint32_t GetFreeComputeCommandNumber() const;
+  std::uint32_t GetFreeComputeCommandBufferNumber() const;
 
-  std::uint32_t GetFreeTransformCommandNumber() const;
+  std::uint32_t GetFreeTransformCommandBufferNumber() const;
 
   std::uint32_t GetFreeCommandNumber(CommandType command_type) const;
 
@@ -90,7 +94,7 @@ class CommandExecutor {
     std::uint32_t current_need_compute_command_buffer_count_{0};
     std::uint32_t current_need_transform_command_buffer_count_{0};
 
-    std::uint32_t reject_number_{0}; 
+    std::uint32_t reject_number_{0};
   };
 
   struct CommandTaskFlowToBeRun {
@@ -112,7 +116,8 @@ class CommandExecutor {
   };
 
   struct CommandTaskExecutingExternalInfo {
-    AtomicCommandTaskRunningState state_{CommandTaskExecutingState::UNDEFINED};
+    AtomicCommandTaskExecutingState state_{
+        CommandTaskExecutingState::UNDEFINED};
 
     // include sub command task require command buffer.
     std::uint32_t require_command_buffer_count_{0};
@@ -120,11 +125,10 @@ class CommandExecutor {
     std::atomic_uint32_t pre_command_task_not_submit_count_{0};
     std::vector<VkSemaphore> wait_semaphore_{};
     std::vector<VkSemaphore> signal_semaphore_{};
+
     std::vector<std::unique_ptr<AllocatedCommandBuffer>> command_buffers_{};
 
-    // When the \ref waiting_coefficient is greater than the number of command
-    // buffers required by the task, it will wait for the task.
-    std::uint32_t wait_coefficient_{0};
+    std::uint32_t wait_free_buffer_count_{0};
   };
 
   struct CommandTaskExecuting;
@@ -256,6 +260,16 @@ class CommandExecutor {
 
   std::vector<VkSemaphore> GetSemaphore(std::uint32_t require_number);
 
+  bool WaitCroosCommandTaskFlowSync(
+      const std::vector<RenderResourceDataID>&
+          cross_task_flow_sync_render_resource_IDs_);
+
+  std::stack<std::unique_ptr<AllocatedCommandBuffer>>&
+  GetFreeCommandBufferStack(CommandBufferType command_buffer_type);
+
+  Result<Nil, ErrorResult> SubmitCommandTask(
+      CommandTaskExecuting& command_task);
+
   bool HaveCommandTaskToBeProcess() const;
 
   void ProcessCompleteTask();
@@ -266,25 +280,15 @@ class CommandExecutor {
 
   std::array<std::uint32_t, 3> ProcessCurrentNeedCommandBufferCount();
 
-  void ProcessCommandTaskFlowQueue(std::array<std::uint32_t, 3> total_current_need_command_buffer_count);
+  void ProcessWaitCommandTaskFlowQueue(
+      std::array<std::uint32_t, 3> total_current_need_command_buffer_count);
 
-  void ProcessPreTaskNoSubmitTask();
+  void ProcessExecutingCommandTaskFlowQueue();
 
-  void ProcessRootTaskAndSubTask();
+  Result<Nil, ErrorResult> RecordAndSubmitCommandSync(
+      CommandTaskExecuting& command_task);
 
-  void ChooseVariableByCommandType();
-
-  void ProcessCrossTaskFlowRenderResourceSync();
-
-  void ProcessOneCanSubmitTask();
-
-  void ProcessWhenOneFailedSubmit();
-
-  void ProcessNextStepCanSubmitTask();
-
-  Result<Nil, ErrorResult> RecordAndSubmitCommandSync();
-
-  Result<Nil, ErrorResult> RecordAndSubmitCommandASync();
+  void RecordAndSubmitCommandASync(CommandTaskExecuting& command_task);
 
   void PostProcessOfSubmitTask();
 
@@ -301,6 +305,7 @@ class CommandExecutor {
   std::uint32_t graph_command_number_{0};
   std::uint32_t compute_command_number_{0};
   std::uint32_t transform_command_number_{0};
+  std::uint32_t wait_coefficient_{3};
 
   std::stack<std::unique_ptr<AllocatedCommandBuffer>>
       free_graph_command_buffers_{};
@@ -309,6 +314,10 @@ class CommandExecutor {
   std::stack<std::unique_ptr<AllocatedCommandBuffer>>
       free_transform_command_buffers_{};
   std::stack<VkSemaphore> free_semaphores_;
+
+  std::vector<VkPipelineStageFlags> wait_dst_stage_mask_{
+      1024,
+      static_cast<VkPipelineStageFlags>(VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT)};
 
   std::array<std::array<std::unique_ptr<AllocatedCommandBuffer>, 3>, 3>
       general_command_buffers_{};

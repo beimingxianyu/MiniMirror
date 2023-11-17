@@ -96,13 +96,13 @@ MM::RenderSystem::RenderFuture& MM::RenderSystem::RenderFuture::operator=(
 MM::RenderSystem::RenderFutureState MM::RenderSystem::RenderFuture::Wait() {
   assert(IsValid());
 
-  RenderFutureState state = state_manager_->GetState();
-  if (state == RenderFutureState::WAIT) {
+  RenderFutureState state;
+  if (state_manager_->GetState() == RenderFutureState::WAIT) {
     AddToWaitList();
     state_manager_->Wait();
     state = state_manager_->GetState();
     assert(state != RenderFutureState::RUNNING);
-  } else if (state == RenderFutureState::RUNNING) {
+  } else if (state_manager_->GetState() == RenderFutureState::RUNNING) {
     state_manager_->Wait();
     state = state_manager_->GetState();
     assert(state != RenderFutureState::RUNNING);

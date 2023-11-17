@@ -2,14 +2,14 @@
 
 #include <vulkan/vulkan_core.h>
 
+#include <cstdint>
 #include <string>
 #include <vector>
 
 #include "runtime/function/render/AllocatedImage.h"
 #include "runtime/function/render/vk_engine.h"
 
-MM::ErrorCode MM::RenderSystem::VkResultToMMErrorCode(
-    VkResult vk_result) {
+MM::ErrorCode MM::RenderSystem::VkResultToMMErrorCode(VkResult vk_result) {
   ErrorCode MM_result;
   switch (vk_result) {
     case VK_SUCCESS:
@@ -45,8 +45,7 @@ VkCommandPoolCreateInfo MM::RenderSystem::GetCommandPoolCreateInfo(
   return info;
 }
 
-VkCommandBufferAllocateInfo
-MM::RenderSystem::GetCommandBufferAllocateInfo(
+VkCommandBufferAllocateInfo MM::RenderSystem::GetCommandBufferAllocateInfo(
     const VkCommandPool& command_pool, const uint32_t& count,
     const VkCommandBufferLevel& level) {
   VkCommandBufferAllocateInfo info = {};
@@ -93,7 +92,7 @@ VkFenceCreateInfo MM::RenderSystem::GetFenceCreateInfo(
 }
 
 VkFence MM::RenderSystem::GetVkFence(const VkDevice& device,
-                                            const bool& is_signaled) {
+                                     const bool& is_signaled) {
   VkFenceCreateInfo fence_create_info{};
   if (is_signaled) {
     fence_create_info = GetFenceCreateInfo(VK_FENCE_CREATE_SIGNALED_BIT);
@@ -165,8 +164,7 @@ VkSubmitInfo MM::RenderSystem::GetCommandSubmitInfo(
   return submit_info;
 }
 
-MM::Result<MM::Nil, MM::ErrorResult>
-MM::RenderSystem::SubmitCommandBuffers(
+MM::Result<MM::Nil, MM::ErrorResult> MM::RenderSystem::SubmitCommandBuffers(
     VkQueue queue, const std::vector<VkSubmitInfo>& submit_infos,
     VkFence fence) {
   ErrorCode error_code = VkResultToMMErrorCode(
@@ -523,8 +521,7 @@ void MM::RenderSystem::AddTransferImageCommands(
     VkCommandBuffer& command_buffer, AllocatedImage& image,
     const VkImageLayout& old_layout, const VkImageLayout& new_layout,
     const VkDependencyFlags& flags) {
-  auto image_barrier =
-      GetVkImageMemoryBarrier2(image, old_layout, new_layout);
+  auto image_barrier = GetVkImageMemoryBarrier2(image, old_layout, new_layout);
   auto image_transfer_dependency =
       GetVkImageDependencyInfo(image_barrier, flags);
 
@@ -546,8 +543,7 @@ void MM::RenderSystem::AddTransferImageCommands(
     AllocatedCommandBuffer& command_buffer, AllocatedImage& image,
     const VkImageLayout& old_layout, const VkImageLayout& new_layout,
     const VkDependencyFlags& flags) {
-  auto image_barrier =
-      GetVkImageMemoryBarrier2(image, old_layout, new_layout);
+  auto image_barrier = GetVkImageMemoryBarrier2(image, old_layout, new_layout);
   auto image_transfer_dependency =
       GetVkImageDependencyInfo(image_barrier, flags);
 
@@ -781,23 +777,19 @@ VkCopyBufferInfo2 MM::RenderSystem::GetVkCopyBufferInfo2(
   return copy_buffer_info;
 }
 
-bool MM::RenderSystem::IsTransformSrcBuffer(
-    const VkBufferUsageFlags& flags) {
+bool MM::RenderSystem::IsTransformSrcBuffer(const VkBufferUsageFlags& flags) {
   return flags & VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
 }
 
-bool MM::RenderSystem::IsTransformDestBuffer(
-    const VkBufferUsageFlags& flags) {
+bool MM::RenderSystem::IsTransformDestBuffer(const VkBufferUsageFlags& flags) {
   return flags & VK_BUFFER_USAGE_TRANSFER_DST_BIT;
 }
 
-bool MM::RenderSystem::IsTransformSrcImage(
-    const VkImageUsageFlags& flags) {
+bool MM::RenderSystem::IsTransformSrcImage(const VkImageUsageFlags& flags) {
   return flags & VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
 }
 
-bool MM::RenderSystem::IsTransformDestImage(
-    const VkImageUsageFlags& flags) {
+bool MM::RenderSystem::IsTransformDestImage(const VkImageUsageFlags& flags) {
   return flags & VK_IMAGE_USAGE_TRANSFER_DST_BIT;
 }
 
@@ -849,9 +841,9 @@ bool MM::RenderSystem::GetBufferUsageFromDescriptorType(
   return false;
 }
 
-bool MM::RenderSystem::ImageRegionIsOverlap(
-    const VkOffset3D& src_offset, const VkOffset3D& dest_offset,
-    const VkExtent3D& extent) {
+bool MM::RenderSystem::ImageRegionIsOverlap(const VkOffset3D& src_offset,
+                                            const VkOffset3D& dest_offset,
+                                            const VkExtent3D& extent) {
   return ((dest_offset.x > src_offset.x &&
            static_cast<std::uint32_t>(dest_offset.x) <
                src_offset.x + extent.width) ||
@@ -994,8 +986,7 @@ VkCommandBufferBeginInfo MM::RenderSystem::GetCommandBufferBeginInfo(
                                   nullptr, flags, inheritance_info};
 }
 
-MM::Result<MM::Nil, MM::ErrorResult>
-MM::RenderSystem::BeginCommandBuffer(
+MM::Result<MM::Nil, MM::ErrorResult> MM::RenderSystem::BeginCommandBuffer(
     AllocatedCommandBuffer& command_buffer, VkCommandBufferUsageFlags flags,
     const VkCommandBufferInheritanceInfo* inheritance_info) {
   const VkCommandBufferBeginInfo command_buffer_begin_info =
@@ -1215,8 +1206,7 @@ std::uint64_t MM::RenderSystem::ConvertVkImageLayoutToContinuousValue(
   return 0;
 }
 
-MM::Result<MM::Nil, MM::ErrorResult>
-MM::RenderSystem::CheckVkImageCreateInfo(
+MM::Result<MM::Nil, MM::ErrorResult> MM::RenderSystem::CheckVkImageCreateInfo(
     const VkImageCreateInfo* vk_image_create_info) {
   if (vk_image_create_info == nullptr) {
     MM_LOG_ERROR("The vk image create info is nullptr.");
@@ -1331,8 +1321,7 @@ MM::RenderSystem::CheckVmaAllocationCreateInfo(
   return ResultS<Nil>{};
 }
 
-MM::Result<MM::Nil, MM::ErrorResult>
-MM::RenderSystem::CheckVkBufferCreateInfo(
+MM::Result<MM::Nil, MM::ErrorResult> MM::RenderSystem::CheckVkBufferCreateInfo(
     const VkBufferCreateInfo* vk_buffer_create_info) {
   if (vk_buffer_create_info == nullptr) {
     MM_LOG_ERROR("The vk buffer create info is nullptr.");
@@ -1570,8 +1559,7 @@ VkImageBlit2 MM::RenderSystem::GetImageBlit2(
                       {dest_offsets[0], dest_offsets[1]}};
 }
 
-MM::RenderSystem::CommandBufferType
-MM::RenderSystem::ChooseCommandBufferType(
+MM::RenderSystem::CommandBufferType MM::RenderSystem::ChooseCommandBufferType(
     MM::RenderSystem::RenderEngine* render_engine, std::uint32_t queue_index) {
   assert(render_engine != nullptr);
 
@@ -1666,11 +1654,11 @@ bool MM::RenderSystem::IsValidPipelineCacheData(
     uint32_t deviceID = 0;
     uint8_t pipelineCacheUUID[VK_UUID_SIZE] = {};
 
-    memcpy(&header, (uint8_t*)buffer + 0, 4);
-    memcpy(&version, (uint8_t*)buffer + 4, 4);
-    memcpy(&vendor, (uint8_t*)buffer + 8, 4);
-    memcpy(&deviceID, (uint8_t*)buffer + 12, 4);
-    memcpy(pipelineCacheUUID, (uint8_t*)buffer + 16, VK_UUID_SIZE);
+    memcpy(&header, const_cast<char*>(buffer) + 0, 4);
+    memcpy(&version, const_cast<char*>(buffer) + 4, 4);
+    memcpy(&vendor, const_cast<char*>(buffer) + 8, 4);
+    memcpy(&deviceID, const_cast<char*>(buffer) + 12, 4);
+    memcpy(pipelineCacheUUID, const_cast<char*>(buffer) + 16, VK_UUID_SIZE);
 
     if (header <= 0) {
       MM_LOG_ERROR(std::string("Bad pipeline cache data header length in") +
@@ -2027,8 +2015,7 @@ VkFormat MM::RenderSystem::GetVkFormatFromImageFormat(
   }
 }
 
-bool MM::RenderSystem::LayoutSupportImageSamplerCombine(
-    VkImageLayout layout) {
+bool MM::RenderSystem::LayoutSupportImageSamplerCombine(VkImageLayout layout) {
   switch (layout) {
     case VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL:
     case VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL:
@@ -2176,14 +2163,14 @@ bool MM::RenderSystem::VkVertexInputAttributeDescriptionIsEqual(
 }
 
 bool MM::RenderSystem::VkViewportIsEqual(const VkViewport& lhs,
-                                                const VkViewport& rhs) {
+                                         const VkViewport& rhs) {
   return lhs.x == rhs.x && lhs.y == rhs.y && lhs.width == rhs.width &&
          lhs.height == rhs.height && lhs.minDepth == rhs.minDepth &&
          lhs.maxDepth == rhs.maxDepth;
 }
 
 bool MM::RenderSystem::VkRect2DIsEqual(const VkRect2D& lhs,
-                                              const VkRect2D& rhs) {
+                                       const VkRect2D& rhs) {
   return lhs.offset.x == rhs.offset.x && lhs.offset.y == rhs.offset.y &&
          lhs.extent.width == rhs.extent.width &&
          lhs.extent.height == rhs.extent.height;

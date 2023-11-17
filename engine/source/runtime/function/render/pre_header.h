@@ -7,7 +7,6 @@
 #include "runtime/resource/asset_system/AssetSystem.h"
 #include "utils/marco.h"
 
-
 #define MM_VK_RESULT_CODE __MM_vk_result_code_name
 
 // TODO 添加对各种情况的警告（如内存不足）

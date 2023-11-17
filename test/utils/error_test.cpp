@@ -4,6 +4,7 @@
 #include "utils/error.h"
 
 #include <gtest/gtest.h>
+#include <utils/type_utils.h>
 
 struct UtilsErrorCustomStruct {
   UtilsErrorCustomStruct() = default;
@@ -222,6 +223,23 @@ MM::Result<UtilsErrorCustomStruct, NewError> ReturnNewErrorConstructor(
                                                       num);
 }
 
+MM::Result<MM::Nil, MM::ErrorResult> ErrorTestImp(bool cond) {
+  if (cond) {
+    return MM::ResultS<MM::Nil>{};
+  }
+
+  return MM::ResultE<>{MM::ErrorCode::UNDEFINED_ERROR};
+}
+
+MM::Result<MM::Nil, MM::ErrorResult> ErrorTest(bool cond) {
+  MM::Result<MM::Nil, MM::ErrorResult> result = ErrorTestImp(cond);
+  if (result.IsError()) {
+    return result;
+  }
+
+  return MM::ResultS<MM::Nil>{};
+}
+
 TEST(Utils, error) {
   UtilsErrorCustomStruct default_struct{},
       struct1{"ReturnUtilsErrorCustomErrorConstructor1"},
@@ -375,4 +393,7 @@ TEST(Utils, error) {
   EXPECT_EQ(return_new_error_constructor.GetResult(), default_struct);
   EXPECT_EQ(return_new_error_constructor.GetError(), 50);
   return_new_error_constructor.Exception();
+
+  MM::Result<MM::Nil> result = ErrorTest(false);
+  result.IgnoreException();
 }

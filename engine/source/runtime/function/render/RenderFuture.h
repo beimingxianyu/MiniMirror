@@ -8,6 +8,7 @@
 #include <memory>
 #include <mutex>
 
+#include "runtime/function/render/CommandExecutor.h"
 #include "runtime/function/render/RenderFuture.h"
 #include "runtime/function/render/vk_command_pre.h"
 #include "runtime/function/render/vk_enum.h"
@@ -26,6 +27,8 @@ class RenderFuture {
   };
 
   class RenderFutureStateManager {
+    friend class CommandExecutor;
+
    public:
     RenderFutureStateManager() = default;
     ~RenderFutureStateManager() = default;
@@ -74,7 +77,7 @@ class RenderFuture {
     }
 
    private:
-    AtomicRenderFutureState state_{RenderFutureState::RUNNING};
+    AtomicRenderFutureState state_{RenderFutureState::WAIT};
     RenderFutureCVM* cvm_{new RenderFutureCVM{}};
   };
 
@@ -104,12 +107,13 @@ class RenderFuture {
     assert(IsValid());
 
     bool wait_result = true;
-    RenderFutureState state = state_manager_->GetState();
-    if (state == RenderFutureState::WAIT) {
+    RenderFutureState state;
+    ;
+    if (state_manager_->GetState() == RenderFutureState::WAIT) {
       AddToWaitList();
       wait_result = state_manager_->WaitFor(rel_time);
       state = state_manager_->GetState();
-    } else if (state == RenderFutureState::RUNNING) {
+    } else if (state_manager_->GetState() == RenderFutureState::RUNNING) {
       wait_result = state_manager_->WaitFor(rel_time);
       state = state_manager_->GetState();
     }
@@ -123,12 +127,12 @@ class RenderFuture {
     assert(IsValid());
 
     bool wait_result = true;
-    RenderFutureState state = state_manager_->GetState();
-    if (state == RenderFutureState::WAIT) {
+    RenderFutureState state;
+    if (state_manager_->GetState() == RenderFutureState::WAIT) {
       AddToWaitList();
       wait_result = state_manager_->WaitUntil(rel_time);
       state = state_manager_->GetState();
-    } else if (state == RenderFutureState::RUNNING) {
+    } else if (state_manager_->GetState() == RenderFutureState::RUNNING) {
       wait_result = state_manager_->WaitUntil(rel_time);
       state = state_manager_->GetState();
     }

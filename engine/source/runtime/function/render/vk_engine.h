@@ -10,7 +10,7 @@
 #define GLFW_EXPOSE_NATIVE_WIN32
 #include <GLFW/glfw3native.h>
 #ifdef ERROR
-    #undef ERROR
+#undef ERROR
 #endif
 
 #include <atomic>
@@ -89,21 +89,25 @@ class RenderEngine {
 
   const VkDevice_T* GetDevice() const;
 
-  const std::uint32_t& GetGraphQueueIndex() const;
+  std::uint32_t GetGraphQueueIndex() const;
 
-  const std::uint32_t& GetTransformQueueIndex() const;
+  std::uint32_t GetTransformQueueIndex() const;
 
-  const std::uint32_t& GetPresentQueueIndex() const;
+  std::uint32_t GetPresentQueueIndex() const;
 
-  const std::uint32_t& GetComputeQueueIndex() const;
+  std::uint32_t GetComputeQueueIndex() const;
 
-  const VkQueue& GetGraphQueue() const;
+  std::uint32_t GetQueueIndex(CommandBufferType command_buffer_type) const;
 
-  const VkQueue& GetTransformQueue() const;
+  VkQueue GetGraphQueue() const;
 
-  const VkQueue& GetPresentQueue() const;
+  VkQueue GetTransformQueue() const;
 
-  const VkQueue& GetComputeQueue() const;
+  VkQueue GetPresentQueue() const;
+
+  VkQueue GetComputeQueue() const;
+
+  VkQueue GetQueue(CommandBufferType command_buffer_type) const;
 
   ExecuteResult GraphQueueWaitIdle();
 
