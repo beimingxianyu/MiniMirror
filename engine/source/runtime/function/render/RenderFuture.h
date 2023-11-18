@@ -8,12 +8,10 @@
 #include <memory>
 #include <mutex>
 
-#include "runtime/function/render/CommandExecutor.h"
 #include "runtime/function/render/RenderFuture.h"
 #include "runtime/function/render/vk_command_pre.h"
 #include "runtime/function/render/vk_enum.h"
 #include "runtime/function/render/vk_type_define.h"
-#include "utils/error.h"
 
 namespace MM {
 namespace RenderSystem {
@@ -61,6 +59,8 @@ class RenderFuture {
         return cvm_->condition_variable_.wait_for(um, rel_time) !=
                std::cv_status::timeout;
       }
+
+      return true;
     }
 
     template <class Rep, class Period>
@@ -74,6 +74,8 @@ class RenderFuture {
         return cvm_->condition_variable_.wait_until(um, rel_time) !=
                std::cv_status::timeout;
       }
+
+      return true;
     }
 
    private:
@@ -108,7 +110,7 @@ class RenderFuture {
 
     bool wait_result = true;
     RenderFutureState state;
-    ;
+
     if (state_manager_->GetState() == RenderFutureState::WAIT) {
       AddToWaitList();
       wait_result = state_manager_->WaitFor(rel_time);

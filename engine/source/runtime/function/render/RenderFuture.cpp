@@ -10,7 +10,6 @@
 #include "runtime/function/render/CommandExecutor.h"
 #include "runtime/function/render/vk_command_pre.h"
 #include "runtime/function/render/vk_type_define.h"
-#include "utils/error.h"
 
 MM::RenderSystem::RenderFuture::RenderFutureStateManager::
     RenderFutureStateManager(RenderFutureStateManager&& other) noexcept
@@ -102,13 +101,15 @@ MM::RenderSystem::RenderFutureState MM::RenderSystem::RenderFuture::Wait() {
     state_manager_->Wait();
     state = state_manager_->GetState();
     assert(state != RenderFutureState::RUNNING);
+    return state;
   } else if (state_manager_->GetState() == RenderFutureState::RUNNING) {
     state_manager_->Wait();
     state = state_manager_->GetState();
     assert(state != RenderFutureState::RUNNING);
+    return state;
   }
 
-  return state;
+  return state_manager_->GetState();
 }
 void MM::RenderSystem::RenderFuture::Cancel() {
   assert(IsValid());
@@ -121,9 +122,9 @@ bool MM::RenderSystem::RenderFuture::IsValid() const {
 }
 
 MM::RenderSystem::RenderFuture::RenderFuture(
-    CommandExecutor* command_exector, CommandTaskFlowID command_task_flow_ID,
+    CommandExecutor* command_executor, CommandTaskFlowID command_task_flow_ID,
     RenderFutureStateManagerRef state_manager)
-    : command_executor_(command_exector),
+    : command_executor_(command_executor),
       command_task_flow_ID_(command_task_flow_ID),
       state_manager_(std::move(state_manager)) {
   assert(IsValid());

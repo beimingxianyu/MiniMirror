@@ -12,6 +12,7 @@
 #include <memory>
 #include <mutex>
 #include <stack>
+#include <taskflow/core/taskflow.hpp>
 #include <thread>
 #include <vector>
 
@@ -98,7 +99,7 @@ MM::RenderSystem::CommandExecutor::CommandExecutor(RenderEngine* engine)
 }
 
 MM::RenderSystem::CommandExecutor::~CommandExecutor() {
-  std::unique_lock<std::mutex> guard{wait_task_flows_mutex_};
+  std::unique_lock guard{wait_task_flows_mutex_};
   wait_task_flow_queue_.clear();
   guard.unlock();
   while (processing_task_flow_queue_) {
@@ -226,8 +227,21 @@ MM::RenderSystem::CommandExecutor::GetFreeTransformCommandBufferNumber() const {
 
   return free_transform_command_buffers_.size();
 }
+std::uint32_t MM::RenderSystem::CommandExecutor::GetFreeCommandNumber(
+    CommandType command_type) const {
+  switch (command_type) {
+    case CommandBufferType::GRAPH:
+      return GetFreeGraphCommandBufferNumber();
+    case CommandBufferType::COMPUTE:
+      return GetFreeComputeCommandBufferNumber();
+    case CommandBufferType::TRANSFORM:
+      return GetFreeTransformCommandBufferNumber();
+    default:
+      assert(false);
+  }
+}
 
-MM::Result<MM::RenderSystem::RenderFuture, MM::ErrorResult>
+MM::Result<MM::RenderSystem::RenderFuture>
 MM::RenderSystem::CommandExecutor::Run(CommandTaskFlow&& command_task_flow) {
   assert(IsValid());
 
@@ -263,11 +277,11 @@ MM::RenderSystem::CommandExecutor::Run(CommandTaskFlow&& command_task_flow) {
         this, this_command_task_flow.command_task_flow_.task_flow_ID_,
         this_command_task_flow.external_info_.state_manager_};
   } else {
-    std::lock_guard<std::mutex> guard{wait_task_flow_queue_mutex_};
+    std::lock_guard guard{wait_task_flow_queue_mutex_};
     wait_task_flow_queue_.emplace_back(std::move(command_task_flow));
 
     if (!processing_task_flow_queue_) {
-      TaskSystem::Taskflow task_flow;
+      TaskSystem::Taskflow task_flow{};
       task_flow.emplace([this_object = this]() { this_object->ProcessTask(); });
       MM_TASK_SYSTEM->Run(TaskSystem::TaskType::Render, task_flow);
       processing_task_flow_queue_ = true;
@@ -279,10 +293,10 @@ MM::RenderSystem::CommandExecutor::Run(CommandTaskFlow&& command_task_flow) {
   }
 }
 
-MM::Result<MM::RenderSystem::RenderFutureState, MM::ErrorResult>
+MM::Result<MM::RenderSystem::RenderFutureState>
 MM::RenderSystem::CommandExecutor::RunAndWait(
     CommandTaskFlow&& command_task_flow) {
-  Result<RenderFuture, ErrorResult> run_result =
+  Result<RenderFuture> run_result =
       Run(std::move(command_task_flow));
   run_result.Exception(MM_ERROR_DESCRIPTION("Failed to run command flow."));
   if (run_result.IsError()) {
@@ -336,7 +350,7 @@ void MM::RenderSystem::CommandExecutor::ClearWhenConstructFailed(
   }
 }
 
-MM::Result<MM::Nil, MM::ErrorResult>
+MM::Result<MM::Nil>
 MM::RenderSystem::CommandExecutor::InitCommandPolls(
     std::vector<VkCommandPool>& graph_command_pools,
     std::vector<VkCommandPool>& compute_command_pools,
@@ -384,7 +398,7 @@ MM::RenderSystem::CommandExecutor::InitCommandPolls(
   return ResultS<Nil>{};
 }
 
-MM::Result<MM::Nil, MM::ErrorResult>
+MM::Result<MM::Nil>
 MM::RenderSystem::CommandExecutor::InitCommandBuffers(
     std::vector<VkCommandPool>& graph_command_pools,
     std::vector<VkCommandPool>& compute_command_pools,
@@ -434,7 +448,7 @@ MM::RenderSystem::CommandExecutor::InitCommandBuffers(
   return ResultS<Nil>{};
 }
 
-MM::Result<MM::Nil, MM::ErrorResult>
+MM::Result<MM::Nil>
 MM::RenderSystem::CommandExecutor::InitGeneralAllocatedCommandBuffers(
     std::vector<VkCommandPool>& graph_command_pools,
     std::vector<VkCommandPool>& compute_command_pools,
@@ -468,7 +482,7 @@ MM::RenderSystem::CommandExecutor::InitGeneralAllocatedCommandBuffers(
   return ResultS<Nil>{};
 }
 
-MM::Result<MM::Nil, MM::ErrorResult>
+MM::Result<MM::Nil>
 MM::RenderSystem::CommandExecutor::InitAllocatedCommandBuffers(
     std::vector<VkCommandPool>& graph_command_pools,
     std::vector<VkCommandPool>& compute_command_pools,
@@ -528,7 +542,7 @@ MM::RenderSystem::CommandExecutor::InitAllocatedCommandBuffers(
   return ResultS<Nil>{};
 }
 
-MM::Result<MM::Nil, MM::ErrorResult>
+MM::Result<MM::Nil>
 MM::RenderSystem::CommandExecutor::InitSemaphores(
     const std::uint32_t& need_semaphore_number,
     std::vector<VkCommandPool>& graph_command_pools,
@@ -552,7 +566,7 @@ MM::RenderSystem::CommandExecutor::InitSemaphores(
   return ResultS<Nil>{};
 }
 
-MM::Result<MM::Nil, MM::ErrorResult>
+MM::Result<MM::Nil>
 MM::RenderSystem::CommandExecutor::AddCommandBuffer(
     const CommandType& command_type,
     const std::uint32_t& new_command_buffer_num) {
@@ -690,8 +704,7 @@ MM::RenderSystem::CommandExecutor::CommandTaskFlowToBeRun::
 }
 
 MM::RenderSystem::CommandExecutor::CommandTaskExecuting::CommandTaskExecuting(
-    CommandTaskFlowExecuting* command_task_flow,
-    MM::RenderSystem::CommandTask&& command_task)
+    CommandTaskFlowExecuting* command_task_flow, CommandTask&& command_task)
     : command_task_{command_task_flow,
                     command_task.command_task_ID_,
                     command_task.command_type_,
@@ -731,8 +744,7 @@ void MM::RenderSystem::CommandExecutor::CommandTaskExecuting::
 }
 
 void MM::RenderSystem::CommandExecutor::CommandTaskExecuting::
-    LinkPostCommandTaskAndSubTask(
-        MM::RenderSystem::CommandTask&& old_command_task) {
+    LinkPostCommandTaskAndSubTask(CommandTask&& old_command_task) {
   command_task_.post_tasks_.reserve(old_command_task.post_tasks_.size());
   command_task_.sub_tasks_.reserve(old_command_task.sub_tasks_.size());
   for (CommandTaskID post_command_task_ID : old_command_task.post_tasks_) {
@@ -760,9 +772,8 @@ MM::RenderSystem::CommandExecutor::CommandTaskFlowExecuting::
 }
 
 MM::RenderSystem::CommandExecutor::CommandTaskFlowExecuting::
-    CommandTaskFlowExecuting(
-        MM::RenderSystem::CommandExecutor* command_executor,
-        MM::RenderSystem::CommandExecutor::CommandTaskFlowToBeRun&&
+    CommandTaskFlowExecuting(CommandExecutor* command_executor,
+                         CommandTaskFlowToBeRun&&
             command_task_flow_to_be_run)
     : command_task_flow_(), external_info_() {
   command_task_flow_.task_flow_ID_ =
@@ -806,7 +817,7 @@ MM::RenderSystem::CommandExecutor::CommandTaskFlowExecuting::
       std::move(command_task_flow_to_be_run.external_info_.state_manager_);
   external_info_.completed_command_task_count_ = 0;
 
-  CommandTaskFlowExecutingState state =
+  const CommandTaskFlowExecutingState state =
       external_info_.state_manager_->state_.exchange(
           CommandTaskFlowExecutingState ::RUNNING);
   if (state == CommandTaskFlowExecutingState::CANCELLED) {
@@ -872,7 +883,7 @@ std::unique_ptr<MM::RenderSystem::AllocatedCommandBuffer>
 MM::RenderSystem::CommandExecutor::AcquireGeneralGraphCommandBuffer() {
   assert(IsValid());
 
-  std::unique_lock<std::mutex> guard{
+  std::unique_lock guard{
       general_command_buffers_acquire_release_mutex_};
   general_command_buffers_acquire_release_condition_variable_.wait(
       guard, [this_executor = this]() {
@@ -901,7 +912,7 @@ std::unique_ptr<MM::RenderSystem::AllocatedCommandBuffer>
 MM::RenderSystem::CommandExecutor::AcquireGeneralComputeCommandBuffer() {
   assert(IsValid());
 
-  std::unique_lock<std::mutex> guard{
+  std::unique_lock guard{
       general_command_buffers_acquire_release_mutex_};
   general_command_buffers_acquire_release_condition_variable_.wait(
       guard, [this_executor = this]() {
@@ -930,7 +941,7 @@ std::unique_ptr<MM::RenderSystem::AllocatedCommandBuffer>
 MM::RenderSystem::CommandExecutor::AcquireGeneralTransformCommandBuffer() {
   assert(IsValid());
 
-  std::unique_lock<std::mutex> guard{
+  std::unique_lock guard{
       general_command_buffers_acquire_release_mutex_};
   general_command_buffers_acquire_release_condition_variable_.wait(
       guard, [this_executor = this]() {
@@ -1006,13 +1017,13 @@ MM::RenderSystem::CommandExecutorLockGuard::~CommandExecutorLockGuard() {
 }
 
 MM::RenderSystem::CommandExecutorLockGuard::CommandExecutorLockGuard(
-    MM::RenderSystem::CommandExecutor& command_executor)
+    CommandExecutor& command_executor)
     : command_executor_(&command_executor), lock_flag_(false) {
   Lock();
 }
 
 MM::RenderSystem::CommandExecutorLockGuard::CommandExecutorLockGuard(
-    MM::RenderSystem::CommandExecutorLockGuard&& other) noexcept
+    CommandExecutorLockGuard&& other) noexcept
     : command_executor_(other.command_executor_),
       lock_flag_(other.lock_flag_.load(std::memory_order_acquire)) {
   other.command_executor_ = nullptr;
@@ -1021,7 +1032,7 @@ MM::RenderSystem::CommandExecutorLockGuard::CommandExecutorLockGuard(
 
 MM::RenderSystem::CommandExecutorLockGuard&
 MM::RenderSystem::CommandExecutorLockGuard::operator=(
-    MM::RenderSystem::CommandExecutorLockGuard&& other) noexcept {
+    CommandExecutorLockGuard&& other) noexcept {
   if (std::addressof(other) == this) {
     return *this;
   }
@@ -1057,9 +1068,8 @@ bool MM::RenderSystem::CommandExecutorLockGuard::IsValid() const {
 }
 
 MM::RenderSystem::CommandExecutorGeneralCommandBufferGuard::
-    CommandExecutorGeneralCommandBufferGuard(
-        MM::RenderSystem::CommandExecutor& command_executor,
-        MM::RenderSystem::CommandBufferType command_buffer_type)
+    CommandExecutorGeneralCommandBufferGuard(CommandExecutor& command_executor,
+                                         CommandBufferType command_buffer_type)
     : command_executor_(&command_executor), general_command_buffer_() {
   if (command_executor_->IsValid()) {
     switch (command_buffer_type) {
@@ -1088,7 +1098,7 @@ MM::RenderSystem::CommandExecutorGeneralCommandBufferGuard::
 
 MM::RenderSystem::CommandExecutorGeneralCommandBufferGuard::
     CommandExecutorGeneralCommandBufferGuard(
-        MM::RenderSystem::CommandExecutorGeneralCommandBufferGuard&&
+    CommandExecutorGeneralCommandBufferGuard&&
             other) noexcept
     : command_executor_(other.command_executor_),
       general_command_buffer_(std::move(other.general_command_buffer_)) {
@@ -1097,7 +1107,7 @@ MM::RenderSystem::CommandExecutorGeneralCommandBufferGuard::
 
 MM::RenderSystem::CommandExecutorGeneralCommandBufferGuard&
 MM::RenderSystem::CommandExecutorGeneralCommandBufferGuard::operator=(
-    MM::RenderSystem::CommandExecutorGeneralCommandBufferGuard&&
+    CommandExecutorGeneralCommandBufferGuard&&
         other) noexcept {
   if (std::addressof(other) == this) {
     return *this;
@@ -1159,12 +1169,12 @@ MM::RenderSystem::CommandExecutor::GetFreeCommandBufferStack(
       return free_compute_command_buffers_;
     case CommandBufferType::TRANSFORM:
       return free_transform_command_buffers_;
-    case CommandBufferType::UNDEFINED:
+    default:
       assert(false);
   }
 }
 
-MM::Result<MM::Nil, MM::ErrorResult>
+MM::Result<MM::Nil>
 MM::RenderSystem::CommandExecutor::SubmitCommandTask(
     CommandTaskExecuting& command_task) {
   if (command_task.command_task_.sub_tasks_.empty()) {
@@ -1185,7 +1195,7 @@ MM::RenderSystem::CommandExecutor::SubmitCommandTask(
         origin_command_buffer.data(),
         command_task.external_info_.signal_semaphore_.size(),
         command_task.external_info_.signal_semaphore_.data());
-    const MM::ErrorCode result_code = VkResultToMMErrorCode(vkQueueSubmit(
+    const ErrorCode result_code = VkResultToMMErrorCode(vkQueueSubmit(
         render_engine_->GetQueue(command_task.command_task_.command_type_), 1,
         &submit_info,
         command_task.external_info_.command_buffers_[0]->GetFence()));
@@ -1246,7 +1256,7 @@ MM::RenderSystem::CommandExecutor::SubmitCommandTask(
           sub_command_task->external_info_.command_buffers_.size();
     }
 
-    const MM::ErrorCode result_code = VkResultToMMErrorCode(vkQueueSubmit(
+    const ErrorCode result_code = VkResultToMMErrorCode(vkQueueSubmit(
         render_engine_->GetQueue(command_task.command_task_.command_type_),
         submit_infoes.size(), submit_infoes.data(),
         command_task.external_info_.command_buffers_[0]->GetFence()));
@@ -1283,7 +1293,7 @@ void MM::RenderSystem::CommandExecutor::ProcessTask() {
 }
 
 void MM::RenderSystem::CommandExecutor::ProcessCompleteTask() {
-  std::unique_lock<std::mutex> recycled_command_buffer_guard{
+  std::unique_lock recycled_command_buffer_guard{
       submit_failed_to_be_recovery_command_buffer_mutex_};
   for (auto& command_buffer : submit_failed_to_be_recovery_command_buffer_) {
     command_buffer->ResetCommandBuffer();
@@ -1594,7 +1604,7 @@ void MM::RenderSystem::CommandExecutor::ProcessExecutingFailedOrCancelled() {
 
 void MM::RenderSystem::CommandExecutor::ProcessWaitTaskFlow() {
   {
-    std::unique_lock<std::mutex> wait_task_flow_queue_guard{
+    std::unique_lock wait_task_flow_queue_guard{
         wait_task_flow_queue_mutex_};
     for (CommandTaskFlowID wait_task_flow_ID : need_wait_task_flow_IDs_) {
       for (WaitCommandTaskFlowQueueType::iterator wait_command_task_flow =
@@ -1710,8 +1720,6 @@ MM::RenderSystem::CommandExecutor::ProcessCurrentNeedCommandBufferCount() {
 
 void MM::RenderSystem::CommandExecutor::ProcessWaitCommandTaskFlowQueue(
     std::array<std::uint32_t, 3> total_current_need_command_buffer_count) {
-  for (auto wait_command_task_flow_iter = wait_task_flow_queue_.begin();
-       wait_command_task_flow_iter != wait_task_flow_queue_.end();) {
     std::uint32_t free_graph_command_buffer_count =
         total_current_need_command_buffer_count[0] >
                 free_graph_command_buffers_.size()
@@ -1731,6 +1739,8 @@ void MM::RenderSystem::CommandExecutor::ProcessWaitCommandTaskFlowQueue(
             : free_compute_command_buffers_.size() -
                   total_current_need_command_buffer_count[2];
 
+  for (auto wait_command_task_flow_iter = wait_task_flow_queue_.begin();
+       wait_command_task_flow_iter != wait_task_flow_queue_.end();) {
     CommandTaskFlowToBeRun::ExternalInfoType& external_info =
         wait_command_task_flow_iter->external_info_;
     if (external_info.current_need_graph_command_buffer_count_ <=
@@ -1760,6 +1770,30 @@ void MM::RenderSystem::CommandExecutor::ProcessWaitCommandTaskFlowQueue(
                    free_transform_command_buffer_count + addition_num &&
                external_info.current_need_compute_command_buffer_count_ <=
                    free_compute_command_buffer_count + addition_num) {
+      free_graph_command_buffer_count =
+          free_graph_command_buffer_count <
+                  external_info.current_need_graph_command_buffer_count_
+              ? 0
+              : free_graph_command_buffer_count -=
+                external_info.current_need_graph_command_buffer_count_;
+      free_transform_command_buffer_count =
+          free_transform_command_buffer_count <
+                  external_info.current_need_transform_command_buffer_count_
+              ? 0
+              : free_transform_command_buffer_count -=
+                external_info.current_need_transform_command_buffer_count_;
+      free_compute_command_buffer_count =
+          free_transform_command_buffer_count <
+                  external_info.current_need_compute_command_buffer_count_
+              ? 0
+              : free_compute_command_buffer_count -=
+                external_info.current_need_compute_command_buffer_count_;
+
+      executing_command_task_flow_queue_.emplace_back(
+          this, std::move(*wait_command_task_flow_iter));
+      wait_command_task_flow_iter =
+          wait_task_flow_queue_.erase(wait_command_task_flow_iter);
+      continue;
     } else {
       if (external_info.reject_number_ < 15) {
         external_info.reject_number_ += 1;
@@ -1859,7 +1893,7 @@ void MM::RenderSystem::CommandExecutor::ProcessExecutingCommandTaskFlowQueue() {
                   iter == block_render_resources_.end()) {
                 block_render_resources_.emplace(
                     render_resource_data_ID,
-                    std::list<CommandTaskID>{
+                    std::list{
                         executing_command_task.command_task_.command_task_ID_});
               } else {
                 iter->second.emplace_back(
@@ -1877,7 +1911,7 @@ void MM::RenderSystem::CommandExecutor::ProcessExecutingCommandTaskFlowQueue() {
                     iter == block_render_resources_.end()) {
                   block_render_resources_.emplace(
                       render_resource_data_ID,
-                      std::list<CommandTaskID>{
+                      std::list{
                           sub_command_task->command_task_.command_task_ID_});
                 } else {
                   iter->second.emplace_back(
@@ -1957,14 +1991,14 @@ void MM::RenderSystem::CommandExecutor::ProcessExecutingCommandTaskFlowQueue() {
   }
 }
 
-MM::Result<MM::Nil, MM::ErrorResult>
+MM::Result<MM::Nil>
 MM::RenderSystem::CommandExecutor::RecordAndSubmitCommandSync(
     CommandTaskExecuting& command_task) {
   command_task.external_info_.state_.store(CommandTaskExecutingState::RECORDING,
                                            std::memory_order_release);
   for (std::uint32_t i = 0; i != command_task.command_task_.commands_.size();
        ++i) {
-    Result<Nil, ErrorResult> record_result =
+    Result<Nil> record_result =
         command_task.command_task_.commands_[i](
             *command_task.external_info_.command_buffers_[i]);
     if (record_result.IsError()) {
@@ -1980,7 +2014,7 @@ MM::RenderSystem::CommandExecutor::RecordAndSubmitCommandSync(
        command_task.command_task_.sub_tasks_) {
     for (std::uint32_t i = 0;
          i != sub_command_task->command_task_.commands_.size(); ++i) {
-      Result<Nil, ErrorResult> record_result =
+      Result<Nil> record_result =
           sub_command_task->command_task_.commands_[i](
               *(sub_command_task->external_info_.command_buffers_[i]));
       if (record_result.IsError()) {

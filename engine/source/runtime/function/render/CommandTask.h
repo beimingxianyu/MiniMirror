@@ -3,6 +3,7 @@
 //
 #pragma once
 
+#include "runtime/function/render/RenderResourceDataID.h"
 #include "runtime/function/render/CommandTaskFlow.h"
 
 namespace MM {
@@ -36,20 +37,20 @@ class CommandTask {
 
   std::uint32_t GetSubCommandTasksNumber() const;
 
-  Result<Nil, ErrorResult> AddPreCommandTask(CommandTaskID pre_command_task_ID);
+  Result<Nil> AddPreCommandTask(CommandTaskID pre_command_task_ID);
 
-  Result<Nil, ErrorResult> AddPreCommandTask(
+  Result<Nil> AddPreCommandTask(
       const std::vector<CommandTaskID>& pre_command_task_IDs);
 
-  Result<Nil, ErrorResult> AddPostCommandTask(
+  Result<Nil> AddPostCommandTask(
       CommandTaskID post_command_task_ID);
 
-  Result<Nil, ErrorResult> AddPostCommandTask(
+  Result<Nil> AddPostCommandTask(
       const std::vector<CommandTaskID>& post_command_task_IDs);
 
-  Result<Nil, ErrorResult> Merge(CommandTaskID sub_command_task_ID);
+  Result<Nil> Merge(CommandTaskID sub_command_task_ID);
 
-  Result<Nil, ErrorResult> Merge(
+  Result<Nil> Merge(
       const std::vector<CommandTaskID>& sub_command_task_IDs);
 
   bool HaveSubCommandTasks() const;

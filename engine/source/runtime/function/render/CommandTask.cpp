@@ -28,7 +28,7 @@ MM::RenderSystem::CommandTask::GetCommands() const {
 std::vector<const MM::RenderSystem::TaskType*>
 MM::RenderSystem::CommandTask::GetCommandsIncludeSubCommandTasks() const {
   assert(IsValid());
-  Result<std::vector<const MM::RenderSystem::TaskType*>> result =
+  Result<std::vector<const TaskType*>> result =
       task_flow_->GetCommandsIncludeSubCommandTask(command_task_ID_);
   assert(result.Exception().IsSuccess());
 
@@ -114,12 +114,11 @@ MM::RenderSystem::CommandTask::GetCommandTaskID() const {
 }
 
 void MM::RenderSystem::CommandTask::AddCrossTaskFLowSyncRenderResourceIDs(
-    const MM::RenderSystem::RenderResourceDataID& render_resource_ID) {
+    const RenderResourceDataID& render_resource_ID) {
   cross_task_flow_sync_render_resource_IDs_.emplace_back(render_resource_ID);
 }
 
-MM::RenderSystem::CommandTask::CommandTask(
-    MM::RenderSystem::CommandTask&& other) noexcept
+MM::RenderSystem::CommandTask::CommandTask(CommandTask&& other) noexcept
     : task_flow_(other.task_flow_),
       command_task_ID_(other.command_task_ID_),
       command_type_(other.command_type_),
@@ -139,7 +138,7 @@ MM::RenderSystem::CommandTask::CommandTask(
 }
 
 MM::RenderSystem::CommandTask& MM::RenderSystem::CommandTask::operator=(
-    MM::RenderSystem::CommandTask&& other) noexcept {
+    CommandTask&& other) noexcept {
   if (std::addressof(other) == this) {
     return *this;
   }
@@ -177,28 +176,28 @@ void MM::RenderSystem::CommandTask::SetSyncRecord() {
   is_async_record_ = false;
 }
 
-MM::Result<MM::Nil, MM::ErrorResult>
+MM::Result<MM::Nil>
 MM::RenderSystem::CommandTask::AddPreCommandTask(
-    MM::RenderSystem::CommandTaskID pre_command_task_ID) {
+    CommandTaskID pre_command_task_ID) {
   assert(IsValid());
   return task_flow_->AddPreCommandTask(command_task_ID_, pre_command_task_ID);
 }
 
-MM::Result<MM::Nil, MM::ErrorResult>
+MM::Result<MM::Nil>
 MM::RenderSystem::CommandTask::AddPreCommandTask(
     const std::vector<CommandTaskID>& pre_command_task_IDs) {
   assert(IsValid());
   return task_flow_->AddPreCommandTask(command_task_ID_, pre_command_task_IDs);
 }
 
-MM::Result<MM::Nil, MM::ErrorResult>
+MM::Result<MM::Nil>
 MM::RenderSystem::CommandTask::AddPostCommandTask(
-    MM::RenderSystem::CommandTaskID post_command_task_ID) {
+    CommandTaskID post_command_task_ID) {
   assert(IsValid());
   return task_flow_->AddPostCommandTask(command_task_ID_, post_command_task_ID);
 }
 
-MM::Result<MM::Nil, MM::ErrorResult>
+MM::Result<MM::Nil>
 MM::RenderSystem::CommandTask::AddPostCommandTask(
     const std::vector<CommandTaskID>& post_command_task_IDs) {
   assert(IsValid());
@@ -206,13 +205,13 @@ MM::RenderSystem::CommandTask::AddPostCommandTask(
                                         post_command_task_IDs);
 }
 
-MM::Result<MM::Nil, MM::ErrorResult> MM::RenderSystem::CommandTask::Merge(
-    MM::RenderSystem::CommandTaskID sub_command_task_ID) {
+MM::Result<MM::Nil> MM::RenderSystem::CommandTask::Merge(
+    CommandTaskID sub_command_task_ID) {
   assert(IsValid());
   return task_flow_->Merge(command_task_ID_, sub_command_task_ID);
 }
 
-MM::Result<MM::Nil, MM::ErrorResult> MM::RenderSystem::CommandTask::Merge(
+MM::Result<MM::Nil> MM::RenderSystem::CommandTask::Merge(
     const std::vector<CommandTaskID>& sub_command_task_IDs) {
   assert(IsValid());
   return task_flow_->Merge(command_task_ID_, sub_command_task_IDs);

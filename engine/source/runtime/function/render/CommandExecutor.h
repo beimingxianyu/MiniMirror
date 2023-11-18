@@ -11,8 +11,7 @@
 #include <unordered_map>
 #include <vector>
 
-#include "runtime/core/log/log_system.h"
-#include "runtime/function/render/CommandTask.h"
+#include "runtime/function/render/pre_header.h"
 #include "runtime/function/render/CommandTaskFlow.h"
 #include "runtime/function/render/RenderFuture.h"
 #include "runtime/function/render/RenderResourceDataID.h"
@@ -72,12 +71,12 @@ class CommandExecutor {
   /**
    * \remark \ref command_task_flow is invalid after call this function.
    */
-  Result<RenderFuture, ErrorResult> Run(CommandTaskFlow&& command_task_flow);
+  Result<RenderFuture> Run(CommandTaskFlow&& command_task_flow);
 
   /**
    * \remark The \ref command_task_flow is invalid after call this function.
    */
-  Result<RenderFutureState, ErrorResult> RunAndWait(
+  Result<RenderFutureState> RunAndWait(
       CommandTaskFlow&& command_task_flow);
 
   void LockExecutor();
@@ -153,7 +152,7 @@ class CommandExecutor {
     CommandTaskExecuting() = default;
     ~CommandTaskExecuting() = default;
     CommandTaskExecuting(CommandTaskFlowExecuting* command_task_flow,
-                         MM::RenderSystem::CommandTask&& command_task);
+                         CommandTask&& command_task);
     CommandTaskExecuting(const CommandTaskExecuting& other) = delete;
     CommandTaskExecuting(CommandTaskExecuting&& other) noexcept = delete;
     CommandTaskExecuting& operator=(const CommandTaskExecuting& other) = delete;
@@ -215,12 +214,12 @@ class CommandExecutor {
       std::vector<VkCommandPool>& compute_command_pools,
       std::vector<VkCommandPool>& transform_command_pools);
 
-  Result<Nil, ErrorResult> InitCommandPolls(
+  Result<Nil> InitCommandPolls(
       std::vector<VkCommandPool>& graph_command_pools,
       std::vector<VkCommandPool>& compute_command_pools,
       std::vector<VkCommandPool>& transform_command_pools);
 
-  Result<Nil, ErrorResult> InitCommandBuffers(
+  Result<Nil> InitCommandBuffers(
       std::vector<VkCommandPool>& graph_command_pools,
       std::vector<VkCommandPool>& compute_command_pools,
       std::vector<VkCommandPool>& transform_command_pools,
@@ -228,7 +227,7 @@ class CommandExecutor {
       std::vector<VkCommandBuffer>& compute_command_buffers,
       std::vector<VkCommandBuffer>& transform_command_buffers);
 
-  Result<Nil, ErrorResult> InitGeneralAllocatedCommandBuffers(
+  Result<Nil> InitGeneralAllocatedCommandBuffers(
       std::vector<VkCommandPool>& graph_command_pools,
       std::vector<VkCommandPool>& compute_command_pools,
       std::vector<VkCommandPool>& transform_command_pools,
@@ -236,7 +235,7 @@ class CommandExecutor {
       std::vector<VkCommandBuffer>& compute_command_buffers,
       std::vector<VkCommandBuffer>& transform_command_buffers);
 
-  Result<Nil, ErrorResult> InitAllocatedCommandBuffers(
+  Result<Nil> InitAllocatedCommandBuffers(
       std::vector<VkCommandPool>& graph_command_pools,
       std::vector<VkCommandPool>& compute_command_pools,
       std::vector<VkCommandPool>& transform_command_pools,
@@ -244,13 +243,13 @@ class CommandExecutor {
       std::vector<VkCommandBuffer>& compute_command_buffers,
       std::vector<VkCommandBuffer>& transform_command_buffers);
 
-  Result<Nil, ErrorResult> InitSemaphores(
+  Result<Nil> InitSemaphores(
       const std::uint32_t& need_semaphore_number,
       std::vector<VkCommandPool>& graph_command_pools,
       std::vector<VkCommandPool>& compute_command_pools,
       std::vector<VkCommandPool>& transform_command_pools);
 
-  Result<Nil, ErrorResult> AddCommandBuffer(
+  Result<Nil> AddCommandBuffer(
       const CommandType& command_type,
       const std::uint32_t& new_command_buffer_num);
 
@@ -267,7 +266,7 @@ class CommandExecutor {
   std::stack<std::unique_ptr<AllocatedCommandBuffer>>&
   GetFreeCommandBufferStack(CommandBufferType command_buffer_type);
 
-  Result<Nil, ErrorResult> SubmitCommandTask(
+  Result<Nil> SubmitCommandTask(
       CommandTaskExecuting& command_task);
 
   bool HaveCommandTaskToBeProcess() const;
@@ -285,18 +284,10 @@ class CommandExecutor {
 
   void ProcessExecutingCommandTaskFlowQueue();
 
-  Result<Nil, ErrorResult> RecordAndSubmitCommandSync(
+  Result<Nil> RecordAndSubmitCommandSync(
       CommandTaskExecuting& command_task);
 
   void RecordAndSubmitCommandASync(CommandTaskExecuting& command_task);
-
-  void PostProcessOfSubmitTask();
-
-  void SubmitTasksSync();
-
-  void SubmitTaskAsync();
-
-  void SubmitTasks();
 
   void ProcessTask();
 
