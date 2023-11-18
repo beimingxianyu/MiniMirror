@@ -181,7 +181,7 @@ MM::RenderSystem::AllocatedCommandBuffer::AllocatedCommandBufferWrapper::
 }
 
 MM::RenderSystem::AllocatedCommandBuffer::AllocatedCommandBufferWrapper::
-    AllocatedCommandBufferWrapper(MM::RenderSystem::RenderEngine* engine,
+    AllocatedCommandBufferWrapper(RenderEngine* engine,
                                   const VkQueue& queue,
                                   const VkCommandPool& command_pool,
                                   const VkCommandBuffer& command_buffer)
@@ -200,7 +200,7 @@ MM::RenderSystem::AllocatedCommandBuffer::AllocatedCommandBufferWrapper::
     return;
   }
 
-  command_fence_ = MM::RenderSystem::Utils::GetVkFence(engine_->GetDevice());
+  command_fence_ = GetVkFence(engine_->GetDevice());
   if (!command_fence_) {
     engine_ = nullptr;
     queue_ = nullptr;

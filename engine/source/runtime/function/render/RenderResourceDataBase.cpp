@@ -6,7 +6,7 @@
 
 MM::RenderSystem::RenderResourceDataBase::RenderResourceDataBase(
     const std::string& resource_name,
-    const MM::RenderSystem::RenderResourceDataID& render_resource_data_ID)
+    const RenderResourceDataID& render_resource_data_ID)
     : ManagedObjectBase(resource_name),
       render_resource_data_ID_(render_resource_data_ID),
       used_for_write_(false),
@@ -14,7 +14,7 @@ MM::RenderSystem::RenderResourceDataBase::RenderResourceDataBase(
       is_asset_resource_(false) {}
 
 MM::RenderSystem::RenderResourceDataBase::RenderResourceDataBase(
-    MM::RenderSystem::RenderResourceDataBase&& other) noexcept
+    RenderResourceDataBase&& other) noexcept
     : ManagedObjectBase(std::move(other)),
       render_resource_data_ID_(std::move(other.render_resource_data_ID_)),
       used_for_write_(other.used_for_write_),
@@ -83,38 +83,38 @@ MM::RenderSystem::RenderResourceDataBase::GetRenderID() const {
 }
 
 bool MM::RenderSystem::RenderResourceDataBase::operator==(
-    const MM::RenderSystem::RenderResourceDataBase& rhs) const {
+    const RenderResourceDataBase& rhs) const {
   return render_resource_data_ID_ == rhs.render_resource_data_ID_;
 }
 
 bool MM::RenderSystem::RenderResourceDataBase::operator!=(
-    const MM::RenderSystem::RenderResourceDataBase& rhs) const {
+    const RenderResourceDataBase& rhs) const {
   return !(rhs == *this);
 }
 
 bool MM::RenderSystem::RenderResourceDataBase::operator<(
-    const MM::RenderSystem::RenderResourceDataBase& rhs) const {
-  if (static_cast<const MM::Manager::ManagedObjectBase&>(*this) <
-      static_cast<const MM::Manager::ManagedObjectBase&>(rhs))
+    const RenderResourceDataBase& rhs) const {
+  if (static_cast<const ManagedObjectBase&>(*this) <
+      rhs)
     return true;
-  if (static_cast<const MM::Manager::ManagedObjectBase&>(rhs) <
-      static_cast<const MM::Manager::ManagedObjectBase&>(*this))
+  if (static_cast<const ManagedObjectBase&>(rhs) <
+      *this)
     return false;
   return false;
 }
 
 bool MM::RenderSystem::RenderResourceDataBase::operator>(
-    const MM::RenderSystem::RenderResourceDataBase& rhs) const {
+    const RenderResourceDataBase& rhs) const {
   return rhs < *this;
 }
 
 bool MM::RenderSystem::RenderResourceDataBase::operator<=(
-    const MM::RenderSystem::RenderResourceDataBase& rhs) const {
+    const RenderResourceDataBase& rhs) const {
   return !(rhs < *this);
 }
 
 bool MM::RenderSystem::RenderResourceDataBase::operator>=(
-    const MM::RenderSystem::RenderResourceDataBase& rhs) const {
+    const RenderResourceDataBase& rhs) const {
   return !(*this < rhs);
 }
 
@@ -127,7 +127,7 @@ void MM::RenderSystem::RenderResourceDataBase::MarkThisUseForWrite() {
 }
 
 void MM::RenderSystem::RenderResourceDataBase::SetRenderResourceDataID(
-    const MM::RenderSystem::RenderResourceDataID& render_resource_data_ID) {
+    const RenderResourceDataID& render_resource_data_ID) {
   render_resource_data_ID_ = render_resource_data_ID;
 }
 

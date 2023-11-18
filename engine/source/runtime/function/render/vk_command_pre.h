@@ -3,10 +3,6 @@
 //
 #pragma once
 
-#include <condition_variable>
-#include <utility>
-
-#include "runtime/function/render/RenderResourceDataID.h"
 #include "runtime/function/render/vk_type_define.h"
 #include "runtime/function/render/vk_utils.h"
 
@@ -153,6 +149,6 @@ class AllocatedCommandBuffer {
 using CommandTaskID = std::uint32_t;
 using CommandTaskFlowID = std::uint32_t;
 using TaskType =
-    std::function<Result<Nil, ErrorResult>(AllocatedCommandBuffer& cmd)>;
+    std::function<Result<Nil>(AllocatedCommandBuffer& cmd)>;
 }  // namespace RenderSystem
 }  // namespace MM

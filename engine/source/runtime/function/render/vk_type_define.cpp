@@ -29,7 +29,7 @@ MM::RenderSystem::AllocateSemaphore::AllocateSemaphore(
   }
 
   const VkSemaphoreCreateInfo semaphore_create_info =
-      Utils::GetSemaphoreCreateInfo(flags);
+      GetSemaphoreCreateInfo(flags);
   VkSemaphore new_semaphore{nullptr};
   MM_VK_CHECK(vkCreateSemaphore(engine->GetDevice(), &semaphore_create_info,
                                 nullptr, &new_semaphore),
@@ -127,7 +127,7 @@ MM::RenderSystem::AllocateFence::AllocateFence(RenderEngine* engine,
     return;
   }
 
-  const VkFenceCreateInfo fence_create_info = Utils::GetFenceCreateInfo(flags);
+  const VkFenceCreateInfo fence_create_info = GetFenceCreateInfo(flags);
   VkFence new_fence{nullptr};
   MM_VK_CHECK(vkCreateFence(engine->GetDevice(), &fence_create_info, nullptr,
                             &new_fence),
@@ -268,13 +268,13 @@ void MM::RenderSystem::BufferChunkInfo::Reset() {
 bool MM::RenderSystem::BufferChunkInfo::IsValid() const { return size_ != 0; }
 
 MM::RenderSystem::BufferChunkInfo::BufferChunkInfo(
-    MM::RenderSystem::BufferChunkInfo&& other) noexcept
+    BufferChunkInfo&& other) noexcept
     : offset_(other.offset_), size_(other.size_) {
   Reset();
 }
 
-void MM::RenderSystem::Swap(MM::RenderSystem::BufferChunkInfo& lhs,
-                            MM::RenderSystem::BufferChunkInfo& rhs) noexcept {
+void MM::RenderSystem::Swap(BufferChunkInfo& lhs,
+                            BufferChunkInfo& rhs) noexcept {
   using std::swap;
 
   if (&lhs == &rhs) {
@@ -285,8 +285,8 @@ void MM::RenderSystem::Swap(MM::RenderSystem::BufferChunkInfo& lhs,
   swap(lhs.size_, rhs.size_);
 }
 
-void MM::RenderSystem::swap(MM::RenderSystem::BufferChunkInfo& lhs,
-                            MM::RenderSystem::BufferChunkInfo& rhs) noexcept {
+void MM::RenderSystem::swap(BufferChunkInfo& lhs,
+                            BufferChunkInfo& rhs) noexcept {
   using std::swap;
 
   if (&lhs == &rhs) {
@@ -298,12 +298,12 @@ void MM::RenderSystem::swap(MM::RenderSystem::BufferChunkInfo& lhs,
 }
 
 bool MM::RenderSystem::BufferChunkInfo::operator==(
-    const MM::RenderSystem::BufferChunkInfo& rhs) const {
+    const BufferChunkInfo& rhs) const {
   return offset_ == rhs.offset_ && size_ == rhs.size_;
 }
 
 bool MM::RenderSystem::BufferChunkInfo::operator!=(
-    const MM::RenderSystem::BufferChunkInfo& rhs) const {
+    const BufferChunkInfo& rhs) const {
   return !(rhs == *this);
 }
 
@@ -359,20 +359,17 @@ void MM::RenderSystem::ImageChunkInfo::Reset() {
 }
 
 bool MM::RenderSystem::ImageChunkInfo::IsValid() const {
-  if (extent_.width == 0 || extent_.depth == 0 || extent_.height == 0) {
-    return false;
-  }
-  return true;
+  return extent_.width != 0 && extent_.depth != 0 && extent_.height != 0;
 }
 
 MM::RenderSystem::ImageChunkInfo::ImageChunkInfo(
-    MM::RenderSystem::ImageChunkInfo&& other) noexcept
+    ImageChunkInfo&& other) noexcept
     : offset_(other.offset_), extent_(other.extent_) {
   Reset();
 }
 
 MM::RenderSystem::AllocationCreateInfo::AllocationCreateInfo(
-    MM::RenderSystem::AllocationCreateInfo&& other) noexcept
+    AllocationCreateInfo&& other) noexcept
     : flags_(other.flags_),
       usage_(other.usage_),
       required_flags_(other.required_flags_),
@@ -384,7 +381,7 @@ MM::RenderSystem::AllocationCreateInfo::AllocationCreateInfo(
 
 MM::RenderSystem::AllocationCreateInfo&
 MM::RenderSystem::AllocationCreateInfo::operator=(
-    MM::RenderSystem::AllocationCreateInfo&& other) noexcept {
+    AllocationCreateInfo&& other) noexcept {
   if (&other == this) {
     return *this;
   }
@@ -443,7 +440,7 @@ MM::RenderSystem::AllocationCreateInfo::GetVmaAllocationCreateInfo() const {
 
 MM::RenderSystem::AllocationCreateInfo&
 MM::RenderSystem::AllocationCreateInfo::operator=(
-    const MM::RenderSystem::AllocationCreateInfo& other) {
+    const AllocationCreateInfo& other) {
   if (std::addressof(other) == this) {
     return *this;
   }
@@ -552,7 +549,7 @@ MM::RenderSystem::ImageCreateInfo::ImageCreateInfo(
 }
 
 MM::RenderSystem::ImageCreateInfo& MM::RenderSystem::ImageCreateInfo::operator=(
-    const MM::RenderSystem::ImageCreateInfo& other) {
+    const ImageCreateInfo& other) {
   if (&other == this) {
     return *this;
   }
@@ -577,7 +574,7 @@ MM::RenderSystem::ImageCreateInfo& MM::RenderSystem::ImageCreateInfo::operator=(
 }
 
 MM::RenderSystem::ImageCreateInfo& MM::RenderSystem::ImageCreateInfo::operator=(
-    MM::RenderSystem::ImageCreateInfo&& other) noexcept {
+    ImageCreateInfo&& other) noexcept {
   if (&other == this) {
     return *this;
   }
@@ -634,7 +631,7 @@ void MM::RenderSystem::ImageDataInfo::Reset() {
   image_sub_resource_attributes_.clear();
 }
 
-MM::Result<MM::RenderSystem::RenderImageDataAttributeID, MM::ErrorResult>
+MM::Result<MM::RenderSystem::RenderImageDataAttributeID>
 MM::RenderSystem::ImageDataInfo::GetRenderResourceDataAttributeID() const {
   if (!IsValid()) {
     return ResultE<>{ErrorCode::OBJECT_IS_INVALID};
@@ -655,7 +652,7 @@ MM::RenderSystem::ImageDataInfo::GetRenderResourceDataAttributeID() const {
   attribute1 |= image_create_info_.array_levels_ << 7;
   attribute1 |= image_create_info_.miplevels_ << 13;
   attribute1 |=
-      Utils::ConvertVkFormatToContinuousValue(image_create_info_.format_) << 19;
+      ConvertVkFormatToContinuousValue(image_create_info_.format_) << 19;
   attribute1 |= image_create_info_.image_type_ << 27;
   if (image_create_info_.flags_ == 0x00020000) {
     attribute1 |= static_cast<std::uint64_t>(0x00010000) << 29;
@@ -665,7 +662,7 @@ MM::RenderSystem::ImageDataInfo::GetRenderResourceDataAttributeID() const {
   attribute1 |= reinterpret_cast<std::uint64_t>(image_create_info_.next_) << 48;
 
   // attribute2
-  attribute2 |= Utils::ConvertVkImageLayoutToContinuousValue(
+  attribute2 |= ConvertVkImageLayoutToContinuousValue(
       image_create_info_.image_layout_);
   if (image_create_info_.usage_ == 0x00040000) {
     attribute2 |= static_cast<std::uint64_t>(0x00010000) << 5;
@@ -738,7 +735,7 @@ void MM::RenderSystem::ImageDataInfo::SetImageCreateInfo(
 }
 
 MM::RenderSystem::ImageDataInfo& MM::RenderSystem::ImageDataInfo::operator=(
-    const MM::RenderSystem::ImageDataInfo& other) {
+    const ImageDataInfo& other) {
   if (&other == this) {
     return *this;
   }
@@ -751,7 +748,7 @@ MM::RenderSystem::ImageDataInfo& MM::RenderSystem::ImageDataInfo::operator=(
 }
 
 MM::RenderSystem::ImageDataInfo& MM::RenderSystem::ImageDataInfo::operator=(
-    MM::RenderSystem::ImageDataInfo&& other) noexcept {
+    ImageDataInfo&& other) noexcept {
   if (&other == this) {
     return *this;
   }
@@ -765,8 +762,8 @@ MM::RenderSystem::ImageDataInfo& MM::RenderSystem::ImageDataInfo::operator=(
 }
 
 MM::RenderSystem::ImageDataInfo::ImageDataInfo(
-    const MM::RenderSystem::ImageCreateInfo& image_create_info,
-    const MM::RenderSystem::AllocationCreateInfo& allocation_create_info)
+    const ImageCreateInfo& image_create_info,
+    const AllocationCreateInfo& allocation_create_info)
     : image_create_info_(image_create_info),
       allocation_create_info_(allocation_create_info),
       image_sub_resource_attributes_{ImageSubResourceAttribute{
@@ -863,7 +860,7 @@ MM::RenderSystem::DescriptorSetLayoutBinding::DescriptorSetLayoutBinding(
 }
 
 MM::RenderSystem::DescriptorSetLayoutBinding::DescriptorSetLayoutBinding(
-    MM::RenderSystem::DescriptorSetLayoutBinding&& other) noexcept
+    DescriptorSetLayoutBinding&& other) noexcept
     : binding_(other.binding_),
       descriptor_type_(other.descriptor_type_),
       descriptor_count_(other.descriptor_count_),
@@ -874,7 +871,7 @@ MM::RenderSystem::DescriptorSetLayoutBinding::DescriptorSetLayoutBinding(
 
 MM::RenderSystem::DescriptorSetLayoutBinding&
 MM::RenderSystem::DescriptorSetLayoutBinding::operator=(
-    MM::RenderSystem::DescriptorSetLayoutBinding&& other) noexcept {
+    DescriptorSetLayoutBinding&& other) noexcept {
   if (&other == this) {
     return *this;
   }
@@ -934,7 +931,7 @@ MM::RenderSystem::ImageViewCreateInfo::ImageViewCreateInfo(
       subresource_range_(vk_image_create_info.subresourceRange) {}
 
 MM::RenderSystem::ImageViewCreateInfo::ImageViewCreateInfo(
-    MM::RenderSystem::ImageViewCreateInfo&& other) noexcept
+    ImageViewCreateInfo&& other) noexcept
     : next_(other.next_),
       flags_(other.flags_),
       image_(other.image_),
@@ -947,7 +944,7 @@ MM::RenderSystem::ImageViewCreateInfo::ImageViewCreateInfo(
 
 MM::RenderSystem::ImageViewCreateInfo&
 MM::RenderSystem::ImageViewCreateInfo::operator=(
-    MM::RenderSystem::ImageViewCreateInfo&& other) noexcept {
+    ImageViewCreateInfo&& other) noexcept {
   if (&other == this) {
     return *this;
   }
@@ -969,7 +966,7 @@ bool MM::RenderSystem::ImageViewCreateInfo::IsValid() const {
   return image_ != nullptr;
 }
 
-MM::Result<MM::RenderSystem::RenderImageViewAttributeID, MM::ErrorResult>
+MM::Result<MM::RenderSystem::RenderImageViewAttributeID>
 MM::RenderSystem::ImageViewCreateInfo::GetRenderImageViewAttributeID() const {
   if (!IsValid()) {
     return ResultE<>{ErrorCode::OBJECT_IS_INVALID};
@@ -985,7 +982,7 @@ MM::RenderSystem::ImageViewCreateInfo::GetRenderImageViewAttributeID() const {
   attribute1 |= components_.b << 3;
   attribute1 |= components_.g << 6;
   attribute1 |= components_.r << 9;
-  attribute1 |= Utils::ConvertVkFormatToContinuousValue(format_) << 12;
+  attribute1 |= ConvertVkFormatToContinuousValue(format_) << 12;
   attribute1 |= view_type_ << 20;
   // empty 7bit
   attribute1 |= flags_ << 30;
@@ -1128,7 +1125,7 @@ MM::RenderSystem::SamplerCreateInfo::SamplerCreateInfo(
           vk_sampler_create_info.unnormalizedCoordinates) {}
 
 MM::RenderSystem::SamplerCreateInfo::SamplerCreateInfo(
-    MM::RenderSystem::SamplerCreateInfo&& other) noexcept
+    SamplerCreateInfo&& other) noexcept
     : next_(other.next_),
       flags_(other.flags_),
       mag_filter_(other.mag_filter_),
@@ -1151,7 +1148,7 @@ MM::RenderSystem::SamplerCreateInfo::SamplerCreateInfo(
 
 MM::RenderSystem::SamplerCreateInfo&
 MM::RenderSystem::SamplerCreateInfo::operator=(
-    MM::RenderSystem::SamplerCreateInfo&& other) noexcept {
+    SamplerCreateInfo&& other) noexcept {
   if (&other == this) {
     return *this;
   }
@@ -1179,13 +1176,13 @@ MM::RenderSystem::SamplerCreateInfo::operator=(
   return *this;
 }
 
-MM::Result<MM::RenderSystem::RenderSamplerAttributeID, MM::ErrorResult>
+MM::Result<MM::RenderSystem::RenderSamplerAttributeID>
 MM::RenderSystem::SamplerCreateInfo::GetRenderSamplerAttributeID() const {
   if (!IsValid()) {
     return ResultE<>{ErrorCode::OBJECT_IS_INVALID};
   }
 
-  MM::RenderSystem::RenderSamplerAttributeID render_sampler_attribute_ID{};
+  RenderSamplerAttributeID render_sampler_attribute_ID{};
 
   std::uint64_t attribute1 = 0;
   std::uint64_t attribute2 = 0;
@@ -1237,17 +1234,17 @@ MM::RenderSystem::ImageView::ImageView(
     : image_view_wrapper_(),
       image_view_create_info_(vk_image_view_create_info) {
 #ifdef MM_CHECK_PARAMETERS
-  Result<Nil, ErrorResult> check_result =
+  Result<Nil> check_result =
       CheckInitParameters(render_engine, vk_image_view_create_info);
   check_result.Exception([function_name = MM_FUNCTION_NAME,
                           &image_view_create_info = image_view_create_info_](
-                             ErrorResult error_result) {
+                             const ErrorResult& error_result) {
     MM_LOG_SYSTEM->CheckResult(
         error_result.GetErrorCode(),
         std::string("[") + function_name + "] " +
             "Failed to create MM::RenderSystem::ImageView because constructor "
             "parameters are incorrect.",
-        MM::LogSystem::LogSystem::LogLevel::ERROR);
+        LogSystem::LogSystem::LogLevel::ERROR);
 
     image_view_create_info.Reset();
   });
@@ -1272,7 +1269,7 @@ MM::RenderSystem::ImageView::ImageView(
   VkImageViewCreateInfo vk_image_view_create_info =
       image_view_create_info.GetVkImageViewCreateInfo();
 #ifdef MM_CHECK_PARAMETERS
-  Result<Nil, ErrorResult> check_result =
+  Result<Nil> check_result =
       CheckInitParameters(render_engine, vk_image_view_create_info);
   check_result.Exception([function_name = MM_FUNCTION_NAME,
                           &image_view_create_info = image_view_create_info_](
@@ -1282,7 +1279,7 @@ MM::RenderSystem::ImageView::ImageView(
         std::string("[") + function_name + "] " +
             "Failed to create MM::RenderSystem::ImageView because constructor "
             "parameters are incorrect.",
-        MM::LogSystem::LogSystem::LogLevel::ERROR);
+        LogSystem::LogSystem::LogLevel::ERROR);
 
     image_view_create_info.Reset();
   });
@@ -1300,13 +1297,12 @@ MM::RenderSystem::ImageView::ImageView(
   image_view_wrapper_ = ImageViewWrapper(render_engine, allocator, image_view);
 }
 
-MM::RenderSystem::ImageView::ImageView(
-    MM::RenderSystem::ImageView&& other) noexcept
+MM::RenderSystem::ImageView::ImageView(ImageView&& other) noexcept
     : image_view_wrapper_(std::move(other.image_view_wrapper_)),
       image_view_create_info_(std::move(other.image_view_create_info_)) {}
 
 MM::RenderSystem::ImageView& MM::RenderSystem::ImageView::operator=(
-    MM::RenderSystem::ImageView&& other) noexcept {
+    ImageView&& other) noexcept {
   if (&other == this) {
     return *this;
   }
@@ -1343,7 +1339,7 @@ void MM::RenderSystem::ImageView::Release() {
   image_view_wrapper_.Release();
 }
 
-MM::Result<MM::Nil, MM::ErrorResult>
+MM::Result<MM::Nil>
 MM::RenderSystem::ImageView::CheckInitParameters(
     RenderEngine* render_engine,
     const VkImageViewCreateInfo& vk_image_view_create_info) {
@@ -1412,7 +1408,7 @@ MM::RenderSystem::Sampler::Sampler(
     const VkSamplerCreateInfo& vk_sampler_create_info)
     : sampler_wrapper_(nullptr), sampler_create_info_(vk_sampler_create_info) {
 #ifdef MM_CHECK_PARAMETERS
-  Result<Nil, ErrorResult> check_result =
+  Result<Nil> check_result =
       CheckInitParameters(render_engine, vk_sampler_create_info);
   check_result.Exception(
       [function_name = MM_FUNCTION_NAME,
@@ -1422,7 +1418,7 @@ MM::RenderSystem::Sampler::Sampler(
             std::string("[") + function_name + "] " +
                 "Failed to create MM::RenderSystem::ImageView because "
                 "constructor parameters are incorrect.",
-            MM::LogSystem::LogSystem::LogLevel::ERROR);
+            LogSystem::LogSystem::LogLevel::ERROR);
 
         sampler_create_info.Reset();
       });
@@ -1467,8 +1463,8 @@ MM::RenderSystem::Sampler::Sampler(
       auto insert_result2 = sampler_container_.Emplace(
           std::make_pair(render_sampler_attribute_ID,
                          SamplerWrapper{render_engine, allocator, sampler}));
-      if (insert_result.second) {
-        sampler_wrapper_ = &insert_result.first.second;
+      if (insert_result2.second) {
+        sampler_wrapper_ = &insert_result2.first.second;
         return;
       }
     }
@@ -1489,7 +1485,7 @@ MM::RenderSystem::Sampler::Sampler(RenderEngine* render_engine,
   VkSamplerCreateInfo vk_sampler_create_info =
       sampler_create_info.GetVkSamplerCreateInfo();
 #ifdef MM_CHECK_PARAMETERS
-  Result<Nil, ErrorResult> check_result =
+  Result<Nil> check_result =
       CheckInitParameters(render_engine, vk_sampler_create_info);
   check_result.Exception(
       [function_name = MM_FUNCTION_NAME,
@@ -1499,7 +1495,7 @@ MM::RenderSystem::Sampler::Sampler(RenderEngine* render_engine,
             std::string("[") + function_name + "] " +
                 "Failed to create MM::RenderSystem::ImageView because "
                 "constructor parameters are incorrect.",
-            MM::LogSystem::LogSystem::LogLevel::ERROR);
+            LogSystem::LogSystem::LogLevel::ERROR);
 
         sampler_create_info.Reset();
       });
@@ -1528,12 +1524,12 @@ MM::RenderSystem::Sampler::Sampler(RenderEngine* render_engine,
               MM_LOG_ERROR("Failed to create MM::Render::Sampler.");
               sampler_create_info_.Reset(); return;)
 
-  auto insert_result = sampler_container_.Emplace(
+  const auto insert_result = sampler_container_.Emplace(
       std::make_pair(render_sampler_attribute_ID,
                      SamplerWrapper{render_engine, allocator, sampler}));
 
   if (!insert_result.second) {
-    std::uint32_t insert_count = 0;
+    constexpr std::uint32_t insert_count = 0;
     while (insert_count != 3) {
       std::pair<const RenderSamplerAttributeID, SamplerWrapper>*
           find_resource2 = sampler_container_.Find(render_sampler_attribute_ID);
@@ -1544,8 +1540,8 @@ MM::RenderSystem::Sampler::Sampler(RenderEngine* render_engine,
       auto insert_result2 = sampler_container_.Emplace(
           std::make_pair(render_sampler_attribute_ID,
                          SamplerWrapper{render_engine, allocator, sampler}));
-      if (insert_result.second) {
-        sampler_wrapper_ = &insert_result.first.second;
+      if (insert_result2.second) {
+        sampler_wrapper_ = &insert_result2.first.second;
         return;
       }
     }
@@ -1559,14 +1555,14 @@ MM::RenderSystem::Sampler::Sampler(RenderEngine* render_engine,
   sampler_wrapper_ = &insert_result.first.second;
 }
 
-MM::RenderSystem::Sampler::Sampler(MM::RenderSystem::Sampler&& other) noexcept
+MM::RenderSystem::Sampler::Sampler(Sampler&& other) noexcept
     : sampler_wrapper_(other.sampler_wrapper_),
       sampler_create_info_(std::move(other.sampler_create_info_)) {
   other.sampler_wrapper_ = nullptr;
 }
 
 MM::RenderSystem::Sampler& MM::RenderSystem::Sampler::operator=(
-    MM::RenderSystem::Sampler&& other) noexcept {
+    Sampler&& other) noexcept {
   if (&other == this) {
     return *this;
   }
@@ -1609,7 +1605,7 @@ void MM::RenderSystem::Sampler::Reset() {
   sampler_create_info_.Reset();
 }
 
-MM::Result<MM::Nil, MM::ErrorResult>
+MM::Result<MM::Nil>
 MM::RenderSystem::Sampler::CheckInitParameters(
     RenderEngine* render_engine,
     const VkSamplerCreateInfo& vk_sampler_create_info) {
@@ -1726,21 +1722,19 @@ MM::RenderSystem::ImageView::ImageViewWrapper::~ImageViewWrapper() {
 }
 
 MM::RenderSystem::ImageBindData::ImageBindData(
-    const MM::RenderSystem::DescriptorSetLayoutBinding& bind,
-    MM::RenderSystem::ImageView&& image_view,
-    MM::RenderSystem::Sampler&& sampler)
+    const DescriptorSetLayoutBinding& bind, ImageView&& image_view,
+    Sampler&& sampler)
     : bind_(bind),
       image_view_(std::move(image_view)),
       sampler_(std::move(sampler)) {}
 
-MM::RenderSystem::ImageBindData::ImageBindData(
-    MM::RenderSystem::ImageBindData&& other) noexcept
+MM::RenderSystem::ImageBindData::ImageBindData(ImageBindData&& other) noexcept
     : bind_(std::move(other.bind_)),
       image_view_(std::move(other.image_view_)),
       sampler_(std::move(other.sampler_)) {}
 
 MM::RenderSystem::ImageBindData& MM::RenderSystem::ImageBindData::operator=(
-    MM::RenderSystem::ImageBindData&& other) noexcept {
+    ImageBindData&& other) noexcept {
   if (&other == this) {
     return *this;
   }
@@ -1748,6 +1742,8 @@ MM::RenderSystem::ImageBindData& MM::RenderSystem::ImageBindData::operator=(
   bind_ = std::move(other.bind_);
   image_view_ = std::move(other.image_view_);
   sampler_ = std::move(other.sampler_);
+
+  return *this;
 }
 
 const MM::RenderSystem::DescriptorSetLayoutBinding&
@@ -1784,7 +1780,7 @@ void MM::RenderSystem::ImageBindData::Release() {
 }
 
 MM::RenderSystem::BufferCreateInfo::BufferCreateInfo(
-    MM::RenderSystem::BufferCreateInfo&& other) noexcept
+    BufferCreateInfo&& other) noexcept
     : next_(other.next_),
       flags_(other.flags_),
       size_(other.size_),
@@ -1796,7 +1792,7 @@ MM::RenderSystem::BufferCreateInfo::BufferCreateInfo(
 
 MM::RenderSystem::BufferCreateInfo&
 MM::RenderSystem::BufferCreateInfo::operator=(
-    const MM::RenderSystem::BufferCreateInfo& other) {
+    const BufferCreateInfo& other) {
   if (&other == this) {
     return *this;
   }
@@ -1813,7 +1809,7 @@ MM::RenderSystem::BufferCreateInfo::operator=(
 
 MM::RenderSystem::BufferCreateInfo&
 MM::RenderSystem::BufferCreateInfo::operator=(
-    MM::RenderSystem::BufferCreateInfo&& other) noexcept {
+    BufferCreateInfo&& other) noexcept {
   if (&other == this) {
     return *this;
   }
@@ -1880,7 +1876,7 @@ MM::RenderSystem::BufferCreateInfo::BufferCreateInfo(
   }
 }
 
-MM::Result<MM::RenderSystem::RenderImageDataAttributeID, MM::ErrorResult>
+MM::Result<MM::RenderSystem::RenderImageDataAttributeID>
 MM::RenderSystem::BufferDataInfo::GetRenderResourceDataAttributeID() const {
   if (!IsValid()) {
     return ResultE<>{ErrorCode::OBJECT_IS_INVALID};
@@ -1961,14 +1957,14 @@ void MM::RenderSystem::BufferDataInfo::Reset() {
 }
 
 MM::RenderSystem::BufferDataInfo::BufferDataInfo(
-    MM::RenderSystem::BufferDataInfo&& other) noexcept
+    BufferDataInfo&& other) noexcept
     : buffer_create_info_(std::move(other.buffer_create_info_)),
       allocation_create_info_(std::move(other.allocation_create_info_)),
       buffer_sub_resource_attributes_(
           std::move(other.buffer_sub_resource_attributes_)) {}
 
 MM::RenderSystem::BufferDataInfo& MM::RenderSystem::BufferDataInfo::operator=(
-    const MM::RenderSystem::BufferDataInfo& other) {
+    const BufferDataInfo& other) {
   if (&other == this) {
     return *this;
   }
@@ -1981,7 +1977,7 @@ MM::RenderSystem::BufferDataInfo& MM::RenderSystem::BufferDataInfo::operator=(
 }
 
 MM::RenderSystem::BufferDataInfo& MM::RenderSystem::BufferDataInfo::operator=(
-    MM::RenderSystem::BufferDataInfo&& other) noexcept {
+    BufferDataInfo&& other) noexcept {
   if (&other == this) {
     return *this;
   }
@@ -1995,8 +1991,8 @@ MM::RenderSystem::BufferDataInfo& MM::RenderSystem::BufferDataInfo::operator=(
 }
 
 MM::RenderSystem::BufferDataInfo::BufferDataInfo(
-    const MM::RenderSystem::BufferCreateInfo& buffer_create_info,
-    const MM::RenderSystem::AllocationCreateInfo& allocation_create_info)
+    const BufferCreateInfo& buffer_create_info,
+    const AllocationCreateInfo& allocation_create_info)
     : buffer_create_info_(buffer_create_info),
       allocation_create_info_(allocation_create_info),
       buffer_sub_resource_attributes_{BufferSubResourceAttribute{
@@ -2055,7 +2051,7 @@ bool MM::RenderSystem::ImageSubresourceRangeInfo::IsValid() const {
 }
 
 MM::RenderSystem::ImageSubresourceRangeInfo::ImageSubresourceRangeInfo(
-    MM::RenderSystem::ImageSubresourceRangeInfo&& other) noexcept
+    ImageSubresourceRangeInfo&& other) noexcept
     : base_mipmaps_level_(other.base_mipmaps_level_),
       mipmaps_count_(other.mipmaps_count_),
       base_array_level_(other.array_count_),
@@ -2065,7 +2061,7 @@ MM::RenderSystem::ImageSubresourceRangeInfo::ImageSubresourceRangeInfo(
 
 MM::RenderSystem::ImageSubresourceRangeInfo&
 MM::RenderSystem::ImageSubresourceRangeInfo::operator=(
-    const MM::RenderSystem::ImageSubresourceRangeInfo& other) {
+    const ImageSubresourceRangeInfo& other) {
   if (&other == this) {
     return *this;
   }
@@ -2080,7 +2076,7 @@ MM::RenderSystem::ImageSubresourceRangeInfo::operator=(
 
 MM::RenderSystem::ImageSubresourceRangeInfo&
 MM::RenderSystem::ImageSubresourceRangeInfo::operator=(
-    MM::RenderSystem::ImageSubresourceRangeInfo&& other) noexcept {
+    ImageSubresourceRangeInfo&& other) noexcept {
   if (&other == this) {
     return *this;
   }
@@ -2111,7 +2107,7 @@ MM::RenderSystem::ImageSubresourceRangeInfo::ImageSubresourceRangeInfo(
       array_count_(vk_image_subresource_range.layerCount) {}
 
 bool MM::RenderSystem::ImageSubresourceRangeInfo::operator==(
-    const MM::RenderSystem::ImageSubresourceRangeInfo& rhs) const {
+    const ImageSubresourceRangeInfo& rhs) const {
   return base_mipmaps_level_ == rhs.base_mipmaps_level_ &&
          mipmaps_count_ == rhs.mipmaps_count_ &&
          base_array_level_ == rhs.base_array_level_ &&
@@ -2119,7 +2115,7 @@ bool MM::RenderSystem::ImageSubresourceRangeInfo::operator==(
 }
 
 bool MM::RenderSystem::ImageSubresourceRangeInfo::operator!=(
-    const MM::RenderSystem::ImageSubresourceRangeInfo& rhs) const {
+    const ImageSubresourceRangeInfo& rhs) const {
   return !(rhs == *this);
 }
 
@@ -2130,7 +2126,7 @@ MM::RenderSystem::ImageSubResourceAttribute::GetImageSubresourceRangeInfo()
 }
 
 void MM::RenderSystem::ImageSubResourceAttribute::SetImageSubresourceRangeInfo(
-    const MM::RenderSystem::ImageSubresourceRangeInfo&
+    const ImageSubresourceRangeInfo&
         image_subresource_range_info) {
   image_subresource_range_info_ = image_subresource_range_info;
 }
@@ -2167,7 +2163,7 @@ void MM::RenderSystem::ImageSubResourceAttribute::Reset() {
 }
 
 MM::RenderSystem::ImageSubResourceAttribute::ImageSubResourceAttribute(
-    const MM::RenderSystem::ImageSubresourceRangeInfo&
+    const ImageSubresourceRangeInfo&
         image_subresource_range_info,
     uint32_t queue_index, VkImageLayout image_layout)
     : image_subresource_range_info_(image_subresource_range_info),
@@ -2182,7 +2178,7 @@ MM::RenderSystem::ImageSubResourceAttribute::ImageSubResourceAttribute(
       image_layout_(image_layout) {}
 
 MM::RenderSystem::ImageSubResourceAttribute::ImageSubResourceAttribute(
-    MM::RenderSystem::ImageSubResourceAttribute&& other) noexcept
+    ImageSubResourceAttribute&& other) noexcept
 
     : image_subresource_range_info_(
           std::move(other.image_subresource_range_info_)),
@@ -2193,7 +2189,7 @@ MM::RenderSystem::ImageSubResourceAttribute::ImageSubResourceAttribute(
 
 MM::RenderSystem::ImageSubResourceAttribute&
 MM::RenderSystem::ImageSubResourceAttribute::operator=(
-    const MM::RenderSystem::ImageSubResourceAttribute& other) {
+    const ImageSubResourceAttribute& other) {
   if (std::addressof(other) == this) {
     return *this;
   }
@@ -2207,7 +2203,7 @@ MM::RenderSystem::ImageSubResourceAttribute::operator=(
 
 MM::RenderSystem::ImageSubResourceAttribute&
 MM::RenderSystem::ImageSubResourceAttribute::operator=(
-    MM::RenderSystem::ImageSubResourceAttribute&& other) noexcept {
+    ImageSubResourceAttribute&& other) noexcept {
   if (std::addressof(other) == this) {
     return *this;
   }
@@ -2244,18 +2240,18 @@ std::uint32_t MM::RenderSystem::ImageSubResourceAttribute::GetArrayCount()
 }
 
 bool MM::RenderSystem::ImageSubResourceAttribute::operator==(
-    const MM::RenderSystem::ImageSubResourceAttribute& rhs) const {
+    const ImageSubResourceAttribute& rhs) const {
   return image_subresource_range_info_ == rhs.image_subresource_range_info_ &&
          queue_index_ == rhs.queue_index_ && image_layout_ == rhs.image_layout_;
 }
 
 bool MM::RenderSystem::ImageSubResourceAttribute::operator!=(
-    const MM::RenderSystem::ImageSubResourceAttribute& rhs) const {
+    const ImageSubResourceAttribute& rhs) const {
   return !(rhs == *this);
 }
 
 MM::RenderSystem::BufferSubResourceAttribute::BufferSubResourceAttribute(
-    MM::RenderSystem::BufferSubResourceAttribute&& other) noexcept
+    BufferSubResourceAttribute&& other) noexcept
     : chunk_info_(std::move(other.chunk_info_)),
       queue_index_(other.queue_index_) {
   other.queue_index_ = UINT32_MAX;
@@ -2263,7 +2259,7 @@ MM::RenderSystem::BufferSubResourceAttribute::BufferSubResourceAttribute(
 
 MM::RenderSystem::BufferSubResourceAttribute&
 MM::RenderSystem::BufferSubResourceAttribute::operator=(
-    const MM::RenderSystem::BufferSubResourceAttribute& other) {
+    const BufferSubResourceAttribute& other) {
   if (std::addressof(other) == this) {
     return *this;
   }
@@ -2276,7 +2272,7 @@ MM::RenderSystem::BufferSubResourceAttribute::operator=(
 
 MM::RenderSystem::BufferSubResourceAttribute&
 MM::RenderSystem::BufferSubResourceAttribute::operator=(
-    MM::RenderSystem::BufferSubResourceAttribute&& other) noexcept {
+    BufferSubResourceAttribute&& other) noexcept {
   if (std::addressof(other) == this) {
     return *this;
   }
@@ -2295,7 +2291,7 @@ MM::RenderSystem::BufferSubResourceAttribute::GetChunkInfo() const {
 }
 
 void MM::RenderSystem::BufferSubResourceAttribute::SetChunkInfo(
-    const MM::RenderSystem::BufferChunkInfo& chunk_info) {
+    const BufferChunkInfo& chunk_info) {
   chunk_info_ = chunk_info;
 }
 
@@ -2310,12 +2306,12 @@ void MM::RenderSystem::BufferSubResourceAttribute::SetQueueIndex(
 }
 
 bool MM::RenderSystem::BufferSubResourceAttribute::operator==(
-    const MM::RenderSystem::BufferSubResourceAttribute& rhs) const {
+    const BufferSubResourceAttribute& rhs) const {
   return chunk_info_ == rhs.chunk_info_ && queue_index_ == rhs.queue_index_;
 }
 
 bool MM::RenderSystem::BufferSubResourceAttribute::operator!=(
-    const MM::RenderSystem::BufferSubResourceAttribute& rhs) const {
+    const BufferSubResourceAttribute& rhs) const {
   return !(rhs == *this);
 }
 
@@ -2336,12 +2332,12 @@ VkDeviceSize MM::RenderSystem::BufferSubResourceAttribute::GetSize() const {
   return GetChunkInfo().GetSize();
 }
 
-VkDeviceSize MM::RenderSystem::BufferSubResourceAttribute::SetOffset(
+void MM::RenderSystem::BufferSubResourceAttribute::SetOffset(
     VkDeviceSize new_offset) {
   chunk_info_.SetOffset(new_offset);
 }
 
-VkDeviceSize MM::RenderSystem::BufferSubResourceAttribute::SetSize(
+void MM::RenderSystem::BufferSubResourceAttribute::SetSize(
     VkDeviceSize new_size) {
   chunk_info_.SetSize(new_size);
 }
@@ -2367,7 +2363,7 @@ MM::RenderSystem::MeshBufferCapacityData::MeshBufferCapacityData(
       vertex_buffer_remaining_capacity_(vertex_buffer_remaining_capacity) {}
 
 MM::RenderSystem::MeshBufferCapacityData::MeshBufferCapacityData(
-    MM::RenderSystem::MeshBufferCapacityData&& other) noexcept
+    MeshBufferCapacityData&& other) noexcept
     : capacity_coefficient_(other.capacity_coefficient_),
       expansion_coefficient_(other.expansion_coefficient_),
       index_buffer_remaining_capacity_(other.index_buffer_remaining_capacity_),
@@ -2378,7 +2374,7 @@ MM::RenderSystem::MeshBufferCapacityData::MeshBufferCapacityData(
 
 MM::RenderSystem::MeshBufferCapacityData&
 MM::RenderSystem::MeshBufferCapacityData::operator=(
-    const MM::RenderSystem::MeshBufferCapacityData& other) {
+    const MeshBufferCapacityData& other) {
   if (std::addressof(other) == this) {
     return *this;
   }
@@ -2393,7 +2389,7 @@ MM::RenderSystem::MeshBufferCapacityData::operator=(
 
 MM::RenderSystem::MeshBufferCapacityData&
 MM::RenderSystem::MeshBufferCapacityData::operator=(
-    MM::RenderSystem::MeshBufferCapacityData&& other) noexcept {
+    MeshBufferCapacityData&& other) noexcept {
   if (std::addressof(other) == this) {
     return *this;
   }
@@ -2409,19 +2405,19 @@ MM::RenderSystem::MeshBufferCapacityData::operator=(
 }
 
 MM::RenderSystem::MeshBufferInfoBase::MeshBufferInfoBase(
-    const MM::RenderSystem::BufferCreateInfo& buffer_create_info,
-    const MM::RenderSystem::AllocationCreateInfo& allocation_create_info)
+    const BufferCreateInfo& buffer_create_info,
+    const AllocationCreateInfo& allocation_create_info)
     : buffer_create_info_(buffer_create_info),
       allocation_create_info_(allocation_create_info) {}
 
 MM::RenderSystem::MeshBufferInfoBase::MeshBufferInfoBase(
-    MM::RenderSystem::MeshBufferInfoBase&& other) noexcept
+    MeshBufferInfoBase&& other) noexcept
     : buffer_create_info_(std::move(other.buffer_create_info_)),
       allocation_create_info_(std::move(other.allocation_create_info_)) {}
 
 MM::RenderSystem::MeshBufferInfoBase&
 MM::RenderSystem::MeshBufferInfoBase::operator=(
-    const MM::RenderSystem::MeshBufferInfoBase& other) {
+    const MeshBufferInfoBase& other) {
   if (std::addressof(other) == this) {
     return *this;
   }
@@ -2434,7 +2430,7 @@ MM::RenderSystem::MeshBufferInfoBase::operator=(
 
 MM::RenderSystem::MeshBufferInfoBase&
 MM::RenderSystem::MeshBufferInfoBase::operator=(
-    MM::RenderSystem::MeshBufferInfoBase&& other) noexcept {
+    MeshBufferInfoBase&& other) noexcept {
   if (std::addressof(other) == this) {
     return *this;
   }
@@ -2486,9 +2482,9 @@ void MM::RenderSystem::MeshBufferInfoBase::Reset() {
 
 MM::RenderSystem::MeshBufferSubResourceAttribute::
     MeshBufferSubResourceAttribute(
-        const MM::RenderSystem::BufferSubResourceAttribute&
+        const BufferSubResourceAttribute&
             vertex_buffer_sub_resource_attribute,
-        const MM::RenderSystem::BufferSubResourceAttribute&
+        const BufferSubResourceAttribute&
             index_buffer_sub_resource_attribute)
     : vertex_buffer_sub_resource_attribute_(
           vertex_buffer_sub_resource_attribute),
@@ -2497,7 +2493,7 @@ MM::RenderSystem::MeshBufferSubResourceAttribute::
 
 MM::RenderSystem::MeshBufferSubResourceAttribute&
 MM::RenderSystem::MeshBufferSubResourceAttribute::operator=(
-    const MM::RenderSystem::MeshBufferSubResourceAttribute& other) {
+    const MeshBufferSubResourceAttribute& other) {
   if (std::addressof(other) == this) {
     return *this;
   }
@@ -2512,7 +2508,7 @@ MM::RenderSystem::MeshBufferSubResourceAttribute::operator=(
 
 MM::RenderSystem::MeshBufferSubResourceAttribute&
 MM::RenderSystem::MeshBufferSubResourceAttribute::operator=(
-    MM::RenderSystem::MeshBufferSubResourceAttribute&& other) noexcept {
+    MeshBufferSubResourceAttribute&& other) noexcept {
   if (std::addressof(other) == this) {
     return *this;
   }
@@ -2526,14 +2522,14 @@ MM::RenderSystem::MeshBufferSubResourceAttribute::operator=(
 }
 
 bool MM::RenderSystem::MeshBufferSubResourceAttribute::operator==(
-    const MM::RenderSystem::MeshBufferSubResourceAttribute& rhs) const {
+    const MeshBufferSubResourceAttribute& rhs) const {
   return (vertex_buffer_sub_resource_attribute_ ==
           rhs.vertex_buffer_sub_resource_attribute_) &&
          (index_buffer_sub_resource_attribute_ ==
           rhs.index_buffer_sub_resource_attribute_);
 }
 bool MM::RenderSystem::MeshBufferSubResourceAttribute::operator!=(
-    const MM::RenderSystem::MeshBufferSubResourceAttribute& rhs) const {
+    const MeshBufferSubResourceAttribute& rhs) const {
   return !(*this == rhs);
 }
 
@@ -2543,7 +2539,7 @@ MM::RenderSystem::MeshBufferSubResourceAttribute::VertexGetChunkInfo() const {
 }
 
 void MM::RenderSystem::MeshBufferSubResourceAttribute::VertexSetChunkInfo(
-    const MM::RenderSystem::BufferChunkInfo& chunk_info) {
+    const BufferChunkInfo& chunk_info) {
   vertex_buffer_sub_resource_attribute_.SetChunkInfo(chunk_info);
 }
 
@@ -2563,7 +2559,7 @@ MM::RenderSystem::MeshBufferSubResourceAttribute::IndexGetChunkInfo() const {
 }
 
 void MM::RenderSystem::MeshBufferSubResourceAttribute::IndexSetChunkInfo(
-    const MM::RenderSystem::BufferChunkInfo& chunk_info) {
+    const BufferChunkInfo& chunk_info) {
   index_buffer_sub_resource_attribute_.SetChunkInfo(chunk_info);
 }
 
@@ -2755,7 +2751,7 @@ MM::RenderSystem::RenderPassCreateInfo::RenderPassCreateInfo(
 }
 
 MM::RenderSystem::RenderPassCreateInfo::RenderPassCreateInfo(
-    MM::RenderSystem::RenderPassCreateInfo&& other) noexcept
+    RenderPassCreateInfo&& other) noexcept
     : next_(other.next_),
       flags_(other.flags_),
       attachments_(std::move(other.attachments_)),
@@ -2769,7 +2765,7 @@ MM::RenderSystem::RenderPassCreateInfo::RenderPassCreateInfo(
 
 MM::RenderSystem::RenderPassCreateInfo&
 MM::RenderSystem::RenderPassCreateInfo::operator=(
-    const MM::RenderSystem::RenderPassCreateInfo& other) {
+    const RenderPassCreateInfo& other) {
   if (std::addressof(other) == this) {
     return *this;
   }
@@ -2785,7 +2781,7 @@ MM::RenderSystem::RenderPassCreateInfo::operator=(
 
 MM::RenderSystem::RenderPassCreateInfo&
 MM::RenderSystem::RenderPassCreateInfo::operator=(
-    MM::RenderSystem::RenderPassCreateInfo&& other) {
+    RenderPassCreateInfo&& other) noexcept {
   if (std::addressof(other) == this) {
     return *this;
   }
@@ -2800,58 +2796,6 @@ MM::RenderSystem::RenderPassCreateInfo::operator=(
 
   other.next_ = nullptr;
   other.flags_ = VK_RENDER_PASS_CREATE_FLAG_BITS_MAX_ENUM;
-
-  for (std::uint64_t i = 0; i != other.subpasses_.size(); ++i) {
-    if (other.subpasses_[i].pInputAttachments) {
-      VkAttachmentReference* input_attachments =
-          new VkAttachmentReference[other.subpasses_[i].inputAttachmentCount]{};
-      for (std::uint32_t j = 0; j != other.subpasses_[i].inputAttachmentCount;
-           ++j) {
-        input_attachments[j] = other.subpasses_[i].pInputAttachments[j];
-      }
-
-      subpasses_[i].pInputAttachments = input_attachments;
-    }
-
-    if (other.subpasses_[i].pColorAttachments) {
-      VkAttachmentReference* color_attachments =
-          new VkAttachmentReference[other.subpasses_[i].colorAttachmentCount]{};
-      if (other.subpasses_[i].pResolveAttachments) {
-        for (std::uint32_t j = 0; j != other.subpasses_[i].colorAttachmentCount;
-             ++j) {
-          color_attachments[j] = other.subpasses_[i].pResolveAttachments[j];
-        }
-
-        subpasses_[i].pResolveAttachments = color_attachments;
-      } else if (other.subpasses_[i].pColorAttachments) {
-        for (std::uint32_t j = 0; j != other.subpasses_[i].colorAttachmentCount;
-             ++j) {
-          color_attachments[j] = other.subpasses_[i].pColorAttachments[j];
-        }
-
-        subpasses_[i].pColorAttachments = color_attachments;
-      } else {
-        assert(false);
-      }
-    }
-
-    if (other.subpasses_[i].pDepthStencilAttachment) {
-      VkAttachmentReference* depth_attachment = new VkAttachmentReference{
-          *other.subpasses_[i].pDepthStencilAttachment};
-    }
-
-    if (other.subpasses_[i].pPreserveAttachments) {
-      std::uint32_t* preserve_attachments =
-          new std::uint32_t[other.subpasses_[i].preserveAttachmentCount]{};
-
-      for (std::uint32_t j = 0;
-           j != other.subpasses_[i].preserveAttachmentCount; ++j) {
-        preserve_attachments[j] = other.subpasses_[i].pPreserveAttachments[j];
-      }
-
-      subpasses_[i].pPreserveAttachments = preserve_attachments;
-    }
-  }
 
   return *this;
 }
@@ -2875,7 +2819,7 @@ void MM::RenderSystem::RenderPassCreateInfo::Reset() {
   dependencies_.clear();
 }
 
-MM::Result<MM::RenderSystem::RenderPassID, MM::ErrorResult>
+MM::Result<MM::RenderSystem::RenderPassID>
 MM::RenderSystem::RenderPassCreateInfo::GetRenderPassID() const {
   return GetRenderPassID(*this);
 }
@@ -2893,14 +2837,14 @@ MM::RenderSystem::RenderPassCreateInfo::GetVkRenderPassCreateInfo() const {
                                 dependencies_.data()};
 }
 
-MM::Result<MM::RenderSystem::RenderPassID, MM::ErrorResult>
+MM::Result<MM::RenderSystem::RenderPassID>
 MM::RenderSystem::RenderPassCreateInfo::GetRenderPassID(
-    const MM::RenderSystem::RenderPassCreateInfo& render_pass_create_info) {
+    const RenderPassCreateInfo& render_pass_create_info) {
   if (!render_pass_create_info.IsValid()) {
     return ResultE<>{ErrorCode::OBJECT_IS_INVALID};
   }
 
-  MM::RenderSystem::RenderPassID render_pass_ID;
+  RenderPassID render_pass_ID;
   render_pass_ID = RenderPassID{0, 0, 0, 0, 0};
 
   std::uint64_t sub_ID1 = 0;
@@ -3058,7 +3002,7 @@ MM::RenderSystem::RenderPassCreateInfo::GetRenderPassID(
 }
 
 MM::RenderSystem::RenderPassCreateInfo::RenderPassCreateInfo(
-    const MM::RenderSystem::RenderPassCreateInfo& other)
+    const RenderPassCreateInfo& other)
     : next_(other.next_),
       flags_(other.flags_),
       attachments_(other.attachments_),
@@ -3099,8 +3043,9 @@ MM::RenderSystem::RenderPassCreateInfo::RenderPassCreateInfo(
     }
 
     if (other.subpasses_[i].pDepthStencilAttachment) {
-      VkAttachmentReference* depth_attachment = new VkAttachmentReference{
+      const VkAttachmentReference* depth_attachment = new VkAttachmentReference{
           *other.subpasses_[i].pDepthStencilAttachment};
+      subpasses_[i].pDepthStencilAttachment = depth_attachment;
     }
 
     if (other.subpasses_[i].pPreserveAttachments) {
@@ -3117,10 +3062,10 @@ MM::RenderSystem::RenderPassCreateInfo::RenderPassCreateInfo(
   }
 }
 
-MM::Result<MM::RenderSystem::RenderPassID, MM::ErrorResult>
+MM::Result<MM::RenderSystem::RenderPassID>
 MM::RenderSystem::RenderPassCreateInfo::GetRenderPassID(
     const VkRenderPassCreateInfo& vk_render_pass_create_info) {
-  MM::RenderSystem::RenderPassID render_pass_ID{};
+  RenderPassID render_pass_ID{};
 
   std::uint64_t sub_ID1 = 0;
   std::uint32_t cycle_offset1 = 0;
@@ -3371,7 +3316,7 @@ MM::RenderSystem::FrameBufferCreateInfo::FrameBufferCreateInfo(
 }
 
 MM::RenderSystem::FrameBufferCreateInfo::FrameBufferCreateInfo(
-    MM::RenderSystem::FrameBufferCreateInfo&& other) noexcept
+    FrameBufferCreateInfo&& other) noexcept
     : next_(other.next_),
       flags_(other.flags_),
       render_pass_(other.render_pass_),
@@ -3384,7 +3329,7 @@ MM::RenderSystem::FrameBufferCreateInfo::FrameBufferCreateInfo(
 
 MM::RenderSystem::FrameBufferCreateInfo&
 MM::RenderSystem::FrameBufferCreateInfo::operator=(
-    const MM::RenderSystem::FrameBufferCreateInfo& other) {
+    const FrameBufferCreateInfo& other) {
   if (std::addressof(other) == this) {
     return *this;
   }
@@ -3402,7 +3347,7 @@ MM::RenderSystem::FrameBufferCreateInfo::operator=(
 
 MM::RenderSystem::FrameBufferCreateInfo&
 MM::RenderSystem::FrameBufferCreateInfo::operator=(
-    MM::RenderSystem::FrameBufferCreateInfo&& other) noexcept {
+    FrameBufferCreateInfo&& other) noexcept {
   if (std::addressof(other) == this) {
     return *this;
   }
@@ -3434,7 +3379,7 @@ void MM::RenderSystem::FrameBufferCreateInfo::Reset() {
   layers_ = 0;
 }
 
-MM::Result<MM::RenderSystem::FrameBufferID, MM::ErrorResult>
+MM::Result<MM::RenderSystem::FrameBufferID>
 MM::RenderSystem::FrameBufferCreateInfo::GetRenderFrameID() const {
   return GetRenderFrameID(*this);
 }
@@ -3453,13 +3398,13 @@ MM::RenderSystem::FrameBufferCreateInfo::GetVkFrameBufferCreateInfo() const {
       layers_};
 }
 
-MM::Result<MM::RenderSystem::FrameBufferID, MM::ErrorResult>
+MM::Result<MM::RenderSystem::FrameBufferID>
 MM::RenderSystem::FrameBufferCreateInfo::GetRenderFrameID(
-    const MM::RenderSystem::FrameBufferCreateInfo& frame_buffer_create_info) {
+    const FrameBufferCreateInfo& frame_buffer_create_info) {
   if (!frame_buffer_create_info.IsValid()) {
     return ResultE<>{ErrorCode::OBJECT_IS_INVALID};
   }
-  MM::RenderSystem::FrameBufferID frame_buffer_ID{};
+  FrameBufferID frame_buffer_ID{};
 
   std::uint64_t sub_ID = 0;
 

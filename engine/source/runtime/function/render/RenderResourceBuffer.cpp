@@ -5,7 +5,7 @@
 #include "runtime/function/render/RenderResourceBuffer.h"
 
 MM::RenderSystem::RenderResourceBuffer::RenderResourceBuffer(
-    MM::RenderSystem::AllocatedBuffer *allocated_buffer, VkDeviceSize offset,
+    AllocatedBuffer *allocated_buffer, VkDeviceSize offset,
     VkDeviceSize size)
     : allocated_buffer_(allocated_buffer), offset_(offset), size_(size) {
   if (allocated_buffer_ == nullptr || !allocated_buffer_->IsValid()) {
@@ -22,7 +22,7 @@ MM::RenderSystem::RenderResourceBuffer::RenderResourceBuffer(
 }
 
 MM::RenderSystem::RenderResourceBuffer::RenderResourceBuffer(
-    MM::RenderSystem::RenderResourceBuffer &&other) noexcept
+    RenderResourceBuffer &&other) noexcept
     : allocated_buffer_(other.allocated_buffer_),
       offset_(other.offset_),
       size_(other.size_) {
@@ -31,7 +31,7 @@ MM::RenderSystem::RenderResourceBuffer::RenderResourceBuffer(
 
 MM::RenderSystem::RenderResourceBuffer &
 MM::RenderSystem::RenderResourceBuffer::operator=(
-    MM::RenderSystem::RenderResourceBuffer &&other) noexcept {
+    RenderResourceBuffer &&other) noexcept {
   if (std::addressof(other) == this) {
     return *this;
   }

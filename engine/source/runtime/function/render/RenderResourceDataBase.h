@@ -1,14 +1,8 @@
 #pragma once
 
-#include <vulkan/vulkan.h>
-
-#include <cstdint>
-#include <functional>
-
 #include "runtime/core/manager/ManagedObjectBase.h"
 #include "runtime/function/render/RenderResourceDataID.h"
 #include "runtime/function/render/vk_type_define.h"
-#include "runtime/platform/base/error.h"
 
 namespace MM {
 namespace RenderSystem {

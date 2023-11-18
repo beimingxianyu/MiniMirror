@@ -1,7 +1,6 @@
 #pragma once
 
 #include <vk_mem_alloc.h>
-#include <vulkan/vulkan.h>
 #include <vulkan/vulkan_core.h>
 
 #include <cstdint>
@@ -9,7 +8,6 @@
 
 #include "runtime/function/render/pre_header.h"
 #include "runtime/function/render/vk_enum.h"
-#include "runtime/platform/base/error.h"
 
 namespace MM {
 namespace RenderSystem {
@@ -64,7 +62,7 @@ VkSubmitInfo GetCommandSubmitInfo(
 VkSubmitInfo GetCommandSubmitInfo(
     const std::vector<AllocatedCommandBuffer>& command_buffers);
 
-Result<Nil, ErrorResult> SubmitCommandBuffers(
+Result<Nil> SubmitCommandBuffers(
     VkQueue queue, const std::vector<VkSubmitInfo>& submit_infos,
     VkFence fence);
 
@@ -82,7 +80,7 @@ Result<Nil, ErrorResult> SubmitCommandBuffers(
  * sub_image.layerCount = 1;
  */
 VkImageMemoryBarrier2 GetVkImageMemoryBarrier2(
-    MM::RenderSystem::AllocatedImage& image,
+    AllocatedImage& image,
     const ImageTransferMode& transfer_mode);
 
 VkImageMemoryBarrier2 GetVkImageMemoryBarrier2(
@@ -105,7 +103,7 @@ VkImageMemoryBarrier2 GetVkImageMemoryBarrier2(
     const VkImageLayout& new_layout);
 
 [[deprecated]] VkDependencyInfo GetVkImageDependencyInfo(
-    VkImageMemoryBarrier2& image_barrier, const VkDependencyFlags& flags = 0);
+    const VkImageMemoryBarrier2& image_barrier, const VkDependencyFlags& flags = 0);
 
 VkMemoryBarrier2 GetVkMemoryBarrier2(VkPipelineStageFlags2 src_stage,
                                      VkAccessFlags2 src_access,
@@ -271,7 +269,7 @@ bool DescriptorTypeIsUniformBuffer(const VkDescriptorType& descriptor_type);
 
 bool DescriptorTypeIsTexelBuffer(const VkDescriptorType& descriptor_type);
 
-Result<AllocatedBuffer, ErrorResult> CreateBuffer(
+Result<AllocatedBuffer> CreateBuffer(
     RenderEngine* render_engine, const std::string& object_name,
     const VkBufferCreateInfo& vk_buffer_create_info,
     const VmaAllocationCreateInfo& vma_allocation_create_info,
@@ -357,7 +355,7 @@ VkCopyImageInfo2 GetVkCopyImageInfo2(VkImage src_image, VkImage dest_image,
                                      uint32_t regions_count,
                                      const VkImageCopy2* copy_regions);
 
-Result<std::pair<VkDeviceSize, VkDeviceSize>, ErrorResult> GetEndSizeAndOffset(
+Result<std::pair<VkDeviceSize, VkDeviceSize>> GetEndSizeAndOffset(
     const AllocatedBuffer& buffer,
     std::list<std::shared_ptr<BufferChunkInfo>>& buffer_chunks_info);
 
@@ -365,11 +363,11 @@ VkCommandBufferBeginInfo GetCommandBufferBeginInfo(
     VkCommandBufferUsageFlags flags = 0,
     const VkCommandBufferInheritanceInfo* inheritance_info = nullptr);
 
-Result<Nil, ErrorResult> BeginCommandBuffer(
+Result<Nil> BeginCommandBuffer(
     AllocatedCommandBuffer& command_buffer, VkCommandBufferUsageFlags flags = 0,
     const VkCommandBufferInheritanceInfo* inheritance_info = nullptr);
 
-Result<Nil, ErrorResult> EndCommandBuffer(
+Result<Nil> EndCommandBuffer(
     AllocatedCommandBuffer& command_buffer);
 
 std::uint64_t ConvertVkFormatToContinuousValue(VkFormat vk_format);
@@ -377,13 +375,13 @@ std::uint64_t ConvertVkFormatToContinuousValue(VkFormat vk_format);
 std::uint64_t ConvertVkImageLayoutToContinuousValue(
     VkImageLayout vk_image_layout);
 
-Result<Nil, ErrorResult> CheckVkImageCreateInfo(
+Result<Nil> CheckVkImageCreateInfo(
     const VkImageCreateInfo* vk_image_create_info);
 
-Result<Nil, ErrorResult> CheckVmaAllocationCreateInfo(
+Result<Nil> CheckVmaAllocationCreateInfo(
     const VmaAllocationCreateInfo* vma_allocation_create_info);
 
-Result<Nil, ErrorResult> CheckVkBufferCreateInfo(
+Result<Nil> CheckVkBufferCreateInfo(
     const VkBufferCreateInfo* vk_buffer_create_info);
 
 bool ImageLayoutSupportDepthTest(VkImageLayout vk_image_layout);
@@ -398,8 +396,7 @@ VkImageSubresourceRange GetVkImageSubresourceRange(
     std::uint32_t array_count);
 
 VkCopyBufferToImageInfo2 GetVkCopyBufferToImageInfo2(
-    const void* next, MM::RenderSystem::AllocatedBuffer& src_buffer,
-    MM::RenderSystem::AllocatedImage& dest_image,
+    const void* next, AllocatedBuffer& src_buffer, AllocatedImage& dest_image,
     VkImageLayout dest_image_layout, uint32_t region_count,
     const VkBufferImageCopy2* regions);
 
@@ -444,7 +441,7 @@ bool LayoutSupportImageSamplerCombine(VkImageLayout layout);
 DynamicState ConvertVkDynamicStateToDynamicState(
     VkDynamicState vk_dynamic_state);
 
-Result<Nil, ErrorResult> SavePiplineCache(VkDevice device,
+Result<Nil> SavePiplineCache(VkDevice device,
                                           VkPipelineCache pipeline_cache);
 
 bool VkVertexInputBindingDescriptionIsEqual(
@@ -462,5 +459,7 @@ bool VkRect2DIsEqual(const VkRect2D& lhs, const VkRect2D& rhs);
 bool VkPipelineViewportStateCreateInfoIsEqual(
     const VkPipelineViewportStateCreateInfo& lhs,
     const VkPipelineViewportStateCreateInfo& rhs);
+
+Result<Nil> ConvertVkResultToMMResult(VkResult vk_result);
 }  // namespace RenderSystem
 }  // namespace MM

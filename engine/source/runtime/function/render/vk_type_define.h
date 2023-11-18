@@ -5,10 +5,8 @@
 #pragma once
 
 #include <vk_mem_alloc.h>
-#include <vulkan/vulkan.h>
 #include <vulkan/vulkan_core.h>
 
-#include <cmath>
 #include <cstdint>
 #include <memory>
 #include <optional>
@@ -18,10 +16,8 @@
 #include "runtime/function/render/pre_header.h"
 #include "runtime/function/render/vk_enum.h"
 #include "runtime/function/render/vk_utils.h"
-#include "runtime/platform/base/error.h"
 #include "utils/error.h"
 #include "utils/hash_table.h"
-#include "utils/marco.h"
 
 namespace MM {
 namespace RenderSystem {
@@ -293,7 +289,7 @@ struct AllocationCreateInfo {
 };
 
 struct ImageCreateInfo {
-  friend class ImageDataInfo;
+  friend struct ImageDataInfo;
   friend class AllocatedImage;
 
   ImageCreateInfo() = default;
@@ -424,8 +420,8 @@ struct ImageDataInfo {
 };
 
 struct BufferCreateInfo {
-  friend class BufferDataInfo;
-  friend class MeshBufferInfoBase;
+  friend struct BufferDataInfo;
+  friend struct MeshBufferInfoBase;
   friend class AllocatedBuffer;
 
   BufferCreateInfo() = default;
@@ -492,9 +488,9 @@ class BufferSubResourceAttribute {
 
   VkDeviceSize GetSize() const;
 
-  VkDeviceSize SetOffset(VkDeviceSize new_offset);
+  void SetOffset(VkDeviceSize new_offset);
 
-  VkDeviceSize SetSize(VkDeviceSize new_size);
+  void SetSize(VkDeviceSize new_size);
 
   bool IsValid() const;
 
@@ -521,7 +517,7 @@ struct BufferDataInfo {
 
   std::vector<BufferSubResourceAttribute> buffer_sub_resource_attributes_{};
 
-  Result<RenderBufferDataAttributeID, ErrorResult>
+  Result<RenderBufferDataAttributeID>
   GetRenderResourceDataAttributeID() const;
 
   void SetBufferCreateInfo(const VkBufferCreateInfo& vk_buffer_create_info);
@@ -618,7 +614,7 @@ struct ImageViewCreateInfo {
 
   bool IsValid() const;
 
-  Result<RenderImageViewAttributeID, ErrorResult>
+  Result<RenderImageViewAttributeID>
   GetRenderImageViewAttributeID() const;
 
   VkImageViewCreateInfo GetVkImageViewCreateInfo() const;
@@ -668,7 +664,7 @@ struct SamplerCreateInfo {
 
   bool IsValid() const;
 
-  Result<RenderSamplerAttributeID, ErrorResult> GetRenderSamplerAttributeID()
+  Result<RenderSamplerAttributeID> GetRenderSamplerAttributeID()
       const;
 
   VkSamplerCreateInfo GetVkSamplerCreateInfo() const;
@@ -712,7 +708,7 @@ class ImageView {
   void Release();
 
  private:
-  static Result<Nil, ErrorResult> CheckInitParameters(
+  static Result<Nil> CheckInitParameters(
       RenderEngine* render_engine,
       const VkImageViewCreateInfo& vk_image_view_create_info);
 
@@ -776,7 +772,7 @@ class Sampler {
   void Reset();
 
  private:
-  static Result<Nil, ErrorResult> CheckInitParameters(
+  static Result<Nil> CheckInitParameters(
       RenderEngine* render_engine,
       const VkSamplerCreateInfo& vk_sampler_create_info);
 
@@ -805,7 +801,7 @@ class Sampler {
   SamplerWrapper* sampler_wrapper_{nullptr};
 
   // TODO render_engine recovery
-  static MM::Utils::ConcurrentMap<RenderSamplerAttributeID, SamplerWrapper>
+  static Utils::ConcurrentMap<RenderSamplerAttributeID, SamplerWrapper>
       sampler_container_;
 };
 
@@ -936,7 +932,7 @@ class MeshBufferSubResourceAttribute {
   BufferSubResourceAttribute index_buffer_sub_resource_attribute_{};
 };
 
-using RenderPassID = MM::Utils::ID5;
+using RenderPassID = Utils::ID5;
 
 struct RenderPassCreateInfo {
   RenderPassCreateInfo() = default;
@@ -953,20 +949,20 @@ struct RenderPassCreateInfo {
   RenderPassCreateInfo(const RenderPassCreateInfo& other);
   RenderPassCreateInfo(RenderPassCreateInfo&& other) noexcept;
   RenderPassCreateInfo& operator=(const RenderPassCreateInfo& other);
-  RenderPassCreateInfo& operator=(RenderPassCreateInfo&& other);
+  RenderPassCreateInfo& operator=(RenderPassCreateInfo&& other) noexcept;
 
   bool IsValid() const;
 
   void Reset();
 
-  Result<RenderPassID, ErrorResult> GetRenderPassID() const;
+  Result<RenderPassID> GetRenderPassID() const;
 
   VkRenderPassCreateInfo GetVkRenderPassCreateInfo() const;
 
-  static Result<RenderPassID, ErrorResult> GetRenderPassID(
+  static Result<RenderPassID> GetRenderPassID(
       const RenderPassCreateInfo& render_pass_create_info);
 
-  static Result<RenderPassID, ErrorResult> GetRenderPassID(
+  static Result<RenderPassID> GetRenderPassID(
       const VkRenderPassCreateInfo& vk_render_pass_create_info);
 
  private:
@@ -979,7 +975,7 @@ struct RenderPassCreateInfo {
   std::vector<VkSubpassDependency> dependencies_;
 };
 
-using FrameBufferID = MM::Utils::ID2;
+using FrameBufferID = Utils::ID2;
 
 struct FrameBufferCreateInfo {
   FrameBufferCreateInfo() = default;
@@ -1000,12 +996,12 @@ struct FrameBufferCreateInfo {
 
   void Reset();
 
-  Result<FrameBufferID, ErrorResult> GetRenderFrameID() const;
+  Result<FrameBufferID> GetRenderFrameID() const;
 
   VkFramebufferCreateInfo GetVkFrameBufferCreateInfo() const;
 
   static Result<FrameBufferID> GetRenderFrameID(
-      const MM::RenderSystem::FrameBufferCreateInfo& frame_buffer_create_info);
+      const FrameBufferCreateInfo& frame_buffer_create_info);
 
  private:
   const void* next_;
@@ -1340,7 +1336,7 @@ struct PushData16 {
 };
 
 struct DefaultVertexInputStateDescription {
-  constexpr static const VkVertexInputBindingDescription
+  constexpr static VkVertexInputBindingDescription
       vertex_input_state_bind_description_{
           0, sizeof(AssetSystem::AssetType::Vertex),
           VK_VERTEX_INPUT_RATE_VERTEX};
@@ -1351,7 +1347,7 @@ struct DefaultVertexInputStateDescription {
 struct DefaultViewportState {
   static VkViewport default_viewport_;
   static VkRect2D default_scissors_;
-  constexpr static const VkPipelineViewportStateCreateInfo viewpore_state_{
+  constexpr static VkPipelineViewportStateCreateInfo viewpore_state_{
       VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO,
       nullptr,
       0,

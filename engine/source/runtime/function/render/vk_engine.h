@@ -1,35 +1,26 @@
 #pragma once
 
 #include <vk_mem_alloc.h>
-#include <vulkan/vulkan.h>
 #include <vulkan/vulkan_core.h>
 
 #define VK_USE_PLATFORM_WIN32_KHR
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
 #define GLFW_EXPOSE_NATIVE_WIN32
-#include <GLFW/glfw3native.h>
 #ifdef ERROR
 #undef ERROR
 #endif
 
-#include <atomic>
-#include <optional>
 #include <string>
 #include <vector>
 
 #include "runtime/function/render/AllocatedBuffer.h"
-#include "runtime/function/render/AllocatedImage.h"
-#include "runtime/function/render/AllocatedMeshBuffer.h"
 #include "runtime/function/render/DescriptorManager.h"
 #include "runtime/function/render/RenderResourceDataID.h"
 #include "runtime/function/render/pre_header.h"
 #include "runtime/function/render/vk_command.h"
 #include "runtime/function/render/vk_utils.h"
-#include "runtime/platform/base/error.h"
-#include "runtime/platform/config_system/config_system.h"
 #include "runtime/platform/file_system/file_system.h"
-#include "utils/utils.h"
 
 namespace MM {
 namespace RenderSystem {
@@ -71,15 +62,14 @@ class RenderEngine {
    */
   bool IsValid() const;
 
-  ExecuteResult CreateBuffer(
+  Result<AllocatedBuffer> CreateBuffer(
+      const std::string& object_name,
       const VkBufferCreateInfo& vk_buffer_create_info,
       const VmaAllocationCreateInfo& vma_allocation_create_info,
-      VmaAllocationInfo* vma_allocation_info,
-      AllocatedBuffer& allocated_buffer);
+      VmaAllocationInfo* vma_allocation_info);
 
-  MM::ExecuteResult CreateStageBuffer(VkDeviceSize size,
-                                      std::uint32_t queue_index,
-                                      AllocatedBuffer& stage_buffer);
+  Result<AllocatedBuffer> CreateStageBuffer(VkDeviceSize size,
+                                      std::uint32_t queue_index);
 
   VmaAllocator GetAllocator();
 
@@ -109,13 +99,13 @@ class RenderEngine {
 
   VkQueue GetQueue(CommandBufferType command_buffer_type) const;
 
-  ExecuteResult GraphQueueWaitIdle();
+  Result<Nil> GraphQueueWaitIdle();
 
-  ExecuteResult TransformQueueWaitIdle();
+  Result<Nil> TransformQueueWaitIdle();
 
-  ExecuteResult PresentQueueWaitIdle();
+  Result<Nil> PresentQueueWaitIdle();
 
-  ExecuteResult ComputeQueueWaitIdle();
+  Result<Nil> ComputeQueueWaitIdle();
 
   bool CommandExecutorIsFree() const;
 
@@ -127,66 +117,50 @@ class RenderEngine {
    * operations can be performed on \ref command_task_flow after calling this
    * function.
    */
-  RenderFuture RunCommand(CommandTaskFlow&& command_task_flow);
+  Result<RenderFuture> RunCommand(CommandTaskFlow&& command_task_flow);
 
   /**
    * \remark The executed \ref command_task_flow will be moved, and no other
    * operations can be performed on \ref command_task_flow after calling this
    * function.
    */
-  ExecuteResult RunCommandAndWait(CommandTaskFlow&& command_task_flow);
+  Result<RenderFutureState> RunCommandAndWait(
+      CommandTaskFlow&& command_task_flow);
 
-  /**
-   * \remark The executed \ref command_task_flow will be moved, and no other
-   * operations can be performed on \ref command_task_flow after calling this
-   * function.
-   */
-  RenderFuture RunCommand(CommandTaskFlow& command_task_flow);
+  Result<RenderFuture> RunSingleCommand(CommandType command_type,
+                                        bool is_async_record,
+                                        const TaskType& commands);
 
-  /**
-   * \remark The executed \ref command_task_flow will be moved, and no other
-   * operations can be performed on \ref command_task_flow after calling this
-   * function.
-   */
-  ExecuteResult RunCommandAndWait(CommandTaskFlow& command_task_flow);
-
-  RenderFuture RunSingleCommand(
-      CommandBufferType command_type, std::uint32_t use_render_resource_count,
-      const std::function<ExecuteResult(AllocatedCommandBuffer& cmd)>&
-          commands);
-
-  RenderFuture RunSingleCommand(
-      CommandBufferType command_type, std::uint32_t use_render_resource_count,
-      const std::function<ExecuteResult(AllocatedCommandBuffer& cmd)>& commands,
+  Result<RenderFuture> RunSingleCommand(
+      CommandType command_type, bool is_async_record,
       const std::vector<RenderResourceDataID>&
-          cross_task_flow_sync_render_resource_data_ID);
+          cross_task_flow_sync_render_resource_data_ID,
+      const TaskType& commands);
 
-  MM::ExecuteResult RunSingleCommandAndWait(
-      CommandBufferType command_type, std::uint32_t use_render_resource_count,
-      const std::function<MM::ExecuteResult(AllocatedCommandBuffer& cmd)>&
-          commands);
+  Result<RenderFutureState> RunSingleCommandAndWait(CommandType command_type,
+                                                    bool is_async_record,
+                                                    const TaskType& commands);
 
-  MM::ExecuteResult RunSingleCommandAndWait(
-      CommandBufferType command_type, std::uint32_t use_render_resource_count,
-      const std::function<MM::ExecuteResult(AllocatedCommandBuffer& cmd)>&
-          commands,
+  Result<RenderFutureState> RunSingleCommandAndWait(
+      CommandType command_type, bool is_async_record,
       const std::vector<RenderResourceDataID>&
-          cross_task_flow_sync_render_resource_data_ID);
+          cross_task_flow_sync_render_resource_data_ID,
+      const TaskType& commands);
 
   CommandExecutorLockGuard GetCommandExecutorLockGuard();
 
   /**
    * \remark The range specified by \ref regions cannot overlap.
    */
-  ExecuteResult CopyBuffer(AllocatedBuffer& src_buffer,
-                           AllocatedBuffer& dest_buffer,
-                           const std::vector<VkBufferCopy2>& regions);
+  Result<Nil> CopyBuffer(
+      AllocatedBuffer& src_buffer, AllocatedBuffer& dest_buffer,
+      const std::vector<VkBufferCopy2>& regions);
 
   /**
    * \remark The range specified by \ref regions cannot overlap and src_buffer
    * can equal to dest_buffer.
    */
-  ExecuteResult CopyBuffer(const AllocatedBuffer& src_buffer,
+  Result<Nil> CopyBuffer(const AllocatedBuffer& src_buffer,
                            AllocatedBuffer& dest_buffer,
                            const std::vector<VkBufferCopy2>& regions);
 
@@ -195,7 +169,7 @@ class RenderEngine {
    * cannot overlap, but the areas specified between each \ref VkBufferCopy2 can
    * overlap.
    */
-  ExecuteResult CopyBuffer(
+  Result<Nil> CopyBuffer(
       AllocatedBuffer& src_buffer, AllocatedBuffer& dest_buffer,
       const std::vector<std::vector<VkBufferCopy2>>& regions_vector);
 
@@ -204,21 +178,21 @@ class RenderEngine {
    * cannot overlap, but the areas specified between each \ref VkBufferCopy2 can
    * overlap.
    */
-  ExecuteResult CopyBuffer(
+  Result<Nil> CopyBuffer(
       const AllocatedBuffer& src_buffer, AllocatedBuffer& dest_buffer,
       const std::vector<std::vector<VkBufferCopy2>>& regions_vector);
 
   /**
    * \remark The range specified by \ref regions cannot overlap.
    */
-  ExecuteResult CopyImage(AllocatedImage& src_image, AllocatedImage& dest_image,
+  Result<Nil> CopyImage(AllocatedImage& src_image, AllocatedImage& dest_image,
                           const std::vector<VkImageCopy2>& regions);
 
   /**
    * \remark The range specified by \ref regions cannot overlap and src_image
    * can not equal to dest_image.
    */
-  ExecuteResult CopyImage(const AllocatedImage& src_image,
+  Result<Nil> CopyImage(const AllocatedImage& src_image,
                           AllocatedImage& dest_image,
                           const std::vector<VkImageCopy2>& regions);
 
@@ -227,7 +201,7 @@ class RenderEngine {
    * cannot overlap, but the areas specified between each \ref VkImageCopy can
    * overlap.
    */
-  ExecuteResult CopyImage(
+  Result<Nil> CopyImage(
       AllocatedImage& src_image, AllocatedImage& dest_image,
       const std::vector<std::vector<VkImageCopy2>>& regions_vector);
 
@@ -236,11 +210,11 @@ class RenderEngine {
    * cannot overlap, but the areas specified between each \ref VkImageCopy can
    * overlap.Src_image can not equal to dest_image.
    */
-  ExecuteResult CopyImage(
+  Result<Nil> CopyImage(
       const AllocatedImage& src_image, AllocatedImage& dest_image,
       const std::vector<std::vector<VkImageCopy2>>& regions_vector);
 
-  ExecuteResult CopyDataToBuffer(AllocatedBuffer& dest_buffer, const void* data,
+  Result<Nil> CopyDataToBuffer(AllocatedBuffer& dest_buffer, const void* data,
                                  const VkDeviceSize& copy_offset,
                                  const VkDeviceSize& copy_size);
 
@@ -307,10 +281,10 @@ class RenderEngine {
       const std::vector<VkPresentModeKHR>& available_present_modes);
   VkExtent2D ChooseSwapExtent(const VkSurfaceCapabilitiesKHR& capabilities);
   void ChooseMultiSampleCount();
-  ExecuteResult CopyBufferInputParametersCheck(
+  static Result<Nil> CopyBufferInputParametersCheck(
       AllocatedBuffer& src_buffer, AllocatedBuffer& dest_buffer,
       const std::vector<VkBufferCopy2>& regions);
-  ExecuteResult CopyImageInputParametersCheck(
+  Result<Nil> CopyImageInputParametersCheck(
       AllocatedImage& src_image, AllocatedImage& dest_image,
       const std::vector<VkImageCopy2>& regions);
 

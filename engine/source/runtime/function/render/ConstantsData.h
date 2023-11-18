@@ -33,7 +33,7 @@ class ConstantsData {
 
     return *this;
   }
-  ConstantsData& operator=(ConstantsData&& other) {
+  ConstantsData& operator=(ConstantsData&& other) noexcept {
     if (std::addressof(other) == this) {
       return *this;
     }

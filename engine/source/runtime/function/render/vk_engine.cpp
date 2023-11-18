@@ -29,7 +29,7 @@ void MM::RenderSystem::RenderEngine::CleanUp() {
     // vkDestroyCommandPool(device_, compute_command_pool_, nullptr);
     // vkDestroyCommandPool(device_, graph_command_pool_, nullptr);
 
-    MM::RenderSystem::Utils::SavePiplineCache(GetDevice(), pipeline_cache_);
+    SavePiplineCache(GetDevice(), pipeline_cache_);
     vkDestroyPipelineCache(device_, pipeline_cache_, nullptr);
 
     for (VkImageView swapchain_image_view : swapchain_image_views_) {
@@ -144,79 +144,61 @@ std::uint32_t MM::RenderSystem::RenderEngine::GetQueueIndex(
   }
 }
 
-MM::RenderSystem::RenderFuture MM::RenderSystem::RenderEngine::RunCommand(
+MM::Result<MM::RenderSystem::RenderFuture> MM::RenderSystem::RenderEngine::RunCommand(
     CommandTaskFlow&& command_task_flow) {
   assert(IsValid());
   return command_executor_->Run(std::move(command_task_flow));
 }
 
-MM::ExecuteResult MM::RenderSystem::RenderEngine::RunCommandAndWait(
+MM::Result<MM::RenderSystem::RenderFutureState, MM::ErrorResult>
+MM::RenderSystem::RenderEngine::RunCommandAndWait(
     CommandTaskFlow&& command_task_flow) {
   assert(IsValid());
   return command_executor_->RunAndWait(std::move(command_task_flow));
 }
 
-MM::RenderSystem::RenderFuture MM::RenderSystem::RenderEngine::RunCommand(
-    CommandTaskFlow& command_task_flow) {
-  assert(IsValid());
-  return command_executor_->Run(std::move(command_task_flow));
-}
-
-MM::ExecuteResult MM::RenderSystem::RenderEngine::RunCommandAndWait(
-    CommandTaskFlow& command_task_flow) {
-  assert(IsValid());
-  return command_executor_->RunAndWait(std::move(command_task_flow));
-}
-
-MM::RenderSystem::RenderFuture MM::RenderSystem::RenderEngine::RunSingleCommand(
-    CommandBufferType command_type, std::uint32_t use_render_resource_count,
-    const std::function<ExecuteResult(AllocatedCommandBuffer& cmd)>& commands) {
+MM::Result<MM::RenderSystem::RenderFuture> MM::RenderSystem::RenderEngine::RunSingleCommand(CommandType command_type,
+                                                 bool is_async_record,
+                                                 const TaskType& commands) {
   assert(IsValid());
   CommandTaskFlow command_task_flow;
-  command_task_flow.AddTask(command_type, commands, use_render_resource_count,
-                            std::vector<WaitAllocatedSemaphore>(),
-                            std::vector<AllocateSemaphore>());
+  command_task_flow.AddTask(command_type, commands, is_async_record);
 
   return command_executor_->Run(std::move(command_task_flow));
 }
 
-MM::ExecuteResult MM::RenderSystem::RenderEngine::RunSingleCommandAndWait(
-    CommandBufferType command_type, std::uint32_t use_render_resource_count,
-    const std::function<MM::ExecuteResult(
-        MM::RenderSystem::AllocatedCommandBuffer& cmd)>& commands) {
+MM::Result<MM::RenderSystem::RenderFutureState>
+MM::RenderSystem::RenderEngine::RunSingleCommandAndWait(
+    CommandType command_type, bool is_async_record, const TaskType& commands) {
   assert(IsValid());
   CommandTaskFlow command_task_flow;
-  command_task_flow.AddTask(command_type, commands, use_render_resource_count,
-                            std::vector<WaitAllocatedSemaphore>(),
-                            std::vector<AllocateSemaphore>());
+  command_task_flow.AddTask(command_type, commands, is_async_record);
 
   return command_executor_->RunAndWait(std::move(command_task_flow));
 }
 
-MM::ExecuteResult MM::RenderSystem::RenderEngine::CopyBuffer(
+MM::Result<MM::Nil> MM::RenderSystem::RenderEngine::CopyBuffer(
     AllocatedBuffer& src_buffer, AllocatedBuffer& dest_buffer,
     const std::vector<VkBufferCopy2>& regions) {
   assert(IsValid());
 #ifdef MM_CHECK_PARAMETERS
-  MM_CHECK_WITHOUT_LOG(
-      CopyBufferInputParametersCheck(src_buffer, dest_buffer, regions),
-      return MM_RESULT_CODE;)
+      Result<Nil> check_result = CopyBufferInputParametersCheck(src_buffer, dest_buffer, regions);
+      if (check_result.IsError()) {
+        return check_result;
+      }
 #endif
   VkCopyBufferInfo2 copy_buffer =
-      Utils::GetVkCopyBufferInfo2(src_buffer, dest_buffer, regions);
-  std::uint32_t use_buffer_count;
+      GetVkCopyBufferInfo2(src_buffer, dest_buffer, regions);
   std::vector<RenderResourceDataID> sync_resource_data_IDs;
   if (src_buffer.GetBuffer() == dest_buffer.GetBuffer()) {
-    use_buffer_count = 1;
     sync_resource_data_IDs.emplace_back(src_buffer.GetRenderResourceDataID());
   } else {
-    use_buffer_count = 2;
     sync_resource_data_IDs.emplace_back(src_buffer.GetRenderResourceDataID());
     sync_resource_data_IDs.emplace_back(dest_buffer.GetRenderResourceDataID());
   }
   MM_CHECK(
       RunSingleCommandAndWait(
-          CommandBufferType::TRANSFORM, use_buffer_count,
+          CommandBufferType::TRANSFORM, false,
           [&copy_buffer, &src_buffer, &dest_buffer,
            use_buffer_count](AllocatedCommandBuffer& cmd) {
             std::vector<VkBufferMemoryBarrier2> barriers;
@@ -1775,66 +1757,89 @@ VkBool32 MM::RenderSystem::ValidationLayerDebugCall(
 
 MM::RenderSystem::RenderEngine::RenderEngine() { Init(); }
 
-MM::ExecuteResult MM::RenderSystem::RenderEngine::CreateBuffer(
+MM::Result<MM::RenderSystem::AllocatedBuffer>
+MM::RenderSystem::RenderEngine::CreateBuffer(
+    const std::string& object_name,
     const VkBufferCreateInfo& vk_buffer_create_info,
     const VmaAllocationCreateInfo& vma_allocation_create_info,
-    VmaAllocationInfo* vma_allocation_info,
-    MM::RenderSystem::AllocatedBuffer& allocated_buffer) {
+    VmaAllocationInfo* vma_allocation_info) {
   assert(IsValid());
-  return Utils::CreateBuffer(this, vk_buffer_create_info,
-                             vma_allocation_create_info, vma_allocation_info,
-                             allocated_buffer);
+    VkBuffer temp_buffer{};
+  VmaAllocation temp_allocation{};
+
+  MM_VK_CHECK(vmaCreateBuffer(GetAllocator(), &vk_buffer_create_info,
+                              &vma_allocation_create_info, &temp_buffer,
+                              &temp_allocation, vma_allocation_info),
+              MM_LOG_ERROR("Failed to create buffer.");
+              return ResultE<>{VkResultToMMErrorCode(MM_VK_RESULT_CODE)};)
+
+  const BufferDataInfo buffer_data_info{
+      BufferCreateInfo(vk_buffer_create_info),
+      AllocationCreateInfo(vma_allocation_create_info)};
+  Result<RenderResourceDataAttributeID, ErrorResult>
+      render_resource_data_attribute_ID_result =
+          buffer_data_info.GetRenderResourceDataAttributeID();
+  render_resource_data_attribute_ID_result.Exception(MM_ERROR_DESCRIPTION(
+      Failed to MM::RenderSystem::RenderResourceDataAttributeID.));
+  if (render_resource_data_attribute_ID_result.IsError())
+    return ResultE<>{
+        render_resource_data_attribute_ID_result.GetError().GetErrorCode()};
+  const RenderResourceDataAttributeID& render_resource_data_attribute_ID =
+      render_resource_data_attribute_ID_result.GetResult();
+  AllocatedBuffer allocated_buffer = AllocatedBuffer(
+      object_name, RenderResourceDataID{0, render_resource_data_attribute_ID},
+      this, buffer_data_info, GetAllocator(),
+      temp_buffer, temp_allocation);
+
+  if (allocated_buffer.IsValid()) {
+    return ResultS{std::move(allocated_buffer)};
+  }
+
+  return ResultE<>{ErrorCode::CREATE_OBJECT_FAILED};
 }
 
-MM::RenderSystem::RenderFuture MM::RenderSystem::RenderEngine::RunSingleCommand(
-    CommandBufferType command_type, std::uint32_t use_render_resource_count,
-    const std::function<ExecuteResult(AllocatedCommandBuffer& cmd)>& commands,
+MM::Result<MM::RenderSystem::RenderFuture> MM::RenderSystem::RenderEngine::RunSingleCommand(
+    CommandType command_type, bool is_async_record,
     const std::vector<RenderResourceDataID>&
-        cross_task_flow_sync_render_resource_data_ID) {
+        cross_task_flow_sync_render_resource_data_ID,
+    const TaskType& commands) {
   assert(IsValid());
   CommandTaskFlow command_task_flow;
-  command_task_flow
-      .AddTask(command_type, commands, use_render_resource_count,
-               std::vector<WaitAllocatedSemaphore>(),
-               std::vector<AllocateSemaphore>())
+  command_task_flow.AddTask(command_type, commands, is_async_record)
       .AddCrossTaskFLowSyncRenderResourceIDs(
           cross_task_flow_sync_render_resource_data_ID);
 
   return command_executor_->Run(std::move(command_task_flow));
 }
 
-MM::ExecuteResult MM::RenderSystem::RenderEngine::RunSingleCommandAndWait(
-    CommandBufferType command_type, std::uint32_t use_render_resource_count,
-    const std::function<ExecuteResult(AllocatedCommandBuffer& cmd)>& commands,
+MM::Result<MM::RenderSystem::RenderFutureState> MM::RenderSystem::RenderEngine::RunSingleCommandAndWait(
+    CommandType command_type, bool is_async_record,
     const std::vector<RenderResourceDataID>&
-        cross_task_flow_sync_render_resource_data_ID) {
+        cross_task_flow_sync_render_resource_data_ID,
+    const TaskType& commands) {
   assert(IsValid());
   CommandTaskFlow command_task_flow;
-  command_task_flow
-      .AddTask(command_type, commands, use_render_resource_count,
-               std::vector<WaitAllocatedSemaphore>(),
-               std::vector<AllocateSemaphore>())
+  command_task_flow.AddTask(command_type, commands, is_async_record)
       .AddCrossTaskFLowSyncRenderResourceIDs(
           cross_task_flow_sync_render_resource_data_ID);
 
   return command_executor_->RunAndWait(std::move(command_task_flow));
 }
 
-MM::ExecuteResult MM::RenderSystem::RenderEngine::CreateStageBuffer(
-    VkDeviceSize size, std::uint32_t queue_index,
-    AllocatedBuffer& stage_buffer) {
+MM::Result<MM::RenderSystem::AllocatedBuffer> MM::RenderSystem::RenderEngine::CreateStageBuffer(
+    VkDeviceSize size, std::uint32_t queue_index) {
   assert(IsValid());
-  VkBufferCreateInfo stage_buffer_create_info = Utils::GetVkBufferCreateInfo(
+  VkBufferCreateInfo stage_buffer_create_info = GetVkBufferCreateInfo(
       nullptr, 0, size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
       VK_SHARING_MODE_EXCLUSIVE, 1, &queue_index);
   VmaAllocationCreateInfo stage_allocation_create_info =
-      Utils::GetVmaAllocationCreateInfo(
+      GetVmaAllocationCreateInfo(
           VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT,
           VMA_MEMORY_USAGE_AUTO, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
           VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, 0, nullptr, nullptr, 1);
   MM_CHECK_WITHOUT_LOG(
-      CreateBuffer(stage_buffer_create_info, stage_allocation_create_info,
-                   nullptr, stage_buffer),
+      CreateBuffer(TODO, stage_buffer_create_info,
+                                    stage_allocation_create_info, nullptr),
       MM_LOG_ERROR("Failed to create stage buffer.");
       return MM_RESULT_CODE;)
 
@@ -1871,36 +1876,35 @@ bool MM::RenderSystem::RenderEngine::CommandExecutorIsFree() const {
   return command_executor_->IsFree();
 }
 
-MM::ExecuteResult
+MM::Result<MM::Nil>
 MM::RenderSystem::RenderEngine::CopyBufferInputParametersCheck(
-    MM::RenderSystem::AllocatedBuffer& src_buffer,
-    MM::RenderSystem::AllocatedBuffer& dest_buffer,
+    AllocatedBuffer& src_buffer, AllocatedBuffer& dest_buffer,
     const std::vector<VkBufferCopy2>& regions) {
   if (!src_buffer.IsValid()) {
     MM_LOG_ERROR("Src_buffer is invalid.");
-    return ExecuteResult::OBJECT_IS_INVALID;
+    return ResultE<>{ErrorCode::OBJECT_IS_INVALID};
   }
 
   if (!dest_buffer.IsValid()) {
     MM_LOG_ERROR("Dest_buffer is invalid.");
-    return ExecuteResult::OBJECT_IS_INVALID;
+    return ResultE<>{ErrorCode::OBJECT_IS_INVALID};
   }
 
   if (!src_buffer.IsTransformSrc() || !dest_buffer.IsTransformDest()) {
     MM_LOG_ERROR(
         "Src_buffer or dest_buffer is not Transform src buffer or Transform "
         "dest buffer.");
-    return ExecuteResult::OPERATION_NOT_SUPPORTED;
+    return ResultE<>{ErrorCode::OPERATION_NOT_SUPPORTED};
   }
 
   if (regions.empty()) {
-    return ExecuteResult::SUCCESS;
+    return ResultS<Nil>{};
   }
 
   for (const auto& region : regions) {
     if (region.size == 0) {
       MM_LOG_ERROR("VkBufferCopy2::size must greater than 0.");
-      return ExecuteResult::OPERATION_NOT_SUPPORTED;
+      return ResultE<>{ErrorCode::OPERATION_NOT_SUPPORTED};
     }
   }
 
@@ -1912,7 +1916,7 @@ MM::RenderSystem::RenderEngine::CopyBufferInputParametersCheck(
           region.dstOffset + region.size > dest_buffer.GetBufferSize()) {
         MM_LOG_ERROR(
             "The sum of size and src_offset/dest_offset is too large.");
-        return ExecuteResult::INPUT_PARAMETERS_ARE_NOT_SUITABLE;
+        return ResultE<>{ErrorCode::INPUT_PARAMETERS_ARE_NOT_SUITABLE};
       }
       if (write_areas.empty()) {
         write_areas.emplace_back(region.dstOffset, region.size);
@@ -1926,7 +1930,7 @@ MM::RenderSystem::RenderEngine::CopyBufferInputParametersCheck(
             MM_LOG_ERROR(
                 "During the buffer copy process, there is an overlap in the "
                 "specified copy area.");
-            return ExecuteResult::INPUT_PARAMETERS_ARE_NOT_SUITABLE;
+            return ResultE<>{ErrorCode::INPUT_PARAMETERS_ARE_NOT_SUITABLE};
           }
           write_areas.emplace(write_area, region.dstOffset, region.size);
           have_greater_than = true;
@@ -1939,7 +1943,7 @@ MM::RenderSystem::RenderEngine::CopyBufferInputParametersCheck(
           MM_LOG_ERROR(
               "During the buffer copy process, there is an overlap in the "
               "specified copy area.");
-          return ExecuteResult::INPUT_PARAMETERS_ARE_NOT_SUITABLE;
+          return ResultE<>{ErrorCode::INPUT_PARAMETERS_ARE_NOT_SUITABLE};
         }
         write_areas.emplace_back(region.dstOffset, region.size);
       }
@@ -1951,7 +1955,7 @@ MM::RenderSystem::RenderEngine::CopyBufferInputParametersCheck(
             MM_LOG_ERROR(
                 "During the buffer copy process, there is an overlap in the "
                 "specified copy area.");
-            return ExecuteResult::INPUT_PARAMETERS_ARE_NOT_SUITABLE;
+            return ResultE<>{ErrorCode::INPUT_PARAMETERS_ARE_NOT_SUITABLE};
           }
           break;
         }
@@ -1963,12 +1967,12 @@ MM::RenderSystem::RenderEngine::CopyBufferInputParametersCheck(
           region.dstOffset + region.size > dest_buffer.GetBufferSize()) {
         MM_LOG_ERROR(
             "The sum of size and src_offset/dest_offset is too large.");
-        return ExecuteResult::INPUT_PARAMETERS_ARE_NOT_SUITABLE;
+        return ResultE<>{ErrorCode::INPUT_PARAMETERS_ARE_NOT_SUITABLE};
       }
     }
   }
 
-  return ExecuteResult ::SUCCESS;
+  return ResultS<Nil>{};
 }
 
 MM::ExecuteResult MM::RenderSystem::RenderEngine::CopyImageInputParametersCheck(

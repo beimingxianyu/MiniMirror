@@ -5,85 +5,85 @@
 #include "runtime/function/render/vk_enum.h"
 
 MM::RenderSystem::DynamicState MM::RenderSystem::operator|(
-    const MM::RenderSystem::DynamicState& lhs,
-    const MM::RenderSystem::DynamicState& rhs) {
+    const DynamicState& lhs,
+    const DynamicState& rhs) {
   return DynamicState{static_cast<std::uint64_t>(lhs) |
                       static_cast<std::uint64_t>(rhs)};
 }
 
 MM::RenderSystem::DynamicState& MM::RenderSystem::operator|=(
-    MM::RenderSystem::DynamicState& lhs,
-    const MM::RenderSystem::DynamicState& rhs) {
+    DynamicState& lhs,
+    const DynamicState& rhs) {
   lhs = lhs | rhs;
   return lhs;
 }
 
 MM::RenderSystem::DynamicState MM::RenderSystem::operator&(
-    const MM::RenderSystem::DynamicState& lhs,
-    const MM::RenderSystem::DynamicState& rhs) {
+    const DynamicState& lhs,
+    const DynamicState& rhs) {
   return DynamicState{static_cast<std::uint64_t>(lhs) &
                       static_cast<std::uint64_t>(rhs)};
 }
 
 MM::RenderSystem::DynamicState& MM::RenderSystem::operator&=(
-    MM::RenderSystem::DynamicState& lhs,
-    const MM::RenderSystem::DynamicState& rhs) {
+    DynamicState& lhs,
+    const DynamicState& rhs) {
   lhs = lhs & rhs;
   return lhs;
 }
 
 MM::RenderSystem::ShaderStage MM::RenderSystem::operator|(
-    const MM::RenderSystem::ShaderStage& lhs,
-    const MM::RenderSystem::ShaderStage& rhs) {
+    const ShaderStage& lhs,
+    const ShaderStage& rhs) {
   return static_cast<ShaderStage>(static_cast<std::uint32_t>(lhs) |
                                   static_cast<std::uint32_t>(rhs));
 }
 
 MM::RenderSystem::ShaderStage& MM::RenderSystem::operator|=(
-    MM::RenderSystem::ShaderStage& lhs,
-    const MM::RenderSystem::ShaderStage& rhs) {
+    ShaderStage& lhs,
+    const ShaderStage& rhs) {
   lhs = lhs | rhs;
   return lhs;
 }
 
 MM::RenderSystem::ShaderStage MM::RenderSystem::operator&(
-    const MM::RenderSystem::ShaderStage& lhs,
-    const MM::RenderSystem::ShaderStage& rhs) {
+    const ShaderStage& lhs,
+    const ShaderStage& rhs) {
   return static_cast<ShaderStage>(static_cast<std::uint32_t>(lhs) &
                                   static_cast<std::uint32_t>(rhs));
 }
 
 MM::RenderSystem::ShaderStage& MM::RenderSystem::operator&=(
-    MM::RenderSystem::ShaderStage& lhs,
-    const MM::RenderSystem::ShaderStage& rhs) {
+    ShaderStage& lhs,
+    const ShaderStage& rhs) {
   lhs = lhs & rhs;
   return lhs;
 }
 
 MM::RenderSystem::ShaderSlotCount MM::RenderSystem::operator|(
-    const MM::RenderSystem::ShaderSlotCount& lhs,
-    const MM::RenderSystem::ShaderSlotCount& rhs) {
+    const ShaderSlotCount& lhs,
+    const ShaderSlotCount& rhs) {
   return ShaderSlotCount{static_cast<std::uint64_t>(lhs) |
                          static_cast<std::uint64_t>(rhs)};
 }
 
 MM::RenderSystem::ShaderSlotCount& MM::RenderSystem::operator|=(
-    MM::RenderSystem::ShaderSlotCount& lhs,
-    const MM::RenderSystem::ShaderSlotCount& rhs) {
+    ShaderSlotCount& lhs,
+    const ShaderSlotCount& rhs) {
   lhs = lhs | rhs;
   return lhs;
 }
 
 MM::RenderSystem::ShaderSlotCount MM::RenderSystem::operator&(
-    const MM::RenderSystem::ShaderSlotCount& lhs,
-    const MM::RenderSystem::ShaderSlotCount& rhs) {
+    const ShaderSlotCount& lhs,
+    const ShaderSlotCount& rhs) {
   return ShaderSlotCount{static_cast<std::uint64_t>(lhs) &
                          static_cast<std::uint64_t>(rhs)};
 }
 
 MM::RenderSystem::ShaderSlotCount& MM::RenderSystem::operator&=(
-    MM::RenderSystem::ShaderSlotCount& lhs,
-    const MM::RenderSystem::ShaderSlotCount& rhs) {
+    ShaderSlotCount& lhs,
+    const ShaderSlotCount& rhs) {
   lhs = lhs & rhs;
   return lhs;
 }

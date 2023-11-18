@@ -452,15 +452,13 @@ ExecuteResult MeshBufferManager::RemoveBufferFragmentationImp(
   VmaAllocationCreateInfo vma_allocation_create_info{
       0, VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE, 0, 0, 0, nullptr, nullptr, 0.5};
   AllocatedBuffer vertex_stage_buffer, index_stage_buffer;
-  MM_CHECK(render_engine->CreateBuffer(buffer_create_info,
-                                       vma_allocation_create_info, nullptr,
-                                       vertex_stage_buffer),
+  MM_CHECK(render_engine->CreateBuffer(TODO, buffer_create_info,
+                                       vma_allocation_create_info, nullptr),
            MM_LOG_ERROR("Failed to create stage buffer.");
            return MM_RESULT_CODE;)
   buffer_create_info.size = index_stage_buffer_size;
-  MM_CHECK(render_engine->CreateBuffer(buffer_create_info,
-                                       vma_allocation_create_info, nullptr,
-                                       index_stage_buffer),
+  MM_CHECK(render_engine->CreateBuffer(TODO, buffer_create_info,
+                                       vma_allocation_create_info, nullptr),
            MM_LOG_ERROR("Failed to create stage buffer.");
            return MM_RESULT_CODE;)
 
