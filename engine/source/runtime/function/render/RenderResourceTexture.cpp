@@ -7,9 +7,7 @@
 #include "runtime/function/render/vk_engine.h"
 
 MM::RenderSystem::RenderResourceTexture::RenderResourceTexture(
-    MM::RenderSystem::AllocatedImage* allocated_image,
-    MM::RenderSystem::Sampler&& sampler,
-    MM::RenderSystem::ImageView&& image_view)
+    AllocatedImage* allocated_image, Sampler&& sampler, ImageView&& image_view)
     : allocated_image_(allocated_image),
       sampler_(std::move(sampler)),
       image_view_(std::move(image_view)) {
@@ -39,9 +37,9 @@ MM::RenderSystem::RenderResourceTexture::RenderResourceTexture(
 }
 
 MM::RenderSystem::RenderResourceTexture::RenderResourceTexture(
-    MM::RenderSystem::AllocatedImage* allocated_image,
-    const MM::RenderSystem::SamplerCreateInfo& sampler_create_info,
-    const MM::RenderSystem::ImageViewCreateInfo& image_view_create_info,
+    AllocatedImage* allocated_image,
+    const SamplerCreateInfo& sampler_create_info,
+    const ImageViewCreateInfo& image_view_create_info,
     VkAllocationCallbacks* sampler_allocator,
     VkAllocationCallbacks* image_view_allocator)
     : allocated_image_(allocated_image), sampler_(), image_view_() {
@@ -50,7 +48,7 @@ MM::RenderSystem::RenderResourceTexture::RenderResourceTexture(
     return;
   }
 
-  sampler_ = Sampler{allocated_image_->GetRenderEnginePtr()->GetDevice(),
+  sampler_ = Sampler{allocated_image_->GetRenderEnginePtr(),
                      sampler_allocator, sampler_create_info};
   if (!sampler_.IsValid()) {
     allocated_image_ = nullptr;
@@ -58,7 +56,7 @@ MM::RenderSystem::RenderResourceTexture::RenderResourceTexture(
     return;
   }
 
-  image_view_ = ImageView{allocated_image_->GetRenderEnginePtr()->GetDevice(),
+  image_view_ = ImageView{allocated_image_->GetRenderEnginePtr(),
                           image_view_allocator, image_view_create_info};
   if (!image_view_.IsValid()) {
     allocated_image_ = nullptr;
@@ -69,17 +67,19 @@ MM::RenderSystem::RenderResourceTexture::RenderResourceTexture(
 }
 
 MM::RenderSystem::RenderResourceTexture::RenderResourceTexture(
-    MM::RenderSystem::AllocatedImage* allocated_image,
+    AllocatedImage* allocated_image,
     const VkSamplerCreateInfo& vk_sampler_create_info,
     const VkImageViewCreateInfo& vk_image_view_create_info,
     VkAllocationCallbacks* sampler_allocator,
-    VkAllocationCallbacks* image_view_allocator) {
+    VkAllocationCallbacks* image_view_allocator)
+      : allocated_image_(allocated_image) {
   if (allocated_image_ == nullptr || !allocated_image_->IsValid()) {
+    allocated_image_ = nullptr;
     MM_LOG_ERROR("The input parameter allocated_image is invalid.");
     return;
   }
 
-  sampler_ = Sampler{allocated_image_->GetRenderEnginePtr()->GetDevice(),
+  sampler_ = Sampler{allocated_image_->GetRenderEnginePtr(),
                      sampler_allocator, vk_sampler_create_info};
   if (!sampler_.IsValid()) {
     allocated_image_ = nullptr;
@@ -87,7 +87,7 @@ MM::RenderSystem::RenderResourceTexture::RenderResourceTexture(
     return;
   }
 
-  image_view_ = ImageView{allocated_image_->GetRenderEnginePtr()->GetDevice(),
+  image_view_ = ImageView{allocated_image_->GetRenderEnginePtr(),
                           image_view_allocator, vk_image_view_create_info};
   if (!image_view_.IsValid()) {
     allocated_image_ = nullptr;
@@ -98,7 +98,7 @@ MM::RenderSystem::RenderResourceTexture::RenderResourceTexture(
 }
 
 MM::RenderSystem::RenderResourceTexture::RenderResourceTexture(
-    MM::RenderSystem::RenderResourceTexture&& other) noexcept
+    RenderResourceTexture&& other) noexcept
     : allocated_image_(other.allocated_image_),
       sampler_(std::move(other.sampler_)),
       image_view_(std::move(other.image_view_)) {
@@ -107,7 +107,7 @@ MM::RenderSystem::RenderResourceTexture::RenderResourceTexture(
 
 MM::RenderSystem::RenderResourceTexture&
 MM::RenderSystem::RenderResourceTexture::operator=(
-    MM::RenderSystem::RenderResourceTexture&& other) noexcept {
+    RenderResourceTexture&& other) noexcept {
   if (std::addressof(other) == this) {
     return *this;
   }

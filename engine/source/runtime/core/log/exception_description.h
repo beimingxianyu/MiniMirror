@@ -8,7 +8,18 @@
   std::string("[") + function_name + "] " + #description
 
 #define MM_LOG_DESCRIPTION_MESSAGE2(function_name, description) \
-  std::string("[") + function_name + "] " + #description
+  std::string("[") + function_name + "] " + description
+
+#define MM_LOG_DESCRIPTION_CHECK_RESULT(error_code, function_name,description, log_level) \
+  MM_LOG_SYSTEM->CheckResult(                                               \
+      error_code, std::string("[") + function_name + "] " + #description,   \
+      MM::LogSystem::LogSystem::LogLevel::log_level);
+
+
+#define MM_LOG_DESCRIPTION_CHECK_RESULT2(error_code, function_name, description, log_level) \
+  MM_LOG_SYSTEM->CheckResult(                                               \
+      error_code, std::string("[") + function_name + "] " + description,   \
+      MM::LogSystem::LogSystem::LogLevel::log_level);
 
 #define MM_TRACE_DESCRIPTION(description)                            \
   [function_name = MM_FUNCTION_NAME](MM::ErrorResult error_result) { \

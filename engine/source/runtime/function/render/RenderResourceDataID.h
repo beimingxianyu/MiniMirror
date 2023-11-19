@@ -69,7 +69,7 @@ class RenderResourceDataID {
 template <>
 struct std::hash<MM::RenderSystem::RenderResourceDataID> {
   std::uint64_t operator()(
-      const MM::RenderSystem::RenderResourceDataID& object) const {
+      const MM::RenderSystem::RenderResourceDataID& object) const noexcept {
     return object.GetAssetID() ^ object.GetResourceAttributeID().GetHashCode();
   }
 };

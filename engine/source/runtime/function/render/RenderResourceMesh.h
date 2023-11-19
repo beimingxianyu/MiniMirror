@@ -1,6 +1,8 @@
 //
 // Created by beimingxianyu on 23-7-27.
 //
+#pragma once
+
 #include "runtime/function/render/AllocatedMesh.h"
 
 namespace MM {

@@ -8,12 +8,8 @@
 #include "runtime/function/render/RenderResourceDataBase.h"
 #include "runtime/function/render/vk_type_define.h"
 #include "runtime/function/render/vk_utils.h"
-#include "runtime/platform/base/error.h"
 #include "runtime/resource/asset_system/AssetManager.h"
-#include "runtime/resource/asset_system/AssetSystem.h"
 #include "runtime/resource/asset_system/asset_type/base/asset_type_define.h"
-#include "utils/error.h"
-#include "utils/marco.h"
 
 namespace MM {
 namespace RenderSystem {
@@ -58,22 +54,22 @@ class AllocatedBufferWrapper {
   VmaAllocation allocation_{nullptr};
 };
 
-class AllocatedBuffer : public RenderResourceDataBase {
+class AllocatedBuffer final : public RenderResourceDataBase {
  public:
   AllocatedBuffer() = default;
   virtual ~AllocatedBuffer() override = default;
   AllocatedBuffer(
       const std::string& name,
-      const MM::RenderSystem::RenderResourceDataID& render_resource_data_ID,
+      const RenderResourceDataID& render_resource_data_ID,
       RenderEngine* render_engine,
-      const MM::RenderSystem::BufferDataInfo& buffer_data_info,
+      const BufferDataInfo& buffer_data_info,
       VmaAllocator vma_allocator, VkBuffer vk_buffer,
       VmaAllocation vk_allocation);
   AllocatedBuffer(const std::string& name, RenderEngine* render_engine,
                   const VkBufferCreateInfo* vk_buffer_create_info,
                   const VmaAllocationCreateInfo* vma_allocation_create_info);
   AllocatedBuffer(const std::string& name, RenderEngine* render_engine,
-                  MM::AssetSystem::AssetManager::HandlerType asset_handler,
+                  AssetSystem::AssetManager::HandlerType asset_handler,
                   const VkBufferCreateInfo* vk_buffer_create_info,
                   const VmaAllocationCreateInfo* vma_allocation_create_info);
   AllocatedBuffer(const AllocatedBuffer& other) = delete;
@@ -109,7 +105,7 @@ class AllocatedBuffer : public RenderResourceDataBase {
   const std::vector<BufferSubResourceAttribute>& GetSubResourceAttributes()
       const;
 
-  ExecuteResult TransformSubResourceAttribute(
+  Result<Nil> TransformSubResourceAttribute(
       const std::vector<BufferSubResourceAttribute>&
           new_sub_resource_attribute);
 
@@ -133,70 +129,67 @@ class AllocatedBuffer : public RenderResourceDataBase {
   //  buffer_chunk_info,
   //                                     std::uint32_t new_queue_family_index);
 
-  ExecuteResult CopyDataToBuffer(std::uint64_t dest_offset, void* data,
+  Result<Nil> CopyDataToBuffer(std::uint64_t dest_offset, void* data,
                                  std::uint64_t src_offset, std::uint64_t size);
 
-  ExecuteResult CopyDataToBuffer(
+  Result<Nil> CopyDataToBuffer(
       const std::tuple<std::uint64_t, void*, std::uint64_t, std::uint64_t>*
           copy_info,
       std::uint32_t count);
 
-  ExecuteResult CopyDataToBuffer(
+  Result<Nil> CopyDataToBuffer(
       const std::vector<std::tuple<std::uint64_t, void*, std::uint64_t,
                                    std::uint64_t>>& copy_info);
 
-  MM::ExecuteResult CopyAssetDataToBuffer(
-      MM::AssetSystem::AssetManager::HandlerType asset_handler,
+  Result<Nil> CopyAssetDataToBuffer(
+      AssetSystem::AssetManager::HandlerType asset_handler,
       std::uint32_t queue_index);
 
-  MM::Utils::ExecuteResult GetVkBufferMemoryBarriber2(
+  Result<std::vector<VkBufferMemoryBarrier2>> GetVkBufferMemoryBarriber2(
       VkDeviceSize offset, VkDeviceSize size,
       VkPipelineStageFlags2 src_stage_mask, VkAccessFlags2 src_access_mask,
       VkPipelineStageFlags2 dst_stage_mask, VkAccessFlags2 dst_access_mask,
-      QueueIndex new_index,
-      std::vector<VkBufferMemoryBarrier2>& barriers) const;
+      QueueIndex new_index) const;
 
-  ExecuteResult GetCopy(const std::string& new_name,
-                        AllocatedBuffer& new_allocated_buffer) const;
+  Result<AllocatedBuffer> GetCopy(const std::string& new_name) const;
 
-  ExecuteResult GetCopy(
-      std::vector<std::string>& new_names,
-      std::vector<AllocatedBuffer>& new_allocated_buffers) const;
+  Result<std::vector<AllocatedBuffer>> GetCopy(
+      std::vector<std::string>& new_names) const;
 
   void Release() override;
 
   bool IsValid() const override;
 
  private:
-  static ExecuteResult CheckInitParameters(
+  static Result<Nil> CheckInitParameters(
       RenderEngine* render_engine,
       const VkBufferCreateInfo* vk_buffer_create_info,
       const VmaAllocationCreateInfo* vma_allocation_create_info);
 
-  static ExecuteResult CheckInitParametersWhenInitFromAnAsset(
+  static Result<Nil> CheckInitParametersWhenInitFromAnAsset(
       RenderEngine* render_engine,
       AssetSystem::AssetManager::HandlerType asset_handler,
       const VkBufferCreateInfo* vk_buffer_create_info,
       const VmaAllocationCreateInfo* vma_allocation_create_info);
 
-  ExecuteResult InitBuffer(
+  Result<Nil> InitBuffer(
       RenderEngine* render_engine,
       const VkBufferCreateInfo& vk_buffer_create_info,
       const VmaAllocationCreateInfo& vma_allocation_create_info);
 
-  ExecuteResult AddCopyBufferCommandsWhenOneSubResource(
+  Result<Nil> AddCopyBufferCommandsWhenOneSubResource(
       AllocatedCommandBuffer& cmd, VkBuffer new_buffer) const;
 
-  ExecuteResult AddCopyBufferCommandseWhenMultSubResource(
+  Result<Nil> AddCopyBufferCommandseWhenMultSubResource(
       AllocatedCommandBuffer& cmd, VkBuffer new_buffer) const;
 
-  ExecuteResult AddCopyBufferCommandsWhenOneSubResource(
+  Result<Nil> AddCopyBufferCommandsWhenOneSubResource(
       AllocatedCommandBuffer& cmd, std::vector<VkBuffer>& new_buffers) const;
 
-  ExecuteResult AddCopyBufferCommandseWhenMultSubResource(
+  Result<Nil> AddCopyBufferCommandseWhenMultSubResource(
       AllocatedCommandBuffer& cmd, std::vector<VkBuffer>& new_buffers) const;
 
-  ExecuteResult CheckTransformInputParameter(
+  Result<Nil> CheckTransformInputParameter(
       const std::vector<BufferSubResourceAttribute>& new_sub_resource_attribute)
       const;
 

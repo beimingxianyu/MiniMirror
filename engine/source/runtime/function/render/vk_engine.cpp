@@ -3,6 +3,7 @@
 #include <set>
 
 #include "runtime/function/render/vk_enum.h"
+#include "runtime/function/render/CommandExecutor.h"
 
 const std::string MM::RenderSystem::RenderEngine::validation_layers_name{
     "VK_LAYER_KHRONOS_validation"};
