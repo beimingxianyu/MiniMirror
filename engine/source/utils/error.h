@@ -1,7 +1,10 @@
 #pragma once
+#include <cassert>
 #include <cstdint>
 #include <iostream>
 #include <memory>
+
+#include "utils/marco.h"
 
 namespace MM {
 
@@ -54,7 +57,7 @@ ErrorCode operator&=(ErrorCode l_result, ErrorCode r_result);
 class ErrorTypeBase {
  public:
   ErrorTypeBase() = default;
-  ~ErrorTypeBase() = default;
+  virtual ~ErrorTypeBase() = default;
   ErrorTypeBase(const ErrorTypeBase& other) = default;
   ErrorTypeBase(ErrorTypeBase&& other) noexcept = default;
   ErrorTypeBase& operator=(const ErrorTypeBase& other) = default;
@@ -269,13 +272,25 @@ class Result {
   }
 
  public:
-  ErrorType& GetError() { return result_wrapper_.GetError(); }
+  ErrorType& GetError() {
+    assert(IsError());
+    return result_wrapper_.GetError();
+  }
 
-  const ErrorType& GetError() const { return result_wrapper_.GetError(); }
+  const ErrorType& GetError() const {
+    assert(IsError());
+    return result_wrapper_.GetError();
+  }
 
-  ResultType& GetResult() { return result_wrapper_.GetResult(); }
+  ResultType& GetResult() {
+    assert(IsSuccess());
+    return result_wrapper_.GetResult();
+  }
 
-  const ResultType& GetResult() const { return result_wrapper_.GetResult(); }
+  const ResultType& GetResult() const {
+    assert(IsSuccess());
+    return result_wrapper_.GetResult();
+  }
 
   Result&& Move() { return std::move(*this); }
 
@@ -488,7 +503,7 @@ class Result {
     }
 
     void Exception() {
-      if (error_.IsSuccess()) {
+      if (likely(error_.IsSuccess())) {
         return;
       }
 
@@ -498,7 +513,7 @@ class Result {
     }
 
     void Exception() const {
-      if (error_.IsSuccess()) {
+      if (likely(error_.IsSuccess())) {
         return;
       }
 
@@ -508,7 +523,7 @@ class Result {
     }
 
     void Exception(void callback()) const {
-      if (error_.IsSuccess()) {
+      if (likely(error_.IsSuccess())) {
         return;
       }
 
@@ -519,7 +534,7 @@ class Result {
     }
 
     void Exception(void callback(ResultType&, const ErrorType&)) {
-      if (error_.IsSuccess()) {
+      if (likely(error_.IsSuccess())) {
         return;
       }
 
@@ -530,7 +545,7 @@ class Result {
     }
 
     void Exception(void callback(ErrorType&)) {
-      if (error_.IsSuccess()) {
+      if (likely(error_.IsSuccess())) {
         return;
       }
 
@@ -541,7 +556,7 @@ class Result {
     }
 
     void Exception(void callback(const ErrorType&)) {
-      if (error_.IsSuccess()) {
+      if (likely(error_.IsSuccess())) {
         return;
       }
 
@@ -552,7 +567,7 @@ class Result {
     }
 
     void Exception(void callback(const ErrorType&)) const {
-      if (error_.IsSuccess()) {
+      if (likely(error_.IsSuccess())) {
         return;
       }
 
@@ -584,7 +599,7 @@ class Result {
                         callback_signature7,
                     "Callback signature is invalid.");
 
-      if (error_.IsSuccess()) {
+      if (likely(error_.IsSuccess())) {
         return;
       }
 

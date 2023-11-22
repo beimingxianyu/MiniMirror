@@ -100,9 +100,11 @@ VkFence MM::RenderSystem::GetVkFence(const VkDevice& device,
     fence_create_info = GetFenceCreateInfo();
   }
   VkFence fence{nullptr};
-  MM_VK_CHECK(vkCreateFence(device, &fence_create_info, nullptr, &fence),
-              fence = nullptr;
-              MM_LOG_ERROR("Failed to create VkFence!"))
+  if (auto if_result = ConvertVkResultToMMResult(vkCreateFence(device, &fence_create_info, nullptr, &fence));
+    if_result.Exception(MM_ERROR_DESCRIPTION2("Failed to create VkFence!")).IsError()) {
+    fence = nullptr;
+  }
+
   return fence;
 }
 

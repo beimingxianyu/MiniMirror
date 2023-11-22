@@ -96,4 +96,5 @@ MM::Utils::SpinUniqueLock::SpinUniqueLock(
 }
 
 void MM::Utils::SpinUniqueLock::Lock() { spin_shared_mutex_.Lock(); }
+
 void MM::Utils::SpinUniqueLock::Unlock() { spin_shared_mutex_.Unlock(); }

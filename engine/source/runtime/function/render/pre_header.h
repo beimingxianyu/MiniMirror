@@ -7,26 +7,6 @@
 #include "runtime/resource/asset_system/AssetSystem.h"
 #include "utils/marco.h"
 
-#define MM_VK_RESULT_CODE __MM_vk_result_code_name
-
-// TODO 添加对各种情况的警告（如内存不足）
-#define MM_VK_CHECK(vk_executor, failed_callback)   \
-  {                                                 \
-    if (VkResult MM_VK_RESULT_CODE = (vk_executor); \
-        MM_VK_RESULT_CODE != VK_SUCCESS) {          \
-      MM_LOG_ERROR("Vulkan runtime error.");        \
-      failed_callback;                              \
-    }                                               \
-  }
-
-#define MM_VK_CHECK_WITHOUT_LOG(vk_executor, failed_callback) \
-  {                                                           \
-    if (VkResult MM_VK_RESULT_CODE = vk_executor;             \
-        MM_VK_RESULT_CODE != VK_SUCCESS) {                    \
-      failed_callback;                                        \
-    }                                                         \
-  }
-
 namespace MM {
 namespace RenderSystem {
 MM_IMPORT_CONFIG_SYSTEM;

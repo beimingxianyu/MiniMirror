@@ -5,7 +5,6 @@
 
 #include "runtime/function/render/MeshBufferManager.h"
 #include "runtime/function/render/RenderResourceDataBase.h"
-#include "runtime/resource/asset_system/AssetSystem.h"
 
 namespace MM {
 namespace RenderSystem {
@@ -15,11 +14,9 @@ class AllocatedMesh : public RenderResourceDataBase {
  public:
   AllocatedMesh() = default;
   virtual ~AllocatedMesh() override;
-  AllocatedMesh(const std::string& name,
-                MM::RenderSystem::MeshBufferManager* mesh_buffer_manager,
-                MM::AssetSystem::AssetManager::HandlerType mesh_asset);
-  AllocatedMesh(const std::string& name,
-                MM::RenderSystem::MeshBufferManager* mesh_buffer_manager,
+  AllocatedMesh(const std::string& name, MeshBufferManager* mesh_buffer_manager,
+                AssetSystem::AssetManager::HandlerType mesh_asset);
+  AllocatedMesh(const std::string& name, MeshBufferManager* mesh_buffer_manager,
                 VkDeviceSize vertex_buffer_size,
                 VkDeviceSize index_buffer_size);
   AllocatedMesh(const AllocatedMesh& other) = delete;
@@ -58,7 +55,7 @@ class AllocatedMesh : public RenderResourceDataBase {
 
   QueueIndex GetIndexQueueIndex() const;
 
-  ExecuteResult CopyAssetDataToBuffer(
+  Result<Nil> CopyAssetDataToBuffer(
       AssetSystem::AssetManager::HandlerType asset_handler);
 
   ResourceType GetResourceType() const override;

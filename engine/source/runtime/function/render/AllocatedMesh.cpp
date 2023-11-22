@@ -24,9 +24,8 @@ MM::RenderSystem::AllocatedMesh::~AllocatedMesh() {
 }
 
 MM::RenderSystem::AllocatedMesh::AllocatedMesh(
-    const std::string& name,
-    MM::RenderSystem::MeshBufferManager* mesh_buffer_manager,
-    MM::AssetSystem::AssetManager::HandlerType mesh_asset)
+    const std::string& name, MeshBufferManager* mesh_buffer_manager,
+    AssetSystem::AssetManager::HandlerType mesh_asset)
     : RenderResourceDataBase(name, RenderResourceDataID{}),
       mesh_buffer_manager_(mesh_buffer_manager),
       sub_vertex_buffer_info_ptr_(nullptr),
@@ -42,32 +41,36 @@ MM::RenderSystem::AllocatedMesh::AllocatedMesh(
     MM_LOG_ERROR("The mesh asset is invalid.");
     return;
   }
-  AssetSystem::AssetType::Mesh& mesh =
+  const AssetSystem::AssetType::Mesh& mesh =
       static_cast<AssetSystem::AssetType::Mesh&>(mesh_asset.GetAsset());
-  VkDeviceSize vertex_buffer_size = mesh.GetVerticesCount() *
+  const VkDeviceSize vertex_buffer_size = mesh.GetVerticesCount() *
                                     sizeof(AssetSystem::AssetType::Vertex),
                index_buffer_size = mesh.GetIndexesCount() * sizeof(VertexIndex);
 
-  MM_CHECK(mesh_buffer_manager_->AllocateMeshBuffer(vertex_buffer_size,
-                                                    index_buffer_size, *this),
-           RenderResourceDataBase::Release();
-           mesh_buffer_manager_ = nullptr; return;)
+  if (auto if_result = mesh_buffer_manager_->AllocateMeshBuffer(vertex_buffer_size,
+                                                    index_buffer_size, *this);
+                                                    if_result.IgnoreException().IsError()) {
+    RenderResourceDataBase::Release();
+    mesh_buffer_manager_ = nullptr;
+    return;
+  }
 
-  MM_CHECK(CopyAssetDataToBuffer(mesh_asset),
-           MM_LOG_ERROR("Failed to copy asset data to buffer.");
-           RenderResourceDataBase::Release();
+  if (auto if_result = CopyAssetDataToBuffer(mesh_asset);
+    if_result.Exception(MM_ERROR_DESCRIPTION2("Failed to copy asset data to buffer.")).IsError()) {
+    RenderResourceDataBase::Release();
 
-           mesh_buffer_manager_->FreeMeshBuffer(*this);
-           mesh_buffer_manager_ = nullptr;
-           sub_vertex_buffer_info_ptr_ = nullptr;
-           sub_index_buffer_info_ptr_ = nullptr; return;)
+    mesh_buffer_manager_->FreeMeshBuffer(*this);
+    mesh_buffer_manager_ = nullptr;
+    sub_vertex_buffer_info_ptr_ = nullptr;
+    sub_index_buffer_info_ptr_ = nullptr;
+    return;
+  }
 
   MarkThisIsAssetResource();
 }
 
 MM::RenderSystem::AllocatedMesh::AllocatedMesh(
-    const std::string& name,
-    MM::RenderSystem::MeshBufferManager* mesh_buffer_manager,
+    const std::string& name, MeshBufferManager* mesh_buffer_manager,
     VkDeviceSize vertex_buffer_size, VkDeviceSize index_buffer_size)
     : RenderResourceDataBase(name, RenderResourceDataID()),
       mesh_buffer_manager_(mesh_buffer_manager),
@@ -79,17 +82,19 @@ MM::RenderSystem::AllocatedMesh::AllocatedMesh(
     return;
   }
 
-  MM_CHECK(mesh_buffer_manager_->AllocateMeshBuffer(vertex_buffer_size,
-                                                    index_buffer_size, *this),
-           RenderResourceDataBase::Release();
-           mesh_buffer_manager_ = nullptr; return;)
+  if (auto if_result = mesh_buffer_manager_->AllocateMeshBuffer(vertex_buffer_size,
+                                                    index_buffer_size, *this);
+    if_result.Exception(MM_ERROR_DESCRIPTION2("Failed to allocated new MM::RenderSystem::AllocatedMesh.")).IsError()) {
+    RenderResourceDataBase::Release();
+    mesh_buffer_manager_ = nullptr;
+    return;
+  }
 
   SetRenderResourceDataID(RenderResourceDataID{
       GetObjectID().GetHash(), RenderResourceDataAttributeID{0, 0, 0}});
 }
 
-MM::RenderSystem::AllocatedMesh::AllocatedMesh(
-    MM::RenderSystem::AllocatedMesh&& other) noexcept
+MM::RenderSystem::AllocatedMesh::AllocatedMesh(AllocatedMesh&& other) noexcept
     : RenderResourceDataBase(std::move(other)),
       mesh_buffer_manager_(other.mesh_buffer_manager_),
       sub_vertex_buffer_info_ptr_(other.sub_vertex_buffer_info_ptr_),
@@ -102,7 +107,7 @@ MM::RenderSystem::AllocatedMesh::AllocatedMesh(
 }
 
 MM::RenderSystem::AllocatedMesh& MM::RenderSystem::AllocatedMesh::operator=(
-    MM::RenderSystem::AllocatedMesh&& other) noexcept {
+    AllocatedMesh&& other) noexcept {
   if (std::addressof(other) == this) {
     return *this;
   }
@@ -202,29 +207,29 @@ MM::RenderSystem::AllocatedMesh::GetIndexQueueIndex() const {
   return sub_index_buffer_info_ptr_->GetQueueIndex();
 }
 
-MM::ExecuteResult MM::RenderSystem::AllocatedMesh::CopyAssetDataToBuffer(
-    MM::AssetSystem::AssetManager::HandlerType asset_handler) {
+MM::Result<MM::Nil> MM::RenderSystem::AllocatedMesh::CopyAssetDataToBuffer(
+    AssetSystem::AssetManager::HandlerType asset_handler) {
   if (!IsValid() && !asset_handler.IsValid()) {
-    return MM::Utils::ExecuteResult ::OBJECT_IS_INVALID;
+    return ResultE<>{ErrorCode::OBJECT_IS_INVALID};
   }
 
   if (IsAssetResource()) {
     MM_LOG_ERROR(
         "It is not supported to rewrite asset data to an AllocatedBuffer that "
         "has already written asset data.");
-    return MM::Utils::ExecuteResult::OPERATION_NOT_SUPPORTED;
+    return ResultE<>{ErrorCode::OPERATION_NOT_SUPPORTED};
   }
 
   if (asset_handler.GetAsset().GetAssetType() !=
       AssetSystem::AssetType::AssetType::MESH) {
     MM_LOG_ERROR("Asset is not a mesh.");
-    return MM::Utils::ExecuteResult::OBJECT_IS_INVALID;
+    return ResultE<>{ErrorCode::OBJECT_IS_INVALID};
   }
 
   AssetSystem::AssetType::Mesh& asset_mesh =
       static_cast<AssetSystem::AssetType::Mesh&>(asset_handler.GetAsset());
 
-  VkDeviceSize buffer_vertex_size = GetVertexSize(),
+  const VkDeviceSize buffer_vertex_size = GetVertexSize(),
                buffer_index_size = GetIndexSize();
   VkDeviceSize asset_vertex_size = asset_mesh.GetVerticesCount() *
                                    sizeof(AssetSystem::AssetType::Vertex),
@@ -235,43 +240,46 @@ MM::ExecuteResult MM::RenderSystem::AllocatedMesh::CopyAssetDataToBuffer(
     MM_LOG_ERROR(
         "The vertex and index buffers are too small to hold all the data for "
         "the given asset.");
-    return MM::Utils::ExecuteResult::INPUT_PARAMETERS_ARE_NOT_SUITABLE;
+    return ResultE<>{ErrorCode::INPUT_PARAMETERS_ARE_NOT_SUITABLE};
   }
 
-  AllocatedBuffer stage_buffer{};
   RenderEngine* render_engine =
       mesh_buffer_manager_->GetAllocatedMeshBuffer().GetRenderEnginePtr();
-  MM_CHECK(render_engine->CreateStageBuffer(
+  Result<AllocatedBuffer> stage_buffer_result = render_engine->CreateStageBuffer(
                asset_vertex_size + asset_index_size,
-               render_engine->GetTransformQueueIndex(), stage_buffer),
-           MM_LOG_ERROR("Failed to create stage buffer.");
-           return MM_RESULT_CODE;)
+               render_engine->GetTransformQueueIndex());
+  if (stage_buffer_result.Exception(MM_ERROR_DESCRIPTION2("Failed to create stage buffer.")).IsError()) {
+    return ResultE<>{stage_buffer_result.GetError().GetErrorCode()};
+  }
+  AllocatedBuffer& stage_buffer = stage_buffer_result.GetResult();
+
   void* stage_data_void{nullptr};
   vmaMapMemory(stage_buffer.GetAllocator(), stage_buffer.GetAllocation(),
                &stage_data_void);
   memcpy(stage_data_void, asset_mesh.GetVertices().data(), asset_vertex_size);
-  memcpy(reinterpret_cast<char*>(stage_data_void) + asset_vertex_size,
+  memcpy(static_cast<char*>(stage_data_void) + asset_vertex_size,
          asset_mesh.GetIndexes().data(), asset_index_size);
   vmaUnmapMemory(stage_buffer.GetAllocator(), stage_buffer.GetAllocation());
 
-  MM_CHECK(
+  if (auto if_result =
       render_engine->RunSingleCommandAndWait(
-          CommandBufferType::TRANSFORM, 1,
+          CommandBufferType::TRANSFORM, false,
+          std::vector<RenderResourceDataID>{GetRenderResourceDataID()},
           [this_mesh = this, &stage_buffer, asset_vertex_size, asset_index_size,
-           &asset_mesh](AllocatedCommandBuffer& cmd) {
+           &asset_mesh](AllocatedCommandBuffer& cmd) -> Result<Nil> {
             VkBuffer vertex_buffer = this_mesh->GetVertexBuffer(),
                      index_buffer = this_mesh->GetIndexBuffer();
-            BufferChunkInfo vertex_buffer_chunk_info =
-                                this_mesh->GetVertexChunkInfo(),
-                            index_buffer_chunk_info =
-                                this_mesh->GetIndexChunkInfo();
+            const BufferChunkInfo vertex_buffer_chunk_info =
+                this_mesh->GetVertexChunkInfo();
+            const BufferChunkInfo index_buffer_chunk_info =
+                this_mesh->GetIndexChunkInfo();
 
-            QueueIndex transform_queue_index =
+            const QueueIndex transform_queue_index =
                 this_mesh->mesh_buffer_manager_->GetRenderEnginePtr()
                     ->GetTransformQueueIndex();
 
             std::array<VkBufferMemoryBarrier2, 2> barriers{
-                MM::RenderSystem::Utils::GetVkBufferMemoryBarrier2(
+                GetVkBufferMemoryBarrier2(
                     VK_PIPELINE_STAGE_2_TRANSFER_BIT, 0,
                     VK_PIPELINE_STAGE_2_TRANSFER_BIT,
                     VK_ACCESS_2_TRANSFER_WRITE_BIT,
@@ -279,7 +287,7 @@ MM::ExecuteResult MM::RenderSystem::AllocatedMesh::CopyAssetDataToBuffer(
                     transform_queue_index, vertex_buffer,
                     vertex_buffer_chunk_info.GetOffset(),
                     vertex_buffer_chunk_info.GetSize()),
-                MM::RenderSystem::Utils::GetVkBufferMemoryBarrier2(
+                GetVkBufferMemoryBarrier2(
                     VK_PIPELINE_STAGE_2_TRANSFER_BIT, 0,
                     VK_PIPELINE_STAGE_2_TRANSFER_BIT,
                     VK_ACCESS_2_TRANSFER_WRITE_BIT,
@@ -287,29 +295,26 @@ MM::ExecuteResult MM::RenderSystem::AllocatedMesh::CopyAssetDataToBuffer(
                     transform_queue_index, index_buffer,
                     index_buffer_chunk_info.GetOffset(),
                     index_buffer_chunk_info.GetSize())};
-            VkDependencyInfo dependency_info{
-                MM::RenderSystem::Utils::GetVkDependencyInfo(
-                    0, nullptr, barriers.size(), barriers.data(), 0, nullptr,
-                    0)};
+            const VkDependencyInfo dependency_info{GetVkDependencyInfo(
+                0, nullptr, barriers.size(), barriers.data(), 0, nullptr, 0)};
 
-            VkBufferCopy2 vertex_buffer_copy{
-                MM::RenderSystem::Utils::GetVkBufferCopy2(
-                    asset_vertex_size, 0,
-                    vertex_buffer_chunk_info.GetOffset())},
-                index_buffer_copy{MM::RenderSystem::Utils::GetVkBufferCopy2(
-                    asset_index_size, asset_vertex_size,
-                    index_buffer_chunk_info.GetOffset())};
-            VkCopyBufferInfo2 vertex_copy_buffer{
-                MM::RenderSystem::Utils::GetVkCopyBufferInfo2(
+            const VkBufferCopy2 vertex_buffer_copy{GetVkBufferCopy2(
+                asset_vertex_size, 0, vertex_buffer_chunk_info.GetOffset())},
+                index_buffer_copy{
+                    GetVkBufferCopy2(asset_index_size, asset_vertex_size,
+                                     index_buffer_chunk_info.GetOffset())};
+            const VkCopyBufferInfo2 vertex_copy_buffer{
+                GetVkCopyBufferInfo2(
                     nullptr, stage_buffer.GetBuffer(), vertex_buffer, 1,
                     &vertex_buffer_copy)},
-                index_copy_buffer{MM::RenderSystem::Utils::GetVkCopyBufferInfo2(
+                index_copy_buffer{GetVkCopyBufferInfo2(
                     nullptr, stage_buffer.GetBuffer(), index_buffer, 1,
                     &index_buffer_copy)};
 
-            MM_CHECK(MM::RenderSystem::Utils::BeginCommandBuffer(cmd),
-                     MM_LOG_FATAL("Failed to begin command buffer.");
-                     return MM_RESULT_CODE;)
+            if (auto if_result2 = BeginCommandBuffer(cmd);
+              if_result2.Exception(MM_FATAL_DESCRIPTION2("Failed to begin command buffer.")).IsError()) {
+              return ResultE<>{if_result2.GetError().GetErrorCode()};
+            }
 
             vkCmdPipelineBarrier2(cmd.GetCommandBuffer(), &dependency_info);
 
@@ -324,29 +329,31 @@ MM::ExecuteResult MM::RenderSystem::AllocatedMesh::CopyAssetDataToBuffer(
                       barriers[1].dstQueueFamilyIndex);
             vkCmdPipelineBarrier2(cmd.GetCommandBuffer(), &dependency_info);
 
-            MM_CHECK(MM::RenderSystem::Utils::EndCommandBuffer(cmd),
-                     MM_LOG_FATAL("Failed to end command buffer.");
-                     return MM_RESULT_CODE;)
+            if (auto if_result2 = EndCommandBuffer(cmd);
+              if_result2.Exception(MM_ERROR_DESCRIPTION2("Failed to end command buffer.")).IsError()) {
+              return ResultE<>{if_result2.GetError().GetErrorCode()};
+            }
 
             this_mesh->MarkThisIsAssetResource();
             this_mesh->SetRenderResourceDataID(
                 RenderResourceDataID(asset_mesh.GetAssetID(),
                                      RenderResourceDataAttributeID{0, 0, 0}));
 
-            return MM::Utils::ExecuteResult::SUCCESS;
-          },
-          std::vector<RenderResourceDataID>{GetRenderResourceDataID()}),
-      MM_LOG_ERROR("Failed to record commands.");
-      return MM_RESULT_CODE;)
+            return ResultS<Nil>{};
+          });
+          if_result.Exception(MM_ERROR_DESCRIPTION2("Failed to record commands.")).IsError() ||
+          if_result.GetResult() != RenderFutureState::SUCCESS) {
+    return ResultE<>{if_result.GetError().GetErrorCode()};
+  }
 
   index_count_ = asset_mesh.GetIndexesCount();
 
-  return MM::ExecuteResult::SUCCESS;
+  return ResultS<Nil>{};
 }
 
 MM::RenderSystem::ResourceType
 MM::RenderSystem::AllocatedMesh::GetResourceType() const {
-  return MM::RenderSystem::ResourceType::MESH_BUFFER;
+  return ResourceType::MESH_BUFFER;
 }
 
 VkDeviceSize MM::RenderSystem::AllocatedMesh::GetSize() const {

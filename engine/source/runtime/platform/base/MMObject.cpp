@@ -6,6 +6,9 @@
 
 MM::Utils::GUID MM::MMObject::GetGuid() const { return guid_; }
 
+MM::MMObject::MMObject(MM::MMObject&& other) noexcept
+    : guid_(std::move(other.guid_)) {}
+
 void MM::MMObject::Swap(MM::MMObject& lhs, MM::MMObject& rhs) noexcept {
   using std::swap;
   if (&lhs == &rhs) {
@@ -37,9 +40,7 @@ MM::MMObject& MM::MMObject::operator=(MM::MMObject&& other) noexcept {
     return *this;
   }
 
-  guid_ = other.guid_;
-
-  other.guid_.Reset();
+  guid_ = std::move(other.guid_);
 
   return *this;
 }

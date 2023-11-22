@@ -37,19 +37,27 @@ namespace Utils {
 
 #define MM_Print(object) std::cout << (object) << std::endl
 
-#define RUN_TIME_IMP(expression, describe, start, end)                     \
-  std::chrono::system_clock::time_point start =                            \
-      std::chrono::system_clock::now();                                    \
-  expression std::chrono::system_clock::time_point end =                   \
-      std::chrono::system_clock::now();                                    \
-  std::cout << describe                                                    \
-            << std::chrono::duration_cast<std::chrono::nanoseconds>(end -  \
-                                                                    start) \
-                   .count()                                                \
+#define RUN_TIME_IMP(expression, describe, start, end)                       \
+  std::chrono::system_clock::time_point start =                              \
+      std::chrono::system_clock::now();                                      \
+  expression std::chrono::system_clock::time_point end =                     \
+      std::chrono::system_clock::now();                                      \
+  std::cout << (describe)                                                    \
+            << std::chrono::duration_cast<std::chrono::nanoseconds>((end) -  \
+                                                                    (start)) \
+                   .count()                                                  \
             << std::endl;
 
 #define RUN_TIME(expression, describe)                             \
   RUN_TIME_IMP(expression, describe, MM_ADD_COUNTER_SUFFIX(start), \
                MM_ADD_COUNTER_SUFFIX(end))
+
+#if defined(_MSC_VER)
+#define likely(x)       (x)
+#define unlikely(x)     (x)
+#else
+#define likely(x)       __builtin_expect(!!(x), 1)
+#define unlikely(x)     __builtin_expect(!!(x), 0)
+#endif
 }  // namespace Utils
 }  // namespace MM

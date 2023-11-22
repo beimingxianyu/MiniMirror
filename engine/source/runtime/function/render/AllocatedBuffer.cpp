@@ -382,7 +382,7 @@ MM::Result<MM::Nil> MM::RenderSystem::AllocatedBuffer::CopyDataToBuffer(
 
   vmaUnmapMemory(render_engine_->GetAllocator(), stage_buffer.GetAllocation());
 
-  if (auto result = render_engine_->RunSingleCommandAndWait(
+  if (Result<RenderFutureState> result = render_engine_->RunSingleCommandAndWait(
           CommandBufferType::TRANSFORM, false,
           std::vector<RenderResourceDataID>{
               stage_buffer.GetRenderResourceDataID()},
@@ -453,7 +453,7 @@ MM::Result<MM::Nil> MM::RenderSystem::AllocatedBuffer::CopyDataToBuffer(
             }
 
             return ResultS<Nil>{};
-          }); result.Exception(MM_ERROR_DESCRIPTION2("Failed to copy data to allocated buffer.")).IsError()) {
+          }); result.Exception(MM_ERROR_DESCRIPTION2("Failed to copy data to allocated buffer.")).IsError() || result.GetResult() != RenderFutureState::SUCCESS) {
     return ResultE<>{result.GetError().GetErrorCode()};
   }
 
@@ -629,7 +629,8 @@ MM::Result<MM::Nil> MM::RenderSystem::AllocatedBuffer::CopyAssetDataToBuffer(
 
             return ResultS<Nil>{};
           });
-          if_result.Exception(MM_ERROR_DESCRIPTION2("Failed to copy asset data to AllocatedBuffer.")).IsError()) {
+          if_result.Exception(MM_ERROR_DESCRIPTION2("Failed to copy asset data to AllocatedBuffer.")).IsError() ||
+          if_result.GetResult() != RenderFutureState::SUCCESS) {
       if (!old_sub_resource_attribute.empty()) {
         buffer_data_info_.buffer_sub_resource_attributes_ =
             std::move(old_sub_resource_attribute);
@@ -853,7 +854,8 @@ MM::Result<MM::RenderSystem::AllocatedBuffer> MM::RenderSystem::AllocatedBuffer:
                   cmd, new_buffer);
             }
           }
-          );if_result.Exception(MM_ERROR_DESCRIPTION2("Failed to copy data to new buffer.")).IsError()) {
+          );if_result.Exception(MM_ERROR_DESCRIPTION2("Failed to copy data to new buffer.")).IsError() ||
+          if_result.GetResult() != RenderFutureState::SUCCESS) {
     return ResultE<>{if_result.GetError().GetErrorCode()};
   }
 
@@ -911,7 +913,8 @@ MM::Result<std::vector<MM::RenderSystem::AllocatedBuffer>> MM::RenderSystem::All
                   cmd, new_buffers);
             }
           }
-          );if_result.Exception(MM_ERROR_DESCRIPTION2("Failed to copy data to new buffer.")).IsError()) {
+          );if_result.Exception(MM_ERROR_DESCRIPTION2("Failed to copy data to new buffer.")).IsError() ||
+          if_result.GetResult() != RenderFutureState::SUCCESS) {
     return ResultE<>{if_result.GetError().GetErrorCode()};
   }
 
@@ -1339,7 +1342,8 @@ MM::RenderSystem::AllocatedBuffer::TransformSubResourceAttribute(
 
             return ResultS<Nil>{};
           }
-          ); if_result.Exception(MM_FATAL_DESCRIPTION2("Failed to transform sub resource attribute.")).IsError()) {
+          ); if_result.Exception(MM_FATAL_DESCRIPTION2("Failed to transform sub resource attribute.")).IsError() ||
+          if_result.GetResult() != RenderFutureState::SUCCESS) {
         return ResultE<>{if_result.GetError().GetErrorCode()};
           }
 
@@ -1419,7 +1423,7 @@ MM::Result<MM::Nil> MM::RenderSystem::AllocatedBuffer::CopyDataToBuffer(
     }
 
     for (std::uint32_t index = 0; index != count; ++index) {
-      char* data_ptr = reinterpret_cast<char*>(std::get<1>(copy_info[index])) +
+      char* data_ptr = static_cast<char*>(std::get<1>(copy_info[index])) +
                        std::get<2>(copy_info[index]);
 
       char* new_buffer_ptr = buffer_ptr + std::get<0>(copy_info[index]);
@@ -1557,7 +1561,8 @@ MM::Result<MM::Nil> MM::RenderSystem::AllocatedBuffer::CopyDataToBuffer(
             return ResultS<Nil>{};
           }
           );
-  if (command_execute_result.Exception(MM_ERROR_DESCRIPTION2("Failed to copy data to buffer.")).IsError()) {
+  if (command_execute_result.Exception(MM_ERROR_DESCRIPTION2("Failed to copy data to buffer.")).IsError() ||
+      command_execute_result.GetResult() != RenderFutureState::SUCCESS) {
     return ResultE<>{command_execute_result.GetError().GetErrorCode()};
   }
 

@@ -119,8 +119,7 @@ class LogSystem {
     MM::LogSystem::LogSystem::GetInstance()        \
   }
 
-#define MM_LOG(log_level, ...) \
-  MM_LOG_SYSTEM->Log(log_level, __VA_ARGS__)
+#define MM_LOG(log_level, ...) MM_LOG_SYSTEM->Log(log_level, __VA_ARGS__)
 
 #define MM_LOG_DEBUG(...) \
   MM_LOG(MM::LogSystem::LogSystem::LogLevel::DEBUG, __VA_ARGS__)

@@ -3,6 +3,7 @@
 #include <atomic>
 #include <cmath>
 #include <memory>
+#include <optional>
 #include <string>
 #include <thread>
 
@@ -157,6 +158,19 @@ const T1& Min(const T1& lhs, const T2&... rhs) {
 template <typename EnumType>
 bool EnumBool(EnumType object) {
   return static_cast<bool>(object);
+}
+
+constexpr std::uint32_t LengthOfStr(const char* str) {
+  if (str == nullptr) {
+    return 0;
+  }
+
+  std::uint32_t result = 0;
+  while (str[result] != '\0') {
+    ++result;
+  }
+
+  return result;
 }
 }  // namespace Utils
 }  // namespace MM

@@ -6,9 +6,9 @@ namespace MM {
 class MMObject {
  public:
   MMObject() = default;
-  ~MMObject() = default;
+  virtual ~MMObject() = default;
   MMObject(const MMObject& other) = default;
-  MMObject(MMObject&& other) noexcept = default;
+  MMObject(MMObject&& other) noexcept;
   MMObject& operator=(const MMObject& other);
   MMObject& operator=(MMObject&& other) noexcept;
 

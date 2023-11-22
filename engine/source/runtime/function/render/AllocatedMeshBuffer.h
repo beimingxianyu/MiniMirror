@@ -64,8 +64,8 @@ class AllocatedMeshBuffer : public MMObject {
   void Release();
 
  private:
-  ExecuteResult InitMeshBuffer(std::uint64_t vertex_buffer_size,
-                               std::uint64_t index_buffer_size);
+  Result<Nil> InitMeshBuffer(std::uint64_t vertex_buffer_size,
+                             std::uint64_t index_buffer_size);
 
  private:
   RenderEngine* render_engine_{nullptr};

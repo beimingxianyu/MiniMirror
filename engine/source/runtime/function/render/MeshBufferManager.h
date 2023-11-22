@@ -26,9 +26,12 @@ class MeshBufferManager {
 
   const RenderEngine* GetRenderEnginePtr() const;
 
-  ExecuteResult AllocateMeshBuffer(VkDeviceSize require_vertex_size,
-                                   VkDeviceSize require_index_size,
-                                   AllocatedMesh& allocated_mesh);
+  Result<AllocatedMesh> AllocateMeshBuffer(VkDeviceSize require_vertex_size,
+                                           VkDeviceSize require_index_size);
+
+  Result<Nil> AllocateMeshBuffer(VkDeviceSize require_vertex_size,
+                                 VkDeviceSize require_index_size,
+                                 AllocatedMesh& allocated_mesh);
 
   VkBuffer GetVertexBuffer();
 
@@ -56,26 +59,26 @@ class MeshBufferManager {
 
   void SetExpansionCoefficient(float expansion_coefficient);
 
-  ExecuteResult RemoveBufferFragmentation();
+  Result<Nil> RemoveBufferFragmentation();
 
-  ExecuteResult Reserve(VkDeviceSize new_vertex_buffer_size,
-                        VkDeviceSize new_index_buffer_size);
+  Result<Nil> Reserve(VkDeviceSize new_vertex_buffer_size,
+                      VkDeviceSize new_index_buffer_size);
 
   bool IsValid() const;
 
-  ExecuteResult Release();
+  Result<Nil> Release();
 
  private:
-  ExecuteResult AddRemoveBufferFragmentationCommands(
-      RenderEngine* this_render_engine, AllocatedCommandBuffer& cmd,
-      std::list<BufferSubResourceAttribute>& vertex_buffer_chunks_info,
-      std::list<BufferSubResourceAttribute>& index_buffet_chunks_info,
-      VkCopyBufferInfo2& vertex_self_copy_info,
-      VkCopyBufferInfo2& vertex_self_copy_to_stage_info,
-      VkCopyBufferInfo2& vertex_stage_copy_to_self_info,
-      VkCopyBufferInfo2& index_self_copy_info,
-      VkCopyBufferInfo2& index_self_copy_to_stage_info,
-      VkCopyBufferInfo2& index_stage_copy_to_self_info);
+  Result<Nil> AddRemoveBufferFragmentationCommands(
+      const RenderEngine* this_render_engine, AllocatedCommandBuffer& cmd,
+      const std::list<BufferSubResourceAttribute>& vertex_buffer_chunks_info,
+      const std::list<BufferSubResourceAttribute>& index_buffet_chunks_info,
+      const VkCopyBufferInfo2& vertex_self_copy_info,
+      const VkCopyBufferInfo2& vertex_self_copy_to_stage_info,
+      const VkCopyBufferInfo2& vertex_stage_copy_to_self_info,
+      const VkCopyBufferInfo2& index_self_copy_info,
+      const VkCopyBufferInfo2& index_self_copy_to_stage_info,
+      const VkCopyBufferInfo2& index_stage_copy_to_self_info);
 
   void GetRemoveBufferFragmentationBufferCopy(
       std::list<BufferSubResourceAttribute>& buffer_chunks_info,
@@ -84,28 +87,27 @@ class MeshBufferManager {
       std::vector<VkBufferCopy2>& self_copy_to_stage_regions,
       std::vector<VkBufferCopy2>& stage_copy_to_self_regions);
 
-  ExecuteResult RemoveBufferFragmentationImp(
-      MM::RenderSystem::AllocatedMeshBuffer& buffer,
+  Result<Nil> RemoveBufferFragmentationImp(
+      AllocatedMeshBuffer& buffer,
       std::list<BufferSubResourceAttribute>& vertex_buffer_chunks_info,
       std::list<BufferSubResourceAttribute>& index_buffet_chunks_info);
 
-  ExecuteResult AddReserveCommands(AllocatedCommandBuffer& cmd,
-                                   VkDependencyInfo& dependency_info,
-                                   VkCopyBufferInfo2& vertex_buffer_copy_info,
-                                   VkCopyBufferInfo2& index_buffer_copy_info);
+  Result<Nil> AddReserveCommands(AllocatedCommandBuffer& cmd, const VkDependencyInfo& dependency_info,
+      const VkCopyBufferInfo2& vertex_buffer_copy_info,
+      const VkCopyBufferInfo2& index_buffer_copy_info);
 
   void FreeMeshBuffer(AllocatedMesh& allocated_mesh);
 
-  ExecuteResult ReserveStandard(VkDeviceSize require_vertex_size,
-                                VkDeviceSize require_index_size);
+  Result<Nil> ReserveStandard(VkDeviceSize require_vertex_size,
+                              VkDeviceSize require_index_size);
 
-  ExecuteResult RemoveBufferFragmentationWithoutLock();
+  Result<Nil> RemoveBufferFragmentationWithoutLock();
 
-  ExecuteResult ReserveImp(VkDeviceSize new_vertex_buffer_size,
-                           VkDeviceSize new_index_buffer_size);
+  Result<Nil> ReserveImp(VkDeviceSize new_vertex_buffer_size,
+                         VkDeviceSize new_index_buffer_size);
 
-  ExecuteResult ReserveWithoutLock(VkDeviceSize new_vertex_buffer_size,
-                                   VkDeviceSize new_index_buffer_size);
+  Result<Nil> ReserveWithoutLock(VkDeviceSize new_vertex_buffer_size,
+                                 VkDeviceSize new_index_buffer_size);
 
  private:
   bool is_valid{false};

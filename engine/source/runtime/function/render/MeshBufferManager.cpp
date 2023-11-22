@@ -4,8 +4,14 @@
 
 #include "runtime/function/render/MeshBufferManager.h"
 
+#include <vulkan/vulkan_core.h>
+
 #include "runtime/function/render/AllocatedMesh.h"
 #include "runtime/function/render/vk_engine.h"
+#include "runtime/function/render/vk_enum.h"
+#include "runtime/function/render/vk_utils.h"
+#include "utils/error.h"
+#include "utils/type_utils.h"
 
 namespace MM {
 namespace RenderSystem {
@@ -91,13 +97,13 @@ MeshBufferManager& MeshBufferManager::operator=(
   return *this;
 }
 
-ExecuteResult MeshBufferManager::AllocateMeshBuffer(
+Result<Nil> MeshBufferManager::AllocateMeshBuffer(
     VkDeviceSize require_vertex_size, VkDeviceSize require_index_size,
     AllocatedMesh& allocated_mesh) {
   std::unique_lock<std::mutex> guard(allocate_free_mutex_);
   if (!IsValid()) {
     MM_LOG_ERROR("MM::RenderSystem::MeshBufferManager is invalid.");
-    return MM::Utils::ExecuteResult ::OBJECT_IS_INVALID;
+    return ResultE<>{ErrorCode::OBJECT_IS_INVALID};
   }
 
   VkDeviceSize vertex_buffer_size = GetAllocatedMeshBuffer().GetVertexSize(),
@@ -116,15 +122,18 @@ ExecuteResult MeshBufferManager::AllocateMeshBuffer(
   index_buffer_size = GetAllocatedMeshBuffer().GetIndexSize();
   if (capacity_data_.vertex_buffer_remaining_capacity_ < require_vertex_size ||
       capacity_data_.index_buffer_remaining_capacity_ < require_index_size) {
-    MM_CHECK(
-        ReserveStandard(vertex_buffer_size -
-                            capacity_data_.vertex_buffer_remaining_capacity_ +
-                            require_vertex_size,
-                        index_buffer_size -
-                            capacity_data_.index_buffer_remaining_capacity_ +
-                            require_index_size),
-        MM_LOG_ERROR("Failed to reserve mesh buffer.");
-        return MM_RESULT_CODE;)
+    if (auto if_result = ReserveStandard(
+            vertex_buffer_size -
+                capacity_data_.vertex_buffer_remaining_capacity_ +
+                require_vertex_size,
+            index_buffer_size -
+                capacity_data_.index_buffer_remaining_capacity_ +
+                require_index_size);
+        if_result
+            .Exception(MM_ERROR_DESCRIPTION2("Failed to reserve mesh buffer."))
+            .IsError()) {
+      return ResultE<>{if_result.GetError().GetErrorCode()};
+    }
   }
 
   vertex_buffer_size = GetAllocatedMeshBuffer().GetVertexSize();
@@ -150,7 +159,10 @@ ExecuteResult MeshBufferManager::AllocateMeshBuffer(
       pre_offset = vertex_iter->GetOffset() + vertex_iter->GetSize();
     }
 
-    MM_CHECK(RemoveBufferFragmentationWithoutLock(), return MM_RESULT_CODE;)
+    if (auto if_result = RemoveBufferFragmentationWithoutLock();
+        if_result.IgnoreException().IsError()) {
+      return ResultE<>{if_result.GetError().GetErrorCode()};
+    }
 
     assert(vertex_buffer_size -
                (vertex_back_item.GetOffset() + vertex_back_item.GetSize()) >=
@@ -179,7 +191,7 @@ ExecuteResult MeshBufferManager::AllocateMeshBuffer(
     allocated_mesh.sub_vertex_buffer_info_ptr_ = sub_vertex_buffer_info_ptr;
     allocated_mesh.sub_index_buffer_info_ptr_ = sub_index_buffer_info_ptr;
 
-    return ExecuteResult ::SUCCESS;
+    return ResultS<Nil>{};
   }
 
   // find free sub index buffer
@@ -198,7 +210,10 @@ ExecuteResult MeshBufferManager::AllocateMeshBuffer(
       pre_offset = index_iter->GetOffset() + index_iter->GetSize();
     }
 
-    MM_CHECK(RemoveBufferFragmentationWithoutLock(), return MM_RESULT_CODE;)
+    if (auto if_result = RemoveBufferFragmentationWithoutLock();
+        if_result.IgnoreException().IsError()) {
+      return ResultE<>{if_result.GetError().GetErrorCode()};
+    }
 
     assert(vertex_buffer_size -
                (vertex_back_item.GetOffset() + vertex_back_item.GetSize()) >=
@@ -227,7 +242,7 @@ ExecuteResult MeshBufferManager::AllocateMeshBuffer(
     allocated_mesh.sub_vertex_buffer_info_ptr_ = sub_vertex_buffer_info_ptr;
     allocated_mesh.sub_index_buffer_info_ptr_ = sub_index_buffer_info_ptr;
 
-    return ExecuteResult ::SUCCESS;
+    return ResultS<Nil>{};
   }
 
   VkDeviceSize new_vertex_buffer_offset{0}, new_index_buffer_offset{0};
@@ -260,7 +275,19 @@ ExecuteResult MeshBufferManager::AllocateMeshBuffer(
   allocated_mesh.sub_vertex_buffer_info_ptr_ = &(*vertex_iter);
   allocated_mesh.sub_index_buffer_info_ptr_ = &(*index_iter);
 
-  return ExecuteResult::SUCCESS;
+  return ResultS<Nil>{};
+}
+
+Result<AllocatedMesh> MeshBufferManager::AllocateMeshBuffer(
+    VkDeviceSize require_vertex_size, VkDeviceSize require_index_size) {
+  AllocatedMesh allocated_mesh_buffer{};
+  Result<Nil> allocate_result = AllocateMeshBuffer(
+      require_vertex_size, require_index_size, allocated_mesh_buffer);
+  if (allocate_result.IgnoreException().IsError()) {
+    return ResultE<>{allocate_result.GetError().GetErrorCode()};
+  }
+
+  return ResultS{std::move(allocated_mesh_buffer)};
 }
 
 VkBuffer MeshBufferManager::GetVertexBuffer() {
@@ -316,14 +343,15 @@ void MeshBufferManager::SetExpansionCoefficient(float expansion_coefficient) {
   capacity_data_.expansion_coefficient_ = expansion_coefficient;
 }
 
-ExecuteResult MeshBufferManager::RemoveBufferFragmentation() {
+Result<Nil> MeshBufferManager::RemoveBufferFragmentation() {
   std::lock_guard guard(allocate_free_mutex_);
   if (!IsValid()) {
     MM_LOG_ERROR("MM::RenderSystem::MeshBufferManager is invalid.");
-    return MM::Utils::ExecuteResult ::OBJECT_IS_INVALID;
+    return ResultE<>{ErrorCode::OBJECT_IS_INVALID};
   }
 
-  RenderEngine* render_engine;
+  RenderEngine* render_engine =
+      managed_allocated_mesh_buffer_.GetRenderEnginePtr();
   CommandExecutorLockGuard command_executor_lock_guard =
       render_engine->GetCommandExecutorLockGuard();
   while (!render_engine->CommandExecutorIsFree()) {
@@ -333,38 +361,46 @@ ExecuteResult MeshBufferManager::RemoveBufferFragmentation() {
     render_engine->PresentQueueWaitIdle();
   }
 
-  MM_CHECK(RemoveBufferFragmentationImp(managed_allocated_mesh_buffer_,
-                                        sub_vertex_buffer_list_,
-                                        sub_index_buffer_list_),
-           MM_LOG_ERROR("Failed to remove buffer fragmentaion.");
-           return MM_RESULT_CODE;)
+  if (auto if_result = RemoveBufferFragmentationImp(
+          managed_allocated_mesh_buffer_, sub_vertex_buffer_list_,
+          sub_index_buffer_list_);
+      if_result
+          .Exception(
+              MM_ERROR_DESCRIPTION2("Failed to remove buffer fragmentaion."))
+          .IsError()) {
+    return ResultE<>{if_result.GetError().GetErrorCode()};
+  }
 
-  return ExecuteResult ::SUCCESS;
+  return ResultS<Nil>{};
 }
 
-ExecuteResult MeshBufferManager::Reserve(VkDeviceSize new_vertex_buffer_size,
-                                         VkDeviceSize new_index_buffer_size) {
+Result<Nil> MeshBufferManager::Reserve(
+    VkDeviceSize new_vertex_buffer_size, VkDeviceSize new_index_buffer_size) {
   std::lock_guard guard{allocate_free_mutex_};
   if (!IsValid()) {
     MM_LOG_ERROR("MM::RenderSystem::MeshBufferManager is invalid.");
-    return MM::Utils::ExecuteResult ::OBJECT_IS_INVALID;
+    return ResultE<>{ErrorCode::OBJECT_IS_INVALID};
   }
-  bool new_vertex_size_is_less =
+  const bool new_vertex_size_is_less =
       new_vertex_buffer_size <= managed_allocated_mesh_buffer_.GetVertexSize();
-  bool new_index_size_is_less =
+  const bool new_index_size_is_less =
       new_index_buffer_size <= managed_allocated_mesh_buffer_.GetIndexSize();
   if (new_vertex_size_is_less && new_index_size_is_less) {
-    return ExecuteResult ::SUCCESS;
+    return ResultS<Nil>{};
   }
   if (new_vertex_size_is_less ^ new_index_size_is_less) {
-    return ExecuteResult ::INPUT_PARAMETERS_ARE_NOT_SUITABLE;
+    return ResultE<>{ErrorCode::INPUT_PARAMETERS_ARE_NOT_SUITABLE};
   }
 
-  MM_CHECK(ReserveImp(new_vertex_buffer_size, new_index_buffer_size),
-           MM_LOG_ERROR("Failed to reserve mesh buffer.");
-           return MM_RESULT_CODE;)
+  if (auto if_result =
+          ReserveImp(new_vertex_buffer_size, new_index_buffer_size);
+      if_result
+          .Exception(MM_ERROR_DESCRIPTION2("Failed to reserve mesh buffer."))
+          .IsError()) {
+    return ResultE<>{if_result.GetError().GetErrorCode()};
+  }
 
-  return ExecuteResult ::SUCCESS;
+  return ResultS<Nil>{};
 }
 
 bool MeshBufferManager::IsValid() const { return is_valid; }
@@ -408,7 +444,7 @@ void MeshBufferManager::FreeMeshBuffer(AllocatedMesh& allocated_mesh) {
   allocated_mesh.sub_index_buffer_info_ptr_ = nullptr;
 }
 
-ExecuteResult MeshBufferManager::RemoveBufferFragmentationImp(
+Result<Nil> MeshBufferManager::RemoveBufferFragmentationImp(
     AllocatedMeshBuffer& buffer,
     std::list<BufferSubResourceAttribute>& vertex_buffer_chunks_info,
     std::list<BufferSubResourceAttribute>& index_buffet_chunks_info) {
@@ -418,10 +454,10 @@ ExecuteResult MeshBufferManager::RemoveBufferFragmentationImp(
 #ifdef MM_CHECK_PARAMETERS
   if (!buffer.IsValid()) {
     MM_LOG_ERROR("buffer is invalid.");
-    return ExecuteResult::OBJECT_IS_INVALID;
+    return ResultE<>{ErrorCode::OBJECT_IS_INVALID};
   }
   if (vertex_buffer_chunks_info.empty() || index_buffet_chunks_info.empty()) {
-    return ExecuteResult::INPUT_PARAMETERS_ARE_NOT_SUITABLE;
+    return ResultE<>{ErrorCode::INPUT_PARAMETERS_ARE_NOT_SUITABLE};
   }
 #endif
 
@@ -444,46 +480,51 @@ ExecuteResult MeshBufferManager::RemoveBufferFragmentationImp(
       index_stage_copy_to_self_regions);
 
   QueueIndex transform_queue_index = render_engine->GetTransformQueueIndex();
-  VkBufferCreateInfo buffer_create_info{
-      MM::RenderSystem::Utils::GetVkBufferCreateInfo(
-          nullptr, 0, vertex_stage_buffer_size,
-          VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
-          VK_SHARING_MODE_EXCLUSIVE, 1, &transform_queue_index)};
+  VkBufferCreateInfo buffer_create_info{GetVkBufferCreateInfo(
+      nullptr, 0, vertex_stage_buffer_size,
+      VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+      VK_SHARING_MODE_EXCLUSIVE, 1, &transform_queue_index)};
   VmaAllocationCreateInfo vma_allocation_create_info{
       0, VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE, 0, 0, 0, nullptr, nullptr, 0.5};
   AllocatedBuffer vertex_stage_buffer, index_stage_buffer;
-  MM_CHECK(render_engine->CreateBuffer(TODO, buffer_create_info,
-                                       vma_allocation_create_info, nullptr),
-           MM_LOG_ERROR("Failed to create stage buffer.");
-           return MM_RESULT_CODE;)
+  if (auto if_result = render_engine->CreateBuffer(
+          "", buffer_create_info, vma_allocation_create_info, nullptr);
+      if_result
+          .Exception(MM_ERROR_DESCRIPTION2("Failed to create stage buffer."))
+          .IsError()) {
+    return ResultE<>{if_result.GetError().GetErrorCode()};
+  }
   buffer_create_info.size = index_stage_buffer_size;
-  MM_CHECK(render_engine->CreateBuffer(TODO, buffer_create_info,
-                                       vma_allocation_create_info, nullptr),
-           MM_LOG_ERROR("Failed to create stage buffer.");
-           return MM_RESULT_CODE;)
+  if (auto if_result = render_engine->CreateBuffer(
+          "", buffer_create_info, vma_allocation_create_info, nullptr);
+      if_result
+          .Exception(MM_ERROR_DESCRIPTION2("Failed to create stage buffer."))
+          .IsError()) {
+    return ResultE<>{if_result.GetError().GetErrorCode()};
+  }
 
   // vertex
-  auto vertex_self_copy_info = MM::RenderSystem::Utils::GetVkCopyBufferInfo2(
+  auto vertex_self_copy_info = GetVkCopyBufferInfo2(
       nullptr, buffer.GetVertexBuffer(), buffer.GetVertexBuffer(),
       vertex_self_copy_regions.size(), vertex_self_copy_regions.data());
-  auto vertex_self_copy_to_stage_info = Utils::GetVkCopyBufferInfo2(
+  auto vertex_self_copy_to_stage_info = GetVkCopyBufferInfo2(
       nullptr, buffer.GetVertexBuffer(), vertex_stage_buffer.GetBuffer(),
       vertex_self_copy_to_stage_regions.size(),
       vertex_self_copy_to_stage_regions.data());
-  auto vertex_stage_copy_to_self_info = Utils::GetVkCopyBufferInfo2(
+  auto vertex_stage_copy_to_self_info = GetVkCopyBufferInfo2(
       nullptr, vertex_stage_buffer.GetBuffer(), buffer.GetVertexBuffer(),
       vertex_stage_copy_to_self_regions.size(),
       vertex_stage_copy_to_self_regions.data());
 
   // vertex
-  auto index_self_copy_info = MM::RenderSystem::Utils::GetVkCopyBufferInfo2(
+  auto index_self_copy_info = GetVkCopyBufferInfo2(
       nullptr, buffer.GetIndexBuffer(), buffer.GetIndexBuffer(),
       index_self_copy_regions.size(), index_self_copy_regions.data());
-  auto index_self_copy_to_stage_info = Utils::GetVkCopyBufferInfo2(
+  auto index_self_copy_to_stage_info = GetVkCopyBufferInfo2(
       nullptr, buffer.GetIndexBuffer(), index_stage_buffer.GetBuffer(),
       index_self_copy_to_stage_regions.size(),
       index_self_copy_to_stage_regions.data());
-  auto index_stage_copy_to_self_info = Utils::GetVkCopyBufferInfo2(
+  auto index_stage_copy_to_self_info = GetVkCopyBufferInfo2(
       nullptr, index_stage_buffer.GetBuffer(), buffer.GetIndexBuffer(),
       index_stage_copy_to_self_regions.size(),
       index_stage_copy_to_self_regions.data());
@@ -491,28 +532,34 @@ ExecuteResult MeshBufferManager::RemoveBufferFragmentationImp(
   CommandExecutorGeneralCommandBufferGuard command_buffer =
       render_engine->GetGeneralCommandBufferGuard(CommandBufferType::TRANSFORM);
 
-  MM_CHECK(AddRemoveBufferFragmentationCommands(
-               render_engine, *command_buffer.GetGeneralCommandBuffer(),
-               vertex_buffer_chunks_info, index_buffet_chunks_info,
-               vertex_self_copy_info, vertex_self_copy_to_stage_info,
-               vertex_stage_copy_to_self_info, index_self_copy_info,
-               index_self_copy_to_stage_info, index_stage_copy_to_self_info),
-           MM_LOG_ERROR("Failed recored commands.");
-           return MM_RESULT_CODE;)
+  if (auto if_result = AddRemoveBufferFragmentationCommands(
+          render_engine, *command_buffer.GetGeneralCommandBuffer(),
+          vertex_buffer_chunks_info, index_buffet_chunks_info,
+          vertex_self_copy_info, vertex_self_copy_to_stage_info,
+          vertex_stage_copy_to_self_info, index_self_copy_info,
+          index_self_copy_to_stage_info, index_stage_copy_to_self_info);
+      if_result.Exception(MM_ERROR_DESCRIPTION2("Failed recored commands."))
+          .IsError()) {
+    return ResultE<>{if_result.GetError().GetErrorCode()};
+  }
 
   VkCommandBuffer command_buffer_ptr =
       command_buffer.GetGeneralCommandBuffer()->GetCommandBuffer();
   VkFence fence = command_buffer.GetGeneralCommandBuffer()->GetFence();
-  VkSubmitInfo submit_info{MM::RenderSystem::Utils::GetVkSubmitInfo(
-      nullptr, 0, nullptr, nullptr, 1, &command_buffer_ptr, 0, nullptr)};
-  MM_VK_CHECK(
-      vkQueueSubmit(render_engine->GetTransformQueue(), 1, &submit_info, fence),
-      MM_LOG_ERROR("Failed to submit command.");
-      return MM::RenderSystem::Utils::VkResultToMMResult(MM_VK_RESULT_CODE);)
+  VkSubmitInfo submit_info{GetVkSubmitInfo(nullptr, 0, nullptr, nullptr, 1,
+                                           &command_buffer_ptr, 0, nullptr)};
+  if (auto if_result = ConvertVkResultToMMResult(vkQueueSubmit(
+          render_engine->GetTransformQueue(), 1, &submit_info, fence));
+      if_result.Exception(MM_ERROR_DESCRIPTION2("Failed to submit command."))
+          .IsError()) {
+    return ResultE<>{if_result.GetError().GetErrorCode()};
+  }
   vkWaitForFences(render_engine->GetDevice(), 1, &fence, false, 1000000000);
-  MM_VK_CHECK(
-      vkGetFenceStatus(render_engine->GetDevice(), fence),
-      return MM::RenderSystem::Utils::VkResultToMMResult(MM_VK_RESULT_CODE);)
+  if (auto if_result = ConvertVkResultToMMResult(
+          vkGetFenceStatus(render_engine->GetDevice(), fence));
+      if_result.IgnoreException().IsError()) {
+    return ResultE<>{if_result.GetError().GetErrorCode()};
+  }
 
   VkDeviceSize new_offset = 0;
   for (auto& buffer_chunk_info : vertex_buffer_chunks_info) {
@@ -525,7 +572,7 @@ ExecuteResult MeshBufferManager::RemoveBufferFragmentationImp(
     new_offset += buffer_chunk_info.GetSize();
   }
 
-  return ExecuteResult::SUCCESS;
+  return ResultS<Nil>{};
 }
 
 void MeshBufferManager::GetRemoveBufferFragmentationBufferCopy(
@@ -546,10 +593,10 @@ void MeshBufferManager::GetRemoveBufferFragmentationBufferCopy(
     if (pre_valid_size + buffer_chunk_info->GetSize() >=
         buffer_chunk_info->GetOffset()) {
       stage_flag[index] = 1;
-      self_copy_to_stage_regions.push_back(Utils::GetVkBufferCopy2(
-          buffer_chunk_info->GetSize(), buffer_chunk_info->GetOffset(),
-          stage_buffer_size));
-      stage_copy_to_self_regions.push_back(Utils::GetVkBufferCopy2(
+      self_copy_to_stage_regions.push_back(
+          GetVkBufferCopy2(buffer_chunk_info->GetSize(),
+                           buffer_chunk_info->GetOffset(), stage_buffer_size));
+      stage_copy_to_self_regions.push_back(GetVkBufferCopy2(
           buffer_chunk_info->GetSize(), stage_buffer_size, pre_valid_size));
       pre_valid_size += buffer_chunk_info->GetSize();
       stage_buffer_size += buffer_chunk_info->GetSize();
@@ -568,12 +615,12 @@ void MeshBufferManager::GetRemoveBufferFragmentationBufferCopy(
           if (new_offset + buffer_chunk_info->GetSize() >
               buffer_chunk_info2->GetOffset()) {
             stage_flag[index] = 1;
-            self_copy_to_stage_regions.push_back(Utils::GetVkBufferCopy2(
+            self_copy_to_stage_regions.push_back(GetVkBufferCopy2(
                 buffer_chunk_info->GetSize(), buffer_chunk_info->GetOffset(),
                 stage_buffer_size));
             stage_copy_to_self_regions.push_back(
-                Utils::GetVkBufferCopy2(buffer_chunk_info->GetSize(),
-                                        stage_buffer_size, pre_valid_size));
+                GetVkBufferCopy2(buffer_chunk_info->GetSize(),
+                                 stage_buffer_size, pre_valid_size));
             pre_valid_size += buffer_chunk_info->GetSize();
             stage_buffer_size += buffer_chunk_info->GetSize();
             continue;
@@ -582,34 +629,36 @@ void MeshBufferManager::GetRemoveBufferFragmentationBufferCopy(
       }
     }
 
-    self_copy_regions.push_back(Utils::GetVkBufferCopy2(
-        buffer_chunk_info->GetSize(), buffer_chunk_info->GetOffset(),
-        pre_valid_size));
+    self_copy_regions.push_back(GetVkBufferCopy2(buffer_chunk_info->GetSize(),
+                                                 buffer_chunk_info->GetOffset(),
+                                                 pre_valid_size));
     pre_valid_size += buffer_chunk_info->GetSize();
   }
 }
 
-MM::Utils::ExecuteResult
-MeshBufferManager::AddRemoveBufferFragmentationCommands(
-    RenderEngine* this_render_engine, AllocatedCommandBuffer& cmd,
-    std::list<BufferSubResourceAttribute>& vertex_buffer_chunks_info,
-    std::list<BufferSubResourceAttribute>& index_buffet_chunks_info,
-    VkCopyBufferInfo2& vertex_self_copy_info,
-    VkCopyBufferInfo2& vertex_self_copy_to_stage_info,
-    VkCopyBufferInfo2& vertex_stage_copy_to_self_info,
-    VkCopyBufferInfo2& index_self_copy_info,
-    VkCopyBufferInfo2& index_self_copy_to_stage_info,
-    VkCopyBufferInfo2& index_stage_copy_to_self_info) {
-  MM_CHECK(Utils::BeginCommandBuffer(cmd),
-           MM_LOG_FATAL("Failed to begin command buffer.");
-           return MM_RESULT_CODE;)
+Result<Nil> MeshBufferManager::AddRemoveBufferFragmentationCommands(
+    const RenderEngine* this_render_engine, AllocatedCommandBuffer& cmd,
+    const std::list<BufferSubResourceAttribute>& vertex_buffer_chunks_info,
+    const std::list<BufferSubResourceAttribute>& index_buffet_chunks_info,
+    const VkCopyBufferInfo2& vertex_self_copy_info,
+    const VkCopyBufferInfo2& vertex_self_copy_to_stage_info,
+    const VkCopyBufferInfo2& vertex_stage_copy_to_self_info,
+    const VkCopyBufferInfo2& index_self_copy_info,
+    const VkCopyBufferInfo2& index_self_copy_to_stage_info,
+    const VkCopyBufferInfo2& index_stage_copy_to_self_info) {
+  if (auto if_result = BeginCommandBuffer(cmd);
+      if_result
+          .Exception(MM_FATAL_DESCRIPTION2("Failed to begin command buffer."))
+          .IsError()) {
+    return ResultE<>{if_result.GetError().GetErrorCode()};
+  }
 
-  QueueIndex transform_queue_index =
+  const QueueIndex transform_queue_index =
       this_render_engine->GetTransformQueueIndex();
   std::vector<VkBufferMemoryBarrier2> barriers;
   barriers.reserve(vertex_buffer_chunks_info.size());
   for (const auto& buffer_chunk_info : vertex_buffer_chunks_info) {
-    barriers.emplace_back(MM::RenderSystem::Utils::GetVkBufferMemoryBarrier2(
+    barriers.emplace_back(GetVkBufferMemoryBarrier2(
         VK_PIPELINE_STAGE_2_TRANSFER_BIT, 0, VK_PIPELINE_STAGE_2_TRANSFER_BIT,
         VK_ACCESS_2_TRANSFER_READ_BIT, buffer_chunk_info.GetQueueIndex(),
         transform_queue_index, vertex_self_copy_info.srcBuffer,
@@ -617,7 +666,7 @@ MeshBufferManager::AddRemoveBufferFragmentationCommands(
         buffer_chunk_info.GetChunkInfo().GetSize()));
   }
   for (const auto& buffer_chunk_info : index_buffet_chunks_info) {
-    barriers.emplace_back(MM::RenderSystem::Utils::GetVkBufferMemoryBarrier2(
+    barriers.emplace_back(GetVkBufferMemoryBarrier2(
         VK_PIPELINE_STAGE_2_TRANSFER_BIT, 0, VK_PIPELINE_STAGE_2_TRANSFER_BIT,
         VK_ACCESS_2_TRANSFER_READ_BIT, buffer_chunk_info.GetQueueIndex(),
         transform_queue_index, index_self_copy_info.srcBuffer,
@@ -625,7 +674,7 @@ MeshBufferManager::AddRemoveBufferFragmentationCommands(
         buffer_chunk_info.GetChunkInfo().GetSize()));
   }
 
-  VkDependencyInfo dependency_info{MM::RenderSystem::Utils::GetVkDependencyInfo(
+  const VkDependencyInfo dependency_info{GetVkDependencyInfo(
       0, nullptr, barriers.size(), barriers.data(), 0, nullptr, 0)};
   vkCmdPipelineBarrier2(cmd.GetCommandBuffer(), &dependency_info);
 
@@ -650,20 +699,26 @@ MeshBufferManager::AddRemoveBufferFragmentationCommands(
 
   vkCmdPipelineBarrier2(cmd.GetCommandBuffer(), &dependency_info);
 
-  MM_CHECK(Utils::EndCommandBuffer(cmd),
-           MM_LOG_FATAL("Failed to end command buffer.");
-           return MM_RESULT_CODE;)
+  if (auto if_result = EndCommandBuffer(cmd);
+      if_result
+          .Exception(MM_FATAL_DESCRIPTION2("Failed to end command buffer."))
+          .IsError()) {
+    return ResultE<>{if_result.GetError().GetErrorCode()};
+  }
 
-  return ExecuteResult::SUCCESS;
+  return ResultS<Nil>{};
 }
 
-ExecuteResult MeshBufferManager::AddReserveCommands(
-    AllocatedCommandBuffer& cmd, VkDependencyInfo& dependency_info,
-    VkCopyBufferInfo2& vertex_buffer_copy_info,
-    VkCopyBufferInfo2& index_buffer_copy_info) {
-  MM_CHECK(MM::RenderSystem::Utils::BeginCommandBuffer(cmd),
-           MM_LOG_FATAL("Failed to begine command buffer");
-           return MM_RESULT_CODE;)
+Result<Nil> MeshBufferManager::AddReserveCommands(
+    AllocatedCommandBuffer& cmd, const VkDependencyInfo& dependency_info,
+    const VkCopyBufferInfo2& vertex_buffer_copy_info,
+    const VkCopyBufferInfo2& index_buffer_copy_info) {
+  if (auto if_result = BeginCommandBuffer(cmd);
+      if_result
+          .Exception(MM_FATAL_DESCRIPTION2("Failed to begine command buffer"))
+          .IsError()) {
+    return ResultE<>{if_result.GetError().GetErrorCode()};
+  }
 
   vkCmdPipelineBarrier2(cmd.GetCommandBuffer(), &dependency_info);
 
@@ -680,11 +735,13 @@ ExecuteResult MeshBufferManager::AddReserveCommands(
   }
   vkCmdPipelineBarrier2(cmd.GetCommandBuffer(), &dependency_info);
 
-  MM_CHECK(MM::RenderSystem::Utils::EndCommandBuffer(cmd),
-           MM_LOG_FATAL("Failed to end command buffer");
-           return MM_RESULT_CODE;)
+  if (auto if_result = EndCommandBuffer(cmd);
+      if_result.Exception(MM_FATAL_DESCRIPTION2("Failed to end command buffer"))
+          .IsError()) {
+    return ResultE<>{if_result.GetError().GetErrorCode()};
+  }
 
-  return ExecuteResult ::SUCCESS;
+  return ResultS<Nil>{};
 }
 
 RenderEngine* MeshBufferManager::GetRenderEnginePtr() {
@@ -695,13 +752,13 @@ const RenderEngine* MeshBufferManager::GetRenderEnginePtr() const {
   return managed_allocated_mesh_buffer_.GetRenderEnginePtr();
 }
 
-ExecuteResult MeshBufferManager::Release() {
+Result<Nil> MeshBufferManager::Release() {
   std::lock_guard guard{allocate_free_mutex_};
   if ((!sub_vertex_buffer_list_.empty()) || (!sub_index_buffer_list_.empty())) {
     MM_LOG_ERROR(
         "There is a reference to the mesh buffer managed by this object and "
         "the object cannot be release.");
-    return ExecuteResult ::OPERATION_NOT_SUPPORTED;
+    return ResultE<>{ErrorCode::OPERATION_NOT_SUPPORTED};
   }
 
   managed_allocated_mesh_buffer_.Release();
@@ -709,30 +766,35 @@ ExecuteResult MeshBufferManager::Release() {
 
   is_valid = false;
 
-  return ExecuteResult ::SUCCESS;
+  return ResultS<Nil>{};
 }
 
-ExecuteResult MeshBufferManager::ReserveStandard(
+Result<Nil> MeshBufferManager::ReserveStandard(
     VkDeviceSize require_vertex_size, VkDeviceSize require_index_size) {
-  VkDeviceSize vertex_buffer_size = GetAllocatedMeshBuffer().GetVertexSize(),
-               index_buffer_size = GetAllocatedMeshBuffer().GetIndexSize();
+  const VkDeviceSize vertex_buffer_size = GetAllocatedMeshBuffer().GetVertexSize();
+  const VkDeviceSize index_buffer_size =
+      GetAllocatedMeshBuffer().GetIndexSize();
 
   VkDeviceSize max_vertex_buffer_size = 0, max_index_buffer_size = 0;
-  MM_CHECK_WITHOUT_LOG(MM_CONFIG_SYSTEM->GetConfig("max_vertex_buffer_size",
-                                                   max_vertex_buffer_size),
-                       max_vertex_buffer_size = VK_WHOLE_SIZE;)
-  MM_CHECK_WITHOUT_LOG(MM_CONFIG_SYSTEM->GetConfig("max_index_buffer_size",
-                                                   max_index_buffer_size),
-                       max_index_buffer_size = VK_WHOLE_SIZE;)
+  if (auto if_result = MM_CONFIG_SYSTEM->GetConfig("max_vertex_buffer_size",
+                                                   max_vertex_buffer_size);
+      if_result.IgnoreException().IsError()) {
+    max_vertex_buffer_size = VK_WHOLE_SIZE;
+  }
+  if (auto if_result = MM_CONFIG_SYSTEM->GetConfig("max_index_buffer_size",
+                                                   max_index_buffer_size);
+      if_result.IgnoreException().IsError()) {
+    max_index_buffer_size = VK_WHOLE_SIZE;
+  }
 
   if (vertex_buffer_size >= max_vertex_buffer_size ||
       index_buffer_size >= max_vertex_buffer_size) {
-    return ExecuteResult ::OUT_OF_DEVICE_MEMORY;
+    return ResultE<>{ErrorCode::OUT_OF_DEVICE_MEMORY};
   }
 
   if (require_vertex_size > max_vertex_buffer_size ||
       require_index_size > max_index_buffer_size) {
-    return ExecuteResult ::OUT_OF_DEVICE_MEMORY;
+    return ResultE<>{ErrorCode::OUT_OF_DEVICE_MEMORY};
   }
 
   VkDeviceSize new_vertex_buffer_size = vertex_buffer_size,
@@ -757,21 +819,26 @@ ExecuteResult MeshBufferManager::ReserveStandard(
           ? index_buffer_size * capacity_data_.expansion_coefficient_
           : max_index_buffer_size;
 
-  MM_CHECK(ReserveWithoutLock(new_vertex_buffer_size, new_index_buffer_size),
-           MM_LOG_ERROR("Failed to expand vertex buffer and index buffer.");
-
-           return MM_RESULT_CODE;)
-
-  return ExecuteResult ::SUCCESS;
-}
-
-ExecuteResult MeshBufferManager::RemoveBufferFragmentationWithoutLock() {
-  if (!IsValid()) {
-    MM_LOG_ERROR("MM::RenderSystem::MeshBufferManager is invalid.");
-    return MM::Utils::ExecuteResult ::OBJECT_IS_INVALID;
+  if (auto if_result =
+          ReserveWithoutLock(new_vertex_buffer_size, new_index_buffer_size);
+      if_result
+          .Exception(MM_ERROR_DESCRIPTION2(
+              "Failed to expand vertex buffer and index buffer."))
+          .IsError()) {
+    return ResultE<>{if_result.GetError().GetErrorCode()};
   }
 
-  RenderEngine* render_engine;
+  return ResultS<Nil>{};
+}
+
+Result<Nil> MeshBufferManager::RemoveBufferFragmentationWithoutLock() {
+  if (!IsValid()) {
+    MM_LOG_ERROR("MM::RenderSystem::MeshBufferManager is invalid.");
+    return ResultE<>{ErrorCode::OBJECT_IS_INVALID};
+  }
+
+  RenderEngine* render_engine =
+      managed_allocated_mesh_buffer_.GetRenderEnginePtr();
   CommandExecutorLockGuard command_executor_lock_guard =
       render_engine->GetCommandExecutorLockGuard();
   while (!render_engine->CommandExecutorIsFree()) {
@@ -781,16 +848,20 @@ ExecuteResult MeshBufferManager::RemoveBufferFragmentationWithoutLock() {
     render_engine->PresentQueueWaitIdle();
   }
 
-  MM_CHECK(RemoveBufferFragmentationImp(managed_allocated_mesh_buffer_,
-                                        sub_vertex_buffer_list_,
-                                        sub_index_buffer_list_),
-           MM_LOG_ERROR("Failed to remove buffer fragmentaion.");
-           return MM_RESULT_CODE;)
+  if (auto if_result = RemoveBufferFragmentationImp(
+          managed_allocated_mesh_buffer_, sub_vertex_buffer_list_,
+          sub_index_buffer_list_);
+      if_result
+          .Exception(
+              MM_ERROR_DESCRIPTION2("Failed to remove buffer fragmentaion."))
+          .IsError()) {
+    return ResultE<>{if_result.GetError().GetErrorCode()};
+  }
 
-  return ExecuteResult ::SUCCESS;
+  return ResultS<Nil>{};
 }
 
-ExecuteResult MeshBufferManager::ReserveImp(
+Result<Nil> MeshBufferManager::ReserveImp(
     VkDeviceSize new_vertex_buffer_size, VkDeviceSize new_index_buffer_size) {
   RenderEngine* render_engine;
 
@@ -798,7 +869,7 @@ ExecuteResult MeshBufferManager::ReserveImp(
                                       new_index_buffer_size);
   if (!new_mesh_buffer.IsValid()) {
     MM_LOG_ERROR("Failed to create a new mesh buffer.");
-    return ExecuteResult::CREATE_OBJECT_FAILED;
+    return ResultE<>{ErrorCode::CREATE_OBJECT_FAILED};
   }
 
   CommandExecutorLockGuard command_executor_lock_guard =
@@ -811,30 +882,30 @@ ExecuteResult MeshBufferManager::ReserveImp(
   }
 
   std::array<VkBufferMemoryBarrier2, 4> buffer_barriers{
-      MM::RenderSystem::Utils::GetVkBufferMemoryBarrier2(
+      GetVkBufferMemoryBarrier2(
           VK_PIPELINE_STAGE_2_TRANSFER_BIT, 0, VK_PIPELINE_STAGE_2_TRANSFER_BIT,
           VK_ACCESS_2_TRANSFER_READ_BIT, render_engine->GetComputeQueueIndex(),
           render_engine->GetTransformQueueIndex(),
           managed_allocated_mesh_buffer_.GetVertexBuffer(), 0,
           managed_allocated_mesh_buffer_.GetVertexSize()),
-      MM::RenderSystem::Utils::GetVkBufferMemoryBarrier2(
+      GetVkBufferMemoryBarrier2(
           VK_PIPELINE_STAGE_2_TRANSFER_BIT, 0, VK_PIPELINE_STAGE_2_TRANSFER_BIT,
           VK_ACCESS_2_TRANSFER_READ_BIT, render_engine->GetComputeQueueIndex(),
           render_engine->GetTransformQueueIndex(),
           managed_allocated_mesh_buffer_.GetIndexBuffer(), 0,
           managed_allocated_mesh_buffer_.GetIndexSize()),
-      MM::RenderSystem::Utils::GetVkBufferMemoryBarrier2(
+      GetVkBufferMemoryBarrier2(
           VK_PIPELINE_STAGE_2_TRANSFER_BIT, 0, VK_PIPELINE_STAGE_2_TRANSFER_BIT,
           VK_ACCESS_2_TRANSFER_WRITE_BIT, render_engine->GetComputeQueueIndex(),
           render_engine->GetTransformQueueIndex(),
           new_mesh_buffer.GetVertexBuffer(), 0,
           new_mesh_buffer.GetVertexSize()),
-      MM::RenderSystem::Utils::GetVkBufferMemoryBarrier2(
+      GetVkBufferMemoryBarrier2(
           VK_PIPELINE_STAGE_2_TRANSFER_BIT, 0, VK_PIPELINE_STAGE_2_TRANSFER_BIT,
           VK_ACCESS_2_TRANSFER_WRITE_BIT, render_engine->GetComputeQueueIndex(),
           render_engine->GetTransformQueueIndex(),
           new_mesh_buffer.GetIndexBuffer(), 0, new_mesh_buffer.GetIndexSize())};
-  VkDependencyInfo dependency_info{MM::RenderSystem::Utils::GetVkDependencyInfo(
+  VkDependencyInfo dependency_info{GetVkDependencyInfo(
       0, nullptr, 4, buffer_barriers.data(), 0, nullptr, 0)};
 
   std::vector<VkBufferCopy2> regions{};
@@ -842,49 +913,52 @@ ExecuteResult MeshBufferManager::ReserveImp(
                   sub_index_buffer_list_.size());
   VkDeviceSize region_offset = 0;
   for (const auto& vertex_sub_resource : sub_vertex_buffer_list_) {
-    regions.emplace_back(MM::RenderSystem::Utils::GetVkBufferCopy2(
+    regions.emplace_back(GetVkBufferCopy2(
         vertex_sub_resource.GetSize(), vertex_sub_resource.GetOffset(),
         region_offset));
     region_offset += vertex_sub_resource.GetSize();
   }
   for (const auto& index_sub_resource : sub_index_buffer_list_) {
-    regions.emplace_back(MM::RenderSystem::Utils::GetVkBufferCopy2(
+    regions.emplace_back(GetVkBufferCopy2(
         index_sub_resource.GetSize(), index_sub_resource.GetOffset(),
         region_offset));
     region_offset += index_sub_resource.GetSize();
   }
   VkCopyBufferInfo2 vertex_copy_buffer_info{
-      MM::RenderSystem::Utils::GetVkCopyBufferInfo2(
+      GetVkCopyBufferInfo2(
           nullptr, managed_allocated_mesh_buffer_.GetVertexBuffer(),
           new_mesh_buffer.GetVertexBuffer(), sub_vertex_buffer_list_.size(),
           regions.data())},
-      index_copy_buffer_info{MM::RenderSystem::Utils::GetVkCopyBufferInfo2(
+      index_copy_buffer_info{GetVkCopyBufferInfo2(
           nullptr, managed_allocated_mesh_buffer_.GetIndexBuffer(),
           new_mesh_buffer.GetIndexBuffer(), sub_index_buffer_list_.size(),
           regions.data() + sub_vertex_buffer_list_.size())};
   CommandExecutorGeneralCommandBufferGuard command_buffer =
       render_engine->GetGeneralCommandBufferGuard(CommandBufferType::TRANSFORM);
 
-  MM_CHECK(AddReserveCommands(*command_buffer.GetGeneralCommandBuffer(),
+  if (auto if_result = AddReserveCommands(*command_buffer.GetGeneralCommandBuffer(),
                               dependency_info, vertex_copy_buffer_info,
-                              index_copy_buffer_info),
-           MM_LOG_ERROR("Failed to record command.");
-           return MM_RESULT_CODE;)
+                              index_copy_buffer_info);
+                              if_result.Exception(MM_ERROR_DESCRIPTION2("Failed to record command.")).IsError()) {
+    return ResultE<>{if_result.GetError().GetErrorCode()};
+  }
 
   VkCommandBuffer command_buffer_ptr =
       command_buffer.GetGeneralCommandBuffer()->GetCommandBuffer();
   VkFence fence = command_buffer.GetGeneralCommandBuffer()->GetFence();
-  VkSubmitInfo submit_info{MM::RenderSystem::Utils::GetVkSubmitInfo(
+  VkSubmitInfo submit_info{GetVkSubmitInfo(
       nullptr, 0, nullptr, nullptr, 1, &command_buffer_ptr, 0, nullptr)};
-  MM_VK_CHECK(
-      vkQueueSubmit(render_engine->GetTransformQueue(), 1, &submit_info, fence),
-      MM_LOG_ERROR("Failed to submit command.");
-      return MM::RenderSystem::Utils::VkResultToMMResult(MM_VK_RESULT_CODE);)
+  if (auto if_result = ConvertVkResultToMMResult(
+      vkQueueSubmit(render_engine->GetTransformQueue(), 1, &submit_info, fence));
+      if_result.Exception(MM_ERROR_DESCRIPTION2("Failed to submit command.")).IsError()) {
+    return ResultE<>{if_result.GetError().GetErrorCode()};
+  }
   vkWaitForFences(render_engine->GetDevice(), 1, &fence, false, 100000000000);
-  MM_VK_CHECK(
-      vkGetFenceStatus(render_engine->GetDevice(), fence),
-      MM_LOG_FATAL("Gpu execute command timeout.");
-      return MM::RenderSystem::Utils::VkResultToMMResult(MM_VK_RESULT_CODE);)
+  if (auto if_result = ConvertVkResultToMMResult(
+      vkGetFenceStatus(render_engine->GetDevice(), fence));
+      if_result.Exception(MM_FATAL_DESCRIPTION2("Gpu execute command timeout.")).IsError()) {
+    return ResultE<>{if_result.GetError().GetErrorCode()};
+  }
   vkResetFences(render_engine->GetDevice(), 1, &fence);
 
   VkDeviceSize new_offset = 0;
@@ -904,27 +978,28 @@ ExecuteResult MeshBufferManager::ReserveImp(
   capacity_data_.index_buffer_remaining_capacity_ =
       new_index_buffer_size - capacity_data_.index_buffer_remaining_capacity_;
 
-  return ExecuteResult ::SUCCESS;
+  return ResultS<Nil>{};
 }
 
-ExecuteResult MeshBufferManager::ReserveWithoutLock(
+Result<Nil> MeshBufferManager::ReserveWithoutLock(
     VkDeviceSize new_vertex_buffer_size, VkDeviceSize new_index_buffer_size) {
-  bool new_vertex_size_is_less =
+  const bool new_vertex_size_is_less =
       new_vertex_buffer_size <= managed_allocated_mesh_buffer_.GetVertexSize();
-  bool new_index_size_is_less =
+  const bool new_index_size_is_less =
       new_index_buffer_size <= managed_allocated_mesh_buffer_.GetIndexSize();
   if (new_vertex_size_is_less && new_index_size_is_less) {
-    return ExecuteResult ::SUCCESS;
+    return ResultS<Nil>{};
   }
   if (new_vertex_size_is_less ^ new_index_size_is_less) {
-    return ExecuteResult ::INPUT_PARAMETERS_ARE_NOT_SUITABLE;
+    return ResultE<>{ErrorCode::INPUT_PARAMETERS_ARE_NOT_SUITABLE};
   }
 
-  MM_CHECK(ReserveImp(new_vertex_buffer_size, new_index_buffer_size),
-           MM_LOG_ERROR("Failed to reserve mesh buffer.");
-           return MM_RESULT_CODE;)
+  if (auto if_result = ReserveImp(new_vertex_buffer_size, new_index_buffer_size);
+    if_result.Exception(MM_ERROR_DESCRIPTION2("Failed to reserve mesh buffer.")).IsError()) {
+    return ResultE<>{if_result.GetError().GetErrorCode()};
+  }
 
-  return ExecuteResult ::SUCCESS;
+  return ResultS<Nil>{};
 }
 }  // namespace RenderSystem
 }  // namespace MM

@@ -164,3 +164,7 @@ MM::Utils::UUID::UUID(MM::Utils::UUID::UUIDEmptyInit)
 std::uint64_t MM::Utils::UUID::GetHash() const {
   return (first_part_ & 0xFFFFFFFFFFFF0000) | (second_part_ >> 48);
 }
+MM::Utils::UUID::UUID(UUID&& other) noexcept
+    : first_part_(other.first_part_), second_part_(other.second_part_) {
+  other.Reset();
+}

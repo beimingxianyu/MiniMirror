@@ -359,40 +359,47 @@ MM::RenderSystem::CommandExecutor::InitCommandPolls(
       GetCommandPoolCreateInfo(render_engine_->GetGraphQueueIndex());
 
   for (std::uint32_t i = 0; i < graph_command_pools.size(); ++i) {
-    MM_VK_CHECK(
+    if (auto if_result = ConvertVkResultToMMResult(
         vkCreateCommandPool(render_engine_->GetDevice(),
                             &command_buffer_create_info, nullptr,
-                            &graph_command_pools[i]),
-        MM_LOG_ERROR("Failed to create graph command pool.");
+                            &graph_command_pools[i]));
+                            if_result.Exception(MM_ERROR_DESCRIPTION2("Failed to create graph command pool.")).IsError()) {
+
         ClearWhenConstructFailed(graph_command_pools, compute_command_pools,
                                  transform_command_pools);
-        return ResultE<>{ErrorCode::INITIALIZATION_FAILED};)
+        return ResultE<>{ErrorCode::INITIALIZATION_FAILED};
+    }
   }
 
   command_buffer_create_info.queueFamilyIndex =
       render_engine_->GetComputeQueueIndex();
   for (std::uint32_t i = 0; i < compute_command_pools.size(); ++i) {
-    MM_VK_CHECK(
-        vkCreateCommandPool(render_engine_->GetDevice(),
-                            &command_buffer_create_info, nullptr,
-                            &compute_command_pools[i]),
-        MM_LOG_ERROR("Failed to create compute command pool.");
-        ClearWhenConstructFailed(graph_command_pools, compute_command_pools,
-                                 transform_command_pools);
-        return ResultE<>{ErrorCode::INITIALIZATION_FAILED};)
+    if (auto if_result = ConvertVkResultToMMResult(vkCreateCommandPool(
+            render_engine_->GetDevice(), &command_buffer_create_info, nullptr,
+            &compute_command_pools[i]));
+        if_result
+            .Exception(
+                MM_ERROR_DESCRIPTION2("Failed to create compute command pool."))
+            .IsError()) {
+      ClearWhenConstructFailed(graph_command_pools, compute_command_pools,
+                               transform_command_pools);
+      return ResultE<>{ErrorCode::INITIALIZATION_FAILED};
+    }
   }
 
   command_buffer_create_info.queueFamilyIndex =
       render_engine_->GetTransformQueueIndex();
   for (std::uint32_t i = 0; i < transform_command_pools.size(); ++i) {
-    MM_VK_CHECK(
+    if (auto if_result = ConvertVkResultToMMResult(
         vkCreateCommandPool(render_engine_->GetDevice(),
                             &command_buffer_create_info, nullptr,
-                            &transform_command_pools[i]),
-        MM_LOG_ERROR("Failed to create transform command pool.");
+                            &transform_command_pools[i]));
+                            if_result.Exception(MM_ERROR_DESCRIPTION2("Failed to create transform command pool.")).IsError()) {
+
         ClearWhenConstructFailed(graph_command_pools, compute_command_pools,
                                  transform_command_pools);
-        return ResultE<>{ErrorCode::INITIALIZATION_FAILED};)
+        return ResultE<>{ErrorCode::INITIALIZATION_FAILED};
+    }
   }
 
   return ResultS<Nil>{};
@@ -411,38 +418,41 @@ MM::RenderSystem::CommandExecutor::InitCommandBuffers(
 
   for (std::uint32_t i = 0; i < graph_command_buffers.size(); ++i) {
     command_buffer_allocate_info.commandPool = graph_command_pools[i];
-    MM_VK_CHECK(
+    if (auto if_result = ConvertVkResultToMMResult(
         vkAllocateCommandBuffers(render_engine_->GetDevice(),
                                  &command_buffer_allocate_info,
-                                 graph_command_buffers.data()),
-        MM_LOG_ERROR("Failed to allocate graph command buffers.");
+                                 graph_command_buffers.data()));
+                                 if_result.Exception(MM_ERROR_DESCRIPTION2("Failed to allocate graph command buffers.")).IsError()) {
         ClearWhenConstructFailed(graph_command_pools, compute_command_pools,
                                  transform_command_pools);
-        return ResultE<>{ErrorCode::INITIALIZATION_FAILED};)
+        return ResultE<>{ErrorCode::INITIALIZATION_FAILED};
+    }
   }
 
   for (std::uint32_t i = 0; i < compute_command_buffers.size(); ++i) {
     command_buffer_allocate_info.commandPool = compute_command_pools[i];
-    MM_VK_CHECK(
+    if (auto if_result = ConvertVkResultToMMResult(
         vkAllocateCommandBuffers(render_engine_->GetDevice(),
                                  &command_buffer_allocate_info,
-                                 compute_command_buffers.data()),
-        MM_LOG_ERROR("Failed to allocate compute command buffers.");
+                                 compute_command_buffers.data()));
+                                 if_result.Exception(MM_ERROR_DESCRIPTION2("Failed to allocate compute command buffers.")).IsError()) {
         ClearWhenConstructFailed(graph_command_pools, compute_command_pools,
                                  transform_command_pools);
-        return ResultE<>{ErrorCode::INITIALIZATION_FAILED};)
+        return ResultE<>{ErrorCode::INITIALIZATION_FAILED};
+    }
   }
 
   for (std::uint32_t i = 0; i < transform_command_buffers.size(); ++i) {
     command_buffer_allocate_info.commandPool = transform_command_pools[i];
-    MM_VK_CHECK(
+    if (auto if_result = ConvertVkResultToMMResult(
         vkAllocateCommandBuffers(render_engine_->GetDevice(),
                                  &command_buffer_allocate_info,
-                                 transform_command_buffers.data()),
-        MM_LOG_ERROR("Failed to allocate transform command buffers.");
+                                 transform_command_buffers.data()));
+                                 if_result.Exception(MM_ERROR_DESCRIPTION2("Failed to allocate transform command buffers.")).IsError()) {
         ClearWhenConstructFailed(graph_command_pools, compute_command_pools,
                                  transform_command_pools);
-        return ResultE<>{ErrorCode::INITIALIZATION_FAILED};)
+        return ResultE<>{ErrorCode::INITIALIZATION_FAILED};
+    }
   }
 
   return ResultS<Nil>{};
@@ -552,13 +562,15 @@ MM::RenderSystem::CommandExecutor::InitSemaphores(
   VkSemaphore new_semaphore{nullptr};
   for (std::uint32_t i = 0;
        i < (need_semaphore_number * need_semaphore_number) / 2; ++i) {
-    MM_VK_CHECK(
+    if (auto if_result = ConvertVkResultToMMResult(
         vkCreateSemaphore(render_engine_->GetDevice(), &semaphore_create_info,
-                          nullptr, &new_semaphore),
-        MM_LOG_ERROR("Failed to create VkSemaphore.");
+                          nullptr, &new_semaphore));
+                          if_result.Exception(MM_ERROR_DESCRIPTION2("Failed to create VkSemaphore.")).IsError()) {
+
         ClearWhenConstructFailed(graph_command_pools, compute_command_pools,
                                  transform_command_pools);
-        return ResultE<>{ErrorCode::INITIALIZATION_FAILED};)
+        return ResultE<>{ErrorCode::INITIALIZATION_FAILED};
+    }
 
     free_semaphores_.push(new_semaphore);
   }
@@ -609,11 +621,14 @@ MM::RenderSystem::CommandExecutor::AddCommandBuffer(
 
   for (std::uint32_t i = 0; i < new_command_buffer_num; ++i) {
     VkCommandPool new_command_pool{nullptr};
-    MM_VK_CHECK(vkCreateCommandPool(render_engine_->GetDevice(),
+    if (auto if_result = ConvertVkResultToMMResult(vkCreateCommandPool(render_engine_->GetDevice(),
                                     &command_pool_create_info, nullptr,
-                                    &new_command_pool),
-                result = VkResultToMMErrorCode(MM_VK_RESULT_CODE);
-                execute_state = false;)
+                                    &new_command_pool));
+                                    if_result.IgnoreException().IsError()) {
+      execute_state = false;
+      result = if_result.GetError().GetErrorCode();
+    }
+
     if (!execute_state) {
       for (auto& command_pool : command_pools) {
         vkDestroyCommandPool(render_engine_->GetDevice(), command_pool,
@@ -627,11 +642,14 @@ MM::RenderSystem::CommandExecutor::AddCommandBuffer(
   for (std::uint32_t i = 0; i < new_command_buffer_num; ++i) {
     VkCommandBuffer new_command_buffer{nullptr};
     command_buffer_allocate_info.commandPool = command_pools[i];
-    MM_VK_CHECK(vkAllocateCommandBuffers(render_engine_->GetDevice(),
+    if (auto if_result = ConvertVkResultToMMResult(vkAllocateCommandBuffers(render_engine_->GetDevice(),
                                          &command_buffer_allocate_info,
-                                         &new_command_buffer),
-                result = VkResultToMMErrorCode(MM_VK_RESULT_CODE);
-                execute_state = false;)
+                                         &new_command_buffer));
+                                         if_result.IgnoreException().IsError()) {
+      execute_state = false;
+      result = if_result.GetError().GetErrorCode();
+    }
+
     if (!execute_state) {
       for (auto& command_pool : command_pools) {
         vkDestroyCommandPool(render_engine_->GetDevice(), command_pool,

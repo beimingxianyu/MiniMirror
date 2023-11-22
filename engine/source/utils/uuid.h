@@ -19,7 +19,7 @@ class UUID {
   explicit UUID(UUIDEmptyInit);
   ~UUID() = default;
   UUID(const UUID& other) = default;
-  UUID(UUID&& other) noexcept = default;
+  UUID(UUID&& other) noexcept;
   UUID& operator=(const UUID& other);
   UUID& operator=(UUID&& other) noexcept;
 

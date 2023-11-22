@@ -26,14 +26,12 @@ class AllocatedImage final : public RenderResourceDataBase {
                  RenderEngine* render_engine,
                  const ImageDataInfo& image_data_info, VmaAllocator allocator,
                  VkImage image, VmaAllocation allocation);
-  AllocatedImage(const std::string& name,
-                 MM::RenderSystem::RenderEngine* render_engine,
-                 MM::AssetSystem::AssetManager::HandlerType image_handler,
+  AllocatedImage(const std::string& name, RenderEngine* render_engine,
+                 AssetSystem::AssetManager::HandlerType image_handler,
                  VkImageLayout image_layout,
                  const VkImageCreateInfo* vk_image_create_info,
                  const VmaAllocationCreateInfo* vma_allocation_create_info);
-  AllocatedImage(const std::string& name,
-                 MM::RenderSystem::RenderEngine* render_engine,
+  AllocatedImage(const std::string& name, RenderEngine* render_engine,
                  VkImageLayout image_layout,
                  const VkImageCreateInfo* vk_image_create_info,
                  const VmaAllocationCreateInfo* vma_allocation_create_info);
@@ -46,7 +44,7 @@ class AllocatedImage final : public RenderResourceDataBase {
   const std::vector<ImageSubResourceAttribute>& GetSubResourceAttributes()
       const;
 
-  ExecuteResult TransformSubResourceAttribute(
+  Result<Nil> TransformSubResourceAttribute(
       const std::vector<ImageSubResourceAttribute>& new_sub_resource_attribute);
 
   RenderEngine* GetRenderEnginePtr();
@@ -68,8 +66,8 @@ class AllocatedImage final : public RenderResourceDataBase {
 
   VkImageLayout GetImageInitLayout() const;
 
-  MM::Utils::ExecuteResult GetImageLayout(
-      std::uint32_t mipmap_level, VkImageLayout& output_image_layout) const;
+  Result<VkImageLayout> GetImageLayout(
+      std::uint32_t mipmap_level) const;
 
   std::uint32_t GetMipmapLevels() const;
 
@@ -107,67 +105,62 @@ class AllocatedImage final : public RenderResourceDataBase {
 
   VkDeviceSize GetSize() const override;
 
-  MM::Utils::ExecuteResult GetCopy(const std::string& new_name,
-                                   AllocatedImage& new_allocated_image) const;
+  Result<AllocatedImage> GetCopy(const std::string& new_name) const;
 
-  MM::Utils::ExecuteResult GetCopy(
-      const std::vector<std::string>& new_names,
-      std::vector<AllocatedImage>& new_allocated_images) const;
+  Result<std::vector<AllocatedImage>> GetCopy(
+      const std::vector<std::string>& new_names) const;
 
   bool IsArray() const override;
 
   bool CanWrite() const override;
 
  private:
-  static ExecuteResult CheckImageHandler(
+  static Result<Nil> CheckImageHandler(
       const AssetSystem::AssetManager::HandlerType& image_handler);
 
-  static MM::ExecuteResult CheckInitParameters(
-      MM::RenderSystem::RenderEngine* render_engine, VkImageLayout image_layout,
+  static Result<Nil> CheckInitParameters(
+      const RenderEngine* render_engine, VkImageLayout image_layout,
       const VkImageCreateInfo* vk_image_create_info,
       const VmaAllocationCreateInfo* vma_allocation_create_info);
 
-  static ExecuteResult CheckInitParametersWhenInitFromAnAsset(
-      RenderEngine* render_engine,
+  static Result<Nil> CheckInitParametersWhenInitFromAnAsset(
+      const RenderEngine* render_engine,
       const AssetSystem::AssetManager::HandlerType& image_handler,
       VkImageLayout image_layout, const VkImageCreateInfo* vk_image_create_info,
       const VmaAllocationCreateInfo* vma_allocation_create_info);
 
-  ExecuteResult LoadImageDataToStageBuffer(
-      AssetSystem::AssetType::Image* image_data,
-      AllocatedBuffer& stage_allocated_buffer);
+  Result<AllocatedBuffer> LoadImageDataToStageBuffer(
+      const AssetSystem::AssetType::Image* image_data);
 
-  void AddInitLayoutAndQueueIndexTransformCommands(
-      MM::RenderSystem::AllocatedCommandBuffer& cmd, VkImage created_image);
+  void AddInitLayoutAndQueueIndexTransformCommands(AllocatedCommandBuffer& cmd, VkImage created_image);
 
   void AddCopyStageBufferDataToImageCommands(
-      MM::RenderSystem::AllocatedCommandBuffer& cmd,
+      AllocatedCommandBuffer& cmd,
       AllocatedBuffer& stage_allocated_buffer, VkImage created_image);
 
   void AddGenerateMipmapsCommandsAndAddQueueIndexAndLayoutTransformCommands(
-      MM::RenderSystem::AllocatedCommandBuffer& cmd, VkImage created_image);
+      AllocatedCommandBuffer& cmd, VkImage created_image);
 
-  void AddQueueIndexAndLayoutTransformCommands(
-      MM::RenderSystem::AllocatedCommandBuffer& cmd, VkImage created_image);
+  void AddQueueIndexAndLayoutTransformCommands(AllocatedCommandBuffer& cmd, VkImage created_image);
 
-  MM::ExecuteResult InitImageFromAsset(
-      MM::RenderSystem::AllocatedBuffer& stage_allocated_buffer,
+  Result<Nil> InitImageFromAsset(
+      AllocatedBuffer& stage_allocated_buffer,
       const VkImageCreateInfo* vk_image_create_info,
       const VmaAllocationCreateInfo* vma_allocation_create_info);
 
-  MM::ExecuteResult AddCopyImageCommandsWhenOneSubResource(
+  Result<Nil> AddCopyImageCommandsWhenOneSubResource(
       AllocatedCommandBuffer& cmd, VkImage new_image) const;
 
-  MM::ExecuteResult AddCopyImagCommandseWhenMultSubResource(
+  Result<Nil> AddCopyImagCommandseWhenMultSubResource(
       AllocatedCommandBuffer& cmd, VkImage new_image) const;
 
-  MM::ExecuteResult AddCopyImageCommandsWhenOneSubResource(
+  Result<Nil> AddCopyImageCommandsWhenOneSubResource(
       AllocatedCommandBuffer& cmd, std::vector<VkImage> new_images) const;
 
-  MM::ExecuteResult AddCopyImagCommandseWhenMultSubResource(
+  Result<Nil> AddCopyImagCommandseWhenMultSubResource(
       AllocatedCommandBuffer& cmd, std::vector<VkImage> new_images) const;
 
-  ExecuteResult CheckTransformInputParameter(
+  Result<Nil> CheckTransformInputParameter(
       const std::vector<ImageSubResourceAttribute>& new_sub_resource_attribute)
       const;
 
