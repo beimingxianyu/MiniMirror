@@ -195,146 +195,163 @@ ShaderStage operator&(const ShaderStage& lhs, const ShaderStage& rhs);
 
 ShaderStage& operator&=(ShaderStage& lhs, const ShaderStage& rhs);
 
-enum class ShaderSlotCount : std::uint64_t {
+enum class ShaderSlotDescriptor : std::uint64_t {
   UNDEFINED = 0,
 
   // GRAPHICS
-  SHADER_STAGE_VERTEX_0_SLOT_BIT = (0x1 << 0) + (0x0 << 0),
-  SHADER_STAGE_VERTEX_1_SLOT_BIT = (0x1 << 0) + (0x1 << 0),
-  SHADER_STAGE_VERTEX_2_SLOT_BIT = (0x1 << 0) + (0x2 << 0),
-  SHADER_STAGE_VERTEX_3_SLOT_BIT = (0x1 << 0) + (0x3 << 0),
-  SHADER_STAGE_VERTEX_4_SLOT_BIT = (0x1 << 0) + (0x4 << 0),
-  SHADER_STAGE_VERTEX_5_SLOT_BIT = (0x1 << 0) + (0x5 << 0),
-  SHADER_STAGE_VERTEX_6_SLOT_BIT = (0x1 << 0) + (0x6 << 0),
-  SHADER_STAGE_VERTEX_7_SLOT_BIT = (0x1 << 0) + (0x7 << 0),
-  SHADER_STAGE_VERTEX_8_SLOT_BIT = (0x1 << 0) + (0x8 << 0),
-  SHADER_STAGE_VERTEX_9_SLOT_BIT = (0x1 << 0) + (0x9 << 0),
-  SHADER_STAGE_VERTEX_10_SLOT_BIT = (0x1 << 0) + (0xA << 0),
-  SHADER_STAGE_VERTEX_11_SLOT_BIT = (0x1 << 0) + (0xB << 0),
-  SHADER_STAGE_VERTEX_12_SLOT_BIT = (0x1 << 0) + (0xC << 0),
-  SHADER_STAGE_VERTEX_13_SLOT_BIT = (0x1 << 0) + (0xD << 0),
-  SHADER_STAGE_VERTEX_14_SLOT_BIT = (0x1 << 0) + (0xE << 0),
-  SHADER_STAGE_VERTEX_15_SLOT_BIT = (0x1 << 0) + (0xF << 0),
-  SHADER_STAGE_VERTEX_16_SLOT_BIT = (0x1 << 0) + (0x10 << 0),
-  SHADER_STAGE_TESSELLATION_CONTROL_0_SLOT_BIT = (0x1 << 5) + (0x0 << 5),
-  SHADER_STAGE_TESSELLATION_CONTROL_1_SLOT_BIT = (0x1 << 5) + (0x1 << 5),
-  SHADER_STAGE_TESSELLATION_CONTROL_2_SLOT_BIT = (0x1 << 5) + (0x2 << 5),
-  SHADER_STAGE_TESSELLATION_CONTROL_3_SLOT_BIT = (0x1 << 5) + (0x3 << 5),
-  SHADER_STAGE_TESSELLATION_CONTROL_4_SLOT_BIT = (0x1 << 5) + (0x4 << 5),
-  SHADER_STAGE_TESSELLATION_CONTROL_5_SLOT_BIT = (0x1 << 5) + (0x5 << 5),
-  SHADER_STAGE_TESSELLATION_CONTROL_6_SLOT_BIT = (0x1 << 5) + (0x6 << 5),
-  SHADER_STAGE_TESSELLATION_CONTROL_7_SLOT_BIT = (0x1 << 5) + (0x7 << 5),
-  SHADER_STAGE_TESSELLATION_CONTROL_8_SLOT_BIT = (0x1 << 5) + (0x8 << 5),
-  SHADER_STAGE_TESSELLATION_CONTROL_9_SLOT_BIT = (0x1 << 5) + (0x9 << 5),
-  SHADER_STAGE_TESSELLATION_CONTROL_10_SLOT_BIT = (0x1 << 5) + (0xA << 5),
-  SHADER_STAGE_TESSELLATION_CONTROL_11_SLOT_BIT = (0x1 << 5) + (0xB << 5),
-  SHADER_STAGE_TESSELLATION_CONTROL_12_SLOT_BIT = (0x1 << 5) + (0xC << 5),
-  SHADER_STAGE_TESSELLATION_CONTROL_13_SLOT_BIT = (0x1 << 5) + (0xD << 5),
-  SHADER_STAGE_TESSELLATION_CONTROL_14_SLOT_BIT = (0x1 << 5) + (0xE << 5),
-  SHADER_STAGE_TESSELLATION_CONTROL_15_SLOT_BIT = (0x1 << 5) + (0xF << 5),
-  SHADER_STAGE_TESSELLATION_CONTROL_16_SLOT_BIT = (0x1 << 5) + (0x10 << 5),
-  SHADER_STAGE_TESSELLATION_EVALUATION_0_SLOT_BIT = (0x1 << 10) + (0x0 << 10),
-  SHADER_STAGE_TESSELLATION_EVALUATION_1_SLOT_BIT = (0x1 << 10) + (0x1 << 10),
-  SHADER_STAGE_TESSELLATION_EVALUATION_2_SLOT_BIT = (0x1 << 10) + (0x2 << 10),
-  SHADER_STAGE_TESSELLATION_EVALUATION_3_SLOT_BIT = (0x1 << 10) + (0x3 << 10),
-  SHADER_STAGE_TESSELLATION_EVALUATION_4_SLOT_BIT = (0x1 << 10) + (0x4 << 10),
-  SHADER_STAGE_TESSELLATION_EVALUATION_5_SLOT_BIT = (0x1 << 10) + (0x5 << 10),
-  SHADER_STAGE_TESSELLATION_EVALUATION_6_SLOT_BIT = (0x1 << 10) + (0x6 << 10),
-  SHADER_STAGE_TESSELLATION_EVALUATION_7_SLOT_BIT = (0x1 << 10) + (0x7 << 10),
-  SHADER_STAGE_TESSELLATION_EVALUATION_8_SLOT_BIT = (0x1 << 10) + (0x8 << 10),
-  SHADER_STAGE_TESSELLATION_EVALUATION_9_SLOT_BIT = (0x1 << 10) + (0x9 << 10),
-  SHADER_STAGE_TESSELLATION_EVALUATION_10_SLOT_BIT = (0x1 << 10) + (0xA << 10),
-  SHADER_STAGE_TESSELLATION_EVALUATION_11_SLOT_BIT = (0x1 << 10) + (0xB << 10),
-  SHADER_STAGE_TESSELLATION_EVALUATION_12_SLOT_BIT = (0x1 << 10) + (0xC << 10),
-  SHADER_STAGE_TESSELLATION_EVALUATION_13_SLOT_BIT = (0x1 << 10) + (0xD << 10),
-  SHADER_STAGE_TESSELLATION_EVALUATION_14_SLOT_BIT = (0x1 << 10) + (0xE << 10),
-  SHADER_STAGE_TESSELLATION_EVALUATION_15_SLOT_BIT = (0x1 << 10) + (0xF << 10),
-  SHADER_STAGE_TESSELLATION_EVALUATION_16_SLOT_BIT = (0x1 << 10) + (0x10 << 10),
-  SHADER_STAGE_GEOMETRY_0_SLOT_BIT = (0x1 << 15) + (0x0 << 15),
-  SHADER_STAGE_GEOMETRY_1_SLOT_BIT = (0x1 << 15) + (0x1 << 15),
-  SHADER_STAGE_GEOMETRY_2_SLOT_BIT = (0x1 << 15) + (0x2 << 15),
-  SHADER_STAGE_GEOMETRY_3_SLOT_BIT = (0x1 << 15) + (0x3 << 15),
-  SHADER_STAGE_GEOMETRY_4_SLOT_BIT = (0x1 << 15) + (0x4 << 15),
-  SHADER_STAGE_GEOMETRY_5_SLOT_BIT = (0x1 << 15) + (0x5 << 15),
-  SHADER_STAGE_GEOMETRY_6_SLOT_BIT = (0x1 << 15) + (0x6 << 15),
-  SHADER_STAGE_GEOMETRY_7_SLOT_BIT = (0x1 << 15) + (0x7 << 15),
-  SHADER_STAGE_GEOMETRY_8_SLOT_BIT = (0x1 << 15) + (0x8 << 15),
-  SHADER_STAGE_GEOMETRY_9_SLOT_BIT = (0x1 << 15) + (0x9 << 15),
-  SHADER_STAGE_GEOMETRY_10_SLOT_BIT = (0x1 << 15) + (0xA << 15),
-  SHADER_STAGE_GEOMETRY_11_SLOT_BIT = (0x1 << 15) + (0xB << 15),
-  SHADER_STAGE_GEOMETRY_12_SLOT_BIT = (0x1 << 15) + (0xC << 15),
-  SHADER_STAGE_GEOMETRY_13_SLOT_BIT = (0x1 << 15) + (0xD << 15),
-  SHADER_STAGE_GEOMETRY_14_SLOT_BIT = (0x1 << 15) + (0xE << 15),
-  SHADER_STAGE_GEOMETRY_15_SLOT_BIT = (0x1 << 15) + (0xF << 15),
-  SHADER_STAGE_GEOMETRY_16_SLOT_BIT = (0x1 << 15) + (0x10 << 15),
-  SHADER_STAGE_FRAGMENT_0_SLOT_BIT = (0x1 << 20) + (0x0 << 20),
-  SHADER_STAGE_FRAGMENT_1_SLOT_BIT = (0x1 << 20) + (0x1 << 20),
-  SHADER_STAGE_FRAGMENT_2_SLOT_BIT = (0x1 << 20) + (0x2 << 20),
-  SHADER_STAGE_FRAGMENT_3_SLOT_BIT = (0x1 << 20) + (0x3 << 20),
-  SHADER_STAGE_FRAGMENT_4_SLOT_BIT = (0x1 << 20) + (0x4 << 20),
-  SHADER_STAGE_FRAGMENT_5_SLOT_BIT = (0x1 << 20) + (0x5 << 20),
-  SHADER_STAGE_FRAGMENT_6_SLOT_BIT = (0x1 << 20) + (0x6 << 20),
-  SHADER_STAGE_FRAGMENT_7_SLOT_BIT = (0x1 << 20) + (0x7 << 20),
-  SHADER_STAGE_FRAGMENT_8_SLOT_BIT = (0x1 << 20) + (0x8 << 20),
-  SHADER_STAGE_FRAGMENT_9_SLOT_BIT = (0x1 << 20) + (0x9 << 20),
-  SHADER_STAGE_FRAGMENT_10_SLOT_BIT = (0x1 << 20) + (0xA << 20),
-  SHADER_STAGE_FRAGMENT_11_SLOT_BIT = (0x1 << 20) + (0xB << 20),
-  SHADER_STAGE_FRAGMENT_12_SLOT_BIT = (0x1 << 20) + (0xC << 20),
-  SHADER_STAGE_FRAGMENT_13_SLOT_BIT = (0x1 << 20) + (0xD << 20),
-  SHADER_STAGE_FRAGMENT_14_SLOT_BIT = (0x1 << 20) + (0xE << 20),
-  SHADER_STAGE_FRAGMENT_15_SLOT_BIT = (0x1 << 20) + (0xF << 20),
-  SHADER_STAGE_FRAGMENT_16_SLOT_BIT = (0x1 << 20) + (0x10 << 20),
-  SHADER_STAGE_TASK_0_SLOT_BIT = (0x1 << 25) + (0x0 << 25),
-  SHADER_STAGE_TASK_1_SLOT_BIT = (0x1 << 25) + (0x1 << 25),
-  SHADER_STAGE_TASK_2_SLOT_BIT = (0x1 << 25) + (0x2 << 25),
-  SHADER_STAGE_TASK_3_SLOT_BIT = (0x1 << 25) + (0x3 << 25),
-  SHADER_STAGE_TASK_4_SLOT_BIT = (0x1 << 25) + (0x4 << 25),
-  SHADER_STAGE_TASK_5_SLOT_BIT = (0x1 << 25) + (0x5 << 25),
-  SHADER_STAGE_TASK_6_SLOT_BIT = (0x1 << 25) + (0x6 << 25),
-  SHADER_STAGE_TASK_7_SLOT_BIT = (0x1 << 25) + (0x7 << 25),
-  SHADER_STAGE_TASK_8_SLOT_BIT = (0x1 << 25) + (0x8 << 25),
-  SHADER_STAGE_TASK_9_SLOT_BIT = (0x1 << 25) + (0x9 << 25),
-  SHADER_STAGE_TASK_10_SLOT_BIT = (0x1 << 25) + (0xA << 25),
-  SHADER_STAGE_TASK_11_SLOT_BIT = (0x1 << 25) + (0xB << 25),
-  SHADER_STAGE_TASK_12_SLOT_BIT = (0x1 << 25) + (0xC << 25),
-  SHADER_STAGE_TASK_13_SLOT_BIT = (0x1 << 25) + (0xD << 25),
-  SHADER_STAGE_TASK_14_SLOT_BIT = (0x1 << 25) + (0xE << 25),
-  SHADER_STAGE_TASK_15_SLOT_BIT = (0x1 << 25) + (0xF << 25),
-  SHADER_STAGE_TASK_16_SLOT_BIT = (0x1 << 25) + (0x10 << 25),
-  SHADER_STAGE_MESH_0_SLOT_BIT = (static_cast<std::uint64_t>(0x1) << 30) +
+  SHADER_STAGE_VERTEX_0_SLOT_BIT = (0x1 << 5) + (0x0 << 0),
+  SHADER_STAGE_VERTEX_1_SLOT_BIT = (0x1 << 5) + (0x1 << 0),
+  SHADER_STAGE_VERTEX_2_SLOT_BIT = (0x1 << 5) + (0x2 << 0),
+  SHADER_STAGE_VERTEX_3_SLOT_BIT = (0x1 << 5) + (0x3 << 0),
+  SHADER_STAGE_VERTEX_4_SLOT_BIT = (0x1 << 5) + (0x4 << 0),
+  SHADER_STAGE_VERTEX_5_SLOT_BIT = (0x1 << 5) + (0x5 << 0),
+  SHADER_STAGE_VERTEX_6_SLOT_BIT = (0x1 << 5) + (0x6 << 0),
+  SHADER_STAGE_VERTEX_7_SLOT_BIT = (0x1 << 5) + (0x7 << 0),
+  SHADER_STAGE_VERTEX_8_SLOT_BIT = (0x1 << 5) + (0x8 << 0),
+  SHADER_STAGE_VERTEX_9_SLOT_BIT = (0x1 << 5) + (0x9 << 0),
+  SHADER_STAGE_VERTEX_10_SLOT_BIT = (0x1 << 5) + (0xA << 0),
+  SHADER_STAGE_VERTEX_11_SLOT_BIT = (0x1 << 5) + (0xB << 0),
+  SHADER_STAGE_VERTEX_12_SLOT_BIT = (0x1 << 5) + (0xC << 0),
+  SHADER_STAGE_VERTEX_13_SLOT_BIT = (0x1 << 5) + (0xD << 0),
+  SHADER_STAGE_VERTEX_14_SLOT_BIT = (0x1 << 5) + (0xE << 0),
+  SHADER_STAGE_VERTEX_15_SLOT_BIT = (0x1 << 5) + (0xF << 0),
+  SHADER_STAGE_VERTEX_16_SLOT_BIT = (0x1 << 5) + (0x10 << 0),
+  SHADER_STAGE_TESSELLATION_CONTROL_0_SLOT_BIT = (0x1 << 11) + (0x0 << 6),
+  SHADER_STAGE_TESSELLATION_CONTROL_1_SLOT_BIT = (0x1 << 11) + (0x1 << 6),
+  SHADER_STAGE_TESSELLATION_CONTROL_2_SLOT_BIT = (0x1 << 11) + (0x2 << 6),
+  SHADER_STAGE_TESSELLATION_CONTROL_3_SLOT_BIT = (0x1 << 11) + (0x3 << 6),
+  SHADER_STAGE_TESSELLATION_CONTROL_4_SLOT_BIT = (0x1 << 11) + (0x4 << 6),
+  SHADER_STAGE_TESSELLATION_CONTROL_5_SLOT_BIT = (0x1 << 11) + (0x5 << 6),
+  SHADER_STAGE_TESSELLATION_CONTROL_6_SLOT_BIT = (0x1 << 11) + (0x6 << 6),
+  SHADER_STAGE_TESSELLATION_CONTROL_7_SLOT_BIT = (0x1 << 11) + (0x7 << 6),
+  SHADER_STAGE_TESSELLATION_CONTROL_8_SLOT_BIT = (0x1 << 11) + (0x8 << 6),
+  SHADER_STAGE_TESSELLATION_CONTROL_9_SLOT_BIT = (0x1 << 11) + (0x9 << 6),
+  SHADER_STAGE_TESSELLATION_CONTROL_10_SLOT_BIT = (0x1 << 11) + (0xA << 6),
+  SHADER_STAGE_TESSELLATION_CONTROL_11_SLOT_BIT = (0x1 << 11) + (0xB << 6),
+  SHADER_STAGE_TESSELLATION_CONTROL_12_SLOT_BIT = (0x1 << 11) + (0xC << 6),
+  SHADER_STAGE_TESSELLATION_CONTROL_13_SLOT_BIT = (0x1 << 11) + (0xD << 6),
+  SHADER_STAGE_TESSELLATION_CONTROL_14_SLOT_BIT = (0x1 << 11) + (0xE << 6),
+  SHADER_STAGE_TESSELLATION_CONTROL_15_SLOT_BIT = (0x1 << 11) + (0xF << 6),
+  SHADER_STAGE_TESSELLATION_CONTROL_16_SLOT_BIT = (0x1 << 11) + (0x10 << 6),
+  SHADER_STAGE_TESSELLATION_EVALUATION_0_SLOT_BIT = (0x1 << 17) + (0x0 << 12),
+  SHADER_STAGE_TESSELLATION_EVALUATION_1_SLOT_BIT = (0x1 << 17) + (0x1 << 12),
+  SHADER_STAGE_TESSELLATION_EVALUATION_2_SLOT_BIT = (0x1 << 17) + (0x2 << 12),
+  SHADER_STAGE_TESSELLATION_EVALUATION_3_SLOT_BIT = (0x1 << 17) + (0x3 << 12),
+  SHADER_STAGE_TESSELLATION_EVALUATION_4_SLOT_BIT = (0x1 << 17) + (0x4 << 12),
+  SHADER_STAGE_TESSELLATION_EVALUATION_5_SLOT_BIT = (0x1 << 17) + (0x5 << 12),
+  SHADER_STAGE_TESSELLATION_EVALUATION_6_SLOT_BIT = (0x1 << 17) + (0x6 << 12),
+  SHADER_STAGE_TESSELLATION_EVALUATION_7_SLOT_BIT = (0x1 << 17) + (0x7 << 12),
+  SHADER_STAGE_TESSELLATION_EVALUATION_8_SLOT_BIT = (0x1 << 17) + (0x8 << 12),
+  SHADER_STAGE_TESSELLATION_EVALUATION_9_SLOT_BIT = (0x1 << 17) + (0x9 << 12),
+  SHADER_STAGE_TESSELLATION_EVALUATION_10_SLOT_BIT = (0x1 << 17) + (0xA << 12),
+  SHADER_STAGE_TESSELLATION_EVALUATION_11_SLOT_BIT = (0x1 << 17) + (0xB << 12),
+  SHADER_STAGE_TESSELLATION_EVALUATION_12_SLOT_BIT = (0x1 << 17) + (0xC << 12),
+  SHADER_STAGE_TESSELLATION_EVALUATION_13_SLOT_BIT = (0x1 << 17) + (0xD << 12),
+  SHADER_STAGE_TESSELLATION_EVALUATION_14_SLOT_BIT = (0x1 << 17) + (0xE << 12),
+  SHADER_STAGE_TESSELLATION_EVALUATION_15_SLOT_BIT = (0x1 << 17) + (0xF << 12),
+  SHADER_STAGE_TESSELLATION_EVALUATION_16_SLOT_BIT = (0x1 << 17) + (0x10 << 12),
+  SHADER_STAGE_GEOMETRY_0_SLOT_BIT = (0x1 << 23) + (0x0 << 18),
+  SHADER_STAGE_GEOMETRY_1_SLOT_BIT = (0x1 << 23) + (0x1 << 18),
+  SHADER_STAGE_GEOMETRY_2_SLOT_BIT = (0x1 << 23) + (0x2 << 18),
+  SHADER_STAGE_GEOMETRY_3_SLOT_BIT = (0x1 << 23) + (0x3 << 18),
+  SHADER_STAGE_GEOMETRY_4_SLOT_BIT = (0x1 << 23) + (0x4 << 18),
+  SHADER_STAGE_GEOMETRY_5_SLOT_BIT = (0x1 << 23) + (0x5 << 18),
+  SHADER_STAGE_GEOMETRY_6_SLOT_BIT = (0x1 << 23) + (0x6 << 18),
+  SHADER_STAGE_GEOMETRY_7_SLOT_BIT = (0x1 << 23) + (0x7 << 18),
+  SHADER_STAGE_GEOMETRY_8_SLOT_BIT = (0x1 << 23) + (0x8 << 18),
+  SHADER_STAGE_GEOMETRY_9_SLOT_BIT = (0x1 << 23) + (0x9 << 18),
+  SHADER_STAGE_GEOMETRY_10_SLOT_BIT = (0x1 << 23) + (0xA << 18),
+  SHADER_STAGE_GEOMETRY_11_SLOT_BIT = (0x1 << 23) + (0xB << 18),
+  SHADER_STAGE_GEOMETRY_12_SLOT_BIT = (0x1 << 23) + (0xC << 18),
+  SHADER_STAGE_GEOMETRY_13_SLOT_BIT = (0x1 << 23) + (0xD << 18),
+  SHADER_STAGE_GEOMETRY_14_SLOT_BIT = (0x1 << 23) + (0xE << 18),
+  SHADER_STAGE_GEOMETRY_15_SLOT_BIT = (0x1 << 23) + (0xF << 18),
+  SHADER_STAGE_GEOMETRY_16_SLOT_BIT = (0x1 << 23) + (0x10 << 18),
+  SHADER_STAGE_FRAGMENT_0_SLOT_BIT = (0x1 << 29) + (0x0 << 24),
+  SHADER_STAGE_FRAGMENT_1_SLOT_BIT = (0x1 << 29) + (0x1 << 24),
+  SHADER_STAGE_FRAGMENT_2_SLOT_BIT = (0x1 << 29) + (0x2 << 24),
+  SHADER_STAGE_FRAGMENT_3_SLOT_BIT = (0x1 << 29) + (0x3 << 24),
+  SHADER_STAGE_FRAGMENT_4_SLOT_BIT = (0x1 << 29) + (0x4 << 24),
+  SHADER_STAGE_FRAGMENT_5_SLOT_BIT = (0x1 << 29) + (0x5 << 24),
+  SHADER_STAGE_FRAGMENT_6_SLOT_BIT = (0x1 << 29) + (0x6 << 24),
+  SHADER_STAGE_FRAGMENT_7_SLOT_BIT = (0x1 << 29) + (0x7 << 24),
+  SHADER_STAGE_FRAGMENT_8_SLOT_BIT = (0x1 << 29) + (0x8 << 24),
+  SHADER_STAGE_FRAGMENT_9_SLOT_BIT = (0x1 << 29) + (0x9 << 24),
+  SHADER_STAGE_FRAGMENT_10_SLOT_BIT = (0x1 << 29) + (0xA << 24),
+  SHADER_STAGE_FRAGMENT_11_SLOT_BIT = (0x1 << 29) + (0xB << 24),
+  SHADER_STAGE_FRAGMENT_12_SLOT_BIT = (0x1 << 29) + (0xC << 24),
+  SHADER_STAGE_FRAGMENT_13_SLOT_BIT = (0x1 << 29) + (0xD << 24),
+  SHADER_STAGE_FRAGMENT_14_SLOT_BIT = (0x1 << 29) + (0xE << 24),
+  SHADER_STAGE_FRAGMENT_15_SLOT_BIT = (0x1 << 29) + (0xF << 24),
+  SHADER_STAGE_FRAGMENT_16_SLOT_BIT = (0x1 << 29) + (0x10 << 24),
+  SHADER_STAGE_TASK_0_SLOT_BIT = (static_cast<std::uint64_t>(0x1) << 35) +
                                  (static_cast<std::uint64_t>(0x0) << 30),
-  SHADER_STAGE_MESH_1_SLOT_BIT = (static_cast<std::uint64_t>(0x1) << 30) +
+  SHADER_STAGE_TASK_1_SLOT_BIT = (static_cast<std::uint64_t>(0x1) << 35) +
                                  (static_cast<std::uint64_t>(0x1) << 30),
-  SHADER_STAGE_MESH_2_SLOT_BIT = (static_cast<std::uint64_t>(0x1) << 30) +
+  SHADER_STAGE_TASK_2_SLOT_BIT = (static_cast<std::uint64_t>(0x1) << 35) +
                                  (static_cast<std::uint64_t>(0x2) << 30),
-  SHADER_STAGE_MESH_3_SLOT_BIT = (static_cast<std::uint64_t>(0x1) << 30) +
+  SHADER_STAGE_TASK_3_SLOT_BIT = (static_cast<std::uint64_t>(0x1) << 35) +
                                  (static_cast<std::uint64_t>(0x3) << 30),
-  SHADER_STAGE_MESH_4_SLOT_BIT = (static_cast<std::uint64_t>(0x1) << 30) +
+  SHADER_STAGE_TASK_4_SLOT_BIT = (static_cast<std::uint64_t>(0x1) << 35) +
                                  (static_cast<std::uint64_t>(0x4) << 30),
-  SHADER_STAGE_MESH_5_SLOT_BIT = (static_cast<std::uint64_t>(0x1) << 30) +
+  SHADER_STAGE_TASK_5_SLOT_BIT = (static_cast<std::uint64_t>(0x1) << 35) +
                                  (static_cast<std::uint64_t>(0x5) << 30),
-  SHADER_STAGE_MESH_6_SLOT_BIT = (static_cast<std::uint64_t>(0x1) << 30) +
+  SHADER_STAGE_TASK_6_SLOT_BIT = (static_cast<std::uint64_t>(0x1) << 35) +
                                  (static_cast<std::uint64_t>(0x6) << 30),
-  SHADER_STAGE_MESH_7_SLOT_BIT = (static_cast<std::uint64_t>(0x1) << 30) +
+  SHADER_STAGE_TASK_7_SLOT_BIT = (static_cast<std::uint64_t>(0x1) << 35) +
                                  (static_cast<std::uint64_t>(0x7) << 30),
-  SHADER_STAGE_MESH_8_SLOT_BIT = (static_cast<std::uint64_t>(0x1) << 30) +
+  SHADER_STAGE_TASK_8_SLOT_BIT = (static_cast<std::uint64_t>(0x1) << 35) +
                                  (static_cast<std::uint64_t>(0x8) << 30),
-  SHADER_STAGE_MESH_9_SLOT_BIT = (static_cast<std::uint64_t>(0x1) << 30) +
+  SHADER_STAGE_TASK_9_SLOT_BIT = (static_cast<std::uint64_t>(0x1) << 35) +
                                  (static_cast<std::uint64_t>(0x9) << 30),
-  SHADER_STAGE_MESH_10_SLOT_BIT = (static_cast<std::uint64_t>(0x1) << 30) +
+  SHADER_STAGE_TASK_10_SLOT_BIT = (static_cast<std::uint64_t>(0x1) << 35) +
                                   (static_cast<std::uint64_t>(0xA) << 30),
-  SHADER_STAGE_MESH_11_SLOT_BIT = (static_cast<std::uint64_t>(0x1) << 30) +
+  SHADER_STAGE_TASK_11_SLOT_BIT = (static_cast<std::uint64_t>(0x1) << 35) +
                                   (static_cast<std::uint64_t>(0xB) << 30),
-  SHADER_STAGE_MESH_12_SLOT_BIT = (static_cast<std::uint64_t>(0x1) << 30) +
+  SHADER_STAGE_TASK_12_SLOT_BIT = (static_cast<std::uint64_t>(0x1) << 35) +
                                   (static_cast<std::uint64_t>(0xC) << 30),
-  SHADER_STAGE_MESH_13_SLOT_BIT = (static_cast<std::uint64_t>(0x1) << 30) +
+  SHADER_STAGE_TASK_13_SLOT_BIT = (static_cast<std::uint64_t>(0x1) << 35) +
                                   (static_cast<std::uint64_t>(0xD) << 30),
-  SHADER_STAGE_MESH_14_SLOT_BIT = (static_cast<std::uint64_t>(0x1) << 30) +
+  SHADER_STAGE_TASK_14_SLOT_BIT = (static_cast<std::uint64_t>(0x1) << 35) +
                                   (static_cast<std::uint64_t>(0xE) << 30),
-  SHADER_STAGE_MESH_15_SLOT_BIT = (static_cast<std::uint64_t>(0x1) << 30) +
+  SHADER_STAGE_TASK_15_SLOT_BIT = (static_cast<std::uint64_t>(0x1) << 35) +
                                   (static_cast<std::uint64_t>(0xF) << 30),
-  SHADER_STAGE_MESH_16_SLOT_BIT = (static_cast<std::uint64_t>(0x1) << 30) +
+  SHADER_STAGE_TASK_16_SLOT_BIT = (static_cast<std::uint64_t>(0x1) << 35) +
                                   (static_cast<std::uint64_t>(0x10) << 30),
+  SHADER_STAGE_MESH_0_SLOT_BIT = (static_cast<std::uint64_t>(0x1) << 41) +
+                                 (static_cast<std::uint64_t>(0x0) << 36),
+  SHADER_STAGE_MESH_1_SLOT_BIT = (static_cast<std::uint64_t>(0x1) << 41) +
+                                 (static_cast<std::uint64_t>(0x1) << 36),
+  SHADER_STAGE_MESH_2_SLOT_BIT = (static_cast<std::uint64_t>(0x1) << 41) +
+                                 (static_cast<std::uint64_t>(0x2) << 36),
+  SHADER_STAGE_MESH_3_SLOT_BIT = (static_cast<std::uint64_t>(0x1) << 41) +
+                                 (static_cast<std::uint64_t>(0x3) << 36),
+  SHADER_STAGE_MESH_4_SLOT_BIT = (static_cast<std::uint64_t>(0x1) << 41) +
+                                 (static_cast<std::uint64_t>(0x4) << 36),
+  SHADER_STAGE_MESH_5_SLOT_BIT = (static_cast<std::uint64_t>(0x1) << 41) +
+                                 (static_cast<std::uint64_t>(0x5) << 36),
+  SHADER_STAGE_MESH_6_SLOT_BIT = (static_cast<std::uint64_t>(0x1) << 41) +
+                                 (static_cast<std::uint64_t>(0x6) << 36),
+  SHADER_STAGE_MESH_7_SLOT_BIT = (static_cast<std::uint64_t>(0x1) << 41) +
+                                 (static_cast<std::uint64_t>(0x7) << 36),
+  SHADER_STAGE_MESH_8_SLOT_BIT = (static_cast<std::uint64_t>(0x1) << 41) +
+                                 (static_cast<std::uint64_t>(0x8) << 36),
+  SHADER_STAGE_MESH_9_SLOT_BIT = (static_cast<std::uint64_t>(0x1) << 41) +
+                                 (static_cast<std::uint64_t>(0x9) << 36),
+  SHADER_STAGE_MESH_10_SLOT_BIT = (static_cast<std::uint64_t>(0x1) << 41) +
+                                  (static_cast<std::uint64_t>(0xA) << 36),
+  SHADER_STAGE_MESH_11_SLOT_BIT = (static_cast<std::uint64_t>(0x1) << 41) +
+                                  (static_cast<std::uint64_t>(0xB) << 36),
+  SHADER_STAGE_MESH_12_SLOT_BIT = (static_cast<std::uint64_t>(0x1) << 41) +
+                                  (static_cast<std::uint64_t>(0xC) << 36),
+  SHADER_STAGE_MESH_13_SLOT_BIT = (static_cast<std::uint64_t>(0x1) << 41) +
+                                  (static_cast<std::uint64_t>(0xD) << 36),
+  SHADER_STAGE_MESH_14_SLOT_BIT = (static_cast<std::uint64_t>(0x1) << 41) +
+                                  (static_cast<std::uint64_t>(0xE) << 36),
+  SHADER_STAGE_MESH_15_SLOT_BIT = (static_cast<std::uint64_t>(0x1) << 41) +
+                                  (static_cast<std::uint64_t>(0xF) << 36),
+  SHADER_STAGE_MESH_16_SLOT_BIT = (static_cast<std::uint64_t>(0x1) << 41) +
+                                  (static_cast<std::uint64_t>(0x10) << 36),
   SHADER_STAGE_ALL_GRAPHICS_0_SLOT_BIT =
       SHADER_STAGE_VERTEX_0_SLOT_BIT |
       SHADER_STAGE_TESSELLATION_CONTROL_0_SLOT_BIT |
@@ -632,16 +649,37 @@ enum class ShaderSlotCount : std::uint64_t {
   SHADER_STAGE_ALL_STAGE_14_SLOT_BIT = SHADER_STAGE_ALL_GRAPHICS_14_SLOT_BIT,
   SHADER_STAGE_ALL_STAGE_15_SLOT_BIT = SHADER_STAGE_ALL_GRAPHICS_15_SLOT_BIT,
   SHADER_STAGE_ALL_STAGE_16_SLOT_BIT = SHADER_STAGE_ALL_GRAPHICS_16_SLOT_BIT,
+
+  // default
+  SHADER_STAGE_DEFAULT_0_SLOT_BIT = static_cast<std::uint64_t>(SHADER_STAGE_ALL_STAGE_0_SLOT_BIT,
+  SHADER_STAGE_DEFALUT_1_SLOT_BIT = static_cast<std::uint64_t>(SHADER_STAGE_ALL_STAGE_1_SLOT_BIT,
+  SHADER_STAGE_DEFALUT_2_SLOT_BIT = static_cast<std::uint64_t>(SHADER_STAGE_ALL_STAGE_2_SLOT_BIT,
+  SHADER_STAGE_DEFALUT_3_SLOT_BIT = static_cast<std::uint64_t>(SHADER_STAGE_ALL_STAGE_3_SLOT_BIT,
+  SHADER_STAGE_DEFALUT_4_SLOT_BIT = static_cast<std::uint64_t>(SHADER_STAGE_ALL_STAGE_4_SLOT_BIT,
+  SHADER_STAGE_DEFALUT_5_SLOT_BIT = static_cast<std::uint64_t>(SHADER_STAGE_ALL_STAGE_5_SLOT_BIT,
+  SHADER_STAGE_DEFALUT_6_SLOT_BIT = static_cast<std::uint64_t>(SHADER_STAGE_ALL_STAGE_6_SLOT_BIT,
+  SHADER_STAGE_DEFALUT_7_SLOT_BIT = static_cast<std::uint64_t>(SHADER_STAGE_ALL_STAGE_7_SLOT_BIT,
+  SHADER_STAGE_DEFALUT_8_SLOT_BIT = static_cast<std::uint64_t>(SHADER_STAGE_ALL_STAGE_8_SLOT_BIT,
+  SHADER_STAGE_DEFALUT_9_SLOT_BIT = static_cast<std::uint64_t>(SHADER_STAGE_ALL_STAGE_9_SLOT_BIT,
+  SHADER_STAGE_DEFALUT_10_SLOT_BIT = static_cast<std::uint64_t>(SHADER_STAGE_ALL_STAGE_10_SLOT_BIT,
+  SHADER_STAGE_DEFALUT_11_SLOT_BIT = static_cast<std::uint64_t>(SHADER_STAGE_ALL_STAGE_11_SLOT_BIT,
+  SHADER_STAGE_DEFALUT_12_SLOT_BIT = static_cast<std::uint64_t>(SHADER_STAGE_ALL_STAGE_12_SLOT_BIT,
+  SHADER_STAGE_DEFALUT_13_SLOT_BIT = static_cast<std::uint64_t>(SHADER_STAGE_ALL_STAGE_13_SLOT_BIT,
+  SHADER_STAGE_DEFALUT_14_SLOT_BIT = static_cast<std::uint64_t>(SHADER_STAGE_ALL_STAGE_14_SLOT_BIT,
+  SHADER_STAGE_DEFALUT_15_SLOT_BIT = static_cast<std::uint64_t>(SHADER_STAGE_ALL_STAGE_15_SLOT_BIT,
+  SHADER_STAGE_DEFALUT_16_SLOT_BIT = static_cast<std::uint64_t>(SHADER_STAGE_ALL_STAGE_16_SLOT_BIT,
 };
 
-ShaderSlotCount operator|(const ShaderSlotCount& lhs,
-                          const ShaderSlotCount& rhs);
+ShaderSlotDescriptor operator|(const ShaderSlotDescriptor& lhs,
+                               const ShaderSlotDescriptor& rhs);
 
-ShaderSlotCount& operator|=(ShaderSlotCount& lhs, const ShaderSlotCount& rhs);
+ShaderSlotDescriptor& operator|=(ShaderSlotDescriptor& lhs,
+                                 const ShaderSlotDescriptor& rhs);
 
-ShaderSlotCount operator&(const ShaderSlotCount& lhs,
-                          const ShaderSlotCount& rhs);
+ShaderSlotDescriptor operator&(const ShaderSlotDescriptor& lhs,
+                               const ShaderSlotDescriptor& rhs);
 
-ShaderSlotCount& operator&=(ShaderSlotCount& lhs, const ShaderSlotCount& rhs);
+ShaderSlotDescriptor& operator&=(ShaderSlotDescriptor& lhs,
+                                 const ShaderSlotDescriptor& rhs);
 }  // namespace RenderSystem
 }  // namespace MM

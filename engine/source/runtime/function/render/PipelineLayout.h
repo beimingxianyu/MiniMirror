@@ -1,7 +1,13 @@
 //
 // Created by beimingxianyu on 23-7-31.
 //
+#pragma once
+
+#include <atomic>
+#include <cstdint>
+
 #include "runtime/function/render/DescriptorManager.h"
+#include "runtime/function/render/vk_enum.h"
 
 namespace MM {
 namespace RenderSystem {
@@ -11,8 +17,7 @@ class PipelineLayout {
   PipelineLayout() = default;
   ~PipelineLayout();
   PipelineLayout(RenderEngine* render_engine,
-                 PipelineLayoutType pipeline_layout_type,
-                 ShaderSlotCount shader_slot_count);
+                 ShaderSlotDescriptor shader_slot_count);
   PipelineLayout(const PipelineLayout& other) = delete;
   PipelineLayout(PipelineLayout&& other) noexcept;
   PipelineLayout& operator=(const PipelineLayout& other) = delete;
@@ -23,7 +28,9 @@ class PipelineLayout {
 
   PipelineLayoutType GetPipelineLayoutType() const;
 
-  ShaderSlotCount GetShaderSlotCount() const;
+  ShaderSlotDescriptor GetShaderSlotDescriptor() const;
+
+  std::uint8_t GetShaderSlotCount() const;
 
   bool IsGraphicsPipelineLayout() const;
 
@@ -69,31 +76,30 @@ class PipelineLayout {
 
   std::uint8_t SubpassShaderSlotCount();
 
-  std::uint8_t AllShaderSlotCount();
+  std::uint8_t AllShaderSlotCount() const;
 
   bool IsValid() const;
 
   void Release();
 
  private:
-  ExecuteResult CheckInitParameters();
+  Result<Nil> CheckInitParameters();
 
-  ExecuteResult InitGraphicsPipelineLayout();
+  Result<Nil> InitGraphicsPipelineLayout();
 
-  ExecuteResult InitComputePipelineLayout();
+  Result<Nil> InitComputePipelineLayout();
 
-  ExecuteResult InitRayPipelineLayout();
+  Result<Nil> InitRayPipelineLayout();
 
-  ExecuteResult InitSubpassPipelineLayout();
+  Result<Nil> InitSubpassPipelineLayout();
 
-  ExecuteResult InitAllPipelineLayout();
+  Result<Nil> InitAllPipelineLayout();
 
-  ExecuteResult InitPipelineLayoutWhenNotUseDefault();
+  Result<Nil> InitPipelineLayoutWhenNotUseDefault();
 
  private:
   RenderEngine* render_engine_{nullptr};
-  PipelineLayoutType pipeline_layout_type_{PipelineLayoutType::UNDEFINED};
-  ShaderSlotCount shader_slot_count_{ShaderSlotCount::UNDEFINED};
+  ShaderSlotDescriptor shader_slot_count_{ShaderSlotDescriptor::UNDEFINED};
 
   VkPipelineLayout pipeline_layout_{nullptr};
 };

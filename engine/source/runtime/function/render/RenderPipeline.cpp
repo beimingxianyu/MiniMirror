@@ -84,18 +84,18 @@ MM::RenderSystem::GraphicsPipeline::GraphicsPipeline(
     const VkGraphicsPipelineCreateInfo& vk_graphics_pipeline_create_info)
     : RenderPipeline(), graphics_pipeline_data_info_() {
 #ifdef MM_CHECK_PARAMETERS
-  MM_CHECK(CheckInitParametes(render_engine, vk_graphics_pipeline_create_info),
-           MM_LOG_ERROR("The input parameters are error.");
-           return;)
+  if (CheckInitParametes(render_engine, vk_graphics_pipeline_create_info).Exception(MM_ERROR_DESCRIPTION2("The input parameters are error.")).IsError()) {
+    return;
+  }
 #endif
 
   VkPipeline created_pipeline{nullptr};
-  MM_VK_CHECK(vkCreateGraphicsPipelines(render_engine->GetDevice(),
+  if (ConvertVkResultToMMResult(vkCreateGraphicsPipelines(render_engine->GetDevice(),
                                         render_engine->GetPipelineCache(), 1,
                                         &vk_graphics_pipeline_create_info,
-                                        nullptr, &created_pipeline),
-              MM_LOG_ERROR("Failed to create VkPipeline.");
-              return;)
+                                        nullptr, &created_pipeline)).Exception(MM_ERROR_DESCRIPTION2("Failed to create VkPipeline.")).IsError()) {
+    return;
+  }
 
   graphics_pipeline_data_info_.flags_ = vk_graphics_pipeline_create_info.flags;
 
@@ -229,9 +229,9 @@ MM::RenderSystem::GraphicsPipeline::GraphicsPipeline(
     const MM::RenderSystem::GraphicsPipelineDataInfo&
         graphics_pipeline_data_info) {
 #ifdef MM_CHECK_PARAMETERS
-  MM_CHECK(CheckInitParametes(render_engine, graphics_pipeline_data_info),
-           MM_LOG_ERROR("The input parameters are error.");
-           return;)
+  if (CheckInitParametes(render_engine, graphics_pipeline_data_info).Exception(MM_ERROR_DESCRIPTION2("The input parameters are error.")).IsError()) {
+    return;
+  }
 #endif
 
   VkPipelineVertexInputStateCreateInfo vertex_input_state_create_info{
@@ -295,23 +295,23 @@ MM::RenderSystem::GraphicsPipeline::GraphicsPipeline(
   vk_graphics_pipeline_create_info.basePipelineIndex = 0;
 
   VkPipeline created_pipeline{nullptr};
-  MM_VK_CHECK(vkCreateGraphicsPipelines(render_engine->GetDevice(),
+  if (ConvertVkResultToMMResult(vkCreateGraphicsPipelines(render_engine->GetDevice(),
                                         render_engine->GetPipelineCache(), 1,
                                         &vk_graphics_pipeline_create_info,
-                                        nullptr, &created_pipeline),
-              MM_LOG_ERROR("Failed to create VkPipeline.");
-              return;)
+                                        nullptr, &created_pipeline)).Exception(MM_ERROR_DESCRIPTION2("Failed to create VkPipeline.")).IsError()) {
+    return;
+  }
 
   RenderPipeline::operator=(RenderPipeline(render_engine, created_pipeline));
   graphics_pipeline_data_info_ = graphics_pipeline_data_info;
 }
 
-MM::ExecuteResult MM::RenderSystem::GraphicsPipeline::CheckInitParametes(
+MM::Result<MM::Nil> MM::RenderSystem::GraphicsPipeline::CheckInitParametes(
     MM::RenderSystem::RenderEngine* render_engine,
     const VkGraphicsPipelineCreateInfo& vk_graphics_pipeline_create_info) {
   if (render_engine == nullptr || !render_engine->IsValid()) {
     MM_LOG_ERROR("The input parameter render_engine is error.");
-    return ExecuteResult ::INITIALIZATION_FAILED;
+    return ResultE<>{ErrorCode::INITIALIZATION_FAILED};
   }
 
   if (vk_graphics_pipeline_create_info.pVertexInputState == nullptr ||
@@ -319,127 +319,127 @@ MM::ExecuteResult MM::RenderSystem::GraphicsPipeline::CheckInitParametes(
               ->vertexBindingDescriptionCount < 1 ||
       vk_graphics_pipeline_create_info.pVertexInputState
               ->vertexAttributeDescriptionCount < 5 ||
-      !MM::RenderSystem::Utils::VkVertexInputBindingDescriptionIsEqual(
+      !MM::RenderSystem::VkVertexInputBindingDescriptionIsEqual(
           vk_graphics_pipeline_create_info.pVertexInputState
               ->pVertexBindingDescriptions[0],
           DefaultVertexInputStateDescription::
               vertex_input_state_bind_description_) ||
-      !MM::RenderSystem::Utils::VkVertexInputAttributeDescriptionIsEqual(
+      !MM::RenderSystem::VkVertexInputAttributeDescriptionIsEqual(
           vk_graphics_pipeline_create_info.pVertexInputState
               ->pVertexAttributeDescriptions[0],
           DefaultVertexInputStateDescription::
               vertex_input_state_attribute_descriptions_[0]) ||
-      !MM::RenderSystem::Utils::VkVertexInputAttributeDescriptionIsEqual(
+      !MM::RenderSystem::VkVertexInputAttributeDescriptionIsEqual(
           vk_graphics_pipeline_create_info.pVertexInputState
               ->pVertexAttributeDescriptions[1],
           DefaultVertexInputStateDescription::
               vertex_input_state_attribute_descriptions_[1]) ||
-      !MM::RenderSystem::Utils::VkVertexInputAttributeDescriptionIsEqual(
+      !MM::RenderSystem::VkVertexInputAttributeDescriptionIsEqual(
           vk_graphics_pipeline_create_info.pVertexInputState
               ->pVertexAttributeDescriptions[2],
           DefaultVertexInputStateDescription::
               vertex_input_state_attribute_descriptions_[2]) ||
-      !MM::RenderSystem::Utils::VkVertexInputAttributeDescriptionIsEqual(
+      !MM::RenderSystem::VkVertexInputAttributeDescriptionIsEqual(
           vk_graphics_pipeline_create_info.pVertexInputState
               ->pVertexAttributeDescriptions[3],
           DefaultVertexInputStateDescription::
               vertex_input_state_attribute_descriptions_[3]) ||
-      !MM::RenderSystem::Utils::VkVertexInputAttributeDescriptionIsEqual(
+      !MM::RenderSystem::VkVertexInputAttributeDescriptionIsEqual(
           vk_graphics_pipeline_create_info.pVertexInputState
               ->pVertexAttributeDescriptions[4],
           DefaultVertexInputStateDescription::
               vertex_input_state_attribute_descriptions_[4])) {
     MM_LOG_ERROR(
         "The input parametes vk_graphics_pipeline_create_info is error.");
-    return ExecuteResult ::INITIALIZATION_FAILED;
+    return ResultE<>{ErrorCode::INITIALIZATION_FAILED};
   }
 
   if (vk_graphics_pipeline_create_info.pViewportState == nullptr ||
       vk_graphics_pipeline_create_info.pViewportState->viewportCount < 1 ||
       vk_graphics_pipeline_create_info.pViewportState->scissorCount < 1 ||
-      !MM::RenderSystem::Utils::VkViewportIsEqual(
+      !MM::RenderSystem::VkViewportIsEqual(
           vk_graphics_pipeline_create_info.pViewportState->pViewports[0],
           DefaultViewportState::default_viewport_) ||
-      !MM::RenderSystem::Utils::VkRect2DIsEqual(
+      !MM::RenderSystem::VkRect2DIsEqual(
           vk_graphics_pipeline_create_info.pViewportState->pScissors[0],
           DefaultViewportState::default_scissors_)) {
     MM_LOG_ERROR(
         "The input parametes vk_graphics_pipeline_create_info is error.");
-    return ExecuteResult ::INITIALIZATION_FAILED;
+    return ResultE<>{ErrorCode::INITIALIZATION_FAILED};
   }
 
-  return MM::ExecuteResult::SUCCESS;
+  return ResultS<Nil>{};
 }
 
-MM::ExecuteResult MM::RenderSystem::GraphicsPipeline::CheckInitParametes(
+MM::Result<MM::Nil> MM::RenderSystem::GraphicsPipeline::CheckInitParametes(
     MM::RenderSystem::RenderEngine* render_engine,
     const MM::RenderSystem::GraphicsPipelineDataInfo&
         graphics_pipeline_data_info) {
   if (render_engine == nullptr || !render_engine->IsValid()) {
     MM_LOG_ERROR("The input parameter render_engine is error.");
-    return ExecuteResult ::INITIALIZATION_FAILED;
+    return ResultE<>{ErrorCode::INITIALIZATION_FAILED};
   }
 
   if (graphics_pipeline_data_info.vertex_input_state_
           .vertex_binding_description_.empty() ||
       graphics_pipeline_data_info.vertex_input_state_
               .vertex_attribute_descriptions_.size() < 5 ||
-      !MM::RenderSystem::Utils::VkVertexInputBindingDescriptionIsEqual(
+      !MM::RenderSystem::VkVertexInputBindingDescriptionIsEqual(
           graphics_pipeline_data_info.vertex_input_state_
               .vertex_binding_description_[0],
           DefaultVertexInputStateDescription::
               vertex_input_state_bind_description_) ||
-      !MM::RenderSystem::Utils::VkVertexInputAttributeDescriptionIsEqual(
+      !MM::RenderSystem::VkVertexInputAttributeDescriptionIsEqual(
           graphics_pipeline_data_info.vertex_input_state_
               .vertex_attribute_descriptions_[0],
           DefaultVertexInputStateDescription::
               vertex_input_state_attribute_descriptions_[0]) ||
-      !MM::RenderSystem::Utils::VkVertexInputAttributeDescriptionIsEqual(
+      !MM::RenderSystem::VkVertexInputAttributeDescriptionIsEqual(
           graphics_pipeline_data_info.vertex_input_state_
               .vertex_attribute_descriptions_[1],
           DefaultVertexInputStateDescription::
               vertex_input_state_attribute_descriptions_[1]) ||
-      !MM::RenderSystem::Utils::VkVertexInputAttributeDescriptionIsEqual(
+      !MM::RenderSystem::VkVertexInputAttributeDescriptionIsEqual(
           graphics_pipeline_data_info.vertex_input_state_
               .vertex_attribute_descriptions_[2],
           DefaultVertexInputStateDescription::
               vertex_input_state_attribute_descriptions_[2]) ||
-      !MM::RenderSystem::Utils::VkVertexInputAttributeDescriptionIsEqual(
+      !MM::RenderSystem::VkVertexInputAttributeDescriptionIsEqual(
           graphics_pipeline_data_info.vertex_input_state_
               .vertex_attribute_descriptions_[3],
           DefaultVertexInputStateDescription::
               vertex_input_state_attribute_descriptions_[3]) ||
-      !MM::RenderSystem::Utils::VkVertexInputAttributeDescriptionIsEqual(
+      !MM::RenderSystem::VkVertexInputAttributeDescriptionIsEqual(
           graphics_pipeline_data_info.vertex_input_state_
               .vertex_attribute_descriptions_[4],
           DefaultVertexInputStateDescription::
               vertex_input_state_attribute_descriptions_[4])) {
     MM_LOG_ERROR("The input parametes graphics_pipeline_data_info is error.");
-    return ExecuteResult ::INITIALIZATION_FAILED;
+    return ResultE<>{ErrorCode::INITIALIZATION_FAILED};
   }
 
   if (graphics_pipeline_data_info.viewport_state_.viewports_.empty() ||
       graphics_pipeline_data_info.viewport_state_.scissors_.empty() ||
-      !MM::RenderSystem::Utils::VkViewportIsEqual(
+      !MM::RenderSystem::VkViewportIsEqual(
           graphics_pipeline_data_info.viewport_state_.viewports_[0],
           DefaultViewportState::default_viewport_) ||
-      !MM::RenderSystem::Utils::VkRect2DIsEqual(
+      !MM::RenderSystem::VkRect2DIsEqual(
           graphics_pipeline_data_info.viewport_state_.scissors_[0],
           DefaultViewportState::default_scissors_)) {
     MM_LOG_ERROR("The input parametes graphics_pipeline_data_info is error.");
-    return ExecuteResult ::INITIALIZATION_FAILED;
+    return ResultE<>{ErrorCode::INITIALIZATION_FAILED};
   }
 
-  return MM::ExecuteResult::SUCCESS;
+  return ResultS<Nil>{};
 }
 
 MM::RenderSystem::GraphicsPipeline::GraphicsPipeline(
     MM::RenderSystem::RenderEngine* render_engine,
     MM::RenderSystem::GraphicsPipelineDataInfo&& graphics_pipeline_data_info) {
 #ifdef MM_CHECK_PARAMETERS
-  MM_CHECK(CheckInitParametes(render_engine, graphics_pipeline_data_info),
-           MM_LOG_ERROR("The input parameters are error.");
-           return;)
+  if (CheckInitParametes(render_engine, graphics_pipeline_data_info).Exception(MM_ERROR_DESCRIPTION2("The input parameters are error.")).IsError()) {
+    return;
+  }
 #endif
 
   VkPipelineVertexInputStateCreateInfo vertex_input_state_create_info{
@@ -503,12 +503,12 @@ MM::RenderSystem::GraphicsPipeline::GraphicsPipeline(
   vk_graphics_pipeline_create_info.basePipelineIndex = 0;
 
   VkPipeline created_pipeline{nullptr};
-  MM_VK_CHECK(vkCreateGraphicsPipelines(render_engine->GetDevice(),
+  if (ConvertVkResultToMMResult(vkCreateGraphicsPipelines(render_engine->GetDevice(),
                                         render_engine->GetPipelineCache(), 1,
                                         &vk_graphics_pipeline_create_info,
-                                        nullptr, &created_pipeline),
-              MM_LOG_ERROR("Failed to create VkPipeline.");
-              return;)
+                                        nullptr, &created_pipeline)).Exception(MM_ERROR_DESCRIPTION2("Failed to create VkPipeline.")).IsError()) {
+    return;
+  }
 
   RenderPipeline::operator=(RenderPipeline(render_engine, created_pipeline));
   graphics_pipeline_data_info_ = std::move(graphics_pipeline_data_info);
@@ -556,11 +556,11 @@ MM::RenderSystem::ComputePipeline::ComputePipeline(
   }
 
   VkPipeline created_pipeline{nullptr};
-  MM_VK_CHECK(vkCreateComputePipelines(
+  if (ConvertVkResultToMMResult(vkCreateComputePipelines(
                   render_engine->GetDevice(), GetPipelineCache(), 1,
-                  &vk_compute_pipeline_create_info, nullptr, &created_pipeline),
-              MM_LOG_ERROR("Failed to create VkPipeline(compute).");
-              return;)
+                  &vk_compute_pipeline_create_info, nullptr, &created_pipeline)).Exception(MM_ERROR_DESCRIPTION2("Failed to create VkPipeline(compute).")).IsError()) {
+    return;
+  }
 
   compute_pipeline_data_info_.flags_ = vk_compute_pipeline_create_info.flags;
   compute_pipeline_data_info_.stage_ = vk_compute_pipeline_create_info.stage;
@@ -583,11 +583,11 @@ MM::RenderSystem::ComputePipeline::ComputePipeline(
       compute_pipeline_data_info.GetVkComputePipelineCreateInfo();
 
   VkPipeline created_pipeline{nullptr};
-  MM_VK_CHECK(vkCreateComputePipelines(
+  if (ConvertVkResultToMMResult(vkCreateComputePipelines(
                   render_engine->GetDevice(), GetPipelineCache(), 1,
-                  &vk_compute_pipeline_create_info, nullptr, &created_pipeline),
-              MM_LOG_ERROR("Failed to create VkPipeline(compute).");
-              return;)
+                  &vk_compute_pipeline_create_info, nullptr, &created_pipeline)).Exception(MM_ERROR_DESCRIPTION2("Failed to create VkPipeline(compute).")).IsError()) {
+    return;
+  }
 
   RenderPipeline::operator=(
       std::move(RenderPipeline(render_engine, created_pipeline)));

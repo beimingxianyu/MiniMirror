@@ -100,7 +100,7 @@ MeshBufferManager& MeshBufferManager::operator=(
 Result<Nil> MeshBufferManager::AllocateMeshBuffer(
     VkDeviceSize require_vertex_size, VkDeviceSize require_index_size,
     AllocatedMesh& allocated_mesh) {
-  std::unique_lock<std::mutex> guard(allocate_free_mutex_);
+  std::unique_lock guard(allocate_free_mutex_);
   if (!IsValid()) {
     MM_LOG_ERROR("MM::RenderSystem::MeshBufferManager is invalid.");
     return ResultE<>{ErrorCode::OBJECT_IS_INVALID};
@@ -374,8 +374,8 @@ Result<Nil> MeshBufferManager::RemoveBufferFragmentation() {
   return ResultS<Nil>{};
 }
 
-Result<Nil> MeshBufferManager::Reserve(
-    VkDeviceSize new_vertex_buffer_size, VkDeviceSize new_index_buffer_size) {
+Result<Nil> MeshBufferManager::Reserve(VkDeviceSize new_vertex_buffer_size,
+                                       VkDeviceSize new_index_buffer_size) {
   std::lock_guard guard{allocate_free_mutex_};
   if (!IsValid()) {
     MM_LOG_ERROR("MM::RenderSystem::MeshBufferManager is invalid.");
@@ -771,7 +771,8 @@ Result<Nil> MeshBufferManager::Release() {
 
 Result<Nil> MeshBufferManager::ReserveStandard(
     VkDeviceSize require_vertex_size, VkDeviceSize require_index_size) {
-  const VkDeviceSize vertex_buffer_size = GetAllocatedMeshBuffer().GetVertexSize();
+  const VkDeviceSize vertex_buffer_size =
+      GetAllocatedMeshBuffer().GetVertexSize();
   const VkDeviceSize index_buffer_size =
       GetAllocatedMeshBuffer().GetIndexSize();
 
@@ -861,9 +862,9 @@ Result<Nil> MeshBufferManager::RemoveBufferFragmentationWithoutLock() {
   return ResultS<Nil>{};
 }
 
-Result<Nil> MeshBufferManager::ReserveImp(
-    VkDeviceSize new_vertex_buffer_size, VkDeviceSize new_index_buffer_size) {
-  RenderEngine* render_engine;
+Result<Nil> MeshBufferManager::ReserveImp(VkDeviceSize new_vertex_buffer_size,
+                                          VkDeviceSize new_index_buffer_size) {
+  RenderEngine* render_engine = managed_allocated_mesh_buffer_.GetRenderEnginePtr();
 
   AllocatedMeshBuffer new_mesh_buffer(render_engine, new_vertex_buffer_size,
                                       new_index_buffer_size);
@@ -913,22 +914,21 @@ Result<Nil> MeshBufferManager::ReserveImp(
                   sub_index_buffer_list_.size());
   VkDeviceSize region_offset = 0;
   for (const auto& vertex_sub_resource : sub_vertex_buffer_list_) {
-    regions.emplace_back(GetVkBufferCopy2(
-        vertex_sub_resource.GetSize(), vertex_sub_resource.GetOffset(),
-        region_offset));
+    regions.emplace_back(GetVkBufferCopy2(vertex_sub_resource.GetSize(),
+                                          vertex_sub_resource.GetOffset(),
+                                          region_offset));
     region_offset += vertex_sub_resource.GetSize();
   }
   for (const auto& index_sub_resource : sub_index_buffer_list_) {
-    regions.emplace_back(GetVkBufferCopy2(
-        index_sub_resource.GetSize(), index_sub_resource.GetOffset(),
-        region_offset));
+    regions.emplace_back(GetVkBufferCopy2(index_sub_resource.GetSize(),
+                                          index_sub_resource.GetOffset(),
+                                          region_offset));
     region_offset += index_sub_resource.GetSize();
   }
-  VkCopyBufferInfo2 vertex_copy_buffer_info{
-      GetVkCopyBufferInfo2(
-          nullptr, managed_allocated_mesh_buffer_.GetVertexBuffer(),
-          new_mesh_buffer.GetVertexBuffer(), sub_vertex_buffer_list_.size(),
-          regions.data())},
+  VkCopyBufferInfo2 vertex_copy_buffer_info{GetVkCopyBufferInfo2(
+      nullptr, managed_allocated_mesh_buffer_.GetVertexBuffer(),
+      new_mesh_buffer.GetVertexBuffer(), sub_vertex_buffer_list_.size(),
+      regions.data())},
       index_copy_buffer_info{GetVkCopyBufferInfo2(
           nullptr, managed_allocated_mesh_buffer_.GetIndexBuffer(),
           new_mesh_buffer.GetIndexBuffer(), sub_index_buffer_list_.size(),
@@ -936,27 +936,30 @@ Result<Nil> MeshBufferManager::ReserveImp(
   CommandExecutorGeneralCommandBufferGuard command_buffer =
       render_engine->GetGeneralCommandBufferGuard(CommandBufferType::TRANSFORM);
 
-  if (auto if_result = AddReserveCommands(*command_buffer.GetGeneralCommandBuffer(),
-                              dependency_info, vertex_copy_buffer_info,
-                              index_copy_buffer_info);
-                              if_result.Exception(MM_ERROR_DESCRIPTION2("Failed to record command.")).IsError()) {
+  if (auto if_result = AddReserveCommands(
+          *command_buffer.GetGeneralCommandBuffer(), dependency_info,
+          vertex_copy_buffer_info, index_copy_buffer_info);
+      if_result.Exception(MM_ERROR_DESCRIPTION2("Failed to record command."))
+          .IsError()) {
     return ResultE<>{if_result.GetError().GetErrorCode()};
   }
 
   VkCommandBuffer command_buffer_ptr =
       command_buffer.GetGeneralCommandBuffer()->GetCommandBuffer();
   VkFence fence = command_buffer.GetGeneralCommandBuffer()->GetFence();
-  VkSubmitInfo submit_info{GetVkSubmitInfo(
-      nullptr, 0, nullptr, nullptr, 1, &command_buffer_ptr, 0, nullptr)};
-  if (auto if_result = ConvertVkResultToMMResult(
-      vkQueueSubmit(render_engine->GetTransformQueue(), 1, &submit_info, fence));
-      if_result.Exception(MM_ERROR_DESCRIPTION2("Failed to submit command.")).IsError()) {
+  VkSubmitInfo submit_info{GetVkSubmitInfo(nullptr, 0, nullptr, nullptr, 1,
+                                           &command_buffer_ptr, 0, nullptr)};
+  if (auto if_result = ConvertVkResultToMMResult(vkQueueSubmit(
+          render_engine->GetTransformQueue(), 1, &submit_info, fence));
+      if_result.Exception(MM_ERROR_DESCRIPTION2("Failed to submit command."))
+          .IsError()) {
     return ResultE<>{if_result.GetError().GetErrorCode()};
   }
   vkWaitForFences(render_engine->GetDevice(), 1, &fence, false, 100000000000);
   if (auto if_result = ConvertVkResultToMMResult(
-      vkGetFenceStatus(render_engine->GetDevice(), fence));
-      if_result.Exception(MM_FATAL_DESCRIPTION2("Gpu execute command timeout.")).IsError()) {
+          vkGetFenceStatus(render_engine->GetDevice(), fence));
+      if_result.Exception(MM_FATAL_DESCRIPTION2("Gpu execute command timeout."))
+          .IsError()) {
     return ResultE<>{if_result.GetError().GetErrorCode()};
   }
   vkResetFences(render_engine->GetDevice(), 1, &fence);
@@ -994,8 +997,11 @@ Result<Nil> MeshBufferManager::ReserveWithoutLock(
     return ResultE<>{ErrorCode::INPUT_PARAMETERS_ARE_NOT_SUITABLE};
   }
 
-  if (auto if_result = ReserveImp(new_vertex_buffer_size, new_index_buffer_size);
-    if_result.Exception(MM_ERROR_DESCRIPTION2("Failed to reserve mesh buffer.")).IsError()) {
+  if (auto if_result =
+          ReserveImp(new_vertex_buffer_size, new_index_buffer_size);
+      if_result
+          .Exception(MM_ERROR_DESCRIPTION2("Failed to reserve mesh buffer."))
+          .IsError()) {
     return ResultE<>{if_result.GetError().GetErrorCode()};
   }
 

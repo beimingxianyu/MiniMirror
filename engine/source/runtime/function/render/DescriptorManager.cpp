@@ -6,10 +6,64 @@
 
 #include "runtime/function/render/vk_engine.h"
 
+MM::RenderSystem::DescriptorManager::DescriptorSlot::DescriptorSlot(
+    DescriptorSlot&& other) noexcept
+    : slot_index_(other.slot_index_),
+      descriptor_type_(other.descriptor_type_),
+      is_global_(other.is_global_) {
+  other.slot_index_ = UINT32_MAX;
+  other.descriptor_type_ = DescriptorType::UNDEFINED;
+  other.is_global_ = false;
+}
+
+MM::RenderSystem::DescriptorManager::DescriptorSlot&
+MM::RenderSystem::DescriptorManager::DescriptorSlot::operator=(
+    DescriptorSlot&& other) noexcept {
+  if (std::addressof(other) == this) {
+    return *this;
+  }
+
+  assert(!IsValid());
+
+  slot_index_ = other.slot_index_;
+  descriptor_type_ = other.descriptor_type_;
+  is_global_ = other.is_global_;
+
+  other.slot_index_ = UINT32_MAX;
+  other.descriptor_type_ = DescriptorType::UNDEFINED;
+  other.is_global_ = false;
+
+  return *this;
+}
+
+std::uint32_t
+MM::RenderSystem::DescriptorManager::DescriptorSlot::GetSlotIndex() const {
+  return slot_index_;
+}
+
+MM::RenderSystem::DescriptorType
+MM::RenderSystem::DescriptorManager::DescriptorSlot::GetDescriptorType() const {
+  return descriptor_type_;
+}
+
+bool MM::RenderSystem::DescriptorManager::DescriptorSlot::GetIsGlobal() const {
+  return is_global_;
+}
+
+bool MM::RenderSystem::DescriptorManager::DescriptorSlot::IsValid() const {
+  return descriptor_type_ != DescriptorType::UNDEFINED;
+}
+
+MM::RenderSystem::DescriptorManager::DescriptorSlot::DescriptorSlot(
+    std::uint32_t slot_index, DescriptorType descriptor_type, bool is_global)
+    : slot_index_(slot_index),
+      descriptor_type_(descriptor_type),
+      is_global_(is_global) {}
+
 MM::RenderSystem::DescriptorManager::~DescriptorManager() { Release(); }
 
 MM::RenderSystem::DescriptorManager::DescriptorManager(
-    MM::RenderSystem::RenderEngine* render_engine,
+    RenderEngine* render_engine,
     VkAllocationCallbacks* allocator,
     std::uint32_t one_descriptor_element_count)
     : render_engine_(render_engine),
@@ -65,18 +119,20 @@ MM::RenderSystem::DescriptorManager::DescriptorManager(
     return;
   }
 
-  MM_CHECK(InitDescriptorManager(
+  if (auto if_result = InitDescriptorManager(
                one_descriptor_element_count, one_descriptor_element_count,
                one_descriptor_element_count, one_descriptor_element_count,
                one_descriptor_element_count, one_descriptor_element_count,
                one_descriptor_element_count, one_descriptor_element_count,
                one_descriptor_element_count, one_descriptor_element_count,
-               one_descriptor_element_count, one_descriptor_element_count),
-           MM_LOG_ERROR("Failed initialization descriptor manager.");)
+               one_descriptor_element_count, one_descriptor_element_count);
+               if_result.Exception(MM_ERROR_DESCRIPTION2("Failed initialization descriptor manager.")).IsError()) {
+    return;
+  }
 }
 
 MM::RenderSystem::DescriptorManager::DescriptorManager(
-    MM::RenderSystem::RenderEngine* render_engine,
+    RenderEngine* render_engine,
     VkAllocationCallbacks* allocator,
     std::uint32_t global_sampler_texture2D_descriptor_element_count,
     std::uint32_t global_sampler_texture3D_descriptor_element_count,
@@ -143,7 +199,7 @@ MM::RenderSystem::DescriptorManager::DescriptorManager(
     return;
   }
 
-  MM_CHECK(
+  if (auto if_result =
       InitDescriptorManager(global_sampler_texture2D_descriptor_element_count,
                             global_sampler_texture3D_descriptor_element_count,
                             global_sampler_textureCUBE_descriptor_element_count,
@@ -155,12 +211,14 @@ MM::RenderSystem::DescriptorManager::DescriptorManager(
                             sampler_textureCUBE_descriptor_element_count,
                             storage_texture2D_descriptor_element_count,
                             storage_texture3D_descriptor_element_count,
-                            storage_textureCUBE_descriptor_element_count),
-      MM_LOG_ERROR("Failed initialization descriptor manager.");)
+                            storage_textureCUBE_descriptor_element_count);
+                            if_result.Exception(MM_ERROR_DESCRIPTION2("Failed initialization descriptor manager.")).IsError()) {
+    return;
+  }
 }
 
 MM::RenderSystem::DescriptorManager::DescriptorManager(
-    MM::RenderSystem::DescriptorManager&& other) noexcept
+    DescriptorManager&& other) noexcept
     : render_engine_(other.render_engine_),
       allocator_(other.allocator_),
       descriptor_pool_(other.descriptor_pool_),
@@ -239,7 +297,7 @@ MM::RenderSystem::DescriptorManager::DescriptorManager(
 
 MM::RenderSystem::DescriptorManager&
 MM::RenderSystem::DescriptorManager::operator=(
-    MM::RenderSystem::DescriptorManager&& other) noexcept {
+    DescriptorManager&& other) noexcept {
   if (std::addressof(other) == this) {
     return *this;
   }
@@ -319,13 +377,12 @@ MM::RenderSystem::DescriptorManager::operator=(
   return *this;
 }
 
-MM::Utils::ExecuteResult MM::RenderSystem::DescriptorManager::
+VkWriteDescriptorSet MM::RenderSystem::DescriptorManager::
     GetGlobalSamplerTexture2DDescriptorWriteInfo(
         std::uint32_t dest_array_element, std::uint32_t descriptor_count,
-        const VkDescriptorImageInfo* image_info,
-        VkWriteDescriptorSet& output) const {
+        const VkDescriptorImageInfo* image_info) const {
   assert(IsValid());
-  output = VkWriteDescriptorSet{VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+  const VkWriteDescriptorSet output = VkWriteDescriptorSet{VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
                                 nullptr,
                                 global_set_,
                                 MM_SHADER_SAMPLER_TEXTURE2D_BINDING,
@@ -336,16 +393,16 @@ MM::Utils::ExecuteResult MM::RenderSystem::DescriptorManager::
                                 nullptr,
                                 nullptr};
 
-  return ExecuteResult::SUCCESS;
+  return output;
 }
 
-MM::Utils::ExecuteResult MM::RenderSystem::DescriptorManager::
+VkWriteDescriptorSet  MM::RenderSystem::DescriptorManager::
     GetGlobalSamplerTexture3DDescriptorWriteInfo(
         std::uint32_t dest_array_element, std::uint32_t descriptor_count,
-        const VkDescriptorImageInfo* image_info,
-        VkWriteDescriptorSet& output) const {
+        const VkDescriptorImageInfo* image_info
+        ) const {
   assert(IsValid());
-  output = VkWriteDescriptorSet{VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+  const VkWriteDescriptorSet output = VkWriteDescriptorSet{VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
                                 nullptr,
                                 global_set_,
                                 MM_SHADER_SAMPLER_TEXTURE3D_BINDING,
@@ -356,16 +413,16 @@ MM::Utils::ExecuteResult MM::RenderSystem::DescriptorManager::
                                 nullptr,
                                 nullptr};
 
-  return ExecuteResult::SUCCESS;
+  return output;
 }
 
-MM::Utils::ExecuteResult MM::RenderSystem::DescriptorManager::
+VkWriteDescriptorSet  MM::RenderSystem::DescriptorManager::
     GetGlobalSamplerTextureCUBEDescriptorWriteInfo(
         std::uint32_t dest_array_element, std::uint32_t descriptor_count,
-        const VkDescriptorImageInfo* image_info,
-        VkWriteDescriptorSet& output) const {
+        const VkDescriptorImageInfo* image_info
+        ) const {
   assert(IsValid());
-  output = VkWriteDescriptorSet{VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+  const VkWriteDescriptorSet output = VkWriteDescriptorSet{VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
                                 nullptr,
                                 global_set_,
                                 MM_SHADER_SAMPLER_TEXTURECUBE_BINDING,
@@ -376,16 +433,16 @@ MM::Utils::ExecuteResult MM::RenderSystem::DescriptorManager::
                                 nullptr,
                                 nullptr};
 
-  return ExecuteResult::SUCCESS;
+  return output;
 }
 
-MM::Utils::ExecuteResult MM::RenderSystem::DescriptorManager::
+VkWriteDescriptorSet  MM::RenderSystem::DescriptorManager::
     GetGlobalStorageTexture2DDescriptorWriteInfo(
         std::uint32_t dest_array_element, std::uint32_t descriptor_count,
-        const VkDescriptorImageInfo* image_info,
-        VkWriteDescriptorSet& output) const {
+        const VkDescriptorImageInfo* image_info
+        ) const {
   assert(IsValid());
-  output = VkWriteDescriptorSet{VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+  const VkWriteDescriptorSet output = VkWriteDescriptorSet{VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
                                 nullptr,
                                 global_set_,
                                 MM_SHADER_STORAGE_TEXTURE2D_BINDING,
@@ -396,16 +453,16 @@ MM::Utils::ExecuteResult MM::RenderSystem::DescriptorManager::
                                 nullptr,
                                 nullptr};
 
-  return ExecuteResult::SUCCESS;
+  return output;
 }
 
-MM::Utils::ExecuteResult MM::RenderSystem::DescriptorManager::
+VkWriteDescriptorSet  MM::RenderSystem::DescriptorManager::
     GetGlobalStorageTexture3DDescriptorWriteInfo(
         std::uint32_t dest_array_element, std::uint32_t descriptor_count,
-        const VkDescriptorImageInfo* image_info,
-        VkWriteDescriptorSet& output) const {
+        const VkDescriptorImageInfo* image_info
+        ) const {
   assert(IsValid());
-  output = VkWriteDescriptorSet{VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+  const VkWriteDescriptorSet output = VkWriteDescriptorSet{VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
                                 nullptr,
                                 global_set_,
                                 MM_SHADER_STORAGE_TEXTURE3D_BINDING,
@@ -416,16 +473,16 @@ MM::Utils::ExecuteResult MM::RenderSystem::DescriptorManager::
                                 nullptr,
                                 nullptr};
 
-  return ExecuteResult::SUCCESS;
+  return output;
 }
 
-MM::Utils::ExecuteResult MM::RenderSystem::DescriptorManager::
+VkWriteDescriptorSet  MM::RenderSystem::DescriptorManager::
     GetGlobalStorageTextureCUBEDescriptorWriteInfo(
         std::uint32_t dest_array_element, std::uint32_t descriptor_count,
-        const VkDescriptorImageInfo* image_info,
-        VkWriteDescriptorSet& output) const {
+        const VkDescriptorImageInfo* image_info
+        ) const {
   assert(IsValid());
-  output = VkWriteDescriptorSet{VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+  const VkWriteDescriptorSet output = VkWriteDescriptorSet{VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
                                 nullptr,
                                 global_set_,
                                 MM_SHADER_STORAGE_TEXTURECUBE_BINDING,
@@ -436,16 +493,16 @@ MM::Utils::ExecuteResult MM::RenderSystem::DescriptorManager::
                                 nullptr,
                                 nullptr};
 
-  return ExecuteResult::SUCCESS;
+  return output;
 }
 
-MM::Utils::ExecuteResult
+VkWriteDescriptorSet
 MM::RenderSystem::DescriptorManager::GetSamplerTexture2DDescriptorWriteInfo(
     std::uint32_t dest_array_element, std::uint32_t descriptor_count,
-    const VkDescriptorImageInfo* image_info,
-    VkWriteDescriptorSet& output) const {
+    const VkDescriptorImageInfo* image_info
+    ) const {
   assert(IsValid());
-  output = VkWriteDescriptorSet{VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+  const VkWriteDescriptorSet output = VkWriteDescriptorSet{VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
                                 nullptr,
                                 material_set_,
                                 MM_SHADER_SAMPLER_TEXTURE2D_BINDING,
@@ -456,16 +513,16 @@ MM::RenderSystem::DescriptorManager::GetSamplerTexture2DDescriptorWriteInfo(
                                 nullptr,
                                 nullptr};
 
-  return ExecuteResult::SUCCESS;
+  return output;
 }
 
-MM::Utils::ExecuteResult
+VkWriteDescriptorSet
 MM::RenderSystem::DescriptorManager::GetSamplerTexture3DDescriptorWriteInfo(
     std::uint32_t dest_array_element, std::uint32_t descriptor_count,
-    const VkDescriptorImageInfo* image_info,
-    VkWriteDescriptorSet& output) const {
+    const VkDescriptorImageInfo* image_info
+    ) const {
   assert(IsValid());
-  output = VkWriteDescriptorSet{VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+  const VkWriteDescriptorSet output = VkWriteDescriptorSet{VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
                                 nullptr,
                                 material_set_,
                                 MM_SHADER_SAMPLER_TEXTURE3D_BINDING,
@@ -476,16 +533,16 @@ MM::RenderSystem::DescriptorManager::GetSamplerTexture3DDescriptorWriteInfo(
                                 nullptr,
                                 nullptr};
 
-  return ExecuteResult::SUCCESS;
+  return output;
 }
 
-MM::Utils::ExecuteResult
+VkWriteDescriptorSet
 MM::RenderSystem::DescriptorManager::GetSamplerTextureCUBEDescriptorWriteInfo(
     std::uint32_t dest_array_element, std::uint32_t descriptor_count,
-    const VkDescriptorImageInfo* image_info,
-    VkWriteDescriptorSet& output) const {
+    const VkDescriptorImageInfo* image_info
+    ) const {
   assert(IsValid());
-  output = VkWriteDescriptorSet{VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+  const VkWriteDescriptorSet output = VkWriteDescriptorSet{VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
                                 nullptr,
                                 material_set_,
                                 MM_SHADER_SAMPLER_TEXTURECUBE_BINDING,
@@ -496,16 +553,16 @@ MM::RenderSystem::DescriptorManager::GetSamplerTextureCUBEDescriptorWriteInfo(
                                 nullptr,
                                 nullptr};
 
-  return ExecuteResult::SUCCESS;
+  return output;
 }
 
-MM::Utils::ExecuteResult
+VkWriteDescriptorSet
 MM::RenderSystem::DescriptorManager::GetStorageTexture2DDescriptorWriteInfo(
     std::uint32_t dest_array_element, std::uint32_t descriptor_count,
-    const VkDescriptorImageInfo* image_info,
-    VkWriteDescriptorSet& output) const {
+    const VkDescriptorImageInfo* image_info
+    ) const {
   assert(IsValid());
-  output = VkWriteDescriptorSet{VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+  const VkWriteDescriptorSet output = VkWriteDescriptorSet{VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
                                 nullptr,
                                 material_set_,
                                 MM_SHADER_STORAGE_TEXTURE2D_BINDING,
@@ -516,16 +573,16 @@ MM::RenderSystem::DescriptorManager::GetStorageTexture2DDescriptorWriteInfo(
                                 nullptr,
                                 nullptr};
 
-  return ExecuteResult::SUCCESS;
+  return output;
 }
 
-MM::Utils::ExecuteResult
+VkWriteDescriptorSet
 MM::RenderSystem::DescriptorManager::GetStorageTexture3DDescriptorWriteInfo(
     std::uint32_t dest_array_element, std::uint32_t descriptor_count,
-    const VkDescriptorImageInfo* image_info,
-    VkWriteDescriptorSet& output) const {
+    const VkDescriptorImageInfo* image_info
+    ) const {
   assert(IsValid());
-  output = VkWriteDescriptorSet{VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+  const VkWriteDescriptorSet output = VkWriteDescriptorSet{VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
                                 nullptr,
                                 material_set_,
                                 MM_SHADER_STORAGE_TEXTURE3D_BINDING,
@@ -536,16 +593,16 @@ MM::RenderSystem::DescriptorManager::GetStorageTexture3DDescriptorWriteInfo(
                                 nullptr,
                                 nullptr};
 
-  return ExecuteResult::SUCCESS;
+  return output;
 }
 
-MM::Utils::ExecuteResult
+VkWriteDescriptorSet
 MM::RenderSystem::DescriptorManager::GetStorageTextureCUBEDescriptorWriteInfo(
     std::uint32_t dest_array_element, std::uint32_t descriptor_count,
-    const VkDescriptorImageInfo* image_info,
-    VkWriteDescriptorSet& output) const {
+    const VkDescriptorImageInfo* image_info
+    ) const {
   assert(IsValid());
-  output = VkWriteDescriptorSet{VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+  const VkWriteDescriptorSet output = VkWriteDescriptorSet{VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
                                 nullptr,
                                 material_set_,
                                 MM_SHADER_STORAGE_TEXTURECUBE_BINDING,
@@ -556,7 +613,7 @@ MM::RenderSystem::DescriptorManager::GetStorageTextureCUBEDescriptorWriteInfo(
                                 nullptr,
                                 nullptr};
 
-  return ExecuteResult::SUCCESS;
+  return output;
 }
 
 void MM::RenderSystem::DescriptorManager::UpdateDescriptorSet(
@@ -567,272 +624,213 @@ void MM::RenderSystem::DescriptorManager::UpdateDescriptorSet(
                          write_descriptor_sets, 0, nullptr);
 }
 
-MM::ExecuteResult MM::RenderSystem::DescriptorManager::AllocateSlot(
-    std::uint32_t& free_slot, DescriptorType descriptor_type, bool is_global) {
-  assert(IsValid());
-  switch (descriptor_type) {
-    case DescriptorType::SAMPLER_TEXTURE2D:
-      if (is_global) {
-        return AllocateSlot(free_slot, global_sampler_texture2D_last_use_index_,
-                            global_sampler_texture2D_array_use_info_);
-      } else {
-        return AllocateSlot(free_slot, sampler_texture2D_last_use_index_,
-                            sampler_texture2D_array_use_info_);
-      }
-    case DescriptorType::SAMPLER_TEXTURE3D:
-      if (is_global) {
-        return AllocateSlot(free_slot, global_sampler_texture3D_last_use_index_,
-                            global_sampler_texture3D_array_use_info_);
-      } else {
-        return AllocateSlot(free_slot, sampler_texture3D_last_use_index_,
-                            sampler_texture3D_array_use_info_);
-      }
-    case DescriptorType::SAMPLER_TEXTURECUBE:
-      if (is_global) {
-        return AllocateSlot(free_slot,
-                            global_sampler_textureCUBE_last_use_index_,
-                            global_sampler_textureCUBE_array_use_info_);
-      } else {
-        return AllocateSlot(free_slot, sampler_textureCUBE_last_use_index_,
-                            sampler_textureCUBE_array_use_info_);
-      }
-    case DescriptorType::STORAGE_TEXTURE2D:
-      if (is_global) {
-        return AllocateSlot(free_slot, global_storage_texture2D_last_use_index_,
-                            global_storage_texture2D_array_use_info_);
-      } else {
-        return AllocateSlot(free_slot, storage_texture2D_last_use_index_,
-                            storage_texture2D_array_use_info_);
-      }
-    case DescriptorType::STORAGE_TEXTURE3D:
-      if (is_global) {
-        return AllocateSlot(free_slot, global_storage_texture3D_last_use_index_,
-                            global_storage_texture3D_array_use_info_);
-      } else {
-        return AllocateSlot(free_slot, storage_texture3D_last_use_index_,
-                            storage_texture3D_array_use_info_);
-      }
-    case DescriptorType::STORAGE_TEXTURECUBE:
-      if (is_global) {
-        return AllocateSlot(free_slot,
-                            global_storage_textureCUBE_last_use_index_,
-                            global_storage_textureCUBE_array_use_info_);
-      } else {
-        return AllocateSlot(free_slot, storage_textureCUBE_last_use_index_,
-                            storage_textureCUBE_array_use_info_);
-      }
-  }
-}
-
-MM::ExecuteResult MM::RenderSystem::DescriptorManager::AllocateSlot(
-    std::uint32_t& need_free_count, std::vector<std::uint32_t>& free_slots,
+MM::Result<MM::RenderSystem::DescriptorManager::DescriptorSlot> MM::RenderSystem::DescriptorManager::AllocateSlot(
     DescriptorType descriptor_type, bool is_global) {
   assert(IsValid());
   switch (descriptor_type) {
-    case DescriptorType::SAMPLER_TEXTURE2D:
+    case DescriptorType::SAMPLER_TEXTURE2D: {
       if (is_global) {
-        return AllocateSlot(need_free_count, free_slots,
+        return AllocateSlot(descriptor_type, is_global,
                             global_sampler_texture2D_last_use_index_,
                             global_sampler_texture2D_array_use_info_);
-      } else {
-        return AllocateSlot(need_free_count, free_slots,
-                            sampler_texture2D_last_use_index_,
-                            sampler_texture2D_array_use_info_);
       }
-    case DescriptorType::SAMPLER_TEXTURE3D:
+      return AllocateSlot(descriptor_type, is_global,
+                          sampler_texture2D_last_use_index_,
+                          sampler_texture2D_array_use_info_);
+    }
+    case DescriptorType::SAMPLER_TEXTURE3D: {
       if (is_global) {
-        return AllocateSlot(need_free_count, free_slots,
+        return AllocateSlot(descriptor_type, is_global,
                             global_sampler_texture3D_last_use_index_,
                             global_sampler_texture3D_array_use_info_);
-      } else {
-        return AllocateSlot(need_free_count, free_slots,
-                            sampler_texture3D_last_use_index_,
-                            sampler_texture3D_array_use_info_);
       }
-    case DescriptorType::SAMPLER_TEXTURECUBE:
+      return AllocateSlot(descriptor_type, is_global,
+                          sampler_texture3D_last_use_index_,
+                          sampler_texture3D_array_use_info_);
+    }
+    case DescriptorType::SAMPLER_TEXTURECUBE: {
       if (is_global) {
-        return AllocateSlot(need_free_count, free_slots,
+        return AllocateSlot(descriptor_type, is_global,
                             global_sampler_textureCUBE_last_use_index_,
                             global_sampler_textureCUBE_array_use_info_);
-      } else {
-        return AllocateSlot(need_free_count, free_slots,
-                            sampler_textureCUBE_last_use_index_,
-                            sampler_textureCUBE_array_use_info_);
       }
-    case DescriptorType::STORAGE_TEXTURE2D:
+      return AllocateSlot(descriptor_type, is_global,
+                          sampler_textureCUBE_last_use_index_,
+                          sampler_textureCUBE_array_use_info_);
+    }
+    case DescriptorType::STORAGE_TEXTURE2D: {
       if (is_global) {
-        return AllocateSlot(need_free_count, free_slots,
+        return AllocateSlot(descriptor_type, is_global,
                             global_storage_texture2D_last_use_index_,
                             global_storage_texture2D_array_use_info_);
-      } else {
-        return AllocateSlot(need_free_count, free_slots,
-                            storage_texture2D_last_use_index_,
-                            storage_texture2D_array_use_info_);
       }
-    case DescriptorType::STORAGE_TEXTURE3D:
+      return AllocateSlot(descriptor_type, is_global,
+                          storage_texture2D_last_use_index_,
+                          storage_texture2D_array_use_info_);
+    }
+    case DescriptorType::STORAGE_TEXTURE3D: {
       if (is_global) {
-        return AllocateSlot(need_free_count, free_slots,
+        return AllocateSlot(descriptor_type, is_global,
                             global_storage_texture3D_last_use_index_,
                             global_storage_texture3D_array_use_info_);
-      } else {
-        return AllocateSlot(need_free_count, free_slots,
-                            storage_texture3D_last_use_index_,
-                            storage_texture3D_array_use_info_);
       }
-    case DescriptorType::STORAGE_TEXTURECUBE:
+      return AllocateSlot(descriptor_type, is_global,
+                          storage_texture3D_last_use_index_,
+                          storage_texture3D_array_use_info_);
+    }
+    case DescriptorType::STORAGE_TEXTURECUBE: {
       if (is_global) {
-        return AllocateSlot(need_free_count, free_slots,
+        return AllocateSlot(descriptor_type, is_global,
                             global_storage_textureCUBE_last_use_index_,
                             global_storage_textureCUBE_array_use_info_);
-      } else {
-        return AllocateSlot(need_free_count, free_slots,
-                            storage_textureCUBE_last_use_index_,
-                            storage_textureCUBE_array_use_info_);
       }
+      return AllocateSlot(descriptor_type, is_global,
+                          storage_textureCUBE_last_use_index_,
+                          storage_textureCUBE_array_use_info_);
+    }
+    default:
+      assert(false);
+  }
+}
+
+MM::Result<std::vector<MM::RenderSystem::DescriptorManager::DescriptorSlot>> MM::RenderSystem::DescriptorManager::AllocateSlot(
+    const std::uint32_t& need_free_count,
+    DescriptorType descriptor_type, bool is_global) {
+  assert(IsValid());
+  switch (descriptor_type) {
+    case DescriptorType::SAMPLER_TEXTURE2D: {
+      if (is_global) {
+        return AllocateSlot(descriptor_type, is_global, need_free_count,
+                            global_sampler_texture2D_last_use_index_,
+                            global_sampler_texture2D_array_use_info_);
+      }
+      return AllocateSlot(descriptor_type, is_global, need_free_count,
+                          sampler_texture2D_last_use_index_,
+                          sampler_texture2D_array_use_info_);
+    }
+    case DescriptorType::SAMPLER_TEXTURE3D: {
+      if (is_global) {
+        return AllocateSlot(descriptor_type, is_global, need_free_count,
+                            global_sampler_texture3D_last_use_index_,
+                            global_sampler_texture3D_array_use_info_);
+      }
+      return AllocateSlot(descriptor_type, is_global, need_free_count,
+                          sampler_texture3D_last_use_index_,
+                          sampler_texture3D_array_use_info_);
+    }
+    case DescriptorType::SAMPLER_TEXTURECUBE: {
+      if (is_global) {
+        return AllocateSlot(descriptor_type, is_global, need_free_count,
+                            global_sampler_textureCUBE_last_use_index_,
+                            global_sampler_textureCUBE_array_use_info_);
+      }
+      return AllocateSlot(descriptor_type, is_global, need_free_count,
+                          sampler_textureCUBE_last_use_index_,
+                          sampler_textureCUBE_array_use_info_);
+    }
+    case DescriptorType::STORAGE_TEXTURE2D: {
+      if (is_global) {
+        return AllocateSlot(descriptor_type, is_global, need_free_count,
+                            global_storage_texture2D_last_use_index_,
+                            global_storage_texture2D_array_use_info_);
+      }
+      return AllocateSlot(descriptor_type, is_global, need_free_count,
+                          storage_texture2D_last_use_index_,
+                          storage_texture2D_array_use_info_);
+    }
+    case DescriptorType::STORAGE_TEXTURE3D: {
+      if (is_global) {
+        return AllocateSlot(descriptor_type, is_global, need_free_count,
+                            global_storage_texture3D_last_use_index_,
+                            global_storage_texture3D_array_use_info_);
+      }
+      return AllocateSlot(descriptor_type, is_global, need_free_count,
+                          storage_texture3D_last_use_index_,
+                          storage_texture3D_array_use_info_);
+    }
+    case DescriptorType::STORAGE_TEXTURECUBE: {
+      if (is_global) {
+        return AllocateSlot(descriptor_type, is_global, need_free_count,
+                            global_storage_textureCUBE_last_use_index_,
+                            global_storage_textureCUBE_array_use_info_);
+      }
+      return AllocateSlot(descriptor_type, is_global, need_free_count,
+                          storage_textureCUBE_last_use_index_,
+                          storage_textureCUBE_array_use_info_);
+    }
+    default:
+      assert(false);
   }
 }
 
 void MM::RenderSystem::DescriptorManager::FreeSlot(
-    std::uint32_t free_slot, MM::RenderSystem::DescriptorType descriptor_type,
-    bool is_global) {
-  assert(IsValid());
-  switch (descriptor_type) {
+    DescriptorSlot&& free_slot) {
+  assert(IsValid() && free_slot.IsValid());
+  switch (free_slot.GetDescriptorType()) {
     case DescriptorType::SAMPLER_TEXTURE2D:
-      if (is_global) {
-        FreeSlot(free_slot, global_sampler_texture2D_array_use_info_);
+      if (free_slot.GetIsGlobal()) {
+        global_sampler_texture2D_array_use_info_[free_slot.GetSlotIndex()].clear();
       } else {
-        FreeSlot(free_slot, sampler_texture2D_array_use_info_);
+        sampler_texture2D_array_use_info_[free_slot.GetSlotIndex()].clear();
       }
     case DescriptorType::SAMPLER_TEXTURE3D:
-      if (is_global) {
-        FreeSlot(free_slot, global_sampler_texture3D_array_use_info_);
+      if (free_slot.GetIsGlobal()) {
+        global_sampler_texture3D_array_use_info_[free_slot.GetSlotIndex()].clear();
       } else {
-        FreeSlot(free_slot, sampler_texture3D_array_use_info_);
+        sampler_texture3D_array_use_info_[free_slot.GetSlotIndex()].clear();
       }
     case DescriptorType::SAMPLER_TEXTURECUBE:
-      if (is_global) {
-        FreeSlot(free_slot, global_sampler_textureCUBE_array_use_info_);
+      if (free_slot.GetIsGlobal()) {
+        global_sampler_textureCUBE_array_use_info_[free_slot.GetSlotIndex()].clear();
       } else {
-        FreeSlot(free_slot, sampler_textureCUBE_array_use_info_);
+        sampler_textureCUBE_array_use_info_[free_slot.GetSlotIndex()].clear();
       }
     case DescriptorType::STORAGE_TEXTURE2D:
-      if (is_global) {
-        FreeSlot(free_slot, global_storage_texture2D_array_use_info_);
+      if (free_slot.GetIsGlobal()) {
+        global_storage_texture2D_array_use_info_[free_slot.GetSlotIndex()].clear();
       } else {
-        FreeSlot(free_slot, storage_texture2D_array_use_info_);
+        storage_texture2D_array_use_info_[free_slot.GetSlotIndex()].clear();
       }
     case DescriptorType::STORAGE_TEXTURE3D:
-      if (is_global) {
-        FreeSlot(free_slot, global_storage_texture3D_array_use_info_);
+      if (free_slot.GetIsGlobal()) {
+        global_storage_texture3D_array_use_info_[free_slot.GetSlotIndex()].clear();
       } else {
-        FreeSlot(free_slot, storage_texture3D_array_use_info_);
+        storage_texture3D_array_use_info_[free_slot.GetSlotIndex()].clear();
       }
     case DescriptorType::STORAGE_TEXTURECUBE:
-      if (is_global) {
-        FreeSlot(free_slot, global_storage_textureCUBE_array_use_info_);
+      if (free_slot.GetSlotIndex()) {
+        global_storage_textureCUBE_array_use_info_[free_slot.GetSlotIndex()].clear();
       } else {
-        FreeSlot(free_slot, storage_textureCUBE_array_use_info_);
+        storage_textureCUBE_array_use_info_[free_slot.GetSlotIndex()].clear();
       }
+    default:
+      assert(false);
+  }
+
+  free_slot.Reset();
+}
+
+void MM::RenderSystem::DescriptorManager::FreeSlot(
+    std::uint32_t need_free_slot, DescriptorSlot* free_slots) {
+  assert(IsValid());
+
+  for (std::uint32_t i = 0; i != need_free_slot; ++i) {
+    FreeSlot(std::move(free_slots[i]));
   }
 }
 
 void MM::RenderSystem::DescriptorManager::FreeSlot(
-    std::uint32_t need_free_slot, std::uint32_t* free_slots,
-    MM::RenderSystem::DescriptorType descriptor_type, bool is_global) {
+    std::vector<DescriptorSlot>&& free_slots) {
   assert(IsValid());
-  switch (descriptor_type) {
-    case DescriptorType::SAMPLER_TEXTURE2D:
-      if (is_global) {
-        FreeSlot(need_free_slot, free_slots,
-                 global_sampler_texture2D_array_use_info_);
-      } else {
-        FreeSlot(need_free_slot, free_slots, sampler_texture2D_array_use_info_);
-      }
-    case DescriptorType::SAMPLER_TEXTURE3D:
-      if (is_global) {
-        FreeSlot(need_free_slot, free_slots,
-                 global_sampler_texture3D_array_use_info_);
-      } else {
-        FreeSlot(need_free_slot, free_slots, sampler_texture3D_array_use_info_);
-      }
-    case DescriptorType::SAMPLER_TEXTURECUBE:
-      if (is_global) {
-        FreeSlot(need_free_slot, free_slots,
-                 global_sampler_textureCUBE_array_use_info_);
-      } else {
-        FreeSlot(need_free_slot, free_slots,
-                 sampler_textureCUBE_array_use_info_);
-      }
-    case DescriptorType::STORAGE_TEXTURE2D:
-      if (is_global) {
-        FreeSlot(need_free_slot, free_slots,
-                 global_storage_texture2D_array_use_info_);
-      } else {
-        FreeSlot(need_free_slot, free_slots, storage_texture2D_array_use_info_);
-      }
-    case DescriptorType::STORAGE_TEXTURE3D:
-      if (is_global) {
-        FreeSlot(need_free_slot, free_slots,
-                 global_storage_texture3D_array_use_info_);
-      } else {
-        FreeSlot(need_free_slot, free_slots, storage_texture3D_array_use_info_);
-      }
-    case DescriptorType::STORAGE_TEXTURECUBE:
-      if (is_global) {
-        FreeSlot(need_free_slot, free_slots,
-                 global_storage_textureCUBE_array_use_info_);
-      } else {
-        FreeSlot(need_free_slot, free_slots,
-                 storage_textureCUBE_array_use_info_);
-      }
+
+  for (DescriptorSlot& free_slot: free_slots) {
+    FreeSlot(std::move(free_slot));
   }
+
+  free_slots.clear();
 }
 
-void MM::RenderSystem::DescriptorManager::FreeSlot(
-    const std::vector<std::uint32_t>& free_slots,
-    MM::RenderSystem::DescriptorType descriptor_type, bool is_global) {
-  assert(IsValid());
-  switch (descriptor_type) {
-    case DescriptorType::SAMPLER_TEXTURE2D:
-      if (is_global) {
-        FreeSlot(free_slots, global_sampler_texture2D_array_use_info_);
-      } else {
-        FreeSlot(free_slots, sampler_texture2D_array_use_info_);
-      }
-    case DescriptorType::SAMPLER_TEXTURE3D:
-      if (is_global) {
-        FreeSlot(free_slots, global_sampler_texture3D_array_use_info_);
-      } else {
-        FreeSlot(free_slots, sampler_texture3D_array_use_info_);
-      }
-    case DescriptorType::SAMPLER_TEXTURECUBE:
-      if (is_global) {
-        FreeSlot(free_slots, global_sampler_textureCUBE_array_use_info_);
-      } else {
-        FreeSlot(free_slots, sampler_textureCUBE_array_use_info_);
-      }
-    case DescriptorType::STORAGE_TEXTURE2D:
-      if (is_global) {
-        FreeSlot(free_slots, global_storage_texture2D_array_use_info_);
-      } else {
-        FreeSlot(free_slots, storage_texture2D_array_use_info_);
-      }
-    case DescriptorType::STORAGE_TEXTURE3D:
-      if (is_global) {
-        FreeSlot(free_slots, global_storage_texture3D_array_use_info_);
-      } else {
-        FreeSlot(free_slots, storage_texture3D_array_use_info_);
-      }
-    case DescriptorType::STORAGE_TEXTURECUBE:
-      if (is_global) {
-        FreeSlot(free_slots, global_storage_textureCUBE_array_use_info_);
-      } else {
-        FreeSlot(free_slots, storage_textureCUBE_array_use_info_);
-      }
-  }
-}
-
-MM::ExecuteResult MM::RenderSystem::DescriptorManager::InitDescriptorManager(
+MM::Result<MM::Nil> MM::RenderSystem::DescriptorManager::InitDescriptorManager(
     std::uint32_t global_sampler_texture2D_descriptor_element_count,
     std::uint32_t global_sampler_texture3D_descriptor_element_count,
     std::uint32_t global_sampler_textureCUBE_descriptor_element_count,
@@ -847,7 +845,7 @@ MM::ExecuteResult MM::RenderSystem::DescriptorManager::InitDescriptorManager(
     std::uint32_t storage_textureCUBE_descriptor_element_count) {
   std::array<VkDescriptorSetLayoutBinding, 12> bindings{};
   std::array<VkDescriptorBindingFlags, 6> flags{};
-  std::array<VkDescriptorType, 2> types{
+  constexpr std::array<VkDescriptorType, 2> types{
       VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
       VK_DESCRIPTOR_TYPE_STORAGE_BUFFER};
 
@@ -918,22 +916,25 @@ MM::ExecuteResult MM::RenderSystem::DescriptorManager::InitDescriptorManager(
       static_cast<uint32_t>(bindings.size()) / 2;
   material_layout_info.pBindings = bindings.data() + 6;
 
-  MM_VK_CHECK(
+  if (auto if_result = ConvertVkResultToMMResult(
       vkCreateDescriptorSetLayout(render_engine_->GetDevice(),
                                   &global_layout_info, allocator_,
-                                  &global_set_layout_),
-      MM_LOG_ERROR("Failed to create VkDescriptorSetLayout.");
-      render_engine_ = nullptr;
-      return MM::RenderSystem::Utils::VkResultToMMResult(MM_VK_RESULT_CODE);)
-  MM_VK_CHECK(
+                                  &global_set_layout_));
+                                  if_result.Exception(MM_ERROR_DESCRIPTION2("Failed to create VkDescriptorSetLayout.")).IsError()) {
+    render_engine_ = nullptr;
+    return ResultE{if_result.GetError()};
+  }
+
+  if (auto if_result = ConvertVkResultToMMResult(
       vkCreateDescriptorSetLayout(render_engine_->GetDevice(),
                                   &material_layout_info, allocator_,
-                                  &global_set_layout_),
-      MM_LOG_ERROR("Failed to create VkDescriptorSetLayout.");
+                                  &global_set_layout_));
+                                  if_result.Exception(MM_ERROR_DESCRIPTION2("Failed to create VkDescriptorSetLayout.")).IsError()) {
       vkDestroyDescriptorSetLayout(render_engine_->GetDevice(),
                                    global_set_layout_, allocator_);
       render_engine_ = nullptr;
-      return MM::RenderSystem::Utils::VkResultToMMResult(MM_VK_RESULT_CODE);)
+    return ResultE{if_result.GetError()};
+  }
 
   std::array<VkDescriptorPoolSize, 2> pool_sizes{};
   pool_sizes[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
@@ -948,18 +949,20 @@ MM::ExecuteResult MM::RenderSystem::DescriptorManager::InitDescriptorManager(
   pool_info.pPoolSizes = pool_sizes.data();
   pool_info.maxSets = static_cast<uint32_t>(2);
 
-  MM_VK_CHECK(
-      vkCreateDescriptorPool(render_engine_->GetDevice(), &pool_info, nullptr,
-                             &descriptor_pool_),
-      MM_LOG_ERROR("Failed to create descriptor pool.");
-      vkDestroyDescriptorSetLayout(render_engine_->GetDevice(),
-                                   global_set_layout_, allocator_);
-      vkDestroyDescriptorSetLayout(render_engine_->GetDevice(),
-                                   material_set_layout_, allocator_);
-      render_engine_ = nullptr;
-      return MM::RenderSystem::Utils::VkResultToMMResult(MM_VK_RESULT_CODE);)
+  if (auto if_result = ConvertVkResultToMMResult(vkCreateDescriptorPool(
+          render_engine_->GetDevice(), &pool_info, nullptr, &descriptor_pool_));
+      if_result
+          .Exception(MM_ERROR_DESCRIPTION2("Failed to create descriptor pool."))
+          .IsError()) {
+    vkDestroyDescriptorSetLayout(render_engine_->GetDevice(),
+                                 global_set_layout_, allocator_);
+    vkDestroyDescriptorSetLayout(render_engine_->GetDevice(),
+                                 material_set_layout_, allocator_);
+    render_engine_ = nullptr;
+    return ResultE{if_result.GetError()};
+  }
 
-  std::array<VkDescriptorSetLayout, 2> layouts{global_set_layout_,
+  const std::array<VkDescriptorSetLayout, 2> layouts{global_set_layout_,
                                                material_set_layout_};
 
   VkDescriptorSetAllocateInfo alloc_info{};
@@ -970,10 +973,10 @@ MM::ExecuteResult MM::RenderSystem::DescriptorManager::InitDescriptorManager(
 
   std::array<VkDescriptorSet, 2> descriptor_sets_{};
 
-  MM_VK_CHECK(
+  if (auto if_result = ConvertVkResultToMMResult(
       vkAllocateDescriptorSets(render_engine_->GetDevice(), &alloc_info,
-                               descriptor_sets_.data()),
-      MM_LOG_ERROR("Failed to allocate descriptor sets.");
+                               descriptor_sets_.data()));
+                               if_result.Exception(MM_ERROR_DESCRIPTION2("Failed to allocate descriptor sets.")).IsError()) {
       vkDestroyDescriptorPool(render_engine_->GetDevice(), descriptor_pool_,
                               allocator_);
       vkDestroyDescriptorSetLayout(render_engine_->GetDevice(),
@@ -981,20 +984,23 @@ MM::ExecuteResult MM::RenderSystem::DescriptorManager::InitDescriptorManager(
       vkDestroyDescriptorSetLayout(render_engine_->GetDevice(),
                                    material_set_layout_, allocator_);
       render_engine_ = nullptr;
-      return MM::RenderSystem::Utils::VkResultToMMResult(MM_VK_RESULT_CODE);)
+    return ResultE{if_result.GetError()};
+  }
 
   global_set_ = descriptor_sets_[0];
   material_set_ = descriptor_sets_[1];
 
-  MM_CHECK(CreatePipelineLayout(),
-           MM_LOG_ERROR("Failed create default pipeline layouts.");
+  if (auto if_result = CreatePipelineLayout();
+    if_result.Exception(MM_ERROR_DESCRIPTION2("Failed create default pipeline layouts.")).IsError()) {
            vkDestroyDescriptorPool(render_engine_->GetDevice(),
                                    descriptor_pool_, allocator_);
            vkDestroyDescriptorSetLayout(render_engine_->GetDevice(),
                                         global_set_layout_, allocator_);
            vkDestroyDescriptorSetLayout(render_engine_->GetDevice(),
                                         material_set_layout_, allocator_);
-           render_engine_ = nullptr; return MM_RESULT_CODE;)
+           render_engine_ = nullptr;
+    return ResultE{if_result.GetError()};
+  }
 
   global_sampler_texture2D_array_use_info_ = std::vector<std::atomic_flag>(
       global_sampler_texture2D_descriptor_element_count);
@@ -1020,87 +1026,70 @@ MM::ExecuteResult MM::RenderSystem::DescriptorManager::InitDescriptorManager(
       std::vector<std::atomic_flag>(storage_texture3D_descriptor_element_count);
   storage_textureCUBE_array_use_info_ = std::vector<std::atomic_flag>(
       storage_textureCUBE_descriptor_element_count);
+
+  return ResultS<Nil>{};
 }
 
-MM::ExecuteResult MM::RenderSystem::DescriptorManager::AllocateSlot(
-    std::uint32_t& free_slot, std::atomic_uint32_t& last_use_index,
+MM::Result<MM::RenderSystem::DescriptorManager::DescriptorSlot> MM::RenderSystem::DescriptorManager::AllocateSlot(
+    DescriptorType descriptor_type, bool is_global,
+    std::atomic_uint32_t& last_use_index,
     std::vector<std::atomic_flag>& array_use_info) {
-  std::uint32_t start_index = last_use_index.load(std::memory_order_acquire);
+  const std::uint32_t start_index =
+      last_use_index.load(std::memory_order_acquire);
 
-  std::uint32_t array_size = array_use_info.size();
+  const std::uint32_t array_size = array_use_info.size();
   for (std::uint32_t index = start_index; index != array_size; ++index) {
     if (array_use_info[index].test_and_set() == 0) {
       last_use_index.store(index, std::memory_order_release);
-      free_slot = index;
-      return ExecuteResult ::SUCCESS;
+      return ResultS<DescriptorSlot>{index, descriptor_type, is_global};
     }
   }
 
   for (std::uint32_t index = 0; index != start_index; ++index) {
     if (array_use_info[index].test_and_set() == 0) {
       last_use_index.store(index, std::memory_order_release);
-      free_slot = index;
-      return ExecuteResult ::SUCCESS;
+      return ResultS<DescriptorSlot>{index, descriptor_type, is_global};
     }
   }
 
-  return ExecuteResult::NO_AVAILABLE_ELEMENT;
+  return ResultE<>{ErrorCode::NO_AVAILABLE_ELEMENT};
 }
 
-MM::ExecuteResult MM::RenderSystem::DescriptorManager::AllocateSlot(
-    std::uint32_t need_free_count, std::vector<std::uint32_t>& free_slot,
+MM::Result<std::vector<MM::RenderSystem::DescriptorManager::DescriptorSlot>> MM::RenderSystem::DescriptorManager::AllocateSlot(
+    DescriptorType descriptor_type, bool is_global,
+    std::uint32_t need_free_count,
     std::atomic_uint32_t& last_use_index,
     std::vector<std::atomic_flag>& array_use_info) {
-  std::uint32_t start_index = last_use_index.load(std::memory_order_acquire);
+  const std::uint32_t start_index = last_use_index.load(std::memory_order_acquire);
   std::uint32_t add_count = 0;
 
-  std::uint32_t array_size = array_use_info.size();
+  const std::uint32_t array_size = array_use_info.size();
+  std::vector<DescriptorSlot> free_slot{};
   for (std::uint32_t index = start_index; index != array_size; ++index) {
     if (array_use_info[index].test_and_set() == 0) {
-      free_slot.emplace_back(index);
+      free_slot.emplace_back(index, descriptor_type, is_global);
       ++add_count;
       if (--need_free_count == 0) {
         last_use_index.store(index, std::memory_order_release);
-        return ExecuteResult ::SUCCESS;
+        return ResultS{std::move(free_slot)};
       }
     }
   }
 
   for (std::uint32_t index = 0; index != start_index; ++index) {
     if (array_use_info[index].test_and_set() == 0) {
-      free_slot.emplace_back(index);
+      free_slot.emplace_back(index, descriptor_type, is_global);
       ++add_count;
       if (--need_free_count == 0) {
         last_use_index.store(index, std::memory_order_release);
-        return ExecuteResult ::SUCCESS;
+        return ResultS{std::move(free_slot)};
       }
     }
   }
 
   free_slot.resize(free_slot.size() - add_count);
 
-  return ExecuteResult::NO_AVAILABLE_ELEMENT;
-}
-
-void MM::RenderSystem::DescriptorManager::FreeSlot(
-    std::uint32_t free_slot, std::vector<std::atomic_flag>& array_use_info) {
-  array_use_info[free_slot].clear();
-}
-
-void MM::RenderSystem::DescriptorManager::FreeSlot(
-    std::uint32_t need_free_slot, std::uint32_t* free_slots,
-    std::vector<std::atomic_flag>& array_use_info) {
-  for (std::uint32_t i = 0; i != need_free_slot; ++i) {
-    array_use_info[free_slots[i]].clear();
-  }
-}
-
-void MM::RenderSystem::DescriptorManager::FreeSlot(
-    const std::vector<std::uint32_t>& free_slots,
-    std::vector<std::atomic_flag>& array_use_info) {
-  for (const auto& index : free_slots) {
-    array_use_info[index].clear();
-  }
+  return ResultE<>{ErrorCode::NO_AVAILABLE_ELEMENT};
 }
 
 bool MM::RenderSystem::DescriptorManager::IsValid() const {
@@ -1276,7 +1265,7 @@ MM::RenderSystem::DescriptorManager::GetDefaultPipelineLayout16() const {
   return pipeline_layout16_;
 }
 
-MM::ExecuteResult MM::RenderSystem::DescriptorManager::CreatePipelineLayout() {
+MM::Result<MM::Nil> MM::RenderSystem::DescriptorManager::CreatePipelineLayout() {
   std::array<VkDescriptorSetLayout, 2> descriptor_set_layout{
       global_set_layout_, material_set_layout_};
 
@@ -1291,171 +1280,193 @@ MM::ExecuteResult MM::RenderSystem::DescriptorManager::CreatePipelineLayout() {
   vk_pipeline_layout_create_info.pSetLayouts = descriptor_set_layout.data();
   vk_pipeline_layout_create_info.pushConstantRangeCount = 0;
   vk_pipeline_layout_create_info.pPushConstantRanges = nullptr;
-  MM_VK_CHECK(
+  if (auto if_result = ConvertVkResultToMMResult(
       vkCreatePipelineLayout(render_engine_->GetDevice(),
                              &vk_pipeline_layout_create_info, allocator_,
-                             &pipeline_layout0_),
-      MM_LOG_ERROR("Failed to create VkPipelineLayout.");
+                             &pipeline_layout0_));
+                             if_result.Exception(MM_ERROR_DESCRIPTION2("Failed to create VkPipelineLayout.")).IsError()) {
       CleanPipelineLayout();
-      return MM::RenderSystem::Utils::VkResultToMMResult(MM_VK_RESULT_CODE);)
+      return ResultE{if_result.GetError()};
+  }
 
   vk_pipeline_layout_create_info.pushConstantRangeCount = 1;
   vk_pipeline_layout_create_info.pPushConstantRanges = &range;
 
   range.size = sizeof(PushData1);
-  MM_VK_CHECK(
+  if (auto if_result = ConvertVkResultToMMResult(
       vkCreatePipelineLayout(render_engine_->GetDevice(),
                              &vk_pipeline_layout_create_info, allocator_,
-                             &pipeline_layout1_),
-      MM_LOG_ERROR("Failed to create VkPipelineLayout.");
+                             &pipeline_layout1_));
+                             if_result.Exception(MM_ERROR_DESCRIPTION2("Failed to create VkPipelineLayout.")).IsError()) {
       CleanPipelineLayout();
-      return MM::RenderSystem::Utils::VkResultToMMResult(MM_VK_RESULT_CODE);)
+      return ResultE{if_result.GetError()};
+  }
 
   range.size = sizeof(PushData2);
-  MM_VK_CHECK(
+  if (auto if_result = ConvertVkResultToMMResult(
       vkCreatePipelineLayout(render_engine_->GetDevice(),
                              &vk_pipeline_layout_create_info, allocator_,
-                             &pipeline_layout2_),
-      MM_LOG_ERROR("Failed to create VkPipelineLayout.");
+                             &pipeline_layout2_));
+                             if_result.Exception(MM_ERROR_DESCRIPTION2("Failed to create VkPipelineLayout.")).IsError()) {
       CleanPipelineLayout();
-      return MM::RenderSystem::Utils::VkResultToMMResult(MM_VK_RESULT_CODE);)
+      return ResultE{if_result.GetError()};
+  }
 
   range.size = sizeof(PushData3);
-  MM_VK_CHECK(
+  if (auto if_result = ConvertVkResultToMMResult(
       vkCreatePipelineLayout(render_engine_->GetDevice(),
                              &vk_pipeline_layout_create_info, allocator_,
-                             &pipeline_layout3_),
-      MM_LOG_ERROR("Failed to create VkPipelineLayout.");
+                             &pipeline_layout3_));
+                             if_result.Exception(MM_ERROR_DESCRIPTION2("Failed to create VkPipelineLayout.")).IsError()) {
       CleanPipelineLayout();
-      return MM::RenderSystem::Utils::VkResultToMMResult(MM_VK_RESULT_CODE);)
+      return ResultE{if_result.GetError()};
+  }
+
 
   range.size = sizeof(PushData4);
-  MM_VK_CHECK(
+  if (auto if_result = ConvertVkResultToMMResult(
       vkCreatePipelineLayout(render_engine_->GetDevice(),
                              &vk_pipeline_layout_create_info, allocator_,
-                             &pipeline_layout4_),
-      MM_LOG_ERROR("Failed to create VkPipelineLayout.");
+                             &pipeline_layout4_));
+                             if_result.Exception(MM_ERROR_DESCRIPTION2("Failed to create VkPipelineLayout.")).IsError()) {
       CleanPipelineLayout();
-      return MM::RenderSystem::Utils::VkResultToMMResult(MM_VK_RESULT_CODE);)
+      return ResultE{if_result.GetError()};
+  }
 
   range.size = sizeof(PushData5);
-  MM_VK_CHECK(
+  if (auto if_result = ConvertVkResultToMMResult(
       vkCreatePipelineLayout(render_engine_->GetDevice(),
                              &vk_pipeline_layout_create_info, allocator_,
-                             &pipeline_layout5_),
-      MM_LOG_ERROR("Failed to create VkPipelineLayout.");
+                             &pipeline_layout5_));
+                             if_result.Exception(MM_ERROR_DESCRIPTION2("Failed to create VkPipelineLayout.")).GetError()) {
       CleanPipelineLayout();
-      return MM::RenderSystem::Utils::VkResultToMMResult(MM_VK_RESULT_CODE);)
+      return ResultE{if_result.GetError()};
+  }
 
   range.size = sizeof(PushData6);
-  MM_VK_CHECK(
+  if (auto if_result = ConvertVkResultToMMResult(
       vkCreatePipelineLayout(render_engine_->GetDevice(),
                              &vk_pipeline_layout_create_info, allocator_,
-                             &pipeline_layout6_),
-      MM_LOG_ERROR("Failed to create VkPipelineLayout.");
+                             &pipeline_layout6_));
+                             if_result.Exception(MM_ERROR_DESCRIPTION2("Failed to create VkPipelineLayout.")).IsError()) {
       CleanPipelineLayout();
-      return MM::RenderSystem::Utils::VkResultToMMResult(MM_VK_RESULT_CODE);)
+      return ResultE{if_result.GetError()};
+  }
 
   range.size = sizeof(PushData7);
-  MM_VK_CHECK(
+  if (auto if_result = ConvertVkResultToMMResult(
       vkCreatePipelineLayout(render_engine_->GetDevice(),
                              &vk_pipeline_layout_create_info, allocator_,
-                             &pipeline_layout7_),
-      MM_LOG_ERROR("Failed to create VkPipelineLayout.");
-      CleanPipelineLayout();
-      return MM::RenderSystem::Utils::VkResultToMMResult(MM_VK_RESULT_CODE);)
+                             &pipeline_layout7_));
+                             if_result.Exception(MM_ERROR_DESCRIPTION2("Failed to create VkPipelineLayout.")).IsError()) {
+    CleanPipelineLayout();
+    return ResultE{if_result.GetError()};
+  }
 
   range.size = sizeof(PushData8);
-  MM_VK_CHECK(
+    if (auto if_result = ConvertVkResultToMMResult(
       vkCreatePipelineLayout(render_engine_->GetDevice(),
                              &vk_pipeline_layout_create_info, allocator_,
-                             &pipeline_layout8_),
-      MM_LOG_ERROR("Failed to create VkPipelineLayout.");
-      CleanPipelineLayout();
-      return MM::RenderSystem::Utils::VkResultToMMResult(MM_VK_RESULT_CODE);)
+                             &pipeline_layout8_));
+                             if_result.Exception(MM_ERROR_DESCRIPTION2("Failed to create VkPipelineLayout.")).IsError()) {
+    CleanPipelineLayout();
+    return ResultE{if_result.GetError()};
+  }
 
   range.size = sizeof(PushData9);
-  MM_VK_CHECK(
+    if (auto if_result = ConvertVkResultToMMResult(
       vkCreatePipelineLayout(render_engine_->GetDevice(),
                              &vk_pipeline_layout_create_info, allocator_,
-                             &pipeline_layout9_),
-      MM_LOG_ERROR("Failed to create VkPipelineLayout.");
-      CleanPipelineLayout();
-      return MM::RenderSystem::Utils::VkResultToMMResult(MM_VK_RESULT_CODE);)
+                             &pipeline_layout9_));
+      if_result
+          .Exception(
+              MM_ERROR_DESCRIPTION2("Failed to create VkPipelineLayout."))
+          .IsError()) {
+    CleanPipelineLayout();
+    return ResultE{if_result.GetError()};
+  }
 
   range.size = sizeof(PushData10);
-  MM_VK_CHECK(
+    if (auto if_result = ConvertVkResultToMMResult(
       vkCreatePipelineLayout(render_engine_->GetDevice(),
                              &vk_pipeline_layout_create_info, allocator_,
-                             &pipeline_layout10_),
-      MM_LOG_ERROR("Failed to create VkPipelineLayout.");
-      CleanPipelineLayout();
-      return MM::RenderSystem::Utils::VkResultToMMResult(MM_VK_RESULT_CODE);)
+                             &pipeline_layout10_));
+                             if_result.Exception(MM_ERROR_DESCRIPTION2("Failed to create VkPipelineLayout.")).IsError()) {
+    CleanPipelineLayout();
+    return ResultE{if_result.GetError()};
+  }
 
   range.size = sizeof(PushData11);
-  MM_VK_CHECK(
+    if (auto if_result = ConvertVkResultToMMResult(
       vkCreatePipelineLayout(render_engine_->GetDevice(),
                              &vk_pipeline_layout_create_info, allocator_,
-                             &pipeline_layout11_),
-      MM_LOG_ERROR("Failed to create VkPipelineLayout.");
-      CleanPipelineLayout();
-      return MM::RenderSystem::Utils::VkResultToMMResult(MM_VK_RESULT_CODE);)
+                             &pipeline_layout11_));
+                             if_result.Exception(MM_ERROR_DESCRIPTION2("Failed to create VkPipelineLayout.")).IsError()) {
+    CleanPipelineLayout();
+    return ResultE{if_result.GetError()};
+  }
 
   range.size = sizeof(PushData12);
-  MM_VK_CHECK(
+    if (auto if_result = ConvertVkResultToMMResult(
       vkCreatePipelineLayout(render_engine_->GetDevice(),
                              &vk_pipeline_layout_create_info, allocator_,
-                             &pipeline_layout12_),
-      MM_LOG_ERROR("Failed to create VkPipelineLayout.");
-      CleanPipelineLayout();
-      return MM::RenderSystem::Utils::VkResultToMMResult(MM_VK_RESULT_CODE);)
+                             &pipeline_layout12_));
+                             if_result.Exception(MM_ERROR_DESCRIPTION2("Failed to create VkPipelineLayout.")).IsError()) {
+    CleanPipelineLayout();
+    return ResultE{if_result.GetError()};
+  }
 
   range.size = sizeof(PushData13);
-  MM_VK_CHECK(
+    if (auto if_result = ConvertVkResultToMMResult(
       vkCreatePipelineLayout(render_engine_->GetDevice(),
                              &vk_pipeline_layout_create_info, allocator_,
-                             &pipeline_layout13_),
-      MM_LOG_ERROR("Failed to create VkPipelineLayout.");
-      CleanPipelineLayout();
-      return MM::RenderSystem::Utils::VkResultToMMResult(MM_VK_RESULT_CODE);)
+                             &pipeline_layout13_));
+                             if_result.Exception(MM_ERROR_DESCRIPTION2("Failed to create VkPipelineLayout.")).IsError()) {
+    CleanPipelineLayout();
+    return ResultE{if_result.GetError()};
+  }
 
   range.size = sizeof(PushData14);
-  MM_VK_CHECK(
+    if (auto if_result = ConvertVkResultToMMResult(
       vkCreatePipelineLayout(render_engine_->GetDevice(),
                              &vk_pipeline_layout_create_info, allocator_,
-                             &pipeline_layout14_),
-      MM_LOG_ERROR("Failed to create VkPipelineLayout.");
-      CleanPipelineLayout();
-      return MM::RenderSystem::Utils::VkResultToMMResult(MM_VK_RESULT_CODE);)
+                             &pipeline_layout14_));
+                             if_result.Exception(MM_ERROR_DESCRIPTION2("Failed to create VkPipelineLayout.")).IsError()) {
+    CleanPipelineLayout();
+    return ResultE{if_result.GetError()};
+  }
 
   range.size = sizeof(PushData15);
-  MM_VK_CHECK(
+    if (auto if_result = ConvertVkResultToMMResult(
       vkCreatePipelineLayout(render_engine_->GetDevice(),
                              &vk_pipeline_layout_create_info, allocator_,
-                             &pipeline_layout15_),
-      MM_LOG_ERROR("Failed to create VkPipelineLayout.");
-      CleanPipelineLayout();
-      return MM::RenderSystem::Utils::VkResultToMMResult(MM_VK_RESULT_CODE);)
+                             &pipeline_layout15_));
+                             if_result.Exception(MM_ERROR_DESCRIPTION2("Failed to create VkPipelineLayout.")).IsError()) {
+    CleanPipelineLayout();
+    return ResultE{if_result.GetError()};
+  }
 
   range.size = sizeof(PushData15);
-  MM_VK_CHECK(
+    if (auto if_result = ConvertVkResultToMMResult(
       vkCreatePipelineLayout(render_engine_->GetDevice(),
                              &vk_pipeline_layout_create_info, allocator_,
-                             &pipeline_layout15_),
-      MM_LOG_ERROR("Failed to create VkPipelineLayout.");
-      CleanPipelineLayout();
-      return MM::RenderSystem::Utils::VkResultToMMResult(MM_VK_RESULT_CODE);)
+                             &pipeline_layout15_));
+                             if_result.Exception(MM_ERROR_DESCRIPTION2("Failed to create VkPipelineLayout.")).IsError()) {
+    CleanPipelineLayout();
+    return ResultE{if_result.GetError()};
+  }
 
   range.size = sizeof(PushData16);
-  MM_VK_CHECK(
+    if (auto if_result = ConvertVkResultToMMResult(
       vkCreatePipelineLayout(render_engine_->GetDevice(),
                              &vk_pipeline_layout_create_info, allocator_,
-                             &pipeline_layout16_),
-      MM_LOG_ERROR("Failed to create VkPipelineLayout.");
-      CleanPipelineLayout();
-      return MM::RenderSystem::Utils::VkResultToMMResult(MM_VK_RESULT_CODE);)
+                             &pipeline_layout16_));
+                             if_result.Exception(MM_ERROR_DESCRIPTION2("Failed to create VkPipelineLayout.")).IsError()) {
+    CleanPipelineLayout();
+    return ResultE{if_result.GetError()};
+  }
 
-  return ExecuteResult ::SUCCESS;
+  return ResultS<Nil>{};
 }
 
 void MM::RenderSystem::DescriptorManager::CleanPipelineLayout() {

@@ -12,14 +12,16 @@ MM::RenderSystem::RenderPassAttachmentDescription::
         const VkRenderPassCreateInfo& vk_render_pass_create_info)
     : wrapper_(nullptr) {
 #ifdef MM_CHECK_PARAMETERS
-  MM_CHECK(CheckInitParameters(render_engine, vk_render_pass_create_info),
-           MM_LOG_ERROR("Input parameters is error.");
-           return;)
+  if (CheckInitParameters(render_engine, vk_render_pass_create_info).Exception(MM_ERROR_DESCRIPTION2("Input parameters is error.")).IsError()) {
+    return;
+  }
 #endif
-
-  MM_CHECK(
-      InitRenderPass(render_engine, allocator, vk_render_pass_create_info),
-      MM_LOG_ERROR("Failed to initialization MM::RenderSystem::RenderPass.");)
+  if (InitRenderPass(render_engine, allocator, vk_render_pass_create_info)
+          .Exception(MM_ERROR_DESCRIPTION2(
+              "Failed to initialization MM::RenderSystem::RenderPass."))
+          .IsError()) {
+    return;
+          }
 }
 
 MM::RenderSystem::RenderPassAttachmentDescription::
@@ -28,96 +30,102 @@ MM::RenderSystem::RenderPassAttachmentDescription::
         const RenderPassCreateInfo& render_pass_create_info)
     : wrapper_(nullptr) {
 #ifdef MM_CHECK_PARAMETERS
-  MM_CHECK(CheckInitParameters(render_engine, render_pass_create_info),
-           MM_LOG_ERROR("Input parameters is error.");
-           return;)
+  if (CheckInitParameters(render_engine, render_pass_create_info).Exception(MM_ERROR_DESCRIPTION2("Input parameters is error.")).IsError()) {
+    return;
+  }
 #endif
 
-  VkRenderPassCreateInfo vk_render_pass_create_info =
+  const VkRenderPassCreateInfo vk_render_pass_create_info =
       render_pass_create_info.GetVkRenderPassCreateInfo();
 
-  MM_CHECK(
-      InitRenderPass(render_engine, allocator, vk_render_pass_create_info),
-      MM_LOG_ERROR("Failed to initialization MM::RenderSystem::RenderPass.");)
+  if (InitRenderPass(render_engine, allocator, vk_render_pass_create_info).Exception(MM_ERROR_DESCRIPTION2("Failed to initialization MM::RenderSystem::RenderPass.")).IsError()) {
+    return;
+  }
 }
 
 MM::RenderSystem::RenderPassAttachmentDescription::
     RenderPassAttachmentDescription(
-        MM::RenderSystem::RenderEngine* render_engine,
+    RenderEngine* render_engine,
         VkAllocationCallbacks* allocator,
-        MM::RenderSystem::RenderPassCreateInfo&& render_pass_create_info) {
+    RenderPassCreateInfo&& render_pass_create_info) {
 #ifdef MM_CHECK_PARAMETERS
-  MM_CHECK(CheckInitParameters(render_engine, render_pass_create_info),
-           MM_LOG_ERROR("Input parameters is error.");
-           return;)
+  if (CheckInitParameters(render_engine, render_pass_create_info).Exception(MM_ERROR_DESCRIPTION2("Input parameters is error.")).IsError()) {
+    return;
+  }
 #endif
 
-  VkRenderPassCreateInfo vk_render_pass_create_info =
+  const VkRenderPassCreateInfo vk_render_pass_create_info =
       render_pass_create_info.GetVkRenderPassCreateInfo();
 
-  MM_CHECK(
-      InitRenderPass(render_engine, allocator, vk_render_pass_create_info),
-      MM_LOG_ERROR("Failed to initialization MM::RenderSystem::RenderPass.");)
+  if (InitRenderPass(render_engine, allocator, vk_render_pass_create_info)
+          .Exception(MM_ERROR_DESCRIPTION2(
+              "Failed to initialization MM::RenderSystem::RenderPass."))
+          .IsError()) {
+    return;
+  }
 }
 
-MM::ExecuteResult
+MM::Result<MM::Nil>
 MM::RenderSystem::RenderPassAttachmentDescription::CheckInitParameters(
     RenderEngine* render_engine,
     const RenderPassCreateInfo& render_pass_create_info) {
   if (render_engine == nullptr || !render_engine->IsValid()) {
     MM_LOG_ERROR("The input parameter render engine must invalid.");
-    return MM::ExecuteResult ::INITIALIZATION_FAILED;
+    return ResultE<>{ErrorCode::INITIALIZATION_FAILED};
   }
 
   for (const auto& attachment_description :
        render_pass_create_info.attachments_) {
     if (attachment_description.flags == 0x7FFFFFFF) {
       MM_LOG_ERROR("AttachmentDecriptions is error.");
-      return MM::ExecuteResult ::INITIALIZATION_FAILED;
+      return ResultE<>{ErrorCode::INITIALIZATION_FAILED};
     }
     if (attachment_description.format == 0x7FFFFFFF) {
       MM_LOG_ERROR("AttachmentDecriptions is error.");
-      return MM::ExecuteResult ::INITIALIZATION_FAILED;
+      return ResultE<>{ErrorCode::INITIALIZATION_FAILED};
     }
     if (attachment_description.samples == 0x7FFFFFFF) {
       MM_LOG_ERROR("AttachmentDecriptions is error.");
-      return MM::ExecuteResult ::INITIALIZATION_FAILED;
+      return ResultE<>{ErrorCode::INITIALIZATION_FAILED};
     }
     if (attachment_description.loadOp == 0x7FFFFFFF) {
       MM_LOG_ERROR("AttachmentDecriptions is error.");
-      return MM::ExecuteResult ::INITIALIZATION_FAILED;
+      return ResultE<>{ErrorCode::INITIALIZATION_FAILED};
     }
     if (attachment_description.storeOp == 0x7FFFFFFF) {
       MM_LOG_ERROR("AttachmentDecriptions is error.");
-      return MM::ExecuteResult ::INITIALIZATION_FAILED;
+      return ResultE<>{ErrorCode::INITIALIZATION_FAILED};
     }
     if (attachment_description.stencilLoadOp == 0x7FFFFFFF) {
       MM_LOG_ERROR("AttachmentDecriptions is error.");
-      return MM::ExecuteResult ::INITIALIZATION_FAILED;
+      return ResultE<>{ErrorCode::INITIALIZATION_FAILED};
     }
     if (attachment_description.stencilStoreOp == 0x7FFFFFFF) {
       MM_LOG_ERROR("AttachmentDecriptions is error.");
-      return MM::ExecuteResult ::INITIALIZATION_FAILED;
+      return ResultE<>{ErrorCode::INITIALIZATION_FAILED};
     }
     if (attachment_description.initialLayout == 0x7FFFFFFF) {
       MM_LOG_ERROR("AttachmentDecriptions is error.");
-      return MM::ExecuteResult ::INITIALIZATION_FAILED;
+      return ResultE<>{ErrorCode::INITIALIZATION_FAILED};
     }
     if (attachment_description.finalLayout == 0x7FFFFFFF) {
       MM_LOG_ERROR("AttachmentDecriptions is error.");
-      return MM::ExecuteResult ::INITIALIZATION_FAILED;
+      return ResultE<>{ErrorCode::INITIALIZATION_FAILED};
     }
   }
+
+  return ResultS<Nil>{};
 }
 
-MM::ExecuteResult
+MM::Result<MM::Nil>
 MM::RenderSystem::RenderPassAttachmentDescription::InitRenderPass(
     RenderEngine* render_engine, VkAllocationCallbacks* allocator,
     const VkRenderPassCreateInfo& vk_render_pass_create_info) {
-  RenderPassID render_pass_ID;
-  MM_CHECK(GetRenderPassID(render_pass_ID),
-           MM_LOG_ERROR("MM::RenderSystem::RenderPassCreateInfo is invalid.");
-           return ExecuteResult::INITIALIZATION_FAILED;)
+  Result<RenderPassID> render_pass_ID_result = GetRenderPassID();
+  if (render_pass_ID_result.Exception(MM_ERROR_DESCRIPTION2("MM::RenderSystem::RenderPassCreateInfo is invalid.")).IsError()) {
+    return ResultE<>{ErrorCode::INITIALIZATION_FAILED};
+  }
+  RenderPassID& render_pass_ID = render_pass_ID_result.GetResult();
 
   RenderPassContainerType ::FindResultType find_result =
       render_pass_container_.Find(render_pass_ID);
@@ -126,27 +134,28 @@ MM::RenderSystem::RenderPassAttachmentDescription::InitRenderPass(
     wrapper_ = &(find_result->second);
   } else {
     VkRenderPass created_render_pass;
-    MM_VK_CHECK(vkCreateRenderPass(render_engine->GetDevice(),
+    if (auto if_result = ConvertVkResultToMMResult(vkCreateRenderPass(render_engine->GetDevice(),
                                    &vk_render_pass_create_info, allocator,
-                                   &created_render_pass),
-                MM_LOG_ERROR("Failed to create VkRenderPass.");)
+                                   &created_render_pass));if_result.Exception(MM_ERROR_DESCRIPTION2("Failed to create VkRenderPass.")).IsError()) {
+      return ResultE<>{if_result.GetError().GetErrorCode()};
+    }
 
     RenderPassAttachmentDescriptionWrapper wrapper{
         render_engine, allocator, created_render_pass,
         RenderPassCreateInfo(vk_render_pass_create_info)};
 
-    auto emplace_result = render_pass_container_.Emplace(
+    const auto emplace_result = render_pass_container_.Emplace(
         std::make_pair(render_pass_ID, std::move(wrapper)));
     if (emplace_result.second) {
       wrapper_ = &(emplace_result.first.second);
     } else {
       std::uint32_t failed_count = 0;
-      while (!(find_result = render_pass_container_.Find(render_pass_ID))) {
-        auto new_emplace_result = render_pass_container_.Emplace(
+      while (!((find_result = render_pass_container_.Find(render_pass_ID)))) {
+        const auto new_emplace_result = render_pass_container_.Emplace(
             std::make_pair(render_pass_ID, std::move(wrapper)));
         if (new_emplace_result.second) {
           wrapper_ = &(new_emplace_result.first.second);
-          return ExecuteResult ::SUCCESS;
+          return ResultS<Nil>{};
         }
 
         ++failed_count;
@@ -155,25 +164,27 @@ MM::RenderSystem::RenderPassAttachmentDescription::InitRenderPass(
           MM_LOG_ERROR(
               "Failed to get or insert RenderPassWrapper "
               "multiple times.");
-          return ExecuteResult ::INITIALIZATION_FAILED;
+          return ResultE<>{ErrorCode::INITIALIZATION_FAILED};
         }
       }
 
       wrapper_ = &(find_result->second);
     }
   }
+
+  return ResultS<Nil>{};
 }
 
 MM::RenderSystem::RenderPassAttachmentDescription::
     RenderPassAttachmentDescription(
-        MM::RenderSystem::RenderPassAttachmentDescription&& other) noexcept
+    RenderPassAttachmentDescription&& other) noexcept
     : wrapper_(other.wrapper_) {
   other.wrapper_ = nullptr;
 }
 
 MM::RenderSystem::RenderPassAttachmentDescription&
 MM::RenderSystem::RenderPassAttachmentDescription::operator=(
-    MM::RenderSystem::RenderPassAttachmentDescription&& other) noexcept {
+    RenderPassAttachmentDescription&& other) noexcept {
   if (std::addressof(other) == this) {
     return *this;
   }
@@ -245,71 +256,73 @@ void MM::RenderSystem::RenderPassAttachmentDescription::Reset() {
   wrapper_ = nullptr;
 }
 
-MM::ExecuteResult
-MM::RenderSystem::RenderPassAttachmentDescription::GetRenderPassID(
-    MM::RenderSystem::RenderPassID& render_pass_ID) const {
+MM::Result<MM::RenderSystem::RenderPassID>
+MM::RenderSystem::RenderPassAttachmentDescription::GetRenderPassID() const {
   assert(IsValid());
   return wrapper_->GetRenderPassAttachmentDescriptorCreateInfo()
-      .GetRenderPassID(render_pass_ID);
+      .GetRenderPassID();
 }
 
-MM::ExecuteResult
+MM::Result<MM::Nil>
 MM::RenderSystem::RenderPassAttachmentDescription::CheckInitParameters(
-    MM::RenderSystem::RenderEngine* render_engine,
+    RenderEngine* render_engine,
     const VkRenderPassCreateInfo& render_pass_create_info) {
   if (render_engine == nullptr || !render_engine->IsValid()) {
     MM_LOG_ERROR("The input parameter render_engine must invalid.");
-    return MM::ExecuteResult ::INITIALIZATION_FAILED;
+    return ResultE<>{ErrorCode::INITIALIZATION_FAILED};
   }
 
   for (std::uint32_t i = 0; i != render_pass_create_info.attachmentCount; ++i) {
     if (render_pass_create_info.pAttachments->flags == 0x7FFFFFFF) {
       MM_LOG_ERROR("AttachmentDecriptions is error.");
-      return MM::ExecuteResult ::INITIALIZATION_FAILED;
+      return ResultE<>{ErrorCode::INITIALIZATION_FAILED};
     }
     if (render_pass_create_info.pAttachments->format == 0x7FFFFFFF) {
       MM_LOG_ERROR("AttachmentDecriptions is error.");
-      return MM::ExecuteResult ::INITIALIZATION_FAILED;
+      return ResultE<>{ErrorCode::INITIALIZATION_FAILED};
     }
     if (render_pass_create_info.pAttachments->samples == 0x7FFFFFFF) {
       MM_LOG_ERROR("AttachmentDecriptions is error.");
-      return MM::ExecuteResult ::INITIALIZATION_FAILED;
+      return ResultE<>{ErrorCode::INITIALIZATION_FAILED};
     }
     if (render_pass_create_info.pAttachments->loadOp == 0x7FFFFFFF) {
       MM_LOG_ERROR("AttachmentDecriptions is error.");
-      return MM::ExecuteResult ::INITIALIZATION_FAILED;
+      return ResultE<>{ErrorCode::INITIALIZATION_FAILED};
     }
     if (render_pass_create_info.pAttachments->storeOp == 0x7FFFFFFF) {
       MM_LOG_ERROR("AttachmentDecriptions is error.");
-      return MM::ExecuteResult ::INITIALIZATION_FAILED;
+      return ResultE<>{ErrorCode::INITIALIZATION_FAILED};
     }
     if (render_pass_create_info.pAttachments->stencilLoadOp == 0x7FFFFFFF) {
       MM_LOG_ERROR("AttachmentDecriptions is error.");
-      return MM::ExecuteResult ::INITIALIZATION_FAILED;
+      return ResultE<>{ErrorCode::INITIALIZATION_FAILED};
     }
     if (render_pass_create_info.pAttachments->stencilStoreOp == 0x7FFFFFFF) {
       MM_LOG_ERROR("AttachmentDecriptions is error.");
-      return MM::ExecuteResult ::INITIALIZATION_FAILED;
+      return ResultE<>{ErrorCode::INITIALIZATION_FAILED};
     }
     if (render_pass_create_info.pAttachments->initialLayout == 0x7FFFFFFF) {
       MM_LOG_ERROR("AttachmentDecriptions is error.");
-      return MM::ExecuteResult ::INITIALIZATION_FAILED;
+      return ResultE<>{ErrorCode::INITIALIZATION_FAILED};
     }
     if (render_pass_create_info.pAttachments->finalLayout == 0x7FFFFFFF) {
       MM_LOG_ERROR("AttachmentDecriptions is error.");
-      return MM::ExecuteResult ::INITIALIZATION_FAILED;
+      return ResultE<>{ErrorCode::INITIALIZATION_FAILED};
     }
   }
+
+  return ResultS<Nil>{};
 }
 
-MM::ExecuteResult
+MM::Result<MM::Nil>
 MM::RenderSystem::RenderPassAttachmentDescription::InitRenderPass(
     RenderEngine* render_engine, VkAllocationCallbacks* allocator,
     const RenderPassCreateInfo& render_pass_create_info) {
-  RenderPassID render_pass_ID;
-  MM_CHECK(GetRenderPassID(render_pass_ID),
-           MM_LOG_ERROR("MM::RenderSystem::RenderPassCreateInfo is invalid.");
-           return ExecuteResult::INITIALIZATION_FAILED;)
+  Result<RenderPassID> render_pass_ID_result = GetRenderPassID();
+  if (render_pass_ID_result.Exception(MM_ERROR_DESCRIPTION2("MM::RenderSystem::RenderPassCreateInfo is invalid.")).IsError()) {
+    return ResultE<>{ErrorCode::INITIALIZATION_FAILED};
+  }
+  RenderPassID& render_pass_ID = render_pass_ID_result.GetResult();
 
   RenderPassContainerType ::FindResultType find_result =
       render_pass_container_.Find(render_pass_ID);
@@ -318,29 +331,30 @@ MM::RenderSystem::RenderPassAttachmentDescription::InitRenderPass(
     wrapper_ = &(find_result->second);
   } else {
     VkRenderPass created_render_pass;
-    VkRenderPassCreateInfo vk_render_pass_create_info =
+    const VkRenderPassCreateInfo vk_render_pass_create_info =
         render_pass_create_info.GetVkRenderPassCreateInfo();
-    MM_VK_CHECK(vkCreateRenderPass(render_engine->GetDevice(),
+    if (auto if_result = ConvertVkResultToMMResult(vkCreateRenderPass(render_engine->GetDevice(),
                                    &vk_render_pass_create_info, allocator,
-                                   &created_render_pass),
-                MM_LOG_ERROR("Failed to create VkRenderPass.");)
+                                   &created_render_pass));if_result.Exception(MM_ERROR_DESCRIPTION2("Failed to create VkRenderPass.")).IsError()) {
+          return ResultE<>{if_result.GetError().GetErrorCode()};
+    }
 
     RenderPassAttachmentDescriptionWrapper wrapper{
         render_engine, allocator, created_render_pass,
         RenderPassCreateInfo(render_pass_create_info)};
 
-    auto emplace_result = render_pass_container_.Emplace(
+    const auto emplace_result = render_pass_container_.Emplace(
         std::make_pair(render_pass_ID, std::move(wrapper)));
     if (emplace_result.second) {
       wrapper_ = &(emplace_result.first.second);
     } else {
       std::uint32_t failed_count = 0;
-      while (!(find_result = render_pass_container_.Find(render_pass_ID))) {
-        auto new_emplace_result = render_pass_container_.Emplace(
+      while (!((find_result = render_pass_container_.Find(render_pass_ID)))) {
+        const auto new_emplace_result = render_pass_container_.Emplace(
             std::make_pair(render_pass_ID, std::move(wrapper)));
         if (new_emplace_result.second) {
           wrapper_ = &(new_emplace_result.first.second);
-          return ExecuteResult ::SUCCESS;
+          return ResultS<Nil>{};
         }
 
         ++failed_count;
@@ -349,24 +363,27 @@ MM::RenderSystem::RenderPassAttachmentDescription::InitRenderPass(
           MM_LOG_ERROR(
               "Failed to get or insert RenderPassWrapper "
               "multiple times.");
-          return ExecuteResult ::INITIALIZATION_FAILED;
+          return ResultE<>{ErrorCode::INITIALIZATION_FAILED};
         }
       }
 
       wrapper_ = &(find_result->second);
     }
   }
+
+  return ResultS<Nil>{};
 }
 
-MM::ExecuteResult
+MM::Result<MM::Nil>
 MM::RenderSystem::RenderPassAttachmentDescription::InitRenderPass(
-    MM::RenderSystem::RenderEngine* render_engine,
+    RenderEngine* render_engine,
     VkAllocationCallbacks* allocator,
-    MM::RenderSystem::RenderPassCreateInfo&& render_pass_create_info) {
-  RenderPassID render_pass_ID;
-  MM_CHECK(GetRenderPassID(render_pass_ID),
-           MM_LOG_ERROR("MM::RenderSystem::RenderPassCreateInfo is invalid.");
-           return ExecuteResult::INITIALIZATION_FAILED;)
+    RenderPassCreateInfo&& render_pass_create_info) {
+  Result<RenderPassID> render_pass_ID_result = GetRenderPassID();
+  if (render_pass_ID_result.Exception(MM_ERROR_DESCRIPTION2("MM::RenderSystem::RenderPassCreateInfo is invalid.")).IsError()) {
+    return ResultE<>{ErrorCode::INITIALIZATION_FAILED};
+  }
+  RenderPassID& render_pass_ID = render_pass_ID_result.GetResult();
 
   RenderPassContainerType ::FindResultType find_result =
       render_pass_container_.Find(render_pass_ID);
@@ -375,29 +392,30 @@ MM::RenderSystem::RenderPassAttachmentDescription::InitRenderPass(
     wrapper_ = &(find_result->second);
   } else {
     VkRenderPass created_render_pass;
-    VkRenderPassCreateInfo vk_render_pass_create_info =
+    const VkRenderPassCreateInfo vk_render_pass_create_info =
         render_pass_create_info.GetVkRenderPassCreateInfo();
-    MM_VK_CHECK(vkCreateRenderPass(render_engine->GetDevice(),
+    if (auto if_result = ConvertVkResultToMMResult(vkCreateRenderPass(render_engine->GetDevice(),
                                    &vk_render_pass_create_info, allocator,
-                                   &created_render_pass),
-                MM_LOG_ERROR("Failed to create VkRenderPass.");)
+                                   &created_render_pass));if_result.Exception(MM_ERROR_DESCRIPTION2("Failed to create VkRenderPass.")).IsError()) {
+      return ResultE<>{if_result.GetError().GetErrorCode()};
+    }
 
     RenderPassAttachmentDescriptionWrapper wrapper{
         render_engine, allocator, created_render_pass,
         RenderPassCreateInfo(std::move(render_pass_create_info))};
 
-    auto emplace_result = render_pass_container_.Emplace(
+    const auto emplace_result = render_pass_container_.Emplace(
         std::make_pair(render_pass_ID, std::move(wrapper)));
     if (emplace_result.second) {
       wrapper_ = &(emplace_result.first.second);
     } else {
       std::uint32_t failed_count = 0;
-      while (!(find_result = render_pass_container_.Find(render_pass_ID))) {
-        auto new_emplace_result = render_pass_container_.Emplace(
+      while (!((find_result = render_pass_container_.Find(render_pass_ID)))) {
+        const auto new_emplace_result = render_pass_container_.Emplace(
             std::make_pair(render_pass_ID, std::move(wrapper)));
         if (new_emplace_result.second) {
           wrapper_ = &(new_emplace_result.first.second);
-          return ExecuteResult ::SUCCESS;
+          return ResultS<Nil>{};
         }
 
         ++failed_count;
@@ -406,13 +424,15 @@ MM::RenderSystem::RenderPassAttachmentDescription::InitRenderPass(
           MM_LOG_ERROR(
               "Failed to get or insert RenderPassWrapper "
               "multiple times.");
-          return ExecuteResult ::INITIALIZATION_FAILED;
+          return ResultE<>{ErrorCode::INITIALIZATION_FAILED};
         }
       }
 
       wrapper_ = &(find_result->second);
     }
   }
+
+  return ResultS<Nil>{};
 }
 
 MM::RenderSystem::RenderPassAttachmentDescription::
@@ -439,8 +459,7 @@ MM::RenderSystem::RenderPassAttachmentDescription::
 MM::RenderSystem::RenderPassAttachmentDescription::
     RenderPassAttachmentDescriptionWrapper::
         RenderPassAttachmentDescriptionWrapper(
-            MM::RenderSystem::RenderPassAttachmentDescription::
-                RenderPassAttachmentDescriptionWrapper&& other) noexcept
+        RenderPassAttachmentDescriptionWrapper&& other) noexcept
     : render_engine_(other.render_engine_),
       allocator_(other.allocator_),
       render_pass_(other.render_pass_),
@@ -455,8 +474,7 @@ MM::RenderSystem::RenderPassAttachmentDescription::
     RenderPassAttachmentDescriptionWrapper&
     MM::RenderSystem::RenderPassAttachmentDescription::
         RenderPassAttachmentDescriptionWrapper::operator=(
-            MM::RenderSystem::RenderPassAttachmentDescription::
-                RenderPassAttachmentDescriptionWrapper&& other) noexcept {
+            RenderPassAttachmentDescriptionWrapper&& other) noexcept {
   if (std::addressof(other) == this) {
     return *this;
   }

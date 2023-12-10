@@ -62,30 +62,30 @@ class RenderPassAttachmentDescription {
 
   const VkRenderPass_T* GetRenderPass() const;
 
-  ExecuteResult GetRenderPassID(RenderPassID& render_pass_ID) const;
+  Result<RenderPassID> GetRenderPassID() const;
 
   bool IsValid() const;
 
   void Reset();
 
  private:
-  static ExecuteResult CheckInitParameters(
+  static Result<Nil> CheckInitParameters(
       RenderEngine* render_engine,
       const RenderPassCreateInfo& render_pass_create_info);
 
-  static ExecuteResult CheckInitParameters(
+  static Result<Nil> CheckInitParameters(
       RenderEngine* render_engine,
       const VkRenderPassCreateInfo& render_pass_create_info);
 
-  ExecuteResult InitRenderPass(
+  Result<Nil> InitRenderPass(
       RenderEngine* render_engine, VkAllocationCallbacks* allocator,
       const VkRenderPassCreateInfo& vk_render_pass_create_info);
 
-  ExecuteResult InitRenderPass(
+  Result<Nil> InitRenderPass(
       RenderEngine* render_engine, VkAllocationCallbacks* allocator,
       const RenderPassCreateInfo& render_pass_create_info);
 
-  ExecuteResult InitRenderPass(RenderEngine* render_engine,
+  Result<Nil> InitRenderPass(RenderEngine* render_engine,
                                VkAllocationCallbacks* allocator,
                                RenderPassCreateInfo&& render_pass_create_info);
 

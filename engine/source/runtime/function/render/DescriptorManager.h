@@ -1,7 +1,7 @@
 //
 // Created by beimingxianyu on 23-7-27.
 //
-#include <vulkan/vulkan.h>
+#pragma once
 
 #include <atomic>
 #include <cstdint>
@@ -14,6 +14,42 @@
 namespace MM {
 namespace RenderSystem {
 class DescriptorManager {
+ class DescriptorSlot {
+friend class DescriptorManager;
+
+ public:
+   DescriptorSlot() = default;
+   ~DescriptorSlot() = default;
+   DescriptorSlot(const DescriptorSlot& other) = delete;
+   DescriptorSlot(DescriptorSlot&& other) noexcept;
+   DescriptorSlot& operator=(const DescriptorSlot& other) = delete;
+   DescriptorSlot& operator=(DescriptorSlot&& other) noexcept;
+
+  public:
+   std::uint32_t GetSlotIndex() const;
+
+   DescriptorType GetDescriptorType() const;
+
+   bool GetIsGlobal() const;
+
+   bool IsValid() const;
+
+  private:
+  DescriptorSlot(std::uint32_t slot_index, DescriptorType descriptor_type,
+                  bool is_global);
+
+   void Reset() {
+     slot_index_ = UINT32_MAX;
+     descriptor_type_ = DescriptorType::UNDEFINED;
+     is_global_ = false;
+   }
+
+  private:
+   std::uint32_t slot_index_{UINT32_MAX};
+   DescriptorType descriptor_type_{DescriptorType::UNDEFINED};
+   bool is_global_{false};
+ };
+
  public:
   DescriptorManager() = default;
   ~DescriptorManager();
@@ -40,83 +76,69 @@ class DescriptorManager {
   DescriptorManager& operator=(DescriptorManager&& other) noexcept;
 
  public:
-  ExecuteResult GetGlobalSamplerTexture2DDescriptorWriteInfo(
+  VkWriteDescriptorSet GetGlobalSamplerTexture2DDescriptorWriteInfo(
       std::uint32_t dest_array_element, std::uint32_t descriptor_count,
-      const VkDescriptorImageInfo* image_info,
-      VkWriteDescriptorSet& output) const;
+      const VkDescriptorImageInfo* image_info) const;
 
-  ExecuteResult GetGlobalSamplerTexture3DDescriptorWriteInfo(
+  VkWriteDescriptorSet GetGlobalSamplerTexture3DDescriptorWriteInfo(
       std::uint32_t dest_array_element, std::uint32_t descriptor_count,
-      const VkDescriptorImageInfo* image_info,
-      VkWriteDescriptorSet& output) const;
+      const VkDescriptorImageInfo* image_info) const;
 
-  ExecuteResult GetGlobalSamplerTextureCUBEDescriptorWriteInfo(
+  VkWriteDescriptorSet GetGlobalSamplerTextureCUBEDescriptorWriteInfo(
       std::uint32_t dest_array_element, std::uint32_t descriptor_count,
-      const VkDescriptorImageInfo* image_info,
-      VkWriteDescriptorSet& output) const;
+      const VkDescriptorImageInfo* image_info) const;
 
-  ExecuteResult GetGlobalStorageTexture2DDescriptorWriteInfo(
+  VkWriteDescriptorSet GetGlobalStorageTexture2DDescriptorWriteInfo(
       std::uint32_t dest_array_element, std::uint32_t descriptor_count,
-      const VkDescriptorImageInfo* image_info,
-      VkWriteDescriptorSet& output) const;
+      const VkDescriptorImageInfo* image_info) const;
 
-  ExecuteResult GetGlobalStorageTexture3DDescriptorWriteInfo(
+  VkWriteDescriptorSet GetGlobalStorageTexture3DDescriptorWriteInfo(
       std::uint32_t dest_array_element, std::uint32_t descriptor_count,
-      const VkDescriptorImageInfo* image_info,
-      VkWriteDescriptorSet& output) const;
+      const VkDescriptorImageInfo* image_info) const;
 
-  ExecuteResult GetGlobalStorageTextureCUBEDescriptorWriteInfo(
+  VkWriteDescriptorSet GetGlobalStorageTextureCUBEDescriptorWriteInfo(
       std::uint32_t dest_array_element, std::uint32_t descriptor_count,
-      const VkDescriptorImageInfo* image_info,
-      VkWriteDescriptorSet& output) const;
+      const VkDescriptorImageInfo* image_info) const;
 
-  ExecuteResult GetSamplerTexture2DDescriptorWriteInfo(
+  VkWriteDescriptorSet GetSamplerTexture2DDescriptorWriteInfo(
       std::uint32_t dest_array_element, std::uint32_t descriptor_count,
-      const VkDescriptorImageInfo* image_info,
-      VkWriteDescriptorSet& output) const;
+      const VkDescriptorImageInfo* image_info) const;
 
-  ExecuteResult GetSamplerTexture3DDescriptorWriteInfo(
+  VkWriteDescriptorSet GetSamplerTexture3DDescriptorWriteInfo(
       std::uint32_t dest_array_element, std::uint32_t descriptor_count,
-      const VkDescriptorImageInfo* image_info,
-      VkWriteDescriptorSet& output) const;
+      const VkDescriptorImageInfo* image_info) const;
 
-  ExecuteResult GetSamplerTextureCUBEDescriptorWriteInfo(
+  VkWriteDescriptorSet GetSamplerTextureCUBEDescriptorWriteInfo(
       std::uint32_t dest_array_element, std::uint32_t descriptor_count,
-      const VkDescriptorImageInfo* image_info,
-      VkWriteDescriptorSet& output) const;
+      const VkDescriptorImageInfo* image_info) const;
 
-  ExecuteResult GetStorageTexture2DDescriptorWriteInfo(
+  VkWriteDescriptorSet GetStorageTexture2DDescriptorWriteInfo(
       std::uint32_t dest_array_element, std::uint32_t descriptor_count,
-      const VkDescriptorImageInfo* image_info,
-      VkWriteDescriptorSet& output) const;
+      const VkDescriptorImageInfo* image_info) const;
 
-  ExecuteResult GetStorageTexture3DDescriptorWriteInfo(
+  VkWriteDescriptorSet GetStorageTexture3DDescriptorWriteInfo(
       std::uint32_t dest_array_element, std::uint32_t descriptor_count,
-      const VkDescriptorImageInfo* image_info,
-      VkWriteDescriptorSet& output) const;
+      const VkDescriptorImageInfo* image_info) const;
 
-  ExecuteResult GetStorageTextureCUBEDescriptorWriteInfo(
+  VkWriteDescriptorSet GetStorageTextureCUBEDescriptorWriteInfo(
       std::uint32_t dest_array_element, std::uint32_t descriptor_count,
-      const VkDescriptorImageInfo* image_info,
-      VkWriteDescriptorSet& output) const;
+      const VkDescriptorImageInfo* image_info) const;
 
   void UpdateDescriptorSet(std::uint32_t descriptor_write_count,
                            const VkWriteDescriptorSet* write_descriptor_sets);
 
-  ExecuteResult AllocateSlot(std::uint32_t& free_slot,
+  Result<DescriptorSlot> AllocateSlot(
                              DescriptorType descriptor_type, bool is_global);
 
-  ExecuteResult AllocateSlot(std::uint32_t& need_free_count,
-                             std::vector<std::uint32_t>& free_slots,
+  Result<std::vector<DescriptorSlot>> AllocateSlot(
+      const std::uint32_t& need_free_count,
                              DescriptorType descriptor_type, bool is_global);
-  void FreeSlot(std::uint32_t free_slot, DescriptorType descriptor_type,
-                bool is_global);
 
-  void FreeSlot(std::uint32_t need_free_slot, std::uint32_t* free_slots,
-                DescriptorType descriptor_type, bool is_global);
+  void FreeSlot(DescriptorSlot&& free_slot);
 
-  void FreeSlot(const std::vector<std::uint32_t>& free_slots,
-                DescriptorType descriptor_type, bool is_global);
+  void FreeSlot(std::uint32_t need_free_slot, DescriptorSlot* free_slots);
+
+  void FreeSlot(std::vector<DescriptorSlot>&& free_slots);
 
   VkDescriptorSetLayout GetGlobalDescriptorSetLayout() const;
 
@@ -161,7 +183,7 @@ class DescriptorManager {
   void Release();
 
  private:
-  ExecuteResult InitDescriptorManager(
+  Result<Nil> InitDescriptorManager(
       std::uint32_t global_sampler_texture2D_descriptor_element_count,
       std::uint32_t global_sampler_texture3D_descriptor_element_count,
       std::uint32_t global_sampler_textureCUBE_descriptor_element_count,
@@ -175,27 +197,20 @@ class DescriptorManager {
       std::uint32_t storage_texture3D_descriptor_element_count,
       std::uint32_t storage_textureCUBE_descriptor_element_count);
 
-  ExecuteResult CreatePipelineLayout();
+  Result<Nil> CreatePipelineLayout();
 
   void CleanPipelineLayout();
 
-  ExecuteResult AllocateSlot(std::uint32_t& free_slot,
+  static Result<DescriptorSlot> AllocateSlot(
+      DescriptorType descriptor_type, bool is_global,
+      std::atomic_uint32_t& last_use_index,
+      std::vector<std::atomic_flag>& array_use_info);
+
+  static Result<std::vector<DescriptorSlot>> AllocateSlot(
+                             DescriptorType descriptor_type, bool is_global,
+                             std::uint32_t need_free_count,
                              std::atomic_uint32_t& last_use_index,
                              std::vector<std::atomic_flag>& array_use_info);
-
-  ExecuteResult AllocateSlot(std::uint32_t need_free_count,
-                             std::vector<std::uint32_t>& free_slot,
-                             std::atomic_uint32_t& last_use_index,
-                             std::vector<std::atomic_flag>& array_use_info);
-
-  void FreeSlot(std::uint32_t free_slot,
-                std::vector<std::atomic_flag>& array_use_info);
-
-  void FreeSlot(std::uint32_t need_free_slot, std::uint32_t* free_slots,
-                std::vector<std::atomic_flag>& array_use_info);
-
-  void FreeSlot(const std::vector<std::uint32_t>& free_slots,
-                std::vector<std::atomic_flag>& array_use_info);
 
  private:
   RenderEngine* render_engine_{nullptr};

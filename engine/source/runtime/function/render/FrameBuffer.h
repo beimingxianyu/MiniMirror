@@ -1,6 +1,7 @@
 //
 // Created by beimingxianyu on 23-7-24.
 //
+#pragma once
 
 #include "runtime/function/render/vk_type_define.h"
 #include "utils/ID.h"
@@ -26,7 +27,7 @@ class FrameBuffer {
  public:
   const FrameBufferCreateInfo& GetFrameBufferCreateInfo() const;
 
-  const std::vector<VkImageView> GetImageVIew() const;
+  std::vector<VkImageView> GetImageVIew() const;
 
   VkDevice GetDevice() const;
 
@@ -36,15 +37,15 @@ class FrameBuffer {
 
   const VkFramebuffer_T* GetFrameBuffer() const;
 
-  ExecuteResult GetFrameBufferID(FrameBufferID& frame_buffer_ID) const;
+  Result<FrameBufferID> GetFrameBufferID() const;
 
   bool IsValid() const;
 
   void Release();
 
  private:
-  ExecuteResult CheckInitParameters(
-      RenderEngine* render_engine,
+  static Result<Nil> CheckInitParameters(
+      const RenderEngine* render_engine,
       const FrameBufferCreateInfo& frame_buffer_create_info);
 
  private:

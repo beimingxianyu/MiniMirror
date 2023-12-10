@@ -57,11 +57,11 @@ class GraphicsPipeline final : public RenderPipeline {
   const GraphicsPipelineDataInfo& GetGraphicsPipelineDataInfo() const;
 
  private:
-  ExecuteResult CheckInitParametes(
+  Result<Nil> CheckInitParametes(
       RenderEngine* render_engine,
       const VkGraphicsPipelineCreateInfo& vk_graphics_pipeline_create_info);
 
-  ExecuteResult CheckInitParametes(
+  Result<Nil> CheckInitParametes(
       RenderEngine* render_engine,
       const GraphicsPipelineDataInfo& graphics_pipeline_data_info);
 
