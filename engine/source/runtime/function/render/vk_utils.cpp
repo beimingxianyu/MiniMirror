@@ -497,7 +497,7 @@ VkDependencyInfo MM::RenderSystem::GetVkDependencyInfo(
     dependency_info.memoryBarrierCount = memory_barriers->size();
     dependency_info.pMemoryBarriers = memory_barriers->data();
   }
-  if (buffer_barriers && !memory_barriers->empty()) {
+  if (buffer_barriers && !buffer_barriers->empty()) {
     dependency_info.bufferMemoryBarrierCount = buffer_barriers->size();
     dependency_info.pBufferMemoryBarriers = buffer_barriers->data();
   }

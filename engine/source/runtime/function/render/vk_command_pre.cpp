@@ -244,18 +244,18 @@ bool MM::RenderSystem::AllocatedCommandBuffer::AllocatedCommandBufferWrapper::
 
 bool MM::RenderSystem::AllocatedCommandBuffer::AllocatedCommandBufferWrapper::
     ResetCommandBuffer() {
-  MM_VK_CHECK(vkResetCommandPool(engine_->GetDevice(), command_pool_, 0),
-              MM_LOG_ERROR("Failed to reset command buffer!");
-              return false;)
+  if (ConvertVkResultToMMResult(vkResetCommandPool(engine_->GetDevice(), command_pool_, 0)).Exception(MM_ERROR_DESCRIPTION2("Failed to reset command buffer!")).IsError()) {
+    return false;
+  }
 
   return true;
 }
 
 bool MM::RenderSystem::AllocatedCommandBuffer::AllocatedCommandBufferWrapper::
     ResetFence() {
-  MM_VK_CHECK(vkResetFences(engine_->GetDevice(), 1, &command_fence_),
-              MM_LOG_ERROR("Failed to reset fence.");
-              return false;)
+  if (ConvertVkResultToMMResult(vkResetFences(engine_->GetDevice(), 1, &command_fence_)).Exception(MM_ERROR_DESCRIPTION2("Failed to reset fence.")).IsError()) {
+    return false;
+  }
 
   return true;
 }

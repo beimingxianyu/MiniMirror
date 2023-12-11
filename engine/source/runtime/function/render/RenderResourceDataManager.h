@@ -1,3 +1,5 @@
+#pragma once
+
 #include <cstdint>
 #include <memory>
 #include <vector>
@@ -10,14 +12,12 @@
 #include "runtime/function/render/RenderResourceDataBase.h"
 #include "runtime/function/render/RenderResourceDataID.h"
 #include "runtime/function/render/pre_header.h"
-#include "runtime/platform/base/error.h"
-#include "utils/marco.h"
 
 namespace MM {
 namespace RenderSystem {
 template <typename ManagedType>
 class RenderResourceDataManagerImp : public Manager::ManagerBase<ManagedType> {
- public:
+public:
   class RenderResourceHandler;
 
   using BaseManagerType = Manager::ManagerBase<ManagedType>;
@@ -27,7 +27,7 @@ class RenderResourceDataManagerImp : public Manager::ManagerBase<ManagedType> {
       Manager::ManagedObjectUnorderedMultiMap<RenderResourceDataID,
                                               Manager::ManagedObjectID>;
 
- public:
+public:
   RenderResourceDataManagerImp() = default;
   ~RenderResourceDataManagerImp() = default;
   explicit RenderResourceDataManagerImp(std::uint64_t size)
@@ -43,9 +43,9 @@ class RenderResourceDataManagerImp : public Manager::ManagerBase<ManagedType> {
   RenderResourceDataManagerImp& operator=(
       RenderResourceDataManagerImp&& other) noexcept = delete;
 
- public:
+public:
   class RenderResourceHandler : public BaseHandlerType {
-   public:
+  public:
     RenderResourceHandler() = default;
     ~RenderResourceHandler() = default;
     RenderResourceHandler(
@@ -80,7 +80,7 @@ class RenderResourceDataManagerImp : public Manager::ManagerBase<ManagedType> {
       return *this;
     }
 
-   public:
+  public:
     bool IsValid() const override {
       return BaseHandlerType ::IsValid() &&
              render_resource_ID_to_object_ID_handler_.IsValid();
@@ -129,22 +129,12 @@ class RenderResourceDataManagerImp : public Manager::ManagerBase<ManagedType> {
       return render_resource_ID_to_object_ID_handler_;
     }
 
-   private:
+  private:
     RenderResourceDataIDToObjectIDContainerType ::HandlerType
         render_resource_ID_to_object_ID_handler_;
   };
 
-  struct Policy {
-    struct OnlyWrittenType {};
-    struct OnlyNotWrittenType {};
-    struct BothType {};
-
-    static OnlyNotWrittenType only_not_written_;
-    static OnlyWrittenType only_written_;
-    static BothType both_;
-  };
-
- public:
+public:
   bool IsValid() const override {
     return render_resource_data_ID_to_object_ID_.IsValid() &&
            BaseManagerType::IsValid();
@@ -154,168 +144,170 @@ class RenderResourceDataManagerImp : public Manager::ManagerBase<ManagedType> {
     return render_resource_data_ID_to_object_ID_.Have(render_resource_data_ID);
   }
 
-  ExecuteResult AddRenderResourceData(ManagedType&& render_resource_data,
-                                      HandlerType& handler) {
+  Result<HandlerType> AddRenderResourceData(ManagedType&& render_resource_data) {
     RenderResourceDataID render_resource_data_ID =
         render_resource_data->GetRenderResourceDataID();
 
-    BaseHandlerType base_handler;
-    MM_CHECK_WITHOUT_LOG(
-        AddObjectBase(std::move(render_resource_data), base_handler),
-        return MM_RESULT_CODE;)
+    Result<BaseHandlerType> base_handler_result = AddObjectBase(std::move(render_resource_data));
+    if (base_handler_result.IgnoreException().IsError()) {
+      return ResultE{base_handler_result.GetError()};
+    }
+    BaseHandlerType& base_handler = base_handler_result.GetResult();
 
-    RenderResourceDataIDToObjectIDContainerType ::HandlerType
-        render_resource_ID_to_object_ID_handler;
-    MM_CHECK_WITHOUT_LOG(
+    Result<RenderResourceDataIDToObjectIDContainerType ::HandlerType>
+        render_resource_ID_to_object_ID_handler_result =
         render_resource_data_ID_to_object_ID_.AddObject(
-            render_resource_data_ID, base_handler.GetObjectID(),
-            render_resource_ID_to_object_ID_handler),
-        return MM_RESULT_CODE;)
+            render_resource_data_ID, base_handler.GetObjectID());
+    if (render_resource_ID_to_object_ID_handler_result.IgnoreException().IsError()) {
+      return ResultE<>{render_resource_ID_to_object_ID_handler_result.GetError().GetErrorCode()};
+    }
+    RenderResourceDataIDToObjectIDContainerType ::HandlerType&  render_resource_ID_to_object_ID_handler = render_resource_ID_to_object_ID_handler_result.GetResult();
 
-    handler = HandlerType{std::move(base_handler),
+    HandlerType handler = HandlerType{std::move(base_handler),
                           std::move(render_resource_ID_to_object_ID_handler)};
 
     handler.GetObject().MarkThisIsManaged();
 
-    return ExecuteResult ::SUCCESS;
+    return ResultS{std::move(handler)};
   }
 
-  ExecuteResult GetRenderResourceDataByID(
-      const Manager::ManagedObjectID& object_ID, HandlerType& handler) const {
-    return GetRenderResourceDataByID(object_ID, handler, Policy::both_);
+  Result<HandlerType> GetRenderResourceDataByID(
+      const Manager::ManagedObjectID& object_ID) const {
+    return GetRenderResourceDataByID(object_ID, StaticTrait::read_and_write);
   }
 
-  ExecuteResult GetRenderResourceDataByID(
-      const Manager::ManagedObjectID& object_ID, HandlerType& handler,
-      typename Policy::BothType) const {
-    BaseHandlerType base_handler;
-    MM_CHECK_WITHOUT_LOG(GetObjectByIDBase(object_ID, base_handler),
-                         return MM_RESULT_CODE;)
+  Result<HandlerType> GetRenderResourceDataByID(
+      const Manager::ManagedObjectID& object_ID,
+      typename StaticTrait::ReadAndWriteType) const {
+    Result<BaseHandlerType> base_handler_result = BaseManagerType::GetObjectByIDBase(object_ID);
+    if (base_handler_result.IgnoreException().IsError()) {
+      return ResultE<>{base_handler_result.GetError().GetErrorCode()};
+    }
+    BaseHandlerType& base_handler = base_handler_result.GetResult();
 
-    RenderResourceDataIDToObjectIDContainerType ::HandlerType
-        render_resource_data_ID_to_object_ID_handler;
-    MM_CHECK_WITHOUT_LOG(
-        render_resource_data_ID_to_object_ID_.GetObject(
-            base_handler.GetObject()->GetRenderResourceDataID(),
-            render_resource_data_ID_to_object_ID_handler),
-        return MM_RESULT_CODE;)
+    Result<RenderResourceDataIDToObjectIDContainerType ::HandlerType>
+        render_resource_data_ID_to_object_ID_handler_result = render_resource_data_ID_to_object_ID_.GetObject(
+            base_handler.GetObject()->GetRenderResourceDataID());
+    if (render_resource_data_ID_to_object_ID_handler_result.IgnoreException().IsError()) {
+      return ResultE<>{render_resource_data_ID_to_object_ID_handler_result.GetError().GetErrorCode()};
+    }
+    RenderResourceDataIDToObjectIDContainerType ::HandlerType&
+        render_resource_data_ID_to_object_ID_handler = render_resource_data_ID_to_object_ID_handler_result.GetResult();
 
-    handler =
-        HandlerType{std::move(base_handler),
+    return ResultS
+        {std::move(base_handler),
                     std::move(render_resource_data_ID_to_object_ID_handler)};
-
-    return ExecuteResult ::SUCCESS;
   }
 
-  ExecuteResult GetRenderResourceDataByID(
-      const Manager::ManagedObjectID& object_ID, HandlerType& handler,
-      typename Policy::OnlyWrittenType) const {
-    BaseHandlerType base_handler;
-    MM_CHECK_WITHOUT_LOG(GetObjectByIDBase(object_ID, base_handler),
-                         return MM_RESULT_CODE;)
+  Result<HandlerType> GetRenderResourceDataByID(
+      const Manager::ManagedObjectID& object_ID,
+      typename StaticTrait::OnlyWriteType) const {
+    Result<BaseHandlerType> base_handler_result = BaseManagerType::GetObjectByIDBase(object_ID);
+    if (base_handler_result.IgnoreException().IsError()) {
+      return ResultE<>{base_handler_result.GetError().GetErrorCode()};
+    }
+    BaseHandlerType& base_handler = base_handler_result.GetResult();
 
     if (!base_handler.GetObject()->IsUseForWrite()) {
-      return ExecuteResult ::PARENT_OBJECT_NOT_CONTAIN_SPECIFIC_CHILD_OBJECT;
+      return ResultE<>{ErrorCode::PARENT_OBJECT_NOT_CONTAIN_SPECIFIC_CHILD_OBJECT};
     }
 
-    RenderResourceDataIDToObjectIDContainerType ::HandlerType
-        render_resource_data_ID_to_object_ID_handler;
-    MM_CHECK_WITHOUT_LOG(
-        render_resource_data_ID_to_object_ID_.GetObject(
-            base_handler.GetObject()->GetRenderResourceDataID(),
-            render_resource_data_ID_to_object_ID_handler),
-        return MM_RESULT_CODE;)
+    Result<RenderResourceDataIDToObjectIDContainerType ::HandlerType>
+        render_resource_data_ID_to_object_ID_handler_result = render_resource_data_ID_to_object_ID_.GetObject(
+            base_handler.GetObject()->GetRenderResourceDataID());
+    if (render_resource_data_ID_to_object_ID_handler_result.IgnoreException().IsError()) {
+      return ResultE<>{render_resource_data_ID_to_object_ID_handler_result.GetError().GetErrorCode()};
+    }
+    RenderResourceDataIDToObjectIDContainerType ::HandlerType&
+        render_resource_data_ID_to_object_ID_handler = render_resource_data_ID_to_object_ID_handler_result.GetResult();
 
-    handler =
-        HandlerType{std::move(base_handler),
-                    std::move(render_resource_data_ID_to_object_ID_handler)};
-
-    return ExecuteResult ::SUCCESS;
+    return ResultS{std::move(base_handler),
+                   std::move(render_resource_data_ID_to_object_ID_handler)};
   }
 
-  ExecuteResult GetRenderResourceDataByID(
-      const Manager::ManagedObjectID& object_ID, HandlerType& handler,
-      typename Policy::OnlyNotWrittenType) const {
-    BaseHandlerType base_handler;
-    MM_CHECK_WITHOUT_LOG(GetObjectByIDBase(object_ID, base_handler),
-                         return MM_RESULT_CODE;)
+  Result<HandlerType> GetRenderResourceDataByID(
+      const Manager::ManagedObjectID& object_ID,
+      typename StaticTrait::OnlyReadType) const {
+    Result<BaseHandlerType> base_handler_result = BaseManagerType::GetObjectByIDBase(object_ID);
+    if (base_handler_result.IgnoreException().IsError()) {
+      return ResultE<>{base_handler_result.GetError().GetErrorCode()};
+    }
+    BaseHandlerType& base_handler = base_handler_result.GetResult();
 
     if (base_handler.GetObject()->IsUseForWrite()) {
-      return ExecuteResult ::PARENT_OBJECT_NOT_CONTAIN_SPECIFIC_CHILD_OBJECT;
+      return ResultE<>{ErrorCode::PARENT_OBJECT_NOT_CONTAIN_SPECIFIC_CHILD_OBJECT};
     }
 
-    RenderResourceDataIDToObjectIDContainerType ::HandlerType
-        render_resource_data_ID_to_object_ID_handler;
-    MM_CHECK_WITHOUT_LOG(
-        render_resource_data_ID_to_object_ID_.GetObject(
-            base_handler.GetObject()->GetRenderResourceDataID(),
-            render_resource_data_ID_to_object_ID_handler),
-        return MM_RESULT_CODE;)
+    Result<RenderResourceDataIDToObjectIDContainerType ::HandlerType>
+        render_resource_data_ID_to_object_ID_handler_result = render_resource_data_ID_to_object_ID_.GetObject(
+            base_handler.GetObject()->GetRenderResourceDataID());
+    if (render_resource_data_ID_to_object_ID_handler_result.IgnoreException().IsError()) {
+      return ResultE<>{render_resource_data_ID_to_object_ID_handler_result.GetError().GetErrorCode()};
+    }
+    RenderResourceDataIDToObjectIDContainerType ::HandlerType&
+        render_resource_data_ID_to_object_ID_handler = render_resource_data_ID_to_object_ID_handler_result.GetResult();
 
-    handler =
-        HandlerType{std::move(base_handler),
-                    std::move(render_resource_data_ID_to_object_ID_handler)};
-
-    return ExecuteResult ::SUCCESS;
+    return ResultS{std::move(base_handler),
+                   std::move(render_resource_data_ID_to_object_ID_handler)};
   }
 
-  ExecuteResult GetRenderResourceDataByRenderResourceDataID(
-      const RenderResourceDataID& render_resource_data_ID,
-      std::vector<HandlerType>& handlers) const {
-    return GetRenderResourceDataByRenderResourceDataID(render_resource_data_ID,
-                                                       handlers, Policy::both_);
+  Result<std::vector<HandlerType>> GetRenderResourceDataByRenderResourceDataID(
+      const RenderResourceDataID& render_resource_data_ID) const {
+    return GetRenderResourceDataByRenderResourceDataID(render_resource_data_ID, StaticTrait::read_and_write);
   }
 
-  ExecuteResult GetRenderResourceDataByRenderResourceDataID(
-      const RenderResourceDataID& render_resource_data_ID,
-      std::vector<HandlerType>& handlers, typename Policy::BothType) const {
-    std::vector<RenderResourceDataIDToObjectIDContainerType::HandlerType>
-        render_resource_data_ID_to_object_ID_handlers;
-    MM_CHECK_WITHOUT_LOG(render_resource_data_ID_to_object_ID_.GetObject(
-                             render_resource_data_ID,
-                             render_resource_data_ID_to_object_ID_handlers),
-                         return MM_RESULT_CODE;)
+  Result<std::vector<HandlerType>> GetRenderResourceDataByRenderResourceDataID(
+      const RenderResourceDataID& render_resource_data_ID, typename StaticTrait::ReadAndWriteType) const {
+    Result<std::vector<RenderResourceDataIDToObjectIDContainerType::HandlerType>>
+        render_resource_data_ID_to_object_ID_handlers_result = render_resource_data_ID_to_object_ID_.GetObject(render_resource_data_ID, st_get_multiply_object);
+    if (render_resource_data_ID_to_object_ID_handlers_result.IgnoreException().IsError()) {
+      return ResultE{std::move(render_resource_data_ID_to_object_ID_handlers_result.GetError())};
+    }
+    std::vector<RenderResourceDataIDToObjectIDContainerType::HandlerType>& render_resource_data_ID_to_object_ID_handlers = render_resource_data_ID_to_object_ID_handlers_result.GetResult();
 
-    std::vector<BaseHandlerType> base_handlers(
-        render_resource_data_ID_to_object_ID_handlers.size());
-    for (std::uint64_t i = 0; i != base_handlers.size(); ++i) {
-      MM_CHECK_WITHOUT_LOG(
-          GetObjectByIDBase(
-              render_resource_data_ID_to_object_ID_handlers[i].GetObject(),
-              base_handlers[i]),
-          return MM_RESULT_CODE;)
+    std::vector<BaseHandlerType> base_handlers{};
+    base_handlers.reserve(render_resource_data_ID_to_object_ID_handlers.size());
+    for (std::uint64_t i = 0; i != render_resource_data_ID_to_object_ID_handlers.size(); ++i) {
+      Result<BaseHandlerType> base_handler_result = BaseManagerType::GetObjectByIDBase(render_resource_data_ID_to_object_ID_handlers[i].GetObject());
+      if (base_handler_result.IgnoreException().IsError()) {
+        return ResultE{std::move(base_handler_result.GetError())};
+      }
+      base_handlers.emplace_back(std::move(base_handler_result.GetResult()));
     }
 
+    std::vector<HandlerType> handlers{};
     for (std::uint64_t i = 0; i != base_handlers.size(); ++i) {
       handlers.emplace_back(
           std::move(base_handlers[i]),
           std::move(render_resource_data_ID_to_object_ID_handlers[i]));
     }
 
-    return ExecuteResult ::SUCCESS;
+    return ResultS{std::move(handlers)};
   }
 
-  ExecuteResult GetRenderResourceDataByRenderResourceDataID(
+  Result<std::vector<HandlerType>> GetRenderResourceDataByRenderResourceDataID(
       const RenderResourceDataID& render_resource_data_ID,
-      std::vector<HandlerType>& handlers,
-      typename Policy::OnlyWrittenType) const {
-    std::vector<RenderResourceDataIDToObjectIDContainerType::HandlerType>
-        render_resource_data_ID_to_object_ID_handlers;
-    MM_CHECK_WITHOUT_LOG(render_resource_data_ID_to_object_ID_.GetObject(
-                             render_resource_data_ID,
-                             render_resource_data_ID_to_object_ID_handlers),
-                         return MM_RESULT_CODE;)
+      typename StaticTrait::OnlyWriteType) const {
+    Result<std::vector<RenderResourceDataIDToObjectIDContainerType::HandlerType>>
+        render_resource_data_ID_to_object_ID_handlers_result = render_resource_data_ID_to_object_ID_.GetObject(render_resource_data_ID, st_get_multiply_object);
+    if (render_resource_data_ID_to_object_ID_handlers_result.IgnoreException().IsError()) {
+      return ResultE{render_resource_data_ID_to_object_ID_handlers_result.GetError()};
+    }
+    std::vector<RenderResourceDataIDToObjectIDContainerType::HandlerType>&
+        render_resource_data_ID_to_object_ID_handlers = render_resource_data_ID_to_object_ID_handlers_result.GetResult();
 
-    std::vector<BaseHandlerType> base_handlers(
-        render_resource_data_ID_to_object_ID_handlers.size());
-    for (std::uint64_t i = 0; i != base_handlers.size(); ++i) {
-      MM_CHECK_WITHOUT_LOG(
-          GetObjectByIDBase(
-              render_resource_data_ID_to_object_ID_handlers[i].GetObject(),
-              base_handlers[i]),
-          return MM_RESULT_CODE;)
+    std::vector<BaseHandlerType> base_handlers{};
+    base_handlers.reserve(render_resource_data_ID_to_object_ID_handlers.size());
+    for (std::uint64_t i = 0; i != render_resource_data_ID_to_object_ID_handlers.size(); ++i) {
+      Result<BaseHandlerType> base_handler_result = BaseManagerType::GetObjectByIDBase(render_resource_data_ID_to_object_ID_handlers[i].GetObject());
+      if (base_handler_result.IgnoreException().IsError()) {
+        return ResultE{std::move(base_handler_result.GetError())};
+      }
+      base_handlers.emplace_back(std::move(base_handler_result.GetResult()));
     }
 
+
+    std::vector<HandlerType> handlers{};
     for (std::uint64_t i = 0; i != base_handlers.size(); ++i) {
       if (base_handlers[i].GetObject()->IsUseForWrite()) {
         handlers.emplace_back(
@@ -324,30 +316,32 @@ class RenderResourceDataManagerImp : public Manager::ManagerBase<ManagedType> {
       }
     }
 
-    return ExecuteResult ::SUCCESS;
+    return ResultS{std::move(handlers)};
   }
 
-  ExecuteResult GetRenderResourceDataByRenderResourceDataID(
+  Result<std::vector<HandlerType>> GetRenderResourceDataByRenderResourceDataID(
       const RenderResourceDataID& render_resource_data_ID,
-      std::vector<HandlerType>& handlers,
-      typename Policy::OnlyNotWrittenType) const {
-    std::vector<RenderResourceDataIDToObjectIDContainerType::HandlerType>
-        render_resource_data_ID_to_object_ID_handlers;
-    MM_CHECK_WITHOUT_LOG(render_resource_data_ID_to_object_ID_.GetObject(
-                             render_resource_data_ID,
-                             render_resource_data_ID_to_object_ID_handlers),
-                         return MM_RESULT_CODE;)
+      typename StaticTrait::OnlyReadType) const {
+    Result<std::vector<RenderResourceDataIDToObjectIDContainerType::HandlerType>>
+        render_resource_data_ID_to_object_ID_handlers_result = render_resource_data_ID_to_object_ID_.GetObject(render_resource_data_ID, st_get_multiply_object);
+    if (render_resource_data_ID_to_object_ID_handlers_result.IgnoreException().IsError()) {
+      return ResultE{render_resource_data_ID_to_object_ID_handlers_result.GetError()};
+    }
+    std::vector<RenderResourceDataIDToObjectIDContainerType::HandlerType>& render_resource_data_ID_to_object_ID_handlers = render_resource_data_ID_to_object_ID_handlers_result.GetResult();
 
-    std::vector<BaseHandlerType> base_handlers(
-        render_resource_data_ID_to_object_ID_handlers.size());
-    for (std::uint64_t i = 0; i != base_handlers.size(); ++i) {
-      MM_CHECK_WITHOUT_LOG(
-          GetObjectByIDBase(
-              render_resource_data_ID_to_object_ID_handlers[i].GetObject(),
-              base_handlers[i]),
-          return MM_RESULT_CODE;)
+    std::vector<BaseHandlerType> base_handlers{};
+    base_handlers.reserve(render_resource_data_ID_to_object_ID_handlers.size());
+    for (std::uint64_t i = 0; i != render_resource_data_ID_to_object_ID_handlers.size(); ++i) {
+      Result<BaseHandlerType> base_handler_result =
+          BaseManagerType::GetObjectByIDBase(
+              render_resource_data_ID_to_object_ID_handlers[i].GetObject());
+      if (base_handler_result.IgnoreException().IsError()) {
+        return ResultE{base_handler_result.GetError()};
+      }
+      base_handlers.emplace_back(std::move(base_handler_result.GetResult()));
     }
 
+    std::vector<HandlerType> handlers{};
     for (std::uint64_t i = 0; i != base_handlers.size(); ++i) {
       if (!(base_handlers[i].GetObject()->IsUseForWrite())) {
         handlers.emplace_back(
@@ -356,160 +350,164 @@ class RenderResourceDataManagerImp : public Manager::ManagerBase<ManagedType> {
       }
     }
 
-    return ExecuteResult ::SUCCESS;
+    return ResultS{std::move(handlers)};
   }
 
-  ExecuteResult GetRenderResourceDataByName(
-      const std::string& name, std::vector<HandlerType>& handlers) const {
-    return GetRenderResourceDataByName(name, handlers, Policy::both_);
+  Result<std::vector<HandlerType>> GetRenderResourceDataByName(
+      const std::string& name) const {
+    return GetRenderResourceDataByName(name, StaticTrait::read_and_write);
   }
 
-  ExecuteResult GetRenderResourceDataByName(const std::string& name,
-                                            std::vector<HandlerType>& handlers,
-                                            typename Policy::BothType) const {
-    std::vector<BaseHandlerType> base_handlers;
-    MM_CHECK_WITHOUT_LOG(GetObjectByNameBase(name, base_handlers),
-                         return MM_RESULT_CODE;)
+  Result<std::vector<HandlerType>> GetRenderResourceDataByName(const std::string& name,
+                                            typename StaticTrait::ReadAndWriteType) const {
+    Result<std::vector<BaseHandlerType>> base_handlers_result = BaseManagerType ::GetObjectByNameBase(name);
+    if (base_handlers_result.IgnoreException().IsError()) {
+      return ResultE{base_handlers_result.GetError()};
+    }
 
     bool is_add = false;
-    for (auto& base_handler : base_handlers) {
-      RenderResourceDataIDToObjectIDContainerType ::HandlerType
-          render_resource_data_ID_to_object_ID_handler;
-      MM_CHECK_WITHOUT_LOG(
+    std::vector<HandlerType> handlers{};
+    for (auto& base_handler : base_handlers_result.GetResult()) {
+      Result<RenderResourceDataIDToObjectIDContainerType ::HandlerType>
+          render_resource_data_ID_to_object_ID_handler_result =
           render_resource_data_ID_to_object_ID_.GetObject(
               base_handler.GetObject()->GetRenderResourceDataID(),
-              base_handler.GetObjectUseCountPtr(),
-              render_resource_data_ID_to_object_ID_handler),
-          continue;)
+              base_handler.GetObjectUseCountPtr());
+      if (render_resource_data_ID_to_object_ID_handler_result.IgnoreException().IsError()) {
+        continue;
+      }
       handlers.emplace_back(
           std::move(base_handler),
-          std::move(render_resource_data_ID_to_object_ID_handler));
+          std::move(render_resource_data_ID_to_object_ID_handler_result.GetResult()));
       is_add = true;
     }
 
     if (is_add) {
-      return ExecuteResult ::SUCCESS;
+      return ResultS{std::move(handlers)};
     }
 
-    return ExecuteResult ::PARENT_OBJECT_NOT_CONTAIN_SPECIFIC_CHILD_OBJECT;
+    return ResultE<>{ErrorCode::PARENT_OBJECT_NOT_CONTAIN_SPECIFIC_CHILD_OBJECT};
   }
 
-  ExecuteResult GetRenderResourceDataByName(
-      const std::string& name, std::vector<HandlerType>& handlers,
-      typename Policy::OnlyWrittenType) const {
-    std::vector<BaseHandlerType> base_handlers;
-    MM_CHECK_WITHOUT_LOG(GetObjectByNameBase(name, base_handlers),
-                         return MM_RESULT_CODE;)
+  Result<std::vector<HandlerType>> GetRenderResourceDataByName(
+      const std::string& name,
+      typename StaticTrait::OnlyWriteType) const {
+    Result<std::vector<BaseHandlerType>> base_handlers = BaseManagerType ::GetObjectByNameBase(name);
+    if (base_handlers.IgnoreException().IsError()) {
+      return ResultE{base_handlers.GetError()};
+    }
 
     bool is_add = false;
-    for (auto& base_handler : base_handlers) {
+    std::vector<HandlerType> handlers{};
+    for (auto& base_handler : base_handlers.GetResult()) {
       if (base_handler.GetObject()->IsUseForWrite()) {
-        RenderResourceDataIDToObjectIDContainerType ::HandlerType
-            render_resource_data_ID_to_object_ID_handler;
-        MM_CHECK_WITHOUT_LOG(
+        Result<RenderResourceDataIDToObjectIDContainerType ::HandlerType>
+            render_resource_data_ID_to_object_ID_handler =
             render_resource_data_ID_to_object_ID_.GetObject(
                 base_handler.GetObject()->GetRenderResourceDataID(),
-                base_handler.GetObjectUseCountPtr(),
-                render_resource_data_ID_to_object_ID_handler),
-            continue;)
+                base_handler.GetObjectUseCountPtr());
+        if (render_resource_data_ID_to_object_ID_handler.IgnoreException().IsError()) {
+          continue;
+        }
         handlers.emplace_back(
             std::move(base_handler),
-            std::move(render_resource_data_ID_to_object_ID_handler));
+            std::move(render_resource_data_ID_to_object_ID_handler.GetResult()));
         is_add = true;
       }
     }
 
     if (is_add) {
-      return ExecuteResult ::SUCCESS;
+      return ResultS{std::move(handlers)};
     }
 
-    return ExecuteResult ::PARENT_OBJECT_NOT_CONTAIN_SPECIFIC_CHILD_OBJECT;
+    return ResultE<>{ErrorCode::PARENT_OBJECT_NOT_CONTAIN_SPECIFIC_CHILD_OBJECT};
   }
 
-  ExecuteResult GetRenderResourceDataByName(
-      const std::string& name, std::vector<HandlerType>& handlers,
-      typename Policy::OnlyNotWrittenType) const {
-    std::vector<BaseHandlerType> base_handlers;
-    MM_CHECK_WITHOUT_LOG(GetObjectByNameBase(name, base_handlers),
-                         return MM_RESULT_CODE;)
+  Result<std::vector<HandlerType>> GetRenderResourceDataByName(
+      const std::string& name,
+      typename StaticTrait::OnlyReadType) const {
+    Result<std::vector<BaseHandlerType>> base_handlers;
+    GetObjectByNameBase(name, base_handlers);
+    if (base_handlers.IgnoreException().IsError()) {
+      return ResultE{base_handlers.GetError()};
+    }
 
     bool is_add = false;
-    for (auto& base_handler : base_handlers) {
+    std::vector<HandlerType> handlers;
+    for (auto& base_handler : base_handlers.GetResult()) {
       if (!base_handler.GetObject()->IsUseForWrite()) {
-        RenderResourceDataIDToObjectIDContainerType ::HandlerType
-            render_resource_data_ID_to_object_ID_handler;
-        MM_CHECK_WITHOUT_LOG(
+        Result<RenderResourceDataIDToObjectIDContainerType ::HandlerType>
+            render_resource_data_ID_to_object_ID_handler =
             render_resource_data_ID_to_object_ID_.GetObject(
                 base_handler.GetObject()->GetRenderResourceDataID(),
-                base_handler.GetObjectUseCountPtr(),
-                render_resource_data_ID_to_object_ID_handler),
-            continue;)
+                base_handler.GetObjectUseCountPtr());
+        if (render_resource_data_ID_to_object_ID_handler.IgnoreException().IsError()) {
+          continue;
+        }
         handlers.emplace_back(
             std::move(base_handler),
-            std::move(render_resource_data_ID_to_object_ID_handler));
+            std::move(render_resource_data_ID_to_object_ID_handler.GetResult()));
         is_add = true;
       }
     }
 
     if (is_add) {
-      return ExecuteResult ::SUCCESS;
+      return ResultS{std::move(handlers)};
     }
 
-    return ExecuteResult ::PARENT_OBJECT_NOT_CONTAIN_SPECIFIC_CHILD_OBJECT;
+    return ResultE<>{ErrorCode::PARENT_OBJECT_NOT_CONTAIN_SPECIFIC_CHILD_OBJECT};
   }
 
-  ExecuteResult GetIDByRenderResourceDataID(
-      const RenderResourceDataID& render_resource_data_ID,
-      std::vector<Manager::ManagedObjectID>& managed_object_IDs) const {
-    return GetIDByRenderResourceDataID(render_resource_data_ID,
-                                       managed_object_IDs, Policy::both_);
+  Result<std::vector<Manager::ManagedObjectID>> GetIDByRenderResourceDataID(
+      const RenderResourceDataID& render_resource_data_ID) const {
+    return GetIDByRenderResourceDataID(render_resource_data_ID, StaticTrait::read_and_write);
   }
 
-  ExecuteResult GetIDByRenderResourceDataID(
+  Result<std::vector<Manager::ManagedObjectID>> GetIDByRenderResourceDataID(
       const RenderResourceDataID& render_resource_data_ID,
-      std::vector<Manager::ManagedObjectID>& managed_object_IDs,
-      typename Policy::BothType) const {
-    std::vector<RenderResourceDataIDToObjectIDContainerType ::HandlerType>
-        render_resource_data_ID_to_object_ID_handlers;
-    MM_CHECK_WITHOUT_LOG(render_resource_data_ID_to_object_ID_.GetObject(
-                             render_resource_data_ID,
-                             render_resource_data_ID_to_object_ID_handlers),
-                         return MM_RESULT_CODE;)
+      typename StaticTrait::ReadAndWriteType) const {
+    Result<std::vector<RenderResourceDataIDToObjectIDContainerType ::HandlerType>>
+        render_resource_data_ID_to_object_ID_handlers = render_resource_data_ID_to_object_ID_.GetObject(
+                             render_resource_data_ID, StaticTrait::get_multiply_object);
+   if (render_resource_data_ID_to_object_ID_handlers.IgnoreException().IsError()) {
+      return ResultE{render_resource_data_ID_to_object_ID_handlers.GetError()};
+   }
 
-    managed_object_IDs.resize(
+   std::vector<Manager::ManagedObjectID> managed_object_IDs{};
+   managed_object_IDs.reserve(
         managed_object_IDs.size() +
-        render_resource_data_ID_to_object_ID_handlers.size());
+        render_resource_data_ID_to_object_ID_handlers.GetResult().size());
     for (const auto& render_resource_data_ID_to_object_ID_handler :
-         render_resource_data_ID_to_object_ID_handlers) {
+         render_resource_data_ID_to_object_ID_handlers.GetResult()) {
       managed_object_IDs.emplace_back(
           render_resource_data_ID_to_object_ID_handler.GetObject());
     }
 
-    return ExecuteResult ::SUCCESS;
+    return ResultS{std::move(managed_object_IDs)};
   }
 
-  ExecuteResult GetIDByRenderResourceDataID(
+  Result<std::vector<Manager::ManagedObjectID>> GetIDByRenderResourceDataID(
       const RenderResourceDataID& render_resource_data_ID,
-      std::vector<Manager::ManagedObjectID>& managed_object_IDs,
-      typename Policy::OnlyWrittenType) const {
-    std::vector<RenderResourceDataIDToObjectIDContainerType ::HandlerType>
-        render_resource_data_ID_to_object_ID_handlers;
-    MM_CHECK_WITHOUT_LOG(render_resource_data_ID_to_object_ID_.GetObject(
-                             render_resource_data_ID,
-                             render_resource_data_ID_to_object_ID_handlers),
-                         return MM_RESULT_CODE;)
+      typename StaticTrait::OnlyWriteType) const {
+    Result<std::vector<RenderResourceDataIDToObjectIDContainerType ::HandlerType>>
+        render_resource_data_ID_to_object_ID_handlers = render_resource_data_ID_to_object_ID_.GetObject(
+                             render_resource_data_ID, StaticTrait::get_multiply_object);
+   if (render_resource_data_ID_to_object_ID_handlers.IgnoreException().IsError()) {
+      return ResultE{render_resource_data_ID_to_object_ID_handlers.GetError()};
+   }
 
     bool is_add{false};
+    std::vector<Manager::ManagedObjectID> managed_object_IDs{};
     for (const auto& render_resource_data_ID_to_object_ID_handler :
-         render_resource_data_ID_to_object_ID_handlers) {
-      typename BaseManagerType ::BaseIDToObjectContainer ::HandlerType
-          ID_to_object_handler;
-      MM_CHECK_WITHOUT_LOG(
-          GetIDToObjectHandler(
-              render_resource_data_ID_to_object_ID_handler.GetObject(),
-              ID_to_object_handler),
-          continue;)
-      if (ID_to_object_handler.GetObject()->IsUseForWrite()) {
+         render_resource_data_ID_to_object_ID_handlers.GetResult()) {
+      Result<typename BaseManagerType ::BaseIDToObjectContainer ::HandlerType>
+          ID_to_object_handler =
+          BaseManagerType ::GetIDToObjectHandler(
+              render_resource_data_ID_to_object_ID_handler.GetObject());
+      if (ID_to_object_handler.IgnoreException().IsError()) {
+        continue;
+      }
+      if (ID_to_object_handler.GetResult().GetObject()->IsUseForWrite()) {
         managed_object_IDs.emplace_back(
             render_resource_data_ID_to_object_ID_handler.GetObject());
         is_add = true;
@@ -517,34 +515,36 @@ class RenderResourceDataManagerImp : public Manager::ManagerBase<ManagedType> {
     }
 
     if (is_add) {
-      return ExecuteResult ::SUCCESS;
+      return ResultS{std::move(managed_object_IDs)};
     }
 
-    return ExecuteResult ::PARENT_OBJECT_NOT_CONTAIN_SPECIFIC_CHILD_OBJECT;
+    return ResultE<>{ErrorCode::PARENT_OBJECT_NOT_CONTAIN_SPECIFIC_CHILD_OBJECT};
   }
 
-  ExecuteResult GetIDByRenderResourceDataID(
+  Result<std::vector<Manager::ManagedObjectID>> GetIDByRenderResourceDataID(
       const RenderResourceDataID& render_resource_data_ID,
-      std::vector<Manager::ManagedObjectID>& managed_object_IDs,
-      typename Policy::OnlyNotWrittenType) const {
-    std::vector<RenderResourceDataIDToObjectIDContainerType ::HandlerType>
-        render_resource_data_ID_to_object_ID_handlers;
-    MM_CHECK_WITHOUT_LOG(render_resource_data_ID_to_object_ID_.GetObject(
+      typename StaticTrait::OnlyReadType) const {
+    Result<std::vector<RenderResourceDataIDToObjectIDContainerType ::HandlerType>>
+        render_resource_data_ID_to_object_ID_handlers = render_resource_data_ID_to_object_ID_.GetObject(
                              render_resource_data_ID,
-                             render_resource_data_ID_to_object_ID_handlers),
-                         return MM_RESULT_CODE;)
+                             StaticTrait::get_multiply_object);
+    if (render_resource_data_ID_to_object_ID_handlers.IgnoreException().IsError()) {
+      return ResultE{render_resource_data_ID_to_object_ID_handlers.GetError()};
+    }
 
     bool is_add{false};
+    std::vector<Manager::ManagedObjectID> managed_object_IDs{};
     for (const auto& render_resource_data_ID_to_object_ID_handler :
-         render_resource_data_ID_to_object_ID_handlers) {
-      typename BaseManagerType ::BaseIDToObjectContainer ::HandlerType
-          ID_to_object_handler;
-      MM_CHECK_WITHOUT_LOG(
-          GetIDToObjectHandler(
-              render_resource_data_ID_to_object_ID_handler.GetObject(),
-              ID_to_object_handler),
-          continue;)
-      if (!ID_to_object_handler.GetObject()->IsUseForWrite()) {
+         render_resource_data_ID_to_object_ID_handlers.GetResult()) {
+      Result<typename BaseManagerType ::BaseIDToObjectContainer ::HandlerType>
+          ID_to_object_handler =
+          BaseManagerType ::GetIDToObjectHandler(
+              render_resource_data_ID_to_object_ID_handler.GetObject());
+     if (ID_to_object_handler.IgnoreException().IsError()) {
+        continue;
+     }
+
+      if (!ID_to_object_handler.GetResult().GetObject()->IsUseForWrite()) {
         managed_object_IDs.emplace_back(
             render_resource_data_ID_to_object_ID_handler.GetObject());
         is_add = true;
@@ -552,195 +552,187 @@ class RenderResourceDataManagerImp : public Manager::ManagerBase<ManagedType> {
     }
 
     if (is_add) {
-      return ExecuteResult ::SUCCESS;
+      return ResultS{std::move(managed_object_IDs)};
     }
 
-    return ExecuteResult ::PARENT_OBJECT_NOT_CONTAIN_SPECIFIC_CHILD_OBJECT;
+    return ResultE<>{ErrorCode::PARENT_OBJECT_NOT_CONTAIN_SPECIFIC_CHILD_OBJECT};
   }
 
-  ExecuteResult GetNameByRenderResourceID(
-      const RenderResourceDataID& render_resource_data_ID,
-      std::vector<std::string>& names) const {
-    return GetNameByRenderResourceID(render_resource_data_ID, names,
-                                     Policy::both_);
+  Result<std::vector<std::string>> GetNameByRenderResourceID(
+      const RenderResourceDataID& render_resource_data_ID) const {
+    return GetNameByRenderResourceID(render_resource_data_ID,
+                                     StaticTrait::read_and_write);
   }
 
-  ExecuteResult GetNameByRenderResourceID(
-      const RenderResourceDataID& render_resource_data_ID,
-      std::vector<std::string>& names, typename Policy::BothType) const {
-    std::vector<RenderResourceDataIDToObjectIDContainerType ::HandlerType>
-        render_resource_data_ID_to_object_ID_handlers;
-    MM_CHECK_WITHOUT_LOG(render_resource_data_ID_to_object_ID_.GetObject(
+  Result<std::vector<std::string>> GetNameByRenderResourceID(
+      const RenderResourceDataID& render_resource_data_ID, typename StaticTrait::ReadAndWriteType) const {
+    Result<std::vector<RenderResourceDataIDToObjectIDContainerType ::HandlerType>>
+        render_resource_data_ID_to_object_ID_handlers = render_resource_data_ID_to_object_ID_.GetObject(
                              render_resource_data_ID,
-                             render_resource_data_ID_to_object_ID_handlers),
-                         return MM_RESULT_CODE;)
-
+                             StaticTrait::get_multiply_object);
+    if (render_resource_data_ID_to_object_ID_handlers.IgnoreException().IsError()) {
+      return ResultE{render_resource_data_ID_to_object_ID_handlers.GetError()};
+    }
+    std::vector<std::string> names{};
     for (const auto& render_resource_data_ID_to_object_ID_handler :
-         render_resource_data_ID_to_object_ID_handlers) {
-      typename BaseManagerType ::BaseIDToObjectContainer ::HandlerType
-          ID_to_object_handler;
-      MM_CHECK_WITHOUT_LOG(
-          GetIDToObjectHandler(
-              render_resource_data_ID_to_object_ID_handler.GetObject(),
-              ID_to_object_handler),
-          assert(false);)
-      names.emplace_back(ID_to_object_handler.GetObject()->GetObjectName());
+         render_resource_data_ID_to_object_ID_handlers.GetResult()) {
+      Result<typename BaseManagerType ::BaseIDToObjectContainer ::HandlerType>
+          ID_to_object_handler =
+          BaseManagerType ::GetIDToObjectHandler(
+              render_resource_data_ID_to_object_ID_handler.GetObject());
+     ID_to_object_handler.IgnoreException();
+     assert(ID_to_object_handler.IsSuccess());
+      names.emplace_back(ID_to_object_handler.GetResult().GetObject()->GetObjectName());
     }
 
-    return ExecuteResult ::SUCCESS;
+    return ResultS{std::move(names)};
   }
 
-  ExecuteResult GetNameByRenderResourceID(
-      const RenderResourceDataID& render_resource_data_ID,
-      std::vector<std::string>& names, typename Policy::OnlyWrittenType) const {
-    std::vector<RenderResourceDataIDToObjectIDContainerType ::HandlerType>
-        render_resource_data_ID_to_object_ID_handlers;
-    MM_CHECK_WITHOUT_LOG(render_resource_data_ID_to_object_ID_.GetObject(
+  Result<std::vector<std::string>> GetNameByRenderResourceID(
+      const RenderResourceDataID& render_resource_data_ID, typename StaticTrait::OnlyWriteType) const {
+    Result<std::vector<RenderResourceDataIDToObjectIDContainerType ::HandlerType>>
+        render_resource_data_ID_to_object_ID_handlers = render_resource_data_ID_to_object_ID_.GetObject(
                              render_resource_data_ID,
-                             render_resource_data_ID_to_object_ID_handlers),
-                         return MM_RESULT_CODE;)
+                             StaticTrait::get_multiply_object);
+    if (render_resource_data_ID_to_object_ID_handlers.IgnoreException().IsError()) {
+      return ResultE{render_resource_data_ID_to_object_ID_handlers.GetError()};
+    }
 
+    std::vector<std::string> names{};
     for (const auto& render_resource_data_ID_to_object_ID_handler :
-         render_resource_data_ID_to_object_ID_handlers) {
-      typename BaseManagerType ::BaseIDToObjectContainer ::HandlerType
-          ID_to_object_handler;
-      MM_CHECK_WITHOUT_LOG(
-          GetIDToObjectHandler(
-              render_resource_data_ID_to_object_ID_handler.GetObject(),
-              ID_to_object_handler),
-          assert(false);)
-      if (ID_to_object_handler.GetObject()->IsUseForWrite()) {
-        names.emplace_back(ID_to_object_handler.GetObject()->GetObjectName());
+         render_resource_data_ID_to_object_ID_handlers.GetResult()) {
+      Result<typename BaseManagerType ::BaseIDToObjectContainer ::HandlerType>
+          ID_to_object_handler =
+          BaseManagerType ::GetIDToObjectHandler(
+              render_resource_data_ID_to_object_ID_handler.GetObject());
+     ID_to_object_handler.IgnoreException();
+     assert(ID_to_object_handler.IsSuccess());
+      if (ID_to_object_handler.GetResult().GetObject()->IsUseForWrite()) {
+        names.emplace_back(ID_to_object_handler.GetResult().GetObject()->GetObjectName());
       }
     }
 
-    return ExecuteResult ::SUCCESS;
+    return ResultS{std::move(names)};
   }
 
-  ExecuteResult GetNameByRenderResourceID(
+  Result<std::vector<std::string>> GetNameByRenderResourceID(
       const RenderResourceDataID& render_resource_data_ID,
-      std::vector<std::string>& names,
-      typename Policy::OnlyNotWrittenType) const {
-    std::vector<RenderResourceDataIDToObjectIDContainerType ::HandlerType>
-        render_resource_data_ID_to_object_ID_handlers;
-    MM_CHECK_WITHOUT_LOG(render_resource_data_ID_to_object_ID_.GetObject(
+      typename StaticTrait::OnlyReadType) const {
+    Result<std::vector<RenderResourceDataIDToObjectIDContainerType ::HandlerType>>
+        render_resource_data_ID_to_object_ID_handlers = render_resource_data_ID_to_object_ID_.GetObject(
                              render_resource_data_ID,
-                             render_resource_data_ID_to_object_ID_handlers),
-                         return MM_RESULT_CODE;)
+             StaticTrait::get_multiply_object);
+    if (render_resource_data_ID_to_object_ID_handlers.IgnoreException().IsError()) {
+      return ResultE{render_resource_data_ID_to_object_ID_handlers.GetError()};
+    }
 
+    std::vector<std::string> names{};
     for (const auto& render_resource_data_ID_to_object_ID_handler :
-         render_resource_data_ID_to_object_ID_handlers) {
-      typename BaseManagerType ::BaseIDToObjectContainer ::HandlerType
-          ID_to_object_handler;
-      MM_CHECK_WITHOUT_LOG(
-          GetIDToObjectHandler(
-              render_resource_data_ID_to_object_ID_handler.GetObject(),
-              ID_to_object_handler),
-          assert(false);)
-      if (!ID_to_object_handler.GetObject()->IsUseForWrite()) {
-        names.emplace_back(ID_to_object_handler.GetObject()->GetObjectName());
+         render_resource_data_ID_to_object_ID_handlers.GetResult()) {
+      Result<typename BaseManagerType ::BaseIDToObjectContainer ::HandlerType>
+          ID_to_object_handler =
+          BaseManagerType ::GetIDToObjectHandler(
+              render_resource_data_ID_to_object_ID_handler.GetObject());
+     ID_to_object_handler.IgnoreException();
+     assert(ID_to_object_handler.IsSuccess());
+      if (!ID_to_object_handler.GetResult().GetObject()->IsUseForWrite()) {
+        names.emplace_back(ID_to_object_handler.GetResult().GetObject()->GetObjectName());
       }
     }
 
-    return ExecuteResult ::SUCCESS;
+    return ResultS{std::move(names)};
   }
 
-  ExecuteResult GetRenderResourceDataIDByID(
-      const Manager::ManagedObjectID& managed_object_ID,
-      RenderResourceDataID& render_resource_data_ID) const {
+  Result<RenderResourceDataID> GetRenderResourceDataIDByID(
+      const Manager::ManagedObjectID& managed_object_ID) const {
     return GetRenderResourceDataIDByID(managed_object_ID,
-                                       render_resource_data_ID, Policy::both_);
+                                       StaticTrait::read_and_write);
   }
 
-  ExecuteResult GetRenderResourceDataIDByID(
+  Result<RenderResourceDataID> GetRenderResourceDataIDByID(
       const Manager::ManagedObjectID& managed_object_ID,
-      RenderResourceDataID& render_resource_data_ID,
-      typename Policy::BothType) const {
-    typename BaseManagerType ::BaseIDToObjectContainer::HandlerType
-        ID_to_object_handler;
-    MM_CHECK_WITHOUT_LOG(
-        GetIDToObjectHandler(managed_object_ID, ID_to_object_handler),
-        return MM_RESULT_CODE;)
+      typename StaticTrait::ReadAndWriteType) const {
+    Result<typename BaseManagerType ::BaseIDToObjectContainer::HandlerType>
+        ID_to_object_handler =
+        BaseManagerType ::GetIDToObjectHandler(managed_object_ID);
+   if (ID_to_object_handler.IgnoreException().IsError()) {
+      return ResultE{ID_to_object_handler.GetError()};
+   }
 
-    render_resource_data_ID =
-        ID_to_object_handler.GetObject()->GetRenderResourceDataID();
-
-    return ExecuteResult ::SUCCESS;
+   return ResultS{
+        ID_to_object_handler.GetObject()->GetRenderResourceDataID()};
   }
 
-  ExecuteResult GetRenderResourceDataIDByID(
+  Result<RenderResourceDataID> GetRenderResourceDataIDByID(
       const Manager::ManagedObjectID& managed_object_ID,
-      RenderResourceDataID& render_resource_data_ID,
-      typename Policy::OnlyWrittenType) const {
-    typename BaseManagerType ::BaseIDToObjectContainer::HandlerType
-        ID_to_object_handler;
-    MM_CHECK_WITHOUT_LOG(
-        GetIDToObjectHandler(managed_object_ID, ID_to_object_handler),
-        return MM_RESULT_CODE;)
-
-    if (ID_to_object_handler.GetObject()->IsUseForWrite()) {
-      render_resource_data_ID =
-          ID_to_object_handler.GetObject()->GetRenderResourceDataID();
-
-      return ExecuteResult ::SUCCESS;
+      typename StaticTrait::OnlyWriteType) const {
+    Result<typename BaseManagerType ::BaseIDToObjectContainer::HandlerType>
+        ID_to_object_handler =
+        BaseManagerType ::GetIDToObjectHandler(managed_object_ID);
+    if (ID_to_object_handler.IgnoreException().IsError()) {
+      return ResultE{ID_to_object_handler.GetError()};
     }
 
-    return ExecuteResult ::PARENT_OBJECT_NOT_CONTAIN_SPECIFIC_CHILD_OBJECT;
-  }
-
-  ExecuteResult GetRenderResourceDataIDByID(
-      const Manager::ManagedObjectID& managed_object_ID,
-      RenderResourceDataID& render_resource_data_ID,
-      typename Policy::OnlyNotWrittenType) const {
-    typename BaseManagerType ::BaseIDToObjectContainer::HandlerType
-        ID_to_object_handler;
-    MM_CHECK_WITHOUT_LOG(
-        GetIDToObjectHandler(managed_object_ID, ID_to_object_handler),
-        return MM_RESULT_CODE;)
-
-    if (!ID_to_object_handler.GetObject()->IsUseForWrite()) {
-      render_resource_data_ID =
-          ID_to_object_handler.GetObject()->GetRenderResourceDataID();
-
-      return ExecuteResult ::SUCCESS;
+    if (ID_to_object_handler.GetResult().GetObject()->IsUseForWrite()) {
+      return ResultS{
+          ID_to_object_handler.GetObject()->GetRenderResourceDataID()};
     }
 
-    return ExecuteResult ::PARENT_OBJECT_NOT_CONTAIN_SPECIFIC_CHILD_OBJECT;
+    return ResultE<>{ErrorCode::PARENT_OBJECT_NOT_CONTAIN_SPECIFIC_CHILD_OBJECT};
   }
 
-  ExecuteResult GetRenderResourceDataIDByName(
-      const std::string& name,
-      std::vector<RenderResourceDataID>& render_resource_data_IDs) const {
-    return GetRenderResourceDataIDByName(name, render_resource_data_IDs,
-                                         Policy::both_);
+  Result<RenderResourceDataID> GetRenderResourceDataIDByID(
+      const Manager::ManagedObjectID& managed_object_ID,
+      typename StaticTrait::OnlyReadType) const {
+    Result<typename BaseManagerType ::BaseIDToObjectContainer::HandlerType>
+        ID_to_object_handler =
+        BaseManagerType ::GetIDToObjectHandler(managed_object_ID);
+   if (ID_to_object_handler.IgnoreException().IsError()) {
+      return ResultE{ID_to_object_handler.GetError()};
+   }
+
+    if (!ID_to_object_handler.GetResult().GetObject()->IsUseForWrite()) {
+      return ResultS{
+          ID_to_object_handler.GetObject()->GetRenderResourceDataID()};
+    }
+
+    return ResultE<>{ErrorCode::PARENT_OBJECT_NOT_CONTAIN_SPECIFIC_CHILD_OBJECT};
   }
 
-  ExecuteResult GetRenderResourceDataIDByName(
-      const std::string& name,
-      std::vector<RenderResourceDataID>& render_resource_data_IDs,
-      typename Policy::BothType) const {
-    std::vector<BaseHandlerType> base_handlers;
-    MM_CHECK_WITHOUT_LOG(GetObjectByNameBase(name, base_handlers),
-                         return MM_RESULT_CODE;)
+  Result<std::vector<RenderResourceDataID>> GetRenderResourceDataIDByName(
+      const std::string& name) const {
+    return GetRenderResourceDataIDByName(name,
+                                         StaticTrait::read_and_write);
+  }
 
-    for (const auto& base_handler : base_handlers) {
+  Result<std::vector<RenderResourceDataID>> GetRenderResourceDataIDByName(
+      const std::string& name,
+      typename StaticTrait::ReadAndWriteType) const {
+    Result<std::vector<BaseHandlerType>> base_handlers = BaseManagerType ::GetObjectByNameBase(name, StaticTrait::get_multiply_object);
+   if (base_handlers.IgnoreException().IsError()) {
+      return ResultE{base_handlers.GetError()};
+   }
+
+    std::vector<RenderResourceDataID> render_resource_data_IDs;
+    for (const auto& base_handler : base_handlers.GetResult()) {
       render_resource_data_IDs.emplace_back(
           base_handler.GetObject()->GetRenderResourceDataID());
     }
 
-    return ExecuteResult ::SUCCESS;
+    return ResultS{std::move(render_resource_data_IDs)};
   }
 
-  ExecuteResult GetRenderResourceDataIDByName(
+  Result<std::vector<RenderResourceDataID>> GetRenderResourceDataIDByName(
       const std::string& name,
-      std::vector<RenderResourceDataID>& render_resource_data_IDs,
-      typename Policy::OnlyWrittenType) const {
-    std::vector<BaseHandlerType> base_handlers;
-    MM_CHECK_WITHOUT_LOG(GetObjectByNameBase(name, base_handlers),
-                         return MM_RESULT_CODE;)
+      typename StaticTrait::OnlyWriteType) const {
+    Result<std::vector<BaseHandlerType>> base_handlers = BaseManagerType ::GetObjectByNameBase(name, StaticTrait::get_multiply_object);
+    if (base_handlers.IgnoreException().IsError()) {
+      return ResultE{base_handlers.GetError()};
+    }
 
     bool is_add{false};
-    for (const auto& base_handler : base_handlers) {
+    std::vector<RenderResourceDataID> render_resource_data_IDs{};
+    for (const auto& base_handler : base_handlers.GetResult()) {
       if (base_handler.GetObject()->IsUseForWrite()) {
         render_resource_data_IDs.emplace_back(
             base_handler.GetObject()->GetRenderResourceDataID());
@@ -750,22 +742,24 @@ class RenderResourceDataManagerImp : public Manager::ManagerBase<ManagedType> {
     }
 
     if (is_add) {
-      return ExecuteResult ::SUCCESS;
+      return ResultS{std::move(render_resource_data_IDs)};
     }
 
-    return ExecuteResult ::PARENT_OBJECT_NOT_CONTAIN_SPECIFIC_CHILD_OBJECT;
+    return ResultE<>{ErrorCode::PARENT_OBJECT_NOT_CONTAIN_SPECIFIC_CHILD_OBJECT};
   }
 
-  ExecuteResult GetRenderResourceDataIDByName(
+  Result<std::vector<RenderResourceDataID>> GetRenderResourceDataIDByName(
       const std::string& name,
-      std::vector<RenderResourceDataID>& render_resource_data_IDs,
-      typename Policy::OnlyNotWrittenType) const {
-    std::vector<BaseHandlerType> base_handlers;
-    MM_CHECK_WITHOUT_LOG(GetObjectByNameBase(name, base_handlers),
-                         return MM_RESULT_CODE;)
+      typename StaticTrait::OnlyReadType) const {
+    Result<std::vector<BaseHandlerType>> base_handlers =
+    BaseManagerType ::GetObjectByNameBase(name, StaticTrait::get_multiply_object);
+    if (base_handlers.IgnoreException().IsError()) {
+      return ResultE{base_handlers.GetError()};
+    }
 
     bool is_add{false};
-    for (const auto& base_handler : base_handlers) {
+    std::vector<RenderResourceDataID> render_resource_data_IDs{};
+    for (const auto& base_handler : base_handlers.GetResult()) {
       if (!base_handler.GetObject()->IsUseForWrite()) {
         render_resource_data_IDs.emplace_back(
             base_handler.GetObject()->GetRenderResourceDataID());
@@ -775,10 +769,10 @@ class RenderResourceDataManagerImp : public Manager::ManagerBase<ManagedType> {
     }
 
     if (is_add) {
-      return ExecuteResult ::SUCCESS;
+      return ResultS{std::move(render_resource_data_IDs)};
     }
 
-    return ExecuteResult ::PARENT_OBJECT_NOT_CONTAIN_SPECIFIC_CHILD_OBJECT;
+    return ResultE<>{ErrorCode::PARENT_OBJECT_NOT_CONTAIN_SPECIFIC_CHILD_OBJECT};
   }
 
  private:

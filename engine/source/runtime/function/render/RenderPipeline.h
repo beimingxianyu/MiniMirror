@@ -1,6 +1,7 @@
 //
 // Created by beimingxianyu on 23-7-28.
 //
+#pragma once
 
 #include "runtime/function/render/vk_type_define.h"
 

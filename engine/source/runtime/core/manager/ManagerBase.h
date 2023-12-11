@@ -6,7 +6,6 @@
 
 #include "runtime/core/manager/ManagedObjectBase.h"
 #include "runtime/core/manager/ManagedObjectUnorderedMap.h"
-#include "runtime/platform/base/error.h"
 
 namespace MM {
 namespace Manager {
@@ -29,7 +28,7 @@ class ManagerBaseImp {
   class BaseHandler {
    public:
     BaseHandler() = default;
-    ~BaseHandler() = default;
+    virtual ~BaseHandler() = default;
     BaseHandler(
         typename BaseNameToIDContainer::HandlerType&& name_to_ID_handler,
         typename BaseIDToObjectContainer::HandlerType&& ID_to_object_handler)

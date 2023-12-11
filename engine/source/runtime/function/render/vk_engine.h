@@ -17,7 +17,6 @@
 #include "runtime/function/render/AllocatedBuffer.h"
 #include "runtime/function/render/DescriptorManager.h"
 #include "runtime/function/render/RenderResourceDataID.h"
-#include "runtime/function/render/pre_header.h"
 #include "runtime/function/render/vk_command.h"
 #include "runtime/function/render/vk_utils.h"
 #include "runtime/platform/file_system/file_system.h"
