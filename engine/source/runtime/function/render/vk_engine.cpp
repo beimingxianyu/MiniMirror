@@ -2,8 +2,10 @@
 
 #include <set>
 
-#include "runtime/function/render/vk_enum.h"
+#include "CommandTask.h"
 #include "runtime/function/render/CommandExecutor.h"
+#include "runtime/function/render/vk_enum.h"
+#include "utils/type_utils.h"
 
 const std::string MM::RenderSystem::RenderEngine::validation_layers_name{
     "VK_LAYER_KHRONOS_validation"};
@@ -16,7 +18,7 @@ void MM::RenderSystem::RenderEngine::Init() {
   is_initialized_ = true;
 }
 
-void MM::RenderSystem::RenderEngine::Run() {
+void MM::RenderSystem::RenderEngine::Run() const {
   while (!glfwWindowShouldClose(window_)) {
     // TODO Update resource
     // TODO Update render graph
@@ -145,20 +147,22 @@ std::uint32_t MM::RenderSystem::RenderEngine::GetQueueIndex(
   }
 }
 
-MM::Result<MM::RenderSystem::RenderFuture> MM::RenderSystem::RenderEngine::RunCommand(
-    CommandTaskFlow&& command_task_flow) {
+MM::Result<MM::RenderSystem::RenderFuture>
+MM::RenderSystem::RenderEngine::RunCommand(
+    CommandTaskFlow&& command_task_flow) const {
   assert(IsValid());
   return command_executor_->Run(std::move(command_task_flow));
 }
 
 MM::Result<MM::RenderSystem::RenderFutureState, MM::ErrorResult>
 MM::RenderSystem::RenderEngine::RunCommandAndWait(
-    CommandTaskFlow&& command_task_flow) {
+    CommandTaskFlow&& command_task_flow) const {
   assert(IsValid());
   return command_executor_->RunAndWait(std::move(command_task_flow));
 }
 
-MM::Result<MM::RenderSystem::RenderFuture> MM::RenderSystem::RenderEngine::RunSingleCommand(CommandType command_type,
+MM::Result<MM::RenderSystem::RenderFuture>
+MM::RenderSystem::RenderEngine::RunSingleCommand(CommandType command_type,
                                                  bool is_async_record,
                                                  const TaskType& commands) {
   assert(IsValid());
@@ -183,10 +187,11 @@ MM::Result<MM::Nil> MM::RenderSystem::RenderEngine::CopyBuffer(
     const std::vector<VkBufferCopy2>& regions) {
   assert(IsValid());
 #ifdef MM_CHECK_PARAMETERS
-      Result<Nil> check_result = CopyBufferInputParametersCheck(src_buffer, dest_buffer, regions);
-      if (check_result.IsError()) {
-        return check_result;
-      }
+  Result<Nil> check_result =
+      CopyBufferInputParametersCheck(src_buffer, dest_buffer, regions);
+  if (check_result.IsError()) {
+    return check_result;
+  }
 #endif
   VkCopyBufferInfo2 copy_buffer =
       GetVkCopyBufferInfo2(src_buffer, dest_buffer, regions);
@@ -197,13 +202,12 @@ MM::Result<MM::Nil> MM::RenderSystem::RenderEngine::CopyBuffer(
     sync_resource_data_IDs.emplace_back(src_buffer.GetRenderResourceDataID());
     sync_resource_data_IDs.emplace_back(dest_buffer.GetRenderResourceDataID());
   }
-  MM_CHECK(
-      RunSingleCommandAndWait(
-          CommandBufferType::TRANSFORM, false,
-          [&copy_buffer, &src_buffer, &dest_buffer,
-           use_buffer_count](AllocatedCommandBuffer& cmd) {
+  if (auto if_result = RunSingleCommandAndWait(
+          CommandBufferType::TRANSFORM, false, sync_resource_data_IDs,
+          [&copy_buffer, &src_buffer,
+           &dest_buffer](AllocatedCommandBuffer& cmd) -> Result<Nil> {
             std::vector<VkBufferMemoryBarrier2> barriers;
-            if (use_buffer_count == 1) {
+            if (src_buffer.GetBuffer() == dest_buffer.GetBuffer()) {
               VkDeviceSize transform_offset = UINT32_MAX, transform_size = 0,
                            end_size = 0;
               for (std::uint64_t i = 0; i != copy_buffer.regionCount; ++i) {
@@ -228,15 +232,18 @@ MM::Result<MM::Nil> MM::RenderSystem::RenderEngine::CopyBuffer(
               }
               transform_size = end_size - transform_offset;
 
-              MM_CHECK(
-                  src_buffer.GetVkBufferMemoryBarriber2(
+              if (auto if_result2 = src_buffer.GetVkBufferMemoryBarriber2(
                       transform_offset, transform_size,
                       VK_PIPELINE_STAGE_2_TRANSFER_BIT, 0,
                       VK_PIPELINE_STAGE_2_TRANSFER_BIT,
                       VK_ACCESS_2_TRANSFER_READ_BIT,
-                      src_buffer.GetRenderEnginePtr()->GetTransformQueueIndex(),
-                      barriers),
-                  return MM_RESULT_CODE;)
+                      src_buffer.GetRenderEnginePtr()
+                          ->GetTransformQueueIndex());
+                  if_result2.IgnoreException().IsError()) {
+                return ResultE{if_result2.GetError()};
+              } else {
+                barriers = std::move(if_result2.GetResult());
+              }
             } else {
               VkDeviceSize src_transform_offset = UINT32_MAX,
                            src_transform_size = 0, src_end_size = 0,
@@ -265,31 +272,43 @@ MM::Result<MM::Nil> MM::RenderSystem::RenderEngine::CopyBuffer(
               src_transform_size = src_end_size - src_transform_offset;
               dest_transform_size = dest_end_size - dest_transform_offset;
 
-              MM_CHECK(
-                  src_buffer.GetVkBufferMemoryBarriber2(
+              if (auto if_result2 = src_buffer.GetVkBufferMemoryBarriber2(
                       src_transform_offset, src_transform_size,
                       VK_PIPELINE_STAGE_2_TRANSFER_BIT, 0,
                       VK_PIPELINE_STAGE_2_TRANSFER_BIT,
                       VK_ACCESS_2_TRANSFER_READ_BIT,
-                      src_buffer.GetRenderEnginePtr()->GetTransformQueueIndex(),
-                      barriers),
-                  return MM_RESULT_CODE;)
-              MM_CHECK(src_buffer.GetVkBufferMemoryBarriber2(
-                           dest_transform_offset, dest_transform_size,
-                           VK_PIPELINE_STAGE_2_TRANSFER_BIT, 0,
-                           VK_PIPELINE_STAGE_2_TRANSFER_BIT,
-                           VK_ACCESS_2_TRANSFER_READ_BIT,
-                           dest_buffer.GetRenderEnginePtr()
-                               ->GetTransformQueueIndex(),
-                           barriers),
-                       return MM_RESULT_CODE;)
+                      src_buffer.GetRenderEnginePtr()
+                          ->GetTransformQueueIndex());
+                  if_result2.IgnoreException().IsError()) {
+                return ResultE{if_result2.GetError()};
+              } else {
+                barriers = std::move(if_result2.GetResult());
+              }
+              if (auto if_result2 = src_buffer.GetVkBufferMemoryBarriber2(
+                      dest_transform_offset, dest_transform_size,
+                      VK_PIPELINE_STAGE_2_TRANSFER_BIT, 0,
+                      VK_PIPELINE_STAGE_2_TRANSFER_BIT,
+                      VK_ACCESS_2_TRANSFER_READ_BIT,
+                      dest_buffer.GetRenderEnginePtr()
+                          ->GetTransformQueueIndex());
+                  if_result2.IgnoreException().IsError()) {
+                return ResultE{if_result2.GetError()};
+              } else {
+                for (const auto& dest_barriers : if_result2.GetResult()) {
+                  barriers.emplace_back(dest_barriers);
+                }
+              }
             }
 
-            VkDependencyInfo dependency_info{Utils::GetVkDependencyInfo(
+            VkDependencyInfo dependency_info{GetVkDependencyInfo(
                 0, nullptr, barriers.size(), barriers.data(), 0, nullptr, 0)};
-            MM_CHECK(Utils::BeginCommandBuffer(cmd),
-                     MM_LOG_FATAL("Failed to begin command buffer.");
-                     return MM_RESULT_CODE;);
+            if (auto if_result2 = BeginCommandBuffer(cmd);
+                if_result2
+                    .Exception(MM_FATAL_DESCRIPTION2(
+                        "Failed to begin command buffer."))
+                    .IsError()) {
+              return ResultE{if_result2.GetError()};
+            }
 
             vkCmdPipelineBarrier2(cmd.GetCommandBuffer(), &dependency_info);
 
@@ -304,56 +323,66 @@ MM::Result<MM::Nil> MM::RenderSystem::RenderEngine::CopyBuffer(
             }
             vkCmdPipelineBarrier2(cmd.GetCommandBuffer(), &dependency_info);
 
-            MM_CHECK(Utils::EndCommandBuffer(cmd),
-                     MM_LOG_FATAL("Failed to end command buffer.");
-                     return MM_RESULT_CODE;);
-            return ExecuteResult::SUCCESS;
-          },
-          sync_resource_data_IDs),
-      MM_LOG_ERROR("Failed to copy buffer.");
-      return MM_RESULT_CODE;)
+            if (auto if_result2 = EndCommandBuffer(cmd);
+                if_result2
+                    .Exception(
+                        MM_FATAL_DESCRIPTION2("Failed to end command buffer."))
+                    .IsError()) {
+              return ResultE{if_result2.GetError()};
+            }
 
-  return ExecuteResult::SUCCESS;
+            return ResultS<Nil>{};
+          });
+      if_result.Exception(MM_ERROR_DESCRIPTION2("Failed to copy buffer."))
+          .IsError()) {
+    return ResultE{if_result.GetError()};
+  }
+
+  return ResultS<Nil>{};
 }
 
-MM::ExecuteResult MM::RenderSystem::RenderEngine::CopyBuffer(
-    const AllocatedBuffer& src_buffer, AllocatedBuffer& dest_buffer,
-    const std::vector<VkBufferCopy2>& regions) {
-  return CopyBuffer(src_buffer, dest_buffer, regions);
-}
+// MM::Result<MM::Nil> MM::RenderSystem::RenderEngine::CopyBuffer(
+//     const AllocatedBuffer& src_buffer, AllocatedBuffer& dest_buffer,
+//     const std::vector<VkBufferCopy2>& regions) {
+//   return CopyBuffer(src_buffer, dest_buffer, regions);
+// }
 
-MM::ExecuteResult MM::RenderSystem::RenderEngine::CopyBuffer(
+MM::Result<MM::Nil> MM::RenderSystem::RenderEngine::CopyBuffer(
     AllocatedBuffer& src_buffer, AllocatedBuffer& dest_buffer,
     const std::vector<std::vector<VkBufferCopy2>>& regions_vector) {
   assert(IsValid());
   for (const auto& regions : regions_vector) {
-    MM_CHECK(CopyBuffer(src_buffer, dest_buffer, regions),
-             return MM_RESULT_CODE;)
+    if (auto if_result = CopyBuffer(src_buffer, dest_buffer, regions);
+      if_result.IgnoreException().IsError()) {
+      return ResultE{if_result.GetError()};
+    }
   }
 
-  return ExecuteResult::SUCCESS;
+  return ResultS<Nil>{};
 }
 
-MM::ExecuteResult MM::RenderSystem::RenderEngine::CopyBuffer(
-    const AllocatedBuffer& src_buffer, AllocatedBuffer& dest_buffer,
-    const std::vector<std::vector<VkBufferCopy2>>& regions_vector) {
-  assert(IsValid());
-  for (const auto& regions : regions_vector) {
-    MM_CHECK(CopyBuffer(src_buffer, dest_buffer, regions),
-             return MM_RESULT_CODE;)
-  }
+// MM::ExecuteResult MM::RenderSystem::RenderEngine::CopyBuffer(
+//     const AllocatedBuffer& src_buffer, AllocatedBuffer& dest_buffer,
+//     const std::vector<std::vector<VkBufferCopy2>>& regions_vector) {
+//   assert(IsValid());
+//   for (const auto& regions : regions_vector) {
+//     MM_CHECK(CopyBuffer(src_buffer, dest_buffer, regions),
+//              return MM_RESULT_CODE;)
+//   }
+//
+//   return ExecuteResult::SUCCESS;
+// }
 
-  return ExecuteResult::SUCCESS;
-}
-
-MM::ExecuteResult MM::RenderSystem::RenderEngine::CopyImage(
+MM::Result<MM::Nil> MM::RenderSystem::RenderEngine::CopyImage(
     AllocatedImage& src_image, AllocatedImage& dest_image,
     const std::vector<VkImageCopy2>& regions) {
   assert(IsValid());
 #ifdef MM_CHECK_PARAMETERS
-  MM_CHECK_WITHOUT_LOG(
-      CopyImageInputParametersCheck(src_image, dest_image, regions),
-      return MM_RESULT_CODE;)
+  if (auto if_result =
+          CopyImageInputParametersCheck(src_image, dest_image, regions);
+      if_result.IgnoreException().IsError()) {
+    return ResultE{if_result.GetError()};
+  }
 #endif
 
   std::vector<RenderResourceDataID> sync_render_resource_data_IDs;
@@ -367,14 +396,17 @@ MM::ExecuteResult MM::RenderSystem::RenderEngine::CopyImage(
         dest_image.GetRenderResourceDataID());
   }
 
-  MM_CHECK(
-      RunSingleCommandAndWait(
-          CommandBufferType::TRANSFORM, 1,
-          [&src_image, &dest_image, &regions,
-           this_render_engine = this](AllocatedCommandBuffer& cmd) {
-            MM_CHECK(Utils::BeginCommandBuffer(cmd),
-                     MM_LOG_FATAL("Failed to begin command buffer");
-                     return MM_RESULT_CODE;)
+  if (auto if_result = RunSingleCommandAndWait(
+          CommandBufferType::TRANSFORM, false, sync_render_resource_data_IDs,
+          [&src_image, &dest_image, &regions, this_render_engine = this](
+              AllocatedCommandBuffer& cmd) -> Result<Nil> {
+            if (auto if_result2 = BeginCommandBuffer(cmd);
+                if_result2
+                    .Exception(
+                        MM_FATAL_DESCRIPTION2("Failed to begin command buffer"))
+                    .IsError()) {
+              return ResultE{if_result2.GetError()};
+            }
 
             bool is_same = (src_image.GetImage() == dest_image.GetImage());
             std::vector<std::pair<std::uint64_t,
@@ -452,22 +484,19 @@ MM::ExecuteResult MM::RenderSystem::RenderEngine::CopyImage(
                  src_image.GetSubResourceAttributes()) {
               if (effect_src_image.count(&sub_resource)) {
                 VkImageAspectFlags aspect_flag =
-                    MM::RenderSystem::Utils::ChooseImageAspectFlags(
-                        sub_resource.GetImageLayout());
-                barriers.emplace_back(
-                    MM::RenderSystem::Utils::GetVkImageMemoryBarrier2(
-                        VK_PIPELINE_STAGE_2_TRANSFER_BIT, 0,
-                        VK_PIPELINE_STAGE_2_TRANSFER_BIT,
-                        VK_ACCESS_2_TRANSFER_READ_BIT,
-                        sub_resource.GetImageLayout(),
-                        sub_resource.GetImageLayout(),
-                        sub_resource.GetQueueIndex(), transform_queue_index,
-                        src_image.GetImage(),
-                        VkImageSubresourceRange{
-                            aspect_flag, sub_resource.GetBaseMipmapLevel(),
-                            sub_resource.GetMipmapCount(),
-                            sub_resource.GetBaseArrayLevel(),
-                            sub_resource.GetArrayCount()}));
+                    ChooseImageAspectFlags(sub_resource.GetImageLayout());
+                barriers.emplace_back(GetVkImageMemoryBarrier2(
+                    VK_PIPELINE_STAGE_2_TRANSFER_BIT, 0,
+                    VK_PIPELINE_STAGE_2_TRANSFER_BIT,
+                    VK_ACCESS_2_TRANSFER_READ_BIT,
+                    sub_resource.GetImageLayout(),
+                    sub_resource.GetImageLayout(), sub_resource.GetQueueIndex(),
+                    transform_queue_index, src_image.GetImage(),
+                    VkImageSubresourceRange{aspect_flag,
+                                            sub_resource.GetBaseMipmapLevel(),
+                                            sub_resource.GetMipmapCount(),
+                                            sub_resource.GetBaseArrayLevel(),
+                                            sub_resource.GetArrayCount()}));
               }
             }
             if (!is_same) {
@@ -475,30 +504,26 @@ MM::ExecuteResult MM::RenderSystem::RenderEngine::CopyImage(
                    dest_image.GetSubResourceAttributes()) {
                 if (effect_src_image.count(&dest_resource)) {
                   VkImageAspectFlags aspect_flag =
-                      MM::RenderSystem::Utils::ChooseImageAspectFlags(
-                          dest_resource.GetImageLayout());
-                  barriers.emplace_back(
-                      MM::RenderSystem::Utils::GetVkImageMemoryBarrier2(
-                          VK_PIPELINE_STAGE_2_TRANSFER_BIT, 0,
-                          VK_PIPELINE_STAGE_2_TRANSFER_BIT,
-                          VK_ACCESS_2_TRANSFER_WRITE_BIT,
-                          dest_resource.GetImageLayout(),
-                          dest_resource.GetImageLayout(),
-                          dest_resource.GetQueueIndex(), transform_queue_index,
-                          dest_image.GetImage(),
-                          VkImageSubresourceRange{
-                              aspect_flag, dest_resource.GetBaseMipmapLevel(),
-                              dest_resource.GetMipmapCount(),
-                              dest_resource.GetBaseArrayLevel(),
-                              dest_resource.GetArrayCount()}));
+                      ChooseImageAspectFlags(dest_resource.GetImageLayout());
+                  barriers.emplace_back(GetVkImageMemoryBarrier2(
+                      VK_PIPELINE_STAGE_2_TRANSFER_BIT, 0,
+                      VK_PIPELINE_STAGE_2_TRANSFER_BIT,
+                      VK_ACCESS_2_TRANSFER_WRITE_BIT,
+                      dest_resource.GetImageLayout(),
+                      dest_resource.GetImageLayout(),
+                      dest_resource.GetQueueIndex(), transform_queue_index,
+                      dest_image.GetImage(),
+                      VkImageSubresourceRange{
+                          aspect_flag, dest_resource.GetBaseMipmapLevel(),
+                          dest_resource.GetMipmapCount(),
+                          dest_resource.GetBaseArrayLevel(),
+                          dest_resource.GetArrayCount()}));
                 }
               }
             }
 
-            VkDependencyInfo dependency_info =
-                MM::RenderSystem::Utils::GetVkDependencyInfo(
-                    0, nullptr, 0, nullptr, barriers.size(), barriers.data(),
-                    0);
+            VkDependencyInfo dependency_info = GetVkDependencyInfo(
+                0, nullptr, 0, nullptr, barriers.size(), barriers.data(), 0);
             vkCmdPipelineBarrier2(cmd.GetCommandBuffer(), &dependency_info);
 
             VkCopyImageInfo2 copy_image_info{};
@@ -526,67 +551,77 @@ MM::ExecuteResult MM::RenderSystem::RenderEngine::CopyImage(
             }
             vkCmdPipelineBarrier2(cmd.GetCommandBuffer(), &dependency_info);
 
-            MM_CHECK(Utils::EndCommandBuffer(cmd),
-                     MM_LOG_FATAL("Failed to end command buffer.");
-                     return MM_RESULT_CODE;)
-            return ExecuteResult::SUCCESS;
-          },
-          sync_render_resource_data_IDs),
-      MM_LOG_ERROR("Failed to copy image.");
-      return MM_RESULT_CODE;)
+            if (auto if_result2 = EndCommandBuffer(cmd);
+                if_result2
+                    .Exception(
+                        MM_FATAL_DESCRIPTION2("Failed to end command buffer."))
+                    .IsError()) {
+              return ResultE{if_result2.GetError()};
+            }
 
-  return ExecuteResult::SUCCESS;
+            return ResultS<Nil>{};
+          });
+      if_result.Exception(MM_ERROR_DESCRIPTION2("Failed to copy image."))
+          .IsError()) {
+    return ResultE{if_result.GetError()};
+  }
+
+  return ResultS<Nil>{};
 }
 
-MM::ExecuteResult MM::RenderSystem::RenderEngine::CopyImage(
-    const AllocatedImage& src_image, AllocatedImage& dest_image,
-    const std::vector<VkImageCopy2>& regions) {
-  return CopyImage(const_cast<AllocatedImage&>(src_image), dest_image, regions);
-}
+// MM::ExecuteResult MM::RenderSystem::RenderEngine::CopyImage(
+//     const AllocatedImage& src_image, AllocatedImage& dest_image,
+//     const std::vector<VkImageCopy2>& regions) {
+//   return CopyImage(const_cast<AllocatedImage&>(src_image), dest_image, regions);
+// }
 
-MM::ExecuteResult MM::RenderSystem::RenderEngine::CopyImage(
+MM::Result<MM::Nil> MM::RenderSystem::RenderEngine::CopyImage(
     AllocatedImage& src_image, AllocatedImage& dest_image,
     const std::vector<std::vector<VkImageCopy2>>& regions_vector) {
   assert(IsValid());
   for (const auto& regions : regions_vector) {
-    MM_CHECK(CopyImage(src_image, dest_image, regions), return MM_RESULT_CODE;)
+    if (auto if_result = CopyImage(src_image, dest_image, regions); if_result.IgnoreException().IsError()) {
+      return ResultE{if_result.GetError()};
+    }
   }
 
-  return ExecuteResult::SUCCESS;
+  return ResultS<Nil>{};
 }
 
-MM::ExecuteResult MM::RenderSystem::RenderEngine::CopyImage(
-    const AllocatedImage& src_image, AllocatedImage& dest_image,
-    const std::vector<std::vector<VkImageCopy2>>& regions_vector) {
-  assert(IsValid());
-  for (const auto& regions : regions_vector) {
-    MM_CHECK(CopyImage(src_image, dest_image, regions), return MM_RESULT_CODE;)
-  }
+// MM::ExecuteResult MM::RenderSystem::RenderEngine::CopyImage(
+//     const AllocatedImage& src_image, AllocatedImage& dest_image,
+//     const std::vector<std::vector<VkImageCopy2>>& regions_vector) {
+//   assert(IsValid());
+//   for (const auto& regions : regions_vector) {
+//     MM_CHECK(CopyImage(src_image, dest_image, regions), return MM_RESULT_CODE;)
+//   }
+//
+//   return ExecuteResult::SUCCESS;
+// }
 
-  return ExecuteResult::SUCCESS;
-}
-
-MM::ExecuteResult MM::RenderSystem::RenderEngine::CopyDataToBuffer(
+MM::Result<MM::Nil> MM::RenderSystem::RenderEngine::CopyDataToBuffer(
     AllocatedBuffer& dest_buffer, const void* data,
-    const VkDeviceSize& copy_offset, const VkDeviceSize& copy_size) {
+    const VkDeviceSize& copy_offset, const VkDeviceSize& copy_size) const {
   assert(IsValid());
 #ifdef MM_CHECK_PARAMETERS
   if (!dest_buffer.IsValid()) {
     MM_LOG_ERROR("Dest_buffer is invalid.");
-    return ExecuteResult::OBJECT_IS_INVALID;
+    return ResultE<>{ErrorCode::OBJECT_IS_INVALID};
   }
 
   if (!dest_buffer.CanMapped()) {
     MM_LOG_ERROR("Dest_buffer can not mapped.");
-    return ExecuteResult::INPUT_PARAMETERS_ARE_INCORRECT;
+    return ResultE<>{ErrorCode::INPUT_PARAMETERS_ARE_INCORRECT};
   }
 
   if (data == nullptr) {
     MM_LOG_ERROR("data is nullptr.");
+    return ResultE<>{ErrorCode::NULL_OBJECT_ERROR};
   }
 
   if (copy_offset + copy_size > dest_buffer.GetBufferSize()) {
     MM_LOG_ERROR("The sum of copy_offset and copy_size is too large.");
+    return ResultE<>{ErrorCode::INPUT_PARAMETERS_ARE_INCORRECT};
   }
 #endif
 
@@ -597,7 +632,7 @@ MM::ExecuteResult MM::RenderSystem::RenderEngine::CopyDataToBuffer(
   memcpy(map_data, data, copy_size);
   vmaUnmapMemory(dest_buffer.GetAllocator(), dest_buffer.GetAllocation());
 
-  return ExecuteResult::SUCCESS;
+  return ResultS<Nil>{};
 }
 
 // MM::ExecuteResult MM::RenderSystem::RenderEngine::RemoveBufferFragmentation(
@@ -983,9 +1018,13 @@ void MM::RenderSystem::RenderEngine::ChooseMultiSampleCount() {
     render_engine_info_.multi_sample_count_ = VK_SAMPLE_COUNT_1_BIT;
     return;
   }
-  MM_CHECK(MM_CONFIG_SYSTEM->GetConfig("multi_sample_count", count),
-           MM_LOG_FATAL("The setting of \"multi_sample_count\" is not exist.");
-           return;)
+  if (auto if_result = MM_CONFIG_SYSTEM->GetConfig("multi_sample_count", count);
+      if_result
+          .Exception(MM_FATAL_DESCRIPTION2(
+              "The setting of \"multi_sample_count\" is not exist."))
+          .IsError()) {
+    return;
+  }
 
   if (count < 2) {
     render_engine_info_.multi_sample_count_ = VK_SAMPLE_COUNT_1_BIT;
@@ -1042,11 +1081,16 @@ void MM::RenderSystem::RenderEngine::InitInstance() {
   uint32_t version_major = 0;
   uint32_t version_minor = 0;
   uint32_t version_patch = 0;
-  MM_CHECK(MM_CONFIG_SYSTEM->GetConfig("version_major", version_major) |
-               MM_CONFIG_SYSTEM->GetConfig("version_minor", version_minor) |
-               MM_CONFIG_SYSTEM->GetConfig("version_patch", version_patch),
-           MM_LOG_FATAL("The software version number is not set.");
-           return;)
+  if (MM_CONFIG_SYSTEM->GetConfig("version_major", version_major).Exception(MM_FATAL_DESCRIPTION2("The software version number is not set.")).IsError()) {
+   return;
+  }
+  if (MM_CONFIG_SYSTEM->GetConfig("version_minor", version_minor).Exception(MM_FATAL_DESCRIPTION2("The software version number is not set.")).IsError()) {
+    return;
+  }
+  if (MM_CONFIG_SYSTEM->GetConfig("version_patch", version_patch).Exception(MM_FATAL_DESCRIPTION2("The software version number is not set.")).IsError()) {
+    return;
+  }
+
   if (enable_validation_layers_) {
     if (CheckValidationLayerSupport()) {
       enable_layer_.push_back(validation_layers_name.c_str());
@@ -1134,7 +1178,7 @@ void MM::RenderSystem::RenderEngine::InitGpuFeatures() {
 void MM::RenderSystem::RenderEngine::InitLogicalDevice() {
   queue_family_indices_ = FindQueueFamily(physical_device_);
 
-  const float queue_priority = 1.0f;
+  constexpr float queue_priority = 1.0f;
   std::vector<VkDeviceQueueCreateInfo>
       queue_create_infos;  // all queues that need to be created
   const std::set<uint32_t> queue_families{
@@ -1336,15 +1380,12 @@ void MM::RenderSystem::RenderEngine::InitCommandExecutor() {
   std::uint32_t single_frame_compute_command_buffer_number = 0;
   std::uint32_t single_frame_transform_command_buffer_number = 0;
   if (MM_CONFIG_SYSTEM->GetConfig("single_frame_graph_command_buffer_number",
-                                  single_frame_graph_command_buffer_number) ==
-          ExecuteResult::SUCCESS &&
+                                  single_frame_graph_command_buffer_number).IgnoreException().IsSuccess() &&
       MM_CONFIG_SYSTEM->GetConfig("single_frame_compute_command_buffer_number",
-                                  single_frame_compute_command_buffer_number) ==
-          ExecuteResult::SUCCESS &&
+                                  single_frame_compute_command_buffer_number).IgnoreException().IsSuccess() &&
       MM_CONFIG_SYSTEM->GetConfig(
           "single_frame_transform_command_buffer_number",
-          single_frame_transform_command_buffer_number) ==
-          ExecuteResult::SUCCESS) {
+          single_frame_transform_command_buffer_number).IgnoreException().IsSuccess()) {
     command_executor_ = std::make_unique<CommandExecutor>(
         this, single_frame_graph_command_buffer_number,
         single_frame_compute_command_buffer_number,
@@ -1424,15 +1465,15 @@ void MM::RenderSystem::RenderEngine::SetUpDebugMessenger() {
 
 void MM::RenderSystem::RenderEngine::InitGlfw() {
   // Read the initialization settings.
-  MM_CHECK(
-      MM_CONFIG_SYSTEM->GetConfig("window_extent_width", window_extent_.width),
-      MM_LOG_FATAL("Setting item \"Window_extent_width.\" does not exist.");
-      return;)
-  MM_CHECK(
+  if (
+      MM_CONFIG_SYSTEM->GetConfig("window_extent_width", window_extent_.width).Exception(MM_FATAL_DESCRIPTION2("Setting item \"Window_extent_width.\" does not exist.")).IsError()) {
+    return;
+  }
+  if (
       MM_CONFIG_SYSTEM->GetConfig("window_extent_height",
-                                  window_extent_.height),
-      MM_LOG_FATAL("Setting iterm \"Window_extent_height.\" does not exist.");
-      return;)
+                                  window_extent_.height).Exception(MM_FATAL_DESCRIPTION2("Setting iterm \"Window_extent_height.\" does not exist.")).IsError()) {
+    return;
+  }
 
   // Initialize glfw.
   glfwInit();
@@ -1525,7 +1566,7 @@ void MM::RenderSystem::RenderEngine::GetGlfwRequireExtensions(
 }
 
 void MM::RenderSystem::RenderEngine::GetRequireExtensions(
-    std::vector<const char*>& extensions) {
+    std::vector<const char*>& extensions) const {
   GetGlfwRequireExtensions(extensions);
   extensions.emplace_back(VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME);
 }
@@ -1712,7 +1753,7 @@ VkPresentModeKHR MM::RenderSystem::RenderEngine::ChooseSwapPresentMode(
 }
 
 VkExtent2D MM::RenderSystem::RenderEngine::ChooseSwapExtent(
-    const VkSurfaceCapabilitiesKHR& capabilities) {
+    const VkSurfaceCapabilitiesKHR& capabilities) const {
   if (capabilities.currentExtent.width != UINT32_MAX) {
     return capabilities.currentExtent;
   } else {
@@ -1765,14 +1806,14 @@ MM::RenderSystem::RenderEngine::CreateBuffer(
     const VmaAllocationCreateInfo& vma_allocation_create_info,
     VmaAllocationInfo* vma_allocation_info) {
   assert(IsValid());
-    VkBuffer temp_buffer{};
+  VkBuffer temp_buffer{};
   VmaAllocation temp_allocation{};
 
-  MM_VK_CHECK(vmaCreateBuffer(GetAllocator(), &vk_buffer_create_info,
+  if (auto if_result = ConvertVkResultToMMResult(vmaCreateBuffer(GetAllocator(), &vk_buffer_create_info,
                               &vma_allocation_create_info, &temp_buffer,
-                              &temp_allocation, vma_allocation_info),
-              MM_LOG_ERROR("Failed to create buffer.");
-              return ResultE<>{VkResultToMMErrorCode(MM_VK_RESULT_CODE)};)
+                              &temp_allocation, vma_allocation_info));if_result.Exception(MM_ERROR_DESCRIPTION2("Failed to create buffer.")).IsError()) {
+    return ResultE{if_result.GetError()};
+  }
 
   const BufferDataInfo buffer_data_info{
       BufferCreateInfo(vk_buffer_create_info),
@@ -1789,8 +1830,7 @@ MM::RenderSystem::RenderEngine::CreateBuffer(
       render_resource_data_attribute_ID_result.GetResult();
   AllocatedBuffer allocated_buffer = AllocatedBuffer(
       object_name, RenderResourceDataID{0, render_resource_data_attribute_ID},
-      this, buffer_data_info, GetAllocator(),
-      temp_buffer, temp_allocation);
+      this, buffer_data_info, GetAllocator(), temp_buffer, temp_allocation);
 
   if (allocated_buffer.IsValid()) {
     return ResultS{std::move(allocated_buffer)};
@@ -1799,13 +1839,14 @@ MM::RenderSystem::RenderEngine::CreateBuffer(
   return ResultE<>{ErrorCode::CREATE_OBJECT_FAILED};
 }
 
-MM::Result<MM::RenderSystem::RenderFuture> MM::RenderSystem::RenderEngine::RunSingleCommand(
+MM::Result<MM::RenderSystem::RenderFuture>
+MM::RenderSystem::RenderEngine::RunSingleCommand(
     CommandType command_type, bool is_async_record,
     const std::vector<RenderResourceDataID>&
         cross_task_flow_sync_render_resource_data_ID,
-    const TaskType& commands) {
+    const TaskType& commands) const {
   assert(IsValid());
-  CommandTaskFlow command_task_flow;
+  CommandTaskFlow command_task_flow{};
   command_task_flow.AddTask(command_type, commands, is_async_record)
       .AddCrossTaskFLowSyncRenderResourceIDs(
           cross_task_flow_sync_render_resource_data_ID);
@@ -1813,11 +1854,12 @@ MM::Result<MM::RenderSystem::RenderFuture> MM::RenderSystem::RenderEngine::RunSi
   return command_executor_->Run(std::move(command_task_flow));
 }
 
-MM::Result<MM::RenderSystem::RenderFutureState> MM::RenderSystem::RenderEngine::RunSingleCommandAndWait(
+MM::Result<MM::RenderSystem::RenderFutureState>
+MM::RenderSystem::RenderEngine::RunSingleCommandAndWait(
     CommandType command_type, bool is_async_record,
     const std::vector<RenderResourceDataID>&
         cross_task_flow_sync_render_resource_data_ID,
-    const TaskType& commands) {
+    const TaskType& commands) const {
   assert(IsValid());
   CommandTaskFlow command_task_flow;
   command_task_flow.AddTask(command_type, commands, is_async_record)
@@ -1827,49 +1869,51 @@ MM::Result<MM::RenderSystem::RenderFutureState> MM::RenderSystem::RenderEngine::
   return command_executor_->RunAndWait(std::move(command_task_flow));
 }
 
-MM::Result<MM::RenderSystem::AllocatedBuffer> MM::RenderSystem::RenderEngine::CreateStageBuffer(
-    VkDeviceSize size, std::uint32_t queue_index) {
+MM::Result<MM::RenderSystem::AllocatedBuffer>
+MM::RenderSystem::RenderEngine::CreateStageBuffer(VkDeviceSize size,
+                                                  std::uint32_t queue_index) {
   assert(IsValid());
-  VkBufferCreateInfo stage_buffer_create_info = GetVkBufferCreateInfo(
-      nullptr, 0, size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-      VK_SHARING_MODE_EXCLUSIVE, 1, &queue_index);
+  VkBufferCreateInfo stage_buffer_create_info =
+      GetVkBufferCreateInfo(nullptr, 0, size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+                            VK_SHARING_MODE_EXCLUSIVE, 1, &queue_index);
   VmaAllocationCreateInfo stage_allocation_create_info =
       GetVmaAllocationCreateInfo(
           VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT,
           VMA_MEMORY_USAGE_AUTO, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
           VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, 0, nullptr, nullptr, 1);
-  MM_CHECK_WITHOUT_LOG(
-      CreateBuffer(TODO, stage_buffer_create_info,
-                                    stage_allocation_create_info, nullptr),
-      MM_LOG_ERROR("Failed to create stage buffer.");
-      return MM_RESULT_CODE;)
-
-  return MM::Utils::ExecuteResult ::SUCCESS;
+  if (auto if_result = CreateBuffer(std::to_string(Math::Random::GetRandomUint64()), stage_buffer_create_info,
+                                    stage_allocation_create_info, nullptr);if_result.Exception(MM_ERROR_DESCRIPTION2("Failed to create stage buffer.")).IsError()) {
+    return ResultE{if_result.GetError()};
+  } else {
+    return ResultS{std::move(if_result.GetResult())};
+  }
 }
 
 MM::RenderSystem::CommandExecutorLockGuard
-MM::RenderSystem::RenderEngine::GetCommandExecutorLockGuard() {
+MM::RenderSystem::RenderEngine::GetCommandExecutorLockGuard() const {
   assert(IsValid());
   return CommandExecutorLockGuard{*command_executor_};
 }
 
-MM::ExecuteResult MM::RenderSystem::RenderEngine::GraphQueueWaitIdle() {
-  return MM::RenderSystem::Utils::VkResultToMMResult(
-      vkQueueWaitIdle(graphics_queue_));
+MM::Result<MM::Nil> MM::RenderSystem::RenderEngine::GraphQueueWaitIdle() const {
+  return ConvertVkResultToMMResult(vkQueueWaitIdle(graphics_queue_));
 }
 
-MM::ExecuteResult MM::RenderSystem::RenderEngine::TransformQueueWaitIdle() {
-  return MM::RenderSystem::Utils::VkResultToMMResult(
+MM::Result<MM::Nil> MM::RenderSystem::RenderEngine::TransformQueueWaitIdle()
+    const {
+  return ConvertVkResultToMMResult(
       vkQueueWaitIdle(transform_queue_));
 }
 
-MM::ExecuteResult MM::RenderSystem::RenderEngine::PresentQueueWaitIdle() {
-  return MM::RenderSystem::Utils::VkResultToMMResult(
+MM::Result<MM::Nil>MM::RenderSystem::RenderEngine::PresentQueueWaitIdle()
+    const {
+  return ConvertVkResultToMMResult(
       vkQueueWaitIdle(present_queue_));
 }
 
-MM::ExecuteResult MM::RenderSystem::RenderEngine::ComputeQueueWaitIdle() {
-  return MM::RenderSystem::Utils::VkResultToMMResult(
+MM::Result<MM::Nil> MM::RenderSystem::RenderEngine::ComputeQueueWaitIdle()
+    const {
+  return ConvertVkResultToMMResult(
       vkQueueWaitIdle(compute_queue_));
 }
 
@@ -1976,29 +2020,28 @@ MM::RenderSystem::RenderEngine::CopyBufferInputParametersCheck(
   return ResultS<Nil>{};
 }
 
-MM::ExecuteResult MM::RenderSystem::RenderEngine::CopyImageInputParametersCheck(
-    MM::RenderSystem::AllocatedImage& src_image,
-    MM::RenderSystem::AllocatedImage& dest_image,
+MM::Result<MM::Nil> MM::RenderSystem::RenderEngine::CopyImageInputParametersCheck(
+    AllocatedImage& src_image, AllocatedImage& dest_image,
     const std::vector<VkImageCopy2>& regions) {
   if (!src_image.IsValid()) {
     MM_LOG_ERROR("Src_image is invalid.");
-    return ExecuteResult::OBJECT_IS_INVALID;
+    return ResultE<>{ErrorCode::OBJECT_IS_INVALID};
   }
 
   if (!dest_image.IsValid()) {
     MM_LOG_ERROR("Dest_image is invalid.");
-    return ExecuteResult::OBJECT_IS_INVALID;
+    return ResultE<>{ErrorCode::OBJECT_IS_INVALID};
   }
 
   if (!src_image.IsTransformSrc() || !dest_image.IsTransformDest()) {
     MM_LOG_ERROR(
         "Src_buffer or dest_buffer is not Transform src buffer or Transform "
         "dest buffer.");
-    return ExecuteResult::INPUT_PARAMETERS_ARE_NOT_SUITABLE;
+    return ResultE<>{ErrorCode::INPUT_PARAMETERS_ARE_NOT_SUITABLE};
   }
 
   if (regions.empty()) {
-    return ExecuteResult::SUCCESS;
+    return ResultS<Nil>{};
   }
 
   std::unordered_map<std::uint64_t, std::vector<ImageChunkInfo>>
@@ -2008,12 +2051,12 @@ MM::ExecuteResult MM::RenderSystem::RenderEngine::CopyImageInputParametersCheck(
         region.extent.depth == 0) {
       MM_LOG_ERROR(
           "VkImageCopy::extent::width/height/depth must greater than 0.");
-      return ExecuteResult::INPUT_PARAMETERS_ARE_NOT_SUITABLE;
+      return ResultE<>{ErrorCode::INPUT_PARAMETERS_ARE_NOT_SUITABLE};
     }
 
     if (region.dstSubresource.aspectMask != region.srcSubresource.aspectMask) {
       MM_LOG_ERROR("Src_image aspect mask not equal dest_image aspect mask.");
-      return ExecuteResult::INPUT_PARAMETERS_ARE_NOT_SUITABLE;
+      return ResultE<>{ErrorCode::INPUT_PARAMETERS_ARE_NOT_SUITABLE};
     }
 
     if (region.srcSubresource.aspectMask & VK_IMAGE_ASPECT_METADATA_BIT ||
@@ -2022,7 +2065,7 @@ MM::ExecuteResult MM::RenderSystem::RenderEngine::CopyImageInputParametersCheck(
           "Src_image or dest_image include "
           "VK_IMAGE_ASPECT_METADATA_BIT.aspectMask must not contain "
           "VK_IMAGE_ASPECT_METADATA_BIT.");
-      return ExecuteResult::INPUT_PARAMETERS_ARE_NOT_SUITABLE;
+      return ResultE<>{ErrorCode::INPUT_PARAMETERS_ARE_NOT_SUITABLE};
     }
 
     if (region.srcSubresource.aspectMask & VK_IMAGE_ASPECT_COLOR_BIT &&
@@ -2032,7 +2075,7 @@ MM::ExecuteResult MM::RenderSystem::RenderEngine::CopyImageInputParametersCheck(
           "If aspectMask contains VK_IMAGE_ASPECT_COLOR_BIT, it must not "
           "contain either of VK_IMAGE_ASPECT_DEPTH_BIT or "
           "VK_IMAGE_ASPECT_STENCIL_BIT.");
-      return ExecuteResult::INPUT_PARAMETERS_ARE_NOT_SUITABLE;
+      return ResultE<>{ErrorCode::INPUT_PARAMETERS_ARE_NOT_SUITABLE};
     }
 
     if (region.dstSubresource.aspectMask & VK_IMAGE_ASPECT_COLOR_BIT &&
@@ -2042,7 +2085,7 @@ MM::ExecuteResult MM::RenderSystem::RenderEngine::CopyImageInputParametersCheck(
           "If aspectMask contains VK_IMAGE_ASPECT_COLOR_BIT, it must not "
           "contain either of VK_IMAGE_ASPECT_DEPTH_BIT or "
           "VK_IMAGE_ASPECT_STENCIL_BIT.");
-      return ExecuteResult::INPUT_PARAMETERS_ARE_NOT_SUITABLE;
+      return ResultE<>{ErrorCode::INPUT_PARAMETERS_ARE_NOT_SUITABLE};
     }
 
     if (region.srcSubresource.mipLevel > src_image.GetMipmapLevels() ||
@@ -2050,7 +2093,7 @@ MM::ExecuteResult MM::RenderSystem::RenderEngine::CopyImageInputParametersCheck(
       MM_LOG_ERROR(
           "The specified number of mipmap level is greater than the number of "
           "mipmap level contained in the image itself.");
-      return ExecuteResult::INPUT_PARAMETERS_ARE_NOT_SUITABLE;
+      return ResultE<>{ErrorCode::INPUT_PARAMETERS_ARE_NOT_SUITABLE};
     }
     // layer_count must == 1
     //    if (region.srcSubresource.layerCount !=
@@ -2076,16 +2119,16 @@ MM::ExecuteResult MM::RenderSystem::RenderEngine::CopyImageInputParametersCheck(
         region.dstSubresource.layerCount != 1 ||
         region.dstSubresource.baseArrayLayer != 0) {
       MM_LOG_ERROR("The layerCount must 1 and baseArrayLayer must 0.");
-      return ExecuteResult::INPUT_PARAMETERS_ARE_NOT_SUITABLE;
+      return ResultE<>{ErrorCode::INPUT_PARAMETERS_ARE_NOT_SUITABLE};
     }
 
-    if (!Utils::ImageRegionAreaLessThanImageExtent(region.srcOffset,
+    if (!ImageRegionAreaLessThanImageExtent(region.srcOffset,
                                                    region.extent, src_image) ||
-        !Utils::ImageRegionAreaLessThanImageExtent(region.dstOffset,
+        !ImageRegionAreaLessThanImageExtent(region.dstOffset,
                                                    region.extent, dest_image)) {
       MM_LOG_ERROR(
           "The specified area is lager than src_image/dest_image extent.");
-      return ExecuteResult::INPUT_PARAMETERS_ARE_NOT_SUITABLE;
+      return ResultE<>{ErrorCode::INPUT_PARAMETERS_ARE_NOT_SUITABLE};
     }
 
     if (src_image.GetImage() == dest_image.GetImage()) {
@@ -2097,24 +2140,24 @@ MM::ExecuteResult MM::RenderSystem::RenderEngine::CopyImageInputParametersCheck(
     for (const auto& region : regions) {
       for (const auto& image_write_area :
            image_write_areas[region.srcSubresource.mipLevel]) {
-        if (Utils::ImageRegionIsOverlap(region.srcOffset,
+        if (ImageRegionIsOverlap(region.srcOffset,
                                         image_write_area.GetOffset(),
                                         image_write_area.GetExtent())) {
           MM_LOG_ERROR(
               "During the buffer copy process, there is an overlap in the "
               "specified copy area.");
-          return ExecuteResult::INPUT_PARAMETERS_ARE_NOT_SUITABLE;
+          return ResultE<>{ErrorCode::INPUT_PARAMETERS_ARE_NOT_SUITABLE};
         }
       }
     }
   }
 
-  return ExecuteResult ::SUCCESS;
+  return ResultS<Nil>{};
 }
 
 MM::RenderSystem::CommandExecutorGeneralCommandBufferGuard
 MM::RenderSystem::RenderEngine::GetGeneralCommandBufferGuard(
-    MM::RenderSystem::CommandBufferType command_buffer_type) {
+    MM::RenderSystem::CommandBufferType command_buffer_type) const {
   assert(IsValid());
   return CommandExecutorGeneralCommandBufferGuard(*command_executor_,
                                                   command_buffer_type);
@@ -2392,10 +2435,14 @@ void MM::RenderSystem::RenderEngine::InitPipelineCache() {
   bool valid = true;
   FileSystem::Path pipeline_cache_path =
       MM_FILE_SYSTEM->GetAssetDirCache() + "./.pipeline_cache";
-  MM_CHECK(MM_FILE_SYSTEM->ReadFile(pipeline_cache_path, cache_data),
-           valid = false;)
+  if (auto if_result = MM_FILE_SYSTEM->ReadFile(pipeline_cache_path, 0);
+    if_result.IgnoreException().IsError()) {
+    valid = false;
+  } else {
+    cache_data = std::move(if_result.GetResult());
+  }
   if (valid) {
-    valid &= MM::RenderSystem::Utils::IsValidPipelineCacheData(
+    valid &= IsValidPipelineCacheData(
         pipeline_cache_path.String(), cache_data.data(), cache_data.size(),
         GetPhysicalDeviceProperties());
   }
@@ -2407,13 +2454,15 @@ void MM::RenderSystem::RenderEngine::InitPipelineCache() {
   pipeline_cache_create_info.initialDataSize = valid ? cache_data.size() : 0;
   pipeline_cache_create_info.pInitialData = valid ? cache_data.data() : nullptr;
 
-  MM_VK_CHECK(vkCreatePipelineCache(GetDevice(), &pipeline_cache_create_info,
-                                    nullptr, &pipeline_cache_),
-              MM_LOG_FATAL("Failed to create VkPipelineCache.");)
+  if (auto if_result = ConvertVkResultToMMResult(vkCreatePipelineCache(GetDevice(), &pipeline_cache_create_info,
+                                    nullptr, &pipeline_cache_));
+                                    if_result.Exception(MM_FATAL_DESCRIPTION2("Failed to create VkPipelineCache.")).IsError()) {
+    return;
+  }
 }
 
 bool MM::RenderSystem::RenderEngine::FormatSupportStore(VkFormat format,
-                                                        VkImageTiling tiling) {
+                                                        VkImageTiling tiling) const {
   if (tiling == VK_IMAGE_TILING_LINEAR) {
     return support_storage_format_linear_.count(format);
   }

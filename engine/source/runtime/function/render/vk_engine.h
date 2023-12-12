@@ -49,7 +49,7 @@ class RenderEngine {
  public:
   void Init();
 
-  void Run();
+  void Run() const;
 
   void CleanUp();
 
@@ -68,7 +68,7 @@ class RenderEngine {
       VmaAllocationInfo* vma_allocation_info);
 
   Result<AllocatedBuffer> CreateStageBuffer(VkDeviceSize size,
-                                      std::uint32_t queue_index);
+                                            std::uint32_t queue_index);
 
   VmaAllocator GetAllocator();
 
@@ -98,25 +98,25 @@ class RenderEngine {
 
   VkQueue GetQueue(CommandBufferType command_buffer_type) const;
 
-  Result<Nil> GraphQueueWaitIdle();
+  Result<Nil> GraphQueueWaitIdle() const;
 
-  Result<Nil> TransformQueueWaitIdle();
+  Result<Nil> TransformQueueWaitIdle() const;
 
-  Result<Nil> PresentQueueWaitIdle();
+  Result<Nil> PresentQueueWaitIdle() const;
 
-  Result<Nil> ComputeQueueWaitIdle();
+  Result<Nil> ComputeQueueWaitIdle() const;
 
   bool CommandExecutorIsFree() const;
 
   CommandExecutorGeneralCommandBufferGuard GetGeneralCommandBufferGuard(
-      CommandBufferType command_buffer_type);
+      CommandBufferType command_buffer_type) const;
 
   /**
    * \remark The executed \ref command_task_flow will be moved, and no other
    * operations can be performed on \ref command_task_flow after calling this
    * function.
    */
-  Result<RenderFuture> RunCommand(CommandTaskFlow&& command_task_flow);
+  Result<RenderFuture> RunCommand(CommandTaskFlow&& command_task_flow) const;
 
   /**
    * \remark The executed \ref command_task_flow will be moved, and no other
@@ -124,7 +124,7 @@ class RenderEngine {
    * function.
    */
   Result<RenderFutureState> RunCommandAndWait(
-      CommandTaskFlow&& command_task_flow);
+      CommandTaskFlow&& command_task_flow) const;
 
   Result<RenderFuture> RunSingleCommand(CommandType command_type,
                                         bool is_async_record,
@@ -134,7 +134,7 @@ class RenderEngine {
       CommandType command_type, bool is_async_record,
       const std::vector<RenderResourceDataID>&
           cross_task_flow_sync_render_resource_data_ID,
-      const TaskType& commands);
+      const TaskType& commands) const;
 
   Result<RenderFutureState> RunSingleCommandAndWait(CommandType command_type,
                                                     bool is_async_record,
@@ -144,24 +144,24 @@ class RenderEngine {
       CommandType command_type, bool is_async_record,
       const std::vector<RenderResourceDataID>&
           cross_task_flow_sync_render_resource_data_ID,
-      const TaskType& commands);
+      const TaskType& commands) const;
 
-  CommandExecutorLockGuard GetCommandExecutorLockGuard();
+  CommandExecutorLockGuard GetCommandExecutorLockGuard() const;
 
   /**
    * \remark The range specified by \ref regions cannot overlap.
    */
-  Result<Nil> CopyBuffer(
-      AllocatedBuffer& src_buffer, AllocatedBuffer& dest_buffer,
-      const std::vector<VkBufferCopy2>& regions);
+  Result<Nil> CopyBuffer(AllocatedBuffer& src_buffer,
+                         AllocatedBuffer& dest_buffer,
+                         const std::vector<VkBufferCopy2>& regions);
 
-  /**
-   * \remark The range specified by \ref regions cannot overlap and src_buffer
-   * can equal to dest_buffer.
-   */
-  Result<Nil> CopyBuffer(const AllocatedBuffer& src_buffer,
-                           AllocatedBuffer& dest_buffer,
-                           const std::vector<VkBufferCopy2>& regions);
+//  /**
+//   * \remark The range specified by \ref regions cannot overlap and src_buffer
+//   * can equal to dest_buffer.
+//   */
+//  Result<Nil> CopyBuffer(const AllocatedBuffer& src_buffer,
+//                         AllocatedBuffer& dest_buffer,
+//                         const std::vector<VkBufferCopy2>& regions);
 
   /**
    * \remark The areas specified for each \ref VkBufferCopy2 in the vector
@@ -172,28 +172,28 @@ class RenderEngine {
       AllocatedBuffer& src_buffer, AllocatedBuffer& dest_buffer,
       const std::vector<std::vector<VkBufferCopy2>>& regions_vector);
 
-  /**
-   * \remark The areas specified for each \ref VkBufferCopy2 in the vector
-   * cannot overlap, but the areas specified between each \ref VkBufferCopy2 can
-   * overlap.
-   */
-  Result<Nil> CopyBuffer(
-      const AllocatedBuffer& src_buffer, AllocatedBuffer& dest_buffer,
-      const std::vector<std::vector<VkBufferCopy2>>& regions_vector);
+//  /**
+//   * \remark The areas specified for each \ref VkBufferCopy2 in the vector
+//   * cannot overlap, but the areas specified between each \ref VkBufferCopy2 can
+//   * overlap.
+//   */
+//  Result<Nil> CopyBuffer(
+//      const AllocatedBuffer& src_buffer, AllocatedBuffer& dest_buffer,
+//      const std::vector<std::vector<VkBufferCopy2>>& regions_vector);
 
   /**
    * \remark The range specified by \ref regions cannot overlap.
    */
   Result<Nil> CopyImage(AllocatedImage& src_image, AllocatedImage& dest_image,
-                          const std::vector<VkImageCopy2>& regions);
+                        const std::vector<VkImageCopy2>& regions);
 
-  /**
-   * \remark The range specified by \ref regions cannot overlap and src_image
-   * can not equal to dest_image.
-   */
-  Result<Nil> CopyImage(const AllocatedImage& src_image,
-                          AllocatedImage& dest_image,
-                          const std::vector<VkImageCopy2>& regions);
+//  /**
+//   * \remark The range specified by \ref regions cannot overlap and src_image
+//   * can not equal to dest_image.
+//   */
+//  Result<Nil> CopyImage(const AllocatedImage& src_image,
+//                        AllocatedImage& dest_image,
+//                        const std::vector<VkImageCopy2>& regions);
 
   /**
    * \remark The areas specified for each \ref VkImageCopy in the vector
@@ -204,18 +204,18 @@ class RenderEngine {
       AllocatedImage& src_image, AllocatedImage& dest_image,
       const std::vector<std::vector<VkImageCopy2>>& regions_vector);
 
-  /**
-   * \remark The areas specified for each \ref VkImageCopy in the vector
-   * cannot overlap, but the areas specified between each \ref VkImageCopy can
-   * overlap.Src_image can not equal to dest_image.
-   */
-  Result<Nil> CopyImage(
-      const AllocatedImage& src_image, AllocatedImage& dest_image,
-      const std::vector<std::vector<VkImageCopy2>>& regions_vector);
+//  /**
+//   * \remark The areas specified for each \ref VkImageCopy in the vector
+//   * cannot overlap, but the areas specified between each \ref VkImageCopy can
+//   * overlap.Src_image can not equal to dest_image.
+//   */
+//  Result<Nil> CopyImage(
+//      const AllocatedImage& src_image, AllocatedImage& dest_image,
+//      const std::vector<std::vector<VkImageCopy2>>& regions_vector);
 
   Result<Nil> CopyDataToBuffer(AllocatedBuffer& dest_buffer, const void* data,
-                                 const VkDeviceSize& copy_offset,
-                                 const VkDeviceSize& copy_size);
+                               const VkDeviceSize& copy_offset,
+                               const VkDeviceSize& copy_size) const;
 
   const VkPhysicalDeviceFeatures& GetPhysicalDeviceFeatures() const;
 
@@ -229,7 +229,7 @@ class RenderEngine {
 
   bool SupportMultiDrawIndirect() const;
 
-  bool FormatSupportStore(VkFormat format, VkImageTiling tiling);
+  bool FormatSupportStore(VkFormat format, VkImageTiling tiling) const;
 
   VkPipelineCache GetPipelineCache() const;
 
@@ -257,16 +257,16 @@ class RenderEngine {
   void InitDescriptorManager();
   void InitPipelineCache();
 
-  std::vector<VkExtensionProperties> GetExtensionProperties();
-  bool CheckExtensionSupport(const std::string& extension_name);
+  static std::vector<VkExtensionProperties> GetExtensionProperties();
+  static bool CheckExtensionSupport(const std::string& extension_name);
   bool CheckDeviceExtensionSupport(const VkPhysicalDevice& physical_device);
-  bool CheckValidationLayerSupport();
+  static bool CheckValidationLayerSupport();
   void GetGlfwRequireExtensions(std::vector<const char*>& extensions) const;
-  void GetRequireExtensions(std::vector<const char*>& extensions);
-  void PopulateDebugMessengerCreateInfo(
+  void GetRequireExtensions(std::vector<const char*>& extensions) const;
+  static void PopulateDebugMessengerCreateInfo(
       VkDebugUtilsMessengerCreateInfoEXT& createInfo);
   void SetUpDebugMessenger();
-  void DestroyDebugUtilsMessengerEXT(VkInstance instance,
+  static void DestroyDebugUtilsMessengerEXT(VkInstance instance,
                                      VkDebugUtilsMessengerEXT debug_messenger,
                                      const VkAllocationCallbacks* allocator);
   int RateDeviceSuitability(const VkPhysicalDevice& physical_device);
@@ -274,16 +274,16 @@ class RenderEngine {
       const VkPhysicalDevice& physical_device) const;
   SwapChainSupportDetails QuerySwapChainSupport(
       const VkPhysicalDevice& physical_device) const;
-  VkSurfaceFormatKHR ChooseSwapSurfaceFormat(
+  static VkSurfaceFormatKHR ChooseSwapSurfaceFormat(
       const std::vector<VkSurfaceFormatKHR>& available_formats);
-  VkPresentModeKHR ChooseSwapPresentMode(
+  static VkPresentModeKHR ChooseSwapPresentMode(
       const std::vector<VkPresentModeKHR>& available_present_modes);
-  VkExtent2D ChooseSwapExtent(const VkSurfaceCapabilitiesKHR& capabilities);
+  VkExtent2D ChooseSwapExtent(const VkSurfaceCapabilitiesKHR& capabilities) const;
   void ChooseMultiSampleCount();
   static Result<Nil> CopyBufferInputParametersCheck(
       AllocatedBuffer& src_buffer, AllocatedBuffer& dest_buffer,
       const std::vector<VkBufferCopy2>& regions);
-  Result<Nil> CopyImageInputParametersCheck(
+  static static Result<Nil> CopyImageInputParametersCheck(
       AllocatedImage& src_image, AllocatedImage& dest_image,
       const std::vector<VkImageCopy2>& regions);
 

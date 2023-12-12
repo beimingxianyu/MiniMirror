@@ -1,7 +1,5 @@
 #include "runtime/core/log/log_system.h"
 
-#include <cstdint>
-
 MM::LogSystem::LogSystem* MM::LogSystem::LogSystem::log_system_{nullptr};
 std::mutex MM::LogSystem::LogSystem::sync_flag_{};
 
@@ -130,6 +128,9 @@ void MM::LogSystem::LogSystem::CheckResult(MM::ErrorCode result,
       break;
     case ErrorCode::NO_AVAILABLE_ELEMENT:
       Log(log_level, "[No available element] " + description);
+      break;
+    case ErrorCode::NULL_OBJECT_ERROR:
+      Log(log_level, "[Ues null object] " + description);
       break;
     case ErrorCode::CUSTOM_ERROR:
       Log(log_level, "[Custom error] " + description);

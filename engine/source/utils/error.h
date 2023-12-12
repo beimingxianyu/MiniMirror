@@ -43,6 +43,7 @@ enum class ErrorCode : std::uint32_t {
   FILE_OPERATION_ERROR,
   SYNCHRONIZE_FAILED,
   NO_AVAILABLE_ELEMENT,
+  NULL_OBJECT_ERROR,
   CUSTOM_ERROR
 };
 
@@ -76,7 +77,7 @@ class ErrorTypeBase {
 class ErrorNil final : public ErrorTypeBase {
  public:
   ErrorNil() = default;
-  ~ErrorNil() = default;
+  ~ErrorNil() override = default;
   explicit ErrorNil(bool is_success);
   ErrorNil(const ErrorNil& other) = default;
   ErrorNil(ErrorNil&& other) noexcept;
@@ -106,7 +107,7 @@ class ErrorNil final : public ErrorTypeBase {
 class ErrorResult final : public ErrorTypeBase {
  public:
   ErrorResult() = default;
-  ~ErrorResult() = default;
+  ~ErrorResult() override = default;
   explicit ErrorResult(ErrorCode error_code);
   ErrorResult(const ErrorResult& other) = default;
   ErrorResult(ErrorResult&& other) noexcept;
