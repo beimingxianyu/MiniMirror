@@ -27,6 +27,7 @@
 #include "runtime/function/render/vk_utils.h"
 #include "utils/error.h"
 
+
 MM::RenderSystem::CommandExecutor::CommandExecutor(RenderEngine* engine)
     : render_engine_(engine) {
   if (engine == nullptr || !engine->IsValid()) {
@@ -734,7 +735,7 @@ MM::RenderSystem::CommandExecutor::CommandTaskExecuting::CommandTaskExecuting(
                     std::move(command_task
                                   .cross_task_flow_sync_render_resource_IDs_)},
       external_info_{CommandTaskExecutingState::WAIT,
-                     0,
+                     static_cast<std::uint32_t>(command_task.commands_.size()),
                      command_task.pre_tasks_.size(),
                      std::vector<VkSemaphore>{},
                      std::vector<VkSemaphore>{},
@@ -744,19 +745,69 @@ MM::RenderSystem::CommandExecutor::CommandTaskExecuting::CommandTaskExecuting(
   command_task.task_flow_ = nullptr;
 }
 
+MM::RenderSystem::CommandExecutor::CommandTaskExecutingExternalInfo::
+CommandTaskExecutingExternalInfo(
+    MM::RenderSystem::CommandExecutor::CommandTaskExecutingExternalInfo&&
+    other) noexcept
+    : state_(other.state_.load(std::memory_order_acquire)),
+      require_command_buffer_count_(other.require_command_buffer_count_),
+      pre_command_task_not_submit_count_(
+          other.pre_command_task_not_submit_count_.load(
+              std::memory_order_acquire)),
+      wait_semaphore_(std::move(other.wait_semaphore_)),
+      signal_semaphore_(std::move(other.signal_semaphore_)),
+      command_buffers_(std::move(other.command_buffers_)),
+      wait_free_buffer_count_(other.wait_free_buffer_count_) {}
+
+MM::RenderSystem::CommandExecutor::CommandTaskExecutingExternalInfo::
+    CommandTaskExecutingExternalInfo(
+        const CommandTaskExecutingState& state,
+        uint32_t requireCommandBufferCount,
+        const std::uint32_t& preCommandTaskNotSubmitCount,
+        std::vector<VkSemaphore>&& waitSemaphore,
+        std::vector<VkSemaphore>&& signalSemaphore,
+        std::vector<std::unique_ptr<AllocatedCommandBuffer>>&& commandBuffers,
+        uint32_t waitFreeBufferCount)
+    : state_(state),
+      require_command_buffer_count_(requireCommandBufferCount),
+      pre_command_task_not_submit_count_(preCommandTaskNotSubmitCount),
+      wait_semaphore_(std::move(waitSemaphore)),
+      signal_semaphore_(std::move(signalSemaphore)),
+      command_buffers_(std::move(commandBuffers)),
+      wait_free_buffer_count_(waitFreeBufferCount) {}
+
+MM::RenderSystem::CommandExecutor::CommandTaskExecutingExternalInfo&
+MM::RenderSystem::CommandExecutor::CommandTaskExecutingExternalInfo::operator=(
+    MM::RenderSystem::CommandExecutor::CommandTaskExecutingExternalInfo&&
+        other) {
+  if (std::addressof(other) == this) {
+    return *this;
+  }
+
+  state_ = other.state_.load(std::memory_order_acquire);
+  require_command_buffer_count_ = other.require_command_buffer_count_;
+  pre_command_task_not_submit_count_ =
+      other.pre_command_task_not_submit_count_.load(
+          std::memory_order_acquire);
+  wait_semaphore_ = std::move(other.wait_semaphore_);
+  signal_semaphore_ = std::move(other.signal_semaphore_);
+  command_buffers_ = std::move(other.command_buffers_);
+  wait_free_buffer_count_ = other.wait_free_buffer_count_;
+
+  return *this;
+}
+
 void MM::RenderSystem::CommandExecutor::CommandTaskExecuting::
-    ComputeRequireCommandBufferCount() {
+    ComputeRequireCommandBufferCountAndPreCommandTaskNotSubmitCount() {
   assert(command_task_.task_flow_ != nullptr);
 
-  if (command_task_.is_sub_task_) {
-    external_info_.require_command_buffer_count_ =
-        command_task_.commands_.size();
-  } else {
-    external_info_.require_command_buffer_count_ =
-        command_task_.commands_.size();
+  if (!command_task_.is_sub_task_) {
+    // external_info_.require_command_buffer_count_ =
+    //     command_task_.commands_.size();
     for (CommandTaskExecuting* sub_command_task : command_task_.sub_tasks_) {
       external_info_.require_command_buffer_count_ +=
-          sub_command_task->command_task_.commands_.size();
+          sub_command_task->external_info_.require_command_buffer_count_;
+      external_info_.pre_command_task_not_submit_count_ += sub_command_task->external_info_.pre_command_task_not_submit_count_;
     }
   }
 }
@@ -781,6 +832,23 @@ void MM::RenderSystem::CommandExecutor::CommandTaskExecuting::
       }
     }
   }
+}
+
+bool MM::RenderSystem::CommandExecutor::CommandTaskExecuting::
+    AllPreCommandSubmit() const {
+  assert(!command_task_.is_sub_task_);
+
+  if (external_info_.pre_command_task_not_submit_count_.load(std::memory_order_acquire) != 0) {
+    return false;
+  }
+  for (CommandTaskExecuting* sub_command_task : command_task_.sub_tasks_) {
+    if (sub_command_task->external_info_.pre_command_task_not_submit_count_.load(std::memory_order_acquire) !=
+        0) {
+      return false;
+    }
+  }
+
+  return true;
 }
 
 MM::RenderSystem::CommandExecutor::CommandTaskFlowExecuting::
@@ -826,7 +894,7 @@ MM::RenderSystem::CommandExecutor::CommandTaskFlowExecuting::
   for (CommandTaskExecuting& command_task : command_task_flow_.command_tasks_) {
     command_task.LinkPostCommandTaskAndSubTask(
         std::move(*old_command_task_iter));
-    command_task.ComputeRequireCommandBufferCount();
+    command_task.ComputeRequireCommandBufferCountAndPreCommandTaskNotSubmitCount();
     ++old_command_task_iter;
   }
 
@@ -1227,6 +1295,10 @@ MM::RenderSystem::CommandExecutor::SubmitCommandTask(
 
     command_task.external_info_.state_.store(
         CommandTaskExecutingState::RUNNING);
+    for (CommandTaskExecuting* post_command_task: command_task.command_task_.post_tasks_) {
+      const std::uint32_t old_count = post_command_task->external_info_.pre_command_task_not_submit_count_.fetch_sub(std::memory_order_acq_rel);
+      assert(old_count != 0);
+    }
     return ResultS<Nil>{};
   } else {
     std::uint32_t require_command_buffer_count =
@@ -1288,6 +1360,16 @@ MM::RenderSystem::CommandExecutor::SubmitCommandTask(
 
     command_task.external_info_.state_.store(
         CommandTaskExecutingState::RUNNING);
+    for (CommandTaskExecuting* post_command_task: command_task.command_task_.post_tasks_) {
+      const std::uint32_t old_count = post_command_task->external_info_.pre_command_task_not_submit_count_.fetch_sub(std::memory_order_acq_rel);
+      assert(old_count != 0);
+    }
+    for (CommandTaskExecuting* sub_command_task: command_task.command_task_.sub_tasks_) {
+      for (CommandTaskExecuting* sub_post_command_task: sub_command_task->command_task_.post_tasks_) {
+        const std::uint32_t old_count = sub_post_command_task->external_info_.pre_command_task_not_submit_count_.fetch_sub(std::memory_order_acq_rel);
+        assert(old_count != 0);
+      }
+    }
     return ResultS<Nil>{};
   }
 }
@@ -1340,27 +1422,6 @@ void MM::RenderSystem::CommandExecutor::ProcessCompleteTask() {
       if (command_task_running_state == CommandTaskExecutingState::RUNNING &&
           !executing_command_task.command_task_.is_sub_task_ &&
           ExecutingCommandTaskIsComplete(executing_command_task)) {
-        // update post command task \ref pre_command_task_not_submit_count_
-        for (CommandTaskExecuting* post_command_task :
-             executing_command_task.command_task_.post_tasks_) {
-          std::uint32_t old_count =
-              post_command_task->external_info_
-                  .pre_command_task_not_submit_count_.fetch_sub(
-                      std::memory_order_acq_rel);
-          assert(old_count != 0);
-        }
-        for (CommandTaskExecuting* sub_command_task :
-             executing_command_task.command_task_.sub_tasks_) {
-          // update post command task \ref pre_command_task_not_submit_count_
-          for (CommandTaskExecuting* post_command_task :
-               sub_command_task->command_task_.post_tasks_) {
-            std::uint32_t old_count =
-                post_command_task->external_info_
-                    .pre_command_task_not_submit_count_.fetch_sub(
-                        std::memory_order_acq_rel);
-            assert(old_count != 0);
-          }
-        }
 
         // recovery wait semaphore
         for (VkSemaphore wait_semaphore :
@@ -1672,7 +1733,7 @@ MM::RenderSystem::CommandExecutor::ProcessCurrentNeedCommandBufferCount() {
       if (state == CommandTaskExecutingState::WAIT &&
           executing_command_task.external_info_
                   .pre_command_task_not_submit_count_ == 0 &&
-          WaitCroosCommandTaskFlowSync(
+          !WaitCroosCommandTaskFlowSync(
               executing_command_task.command_task_
                   .cross_task_flow_sync_render_resource_IDs_)) {
         switch (executing_command_task.command_task_.command_type_) {
@@ -1836,7 +1897,8 @@ void MM::RenderSystem::CommandExecutor::ProcessExecutingCommandTaskFlowQueue() {
 
       if (!executing_command_task.command_task_.is_sub_task_ &&
           executing_command_task.external_info_.state_.load(
-              std::memory_order_acquire) == CommandTaskExecutingState::WAIT) {
+              std::memory_order_acquire) == CommandTaskExecutingState::WAIT &&
+              executing_command_task.AllPreCommandSubmit()) {
         if (executing_command_task.external_info_
                 .require_command_buffer_count_ <
             GetFreeCommandNumber(

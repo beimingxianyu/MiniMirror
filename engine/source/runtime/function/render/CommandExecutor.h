@@ -8,10 +8,10 @@
 #include <array>
 #include <atomic>
 #include <memory>
+#include <stack>
 #include <unordered_map>
 #include <vector>
 
-#include "runtime/function/render/pre_header.h"
 #include "runtime/function/render/CommandTaskFlow.h"
 #include "runtime/function/render/RenderFuture.h"
 #include "runtime/function/render/RenderResourceDataID.h"
@@ -115,12 +115,27 @@ class CommandExecutor {
   };
 
   struct CommandTaskExecutingExternalInfo {
+    CommandTaskExecutingExternalInfo() = default;
+    ~CommandTaskExecutingExternalInfo() = default;
+    CommandTaskExecutingExternalInfo(
+        CommandTaskExecutingExternalInfo&& other) noexcept;
+    CommandTaskExecutingExternalInfo& operator=(CommandTaskExecutingExternalInfo&& other);
+    CommandTaskExecutingExternalInfo(
+        const CommandTaskExecutingState& state,
+        uint32_t requireCommandBufferCount,
+        const std::uint32_t& preCommandTaskNotSubmitCount,
+        std::vector<VkSemaphore>&& waitSemaphore,
+        std::vector<VkSemaphore>&& signalSemaphore,
+        std::vector<std::unique_ptr<AllocatedCommandBuffer>>&& commandBuffers,
+        uint32_t waitFreeBufferCount);
+
     AtomicCommandTaskExecutingState state_{
         CommandTaskExecutingState::UNDEFINED};
 
     // include sub command task require command buffer.
     std::uint32_t require_command_buffer_count_{0};
 
+    // include sub command task pre command not submit count.
     std::atomic_uint32_t pre_command_task_not_submit_count_{0};
     std::vector<VkSemaphore> wait_semaphore_{};
     std::vector<VkSemaphore> signal_semaphore_{};
@@ -149,22 +164,25 @@ class CommandExecutor {
     using ExternalInfoType = CommandTaskExecutingExternalInfo;
     using ContentType = CommandTaskExecutingContent;
 
-    CommandTaskExecuting() = default;
+    CommandTaskExecuting()
+      : command_task_(), external_info_() {
+    }
     ~CommandTaskExecuting() = default;
     CommandTaskExecuting(CommandTaskFlowExecuting* command_task_flow,
                          CommandTask&& command_task);
     CommandTaskExecuting(const CommandTaskExecuting& other) = delete;
-    CommandTaskExecuting(CommandTaskExecuting&& other) noexcept = delete;
+    CommandTaskExecuting(CommandTaskExecuting&& other) noexcept = default;
     CommandTaskExecuting& operator=(const CommandTaskExecuting& other) = delete;
-    CommandTaskExecuting& operator=(CommandTaskExecuting&& other) noexcept =
-        delete;
+    CommandTaskExecuting& operator=(CommandTaskExecuting&& other) noexcept = default;
 
     ContentType command_task_{};
     ExternalInfoType external_info_{};
 
-    void ComputeRequireCommandBufferCount();
+    void ComputeRequireCommandBufferCountAndPreCommandTaskNotSubmitCount();
 
     void LinkPostCommandTaskAndSubTask(CommandTask&& command_task);
+
+    bool AllPreCommandSubmit() const;
   };
 
   struct CommandTaskFlowExecutingExternalInfo {
