@@ -1,7 +1,9 @@
 #pragma once
 
-#include "variable.h"
-#include "variable.h"
+#include <memory>
+#include <type_traits>
+#include <utility>
+#include "runtime/core/reflection/database.h"
 #include "runtime/core/reflection/type.h"
 #include "runtime/core/reflection/utils.h"
 #include "runtime/core/reflection/destructor.h"
@@ -13,7 +15,7 @@ class Property;
 
 class Variable {
   friend class VariableWrapperBase;
-  template <typename VariableType, bool IsPropertyVariable_>
+  template <typename VariableType>
   friend class VariableWrapper;
   template <typename PropertyType, typename ClassType, bool IsStatic>
   friend class PropertyWrapper;
@@ -27,7 +29,15 @@ class Variable {
    * \return The value you want.
    */
   template <typename VariableType>
-  VariableType GetValueFunction() const;
+  const VariableType& GetValueCast() const;
+
+  /**
+   * \brief Get the value and perform type conversion.
+   * \tparam VariableType The type of the value.
+   * \return The value you want.
+   */
+  template <typename VariableType>
+  VariableType& GetValueCast();
 
   /**
    * \brief Set new value.
@@ -39,19 +49,11 @@ class Variable {
    * false.
    */
   template <typename TargetType, typename VariableType,
-            typename TestConvertible = std::enable_if<
+            typename TestConvertible = typename std::enable_if<
                 Conversion<TargetType, VariableType>::value>::type>
-  bool SetValueFunction(TargetType other);
+  bool SetValueSafe(TargetType&& other);
 
  public:
-  /**
-   * \brief Determine whether this variable is an property of another \ref
-   * MM::Reflection::Variable. \return  If this variable is an property of
-   * another \ref MM::Reflection::Variable, return true, otherwise return false.
-   * \remark Property variable has no ownership of the value held.
-   */
-  bool IsPropertyVariable() const;
-
   /**
    * \brief Default initialization. The initialized object is invalid.
    */
@@ -71,7 +73,7 @@ class Variable {
    * \remark \ref Variable must have move constructor.If \ref VariableType not have move constructor, use "A" to construct the \ref MM::Reflection::Variable.
    */
   template <typename VariableType>
-  Variable(VariableType&& other) noexcept;
+  explicit Variable(VariableType&& other) noexcept;
 
   /**
    * \brief Copy constructor.
@@ -125,18 +127,13 @@ class Variable {
    * \brief Construct an object from an std::unique_ptr<VariableWrapperBase>.
    * \param variable_wrapper std::unique_ptr<VariableWrapperBase> containing variable data.
    */
-  Variable(std::unique_ptr<VariableWrapperBase>&& variable_wrapper);
+  explicit Variable(std::unique_ptr<VariableWrapperBase>&& variable_wrapper);
 
  public:
   /**
    * \brief bool conversion.Call \ref IsValid.
    */
-  operator bool() const;
-
-  /**
-   * \brief void* conversion.Call \ref GetValue.
-   */
-  operator void*() const;
+  explicit operator bool() const;
 
   /**
    * \brief Judge whether the object is a valid object.
@@ -151,7 +148,15 @@ class Variable {
    * \remark It is not recommended for users and may cause runtime errors.
    * \remark If object is not valid, it will return nullptr.
    */
-  void* GetValue() const;
+  const void* GetValue() const;
+
+  /**
+   * \brief Get the value of the object held by this object.
+   * \return The value pointer of the object held by this object.
+   * \remark It is not recommended for users and may cause runtime errors.
+   * \remark If object is not valid, it will return nullptr.
+   */
+  void* GetValue();
 
   /**
    * \brief Set the value of the object held by this object.
@@ -163,20 +168,29 @@ class Variable {
   bool SetValue(void* other);
 
   /**
+   * \brief Copy the new value to the object held by the pair, and this function will call the copy assignment function.
+   * \return Returns true if the value is set successfully, otherwise returns
+   * false.
+   * \remark It is not recommended for users and may cause runtime errors.
+   * \remark If object is not valid, it will do nothing and return false.
+   */
+  bool CopyValue(void* other);
+
+  /**
    * \brief Get the MM::Reflection::Type of the object held by this object.
    * \return The "MM::Reflection::Type" of the object held by this object.
    * \remark If object is not valid, it will return the default empty
    * MM::Reflection::Type{}.
    */
-  Type GetType() const;
+  const Type& GetType() const;
 
   /**
    * \brief Get meta data.
    * \return Returns std::weak_ptr containing metadata.
    * \remark If the type is not registered or this object is invalid, the
-   * empty std::weak_ptr will be returned.
+   * nullptr will be returned.
    */
-  std::weak_ptr<Meta> GetMeta() const;
+  const Meta* GetMeta() const;
 
   /**
    * \brief Gets the properties of the object held by this object.
@@ -307,7 +321,7 @@ class Variable {
    * \brief Returns a pointer to the managed object and releases the ownership.
    * \return The pointer to the managed object.
    */
-  void* Release();
+  void* ReleaseOwnership();
 
   /**
    * \brief Destroy this object.
@@ -318,8 +332,7 @@ class Variable {
   template<typename VariableType, typename ...Args>
   struct GetVariable {
     Variable operator()(Args... args) {
-      return Variable{std::make_shared<VariableWrapperBase>(
-          VariableWrapper<VariableType, false>(std::forward<Args>(args)...))};
+      return Variable{std::make_unique<VariableWrapperBase>(std::forward<Args>(args)...)};
     }
   };
 
@@ -339,6 +352,10 @@ class VariableWrapperBase {
   VariableWrapperBase& operator=(VariableWrapperBase&&) = default;
 
  public:
+  virtual bool IsValid() const;
+
+  virtual bool IsVoid() const;
+
   /**
    * \brief Get a base pointer of copy.
    * \return The base pointer of copy.
@@ -357,14 +374,15 @@ class VariableWrapperBase {
    * \return Returns true if the value is set successfully, otherwise returns
    * false.
    */
-  virtual bool SetValue(void* other) = 0;
+  virtual bool SetValue(void* object) = 0;
 
   /**
-   * \brief Determine whether this variable is an property of another \ref MM::Reflection::Variable.
-   * \return  If this variable is an property of another \ref MM::Reflection::Variable, return true, otherwise return false.
-   * \remark Property variable has no ownership of the value held.
+   * \brief Copy the new value to the object held by the pair, and this function will call the copy assignment function.
+   * \param other A void * pointer to the new value.
+   * \return Returns true if the value is set successfully, otherwise returns
+   * false.
    */
-  virtual bool IsPropertyVariable() const = 0;
+  virtual bool CopyValue(void* object) = 0;
 
   /**
    * \brief Gets the properties of the object held by this object.
@@ -377,7 +395,7 @@ class VariableWrapperBase {
    * \brief Get the MM::Reflection::Type of the object held by this object.
    * \return The MM::Reflection::TypeWrapper of the object held by this object.
    */
-  virtual MM::Reflection::Type GetType() const = 0;
+  virtual const MM::Reflection::Type& GetType() const = 0;
 
   /**
    * \brief Get meta data.
@@ -385,20 +403,18 @@ class VariableWrapperBase {
    * \remark If the type is not registered, the unique_ptr containing nullptr
    * will be returned.
    */
-  virtual std::weak_ptr<Meta> GetMeta() const = 0;
+  virtual const Meta* GetMeta() const = 0;
 
   /**
    * \brief Returns a pointer to the managed object and releases the ownership.
    * \return The pointer to the managed object.
    */
-  virtual void* Release() = 0;
+  virtual void* ReleaseOwnership() = 0;
 };
 
-template <typename VariableType_, bool IsPropertyVariable_ = false>
-class VariableWrapper : public VariableWrapperBase {};
 
 template<typename VariableType_>
-class VariableWrapper<VariableType_, false> final : public VariableWrapperBase {
+class VariableWrapper final : public VariableWrapperBase {
   template <typename TargetType_, typename DestructorType_>
   friend class DestructorWrapper;
 
@@ -412,36 +428,49 @@ class VariableWrapper<VariableType_, false> final : public VariableWrapperBase {
   using OriginalType = typename TypeWrapper<VariableType_>::OriginalType;
 
  public:
-  VariableWrapper();
+  VariableWrapper() : value_(nullptr) {}
 
-  ~VariableWrapper() override;
+  ~VariableWrapper() override = default;
 
   /**
    * \brief Copy constructor.
-   * \tparam TestCopyCT Determine whether copy construction can be performed.
    * \param other Objects to be copied.
    */
-  template <typename TestCopyCT = std::enable_if<
-                std::is_copy_constructible<VariableType_>::value, void>::type>
-  VariableWrapper(const VariableWrapper& other);
+  VariableWrapper(const VariableWrapper& other)
+    : value_(nullptr) {
+    if (!other.IsValid()) {
+      return;
+    }
+
+    other.value_.reset(std::make_unique(*other.value_));
+  }
   /**
    * \brief Move constructor.
-   * \tparam TestMoveCT Determine whether move construction can be performed.
    * \param other Objects to be moved.
    */
-  template <typename TestMoveCT = std::enable_if<
-                std::is_move_constructible<VariableType_>::value, void>::type>
-  VariableWrapper(VariableWrapper&& other) noexcept;
+  VariableWrapper(VariableWrapper&& other) noexcept
+    : value_(nullptr) {
+    other.value_.reset(std::make_unique(std::move(*other.value_)));
+  }
 
   /**
    * \brief Copy assign.
-   * \tparam TestCopy Determine whether copy assign can be performed.
    * \param other Objects to be copied.
    * \return New objects after copying.
    */
-  template <typename TestCopy = std::enable_if<
-                std::is_copy_assignable<VariableType_>::value, void>::type>
-  VariableWrapper& operator=(const VariableWrapper& other);
+  VariableWrapper& operator=(const VariableWrapper& other) {
+    if (std::addressof(other) == this) {
+      return *this;
+    }
+
+    if (!IsValid() || !other.IsValid()) {
+      return *this;
+    }
+
+    other.value_.reset(std::make_unique(*other.value_));
+
+    return *this;
+  }
 
   /**
    * \brief Move assign.
@@ -449,37 +478,51 @@ class VariableWrapper<VariableType_, false> final : public VariableWrapperBase {
    * \param other Objects to be moved.
    * \return New objects after moving.
    */
-  template <typename TestMove = std::enable_if<
-                std::is_move_assignable<VariableType_>::value>::type>
-  VariableWrapper& operator=(VariableWrapper&& other) noexcept;
+  VariableWrapper& operator=(VariableWrapper&& other) noexcept {
+    if (std::addressof(other) == this) {
+      return *this;
+    }
 
-  VariableWrapper(std::unique_ptr<VariableType_>& variable_ptr);
+    if (!IsValid() || !other.IsValid()) {
+      return *this;
+    }
 
-  template<typename TestCopy = std::enable_if<std::is_copy_constructible<VariableType_>::value, void>::type>
-  VariableWrapper(const VariableType_& other);
+    other.value_.reset(std::make_unique(std::move(*other.value_)));
 
-  template<typename TestMove = std::enable_if<std::is_move_constructible<VariableType_>::value, void>::type>
-  VariableWrapper(VariableType_&& other);
+    return *this;
+  }
+
+  explicit VariableWrapper(std::unique_ptr<VariableType_>&& variable_ptr)
+    : value_(variable_ptr.release()) {}
+
+  explicit VariableWrapper(const VariableType_& other)
+    : value_(std::make_unique<VariableType_>(other)) {}
+
+  explicit VariableWrapper(VariableType_&& other)
+    : value_(std::make_unique<VariableType_>(std::move(other))) {}
 
   template<typename ...Args>
-  explicit VariableWrapper(Args... args);
+  explicit VariableWrapper(Args... args)
+    : value_(std::make_unique<VariableType_>(std::forward<Args>(args)...)) {}
 
  public:
-  /**
-   * \brief Determine whether this variable is an property of another \ref
-   * MM::Reflection::Variable. \return  If this variable is an property of
-   * another \ref MM::Reflection::Variable, return true, otherwise return false.
-   * \remark Property variable has no ownership of the value held.
-   */
-   bool IsPropertyVariable() const override;
-
-  std::unique_ptr<VariableWrapperBase> CopyToBasePointer() override;
+  std::unique_ptr<VariableWrapperBase> CopyToBasePointer() override {
+    if constexpr (std::is_copy_constructible_v<VariableType_>) {
+      return std::make_unique<VariableWrapperBase>(
+          VariableWrapper<VariableType_>(*this));
+    } else {
+      return nullptr;
+    }
+  }
 
   /**
    * \brief Get the MM::Reflection::Type of the object held by this object.
    * \return The "MM::Reflection::Type" of the object held by this object.
    */
-  MM::Reflection::Type GetType() const override;
+  const MM::Reflection::Type& GetType() const override {
+    static MM::Reflection::Type Result = CreateType<VariableType_>;
+    return Result;
+  }
 
   /**
    * \brief Get meta data.
@@ -487,30 +530,51 @@ class VariableWrapper<VariableType_, false> final : public VariableWrapperBase {
    * \remark If the type is not registered, the unique_ptr containing nullptr
    * will be returned.
    */
-  std::weak_ptr<Meta> GetMeta() const override;
+  const Meta* GetMeta() const override {
+    return GetType().GetMate();
+  }
 
   /**
    * \brief Get the value of the object held by this object.
    * \return The value pointer of the object held by this object.
    */
-  void* GetValue() const override;
+  void* GetValue() const override {
+    return value_.get();
+  }
 
   /**
    * \brief Set the value of the object held by this object.
-   * \param other A void * pointer to the new value.
+   * \param object A void * pointer to the new value.
    * \return Returns true if the value is set successfully, otherwise returns
    * false.
    */
-  bool SetValue(void* other) override;
+  bool SetValue(void* object) override {
+      if (object == nullptr) {
+        return false;
+      }
+      if constexpr (std::is_copy_constructible_v<VariableType_>) {
+        value_.reset(std::make_unique<VariableType_>(*static_cast<VariableType_*>(object)));
+        return true;
+      }
+
+      return false;
+  }
+
+  bool CopyValue(void* object) override {
+    CopyHelp<std::is_copy_assignable_v<VariableType_>> help{};
+    return help(*this, object);
+  }
 
   /**
    * \brief Returns a pointer to the managed object and releases the ownership.
    * \return The pointer to the managed object.
    */
-  void* Release() override;
+  void* ReleaseOwnership() override {
+    return value_.release();
+  }
 
  private:
-  template <bool TestCopy>
+template <bool TestCopy>
   struct CopyHelp {
     std::unique_ptr<VariableWrapperBase> operator()() { return nullptr;}
   };
@@ -519,431 +583,30 @@ class VariableWrapper<VariableType_, false> final : public VariableWrapperBase {
   struct CopyHelp<true> {
     std::unique_ptr<VariableWrapperBase> operator()() {
       return std::make_unique<VariableWrapperBase>(
-          VariableWrapper<VariableType_, false>(*this));
+          VariableWrapper<VariableType_>(*this));
     };
   };
 
-  template <>
-  struct CopyHelp<false> {
-    std::unique_ptr<VariableWrapperBase> operator()() { return nullptr;
-    };
-  };
-
-  template <bool TestCopy>
+  template <bool TestCopyAssignable>
   struct SetValueHelp {
-    static bool SetValue(void* object);
-  };
-
-  template <>
-  struct SetValueHelp<true> {
-    static bool SetValue(VariableWrapper& variable_wrapper, void* object) {
-      *variable_wrapper.value_ = *static_cast<VariableType_*>(object);
-      return true;
+    bool operator()(VariableWrapper&, void*) {
+      return false;
     }
   };
 
   template <>
-  struct SetValueHelp<false> {
-    static bool SetValue(VariableWrapper& variable_wrapper, void* object) {
-      *variable_wrapper.value_ = *static_cast<VariableType_*>(object);
-      return false;
+  struct SetValueHelp<true> {
+    bool operator()(VariableWrapper& variable_wrapper, void* object) {
+      if (object == nullptr) {
+        return false;
+      } 
+      variable_wrapper.value_.reset(std::make_unique<VariableType_>(*static_cast<VariableType_*>(object)));
+      return true;
     }
   };
 
  private:
   std::unique_ptr<VariableType_> value_ = nullptr;
 };
-
-template <typename VariableType_>
-class VariableWrapper<VariableType_, true> final : public VariableWrapperBase {
-  template <typename TargetType_, typename DestructorType_>
-  friend class DestructorWrapper;
-
-  template <typename PropertyType_, typename ClassType_, bool IsStatic>
-  friend class PropertyWrapper;
-
-  friend class Variable;
-
- public:
-  using Type = VariableType_;
-  using OriginalType = typename TypeWrapper<VariableType_>::OriginalType;
-
- public:
-  VariableWrapper();
-
-  ~VariableWrapper() override; 
-
-  /**
-   * \brief Copy constructor.
-   * \tparam TestCopyCT Determine whether copy construction can be performed.
-   * \param other Objects to be copied.
-   */
-  template <typename TestCopyCT = std::enable_if<
-                std::is_copy_constructible<VariableType_>::value, void>::type>
-  VariableWrapper(const VariableWrapper& other);
-  /**
-   * \brief Move constructor.
-   * \tparam TestMoveCT Determine whether move construction can be performed.
-   * \param other Objects to be moved.
-   */
-  template <typename TestMoveCT = std::enable_if<
-                std::is_move_constructible<VariableType_>::value, void>::type>
-  VariableWrapper(VariableWrapper&& other) noexcept;
-
-  /**
-   * \brief Copy assign.
-   * \tparam TestCopy Determine whether copy assign can be performed.
-   * \param other Objects to be copied.
-   * \return New objects after copying.
-   */
-  template <typename TestCopy = std::enable_if<
-                std::is_copy_assignable<VariableType_>::value, void>::type>
-  VariableWrapper& operator=(const VariableWrapper& other);
-
-  /**
-   * \brief Move assign.
-   * \tparam TestMove Determine whether move assign can be performed.
-   * \param other Objects to be moved.
-   * \return New objects after moving.
-   */
-  template <typename TestMove = std::enable_if<
-                std::is_move_assignable<VariableType_>::value>::type>
-  VariableWrapper& operator=(VariableWrapper&& other) noexcept;
-
-  VariableWrapper(std::unique_ptr<VariableType_>& variable_ptr);
-
-  template <typename TestCopy = std::enable_if<
-                std::is_copy_constructible<VariableType_>::value, void>::type>
-  VariableWrapper(const VariableType_& other);
-
-  template <typename TestMove = std::enable_if<
-                std::is_move_constructible<VariableType_>::value, void>::type>
-  VariableWrapper(VariableType_&& other);
-
-  template <typename... Args>
-  explicit VariableWrapper(Args... args);
-
- public:
-  /**
-   * \brief Determine whether this variable is an property of another \ref
-   * MM::Reflection::Variable. \return  If this variable is an property of
-   * another \ref MM::Reflection::Variable, return true, otherwise return false.
-   * \remark Property variable has no ownership of the value held.
-   */
-  bool IsPropertyVariable() const override;
-
-  std::unique_ptr<VariableWrapperBase> CopyToBasePointer() override;
-
-  /**
-   * \brief Get the MM::Reflection::Type of the object held by this object.
-   * \return The "MM::Reflection::Type" of the object held by this object.
-   */
-  MM::Reflection::Type GetType() const override;
-
-  /**
-   * \brief Get meta data.
-   * \return Returns unique_ptr containing metadata.
-   * \remark If the type is not registered, the unique_ptr containing nullptr
-   * will be returned.
-   */
-  std::weak_ptr<Meta> GetMeta() const override;
-
-  /**
-   * \brief Get the value of the object held by this object.
-   * \return The value pointer of the object held by this object.
-   */
-  void* GetValue() const override;
-
-  /**
-   * \brief Set the value of the object held by this object.
-   * \param other A void * pointer to the new value.
-   * \return Returns true if the value is set successfully, otherwise returns
-   * false.
-   */
-  bool SetValue(void* other) override;
-
-    /**
-   * \brief Returns a pointer to the managed object and releases the ownership.
-   * \return The pointer to the managed object.
-   */
-  void* Release() override;
-
- private:
-  template <bool TestCopy>
-  struct CopyHelp {
-    std::unique_ptr<VariableWrapperBase> operator()() { return nullptr; }
-  };
-
-  template <>
-  struct CopyHelp<true> {
-    std::unique_ptr<VariableWrapperBase> operator()() {
-      return std::make_unique<VariableWrapperBase>(
-          VariableWrapper<VariableType_, false>(*this));
-    };
-  };
-
-  template <>
-  struct CopyHelp<false> {
-    std::unique_ptr<VariableWrapperBase> operator()() { return nullptr;
-    };
-  };
-
-  template<bool TestCopy>
-  struct SetValueHelp {
-    static bool SetValue(void* object);
-  };
-
-  template<>
-  struct SetValueHelp<true> {
-    static bool SetValue(VariableWrapper& variable_wrapper, void* object) {
-      *variable_wrapper.value_ = *static_cast<VariableType_*>(object);
-      return true;
-    }
-  };
-
-  template <>
-  struct SetValueHelp<false> {
-    static bool SetValue(VariableWrapper& variable_wrapper, void* object) {
-      *variable_wrapper.value_ = *static_cast<VariableType_*>(object);
-      return false;
-    }
-  };
-
- private:
-  std::unique_ptr<VariableType_> value_ = nullptr;
-};
-
-template <typename VariableType_>
-::MM::Reflection::VariableWrapper<VariableType_, false>::VariableWrapper()
-    : value_(nullptr) {}
-
-template <typename VariableType_>
-::MM::Reflection::VariableWrapper<VariableType_, false>::VariableWrapper::~VariableWrapper() =
-    default;
-
-template <typename VariableType_>
-template <typename TestCopyCT>
-VariableWrapper<VariableType_, false>::VariableWrapper(
-    const VariableWrapper& other) :  value_(*other) {}
-
-template <typename VariableType_>
-template <typename TestMoveCT>
-VariableWrapper<VariableType_, false>::VariableWrapper(
-    VariableWrapper&& other) noexcept {
-  std::swap(value_, other.value_);
-  other.value_.reset();
-}
-
-template <typename VariableType_>
-template <typename TestCopy>
-VariableWrapper<VariableType_, false>& VariableWrapper<VariableType_, false>::
-operator=(const VariableWrapper& other) {
-  if (this == &other) {
-    return *this;
-  }
-  *value_ = *(other.value_);
-  return *this;
-}
-
-template <typename VariableType_>
-template <typename TestMove>
-VariableWrapper<VariableType_, false>& VariableWrapper<VariableType_, false>::
-operator=(VariableWrapper&& other) noexcept {
-  if (this == &other) {
-    return *this;
-  }
-  std::swap(value_, other.value_);
-  other.value_.reset();
-  return *this;
-}
-
-template <typename VariableType_>
-VariableWrapper<VariableType_, false>::VariableWrapper(
-    std::unique_ptr<VariableType_>& variable_ptr) : value_(variable_ptr.release()){}
-
-template <typename VariableType_>
-template <typename TestCopy>
-VariableWrapper<VariableType_, false>::VariableWrapper(
-    const VariableType_& other)
-  : value_(
-      std::make_unique<VariableType_>(std::forward<VariableType_>(other))) {
-}
-
-template <typename VariableType_>
-template <typename TestMove>
-VariableWrapper<VariableType_, false>::VariableWrapper(VariableType_&& other)
-  : value_(
-      std::make_unique<VariableType_>(std::forward<VariableType_>(other))) {
-}
-
-template <typename VariableType_>
-template <typename ... Args>
-VariableWrapper<VariableType_, false>::VariableWrapper(Args ... args)
-  : value_(std::make_unique<VariableType_>(std::forward<Args>(args)...)) {
-}
-
-template <typename VariableType_>
-bool VariableWrapper<VariableType_, false>::IsPropertyVariable() const {
-  return false;
-}
-
-template <typename VariableType_>
-std::unique_ptr<VariableWrapperBase> VariableWrapper<VariableType_, false>::
-CopyToBasePointer() {
-  CopyHelp<std::is_copy_constructible<VariableType_>::value> help_struct{};
-  return help_struct();
-}
-
-template <typename VariableType_>
-MM::Reflection::Type VariableWrapper<VariableType_, false>::GetType() const {
-  return CreateType<VariableType_>();
-}
-
-template <typename VariableType_>
-std::weak_ptr<Meta> VariableWrapper<VariableType_, false>::GetMeta() const {
-  return GetType().GetMate();
-}
-
-template <typename VariableType_>
-void* VariableWrapper<VariableType_, false>::GetValue() const {
-  return value_.get();
-}
-
-template <typename VariableType_>
-bool VariableWrapper<VariableType_, false>::SetValue(void* other) {
-  return SetValueHelp<std::is_copy_assignable<VariableType_>::value>::SetValue(
-      *this, other);
-}
-
-template <typename VariableType_>
-void* VariableWrapper<VariableType_, false>::Release() {
-  return value_.release();
-}
-
-template <typename VariableType_>
-VariableWrapper<VariableType_, true>::VariableWrapper() : value_(nullptr) {}
-
-template <typename VariableType_>
-VariableWrapper<VariableType_, true>::~VariableWrapper() = default;
-
-template <typename VariableType_>
-template <typename TestCopyCT>
-VariableWrapper<VariableType_, true>::VariableWrapper(
-    const VariableWrapper& other) : value_(std::make_unique<VariableType_>(*(other.value_))) {}
-
-template <typename VariableType_>
-template <typename TestMoveCT>
-VariableWrapper<VariableType_, true>::VariableWrapper(
-    VariableWrapper&& other) noexcept {
-  std::swap(value_, other.value_);
-  other.value_.reset();
-}
-
-template <typename VariableType_>
-template <typename TestCopy>
-VariableWrapper<VariableType_, true>& VariableWrapper<VariableType_, true>::
-operator=(const VariableWrapper& other) {
-  if (this == &other) {
-    return *this;
-  }
-  value_ = *other.value_;
-  return *this;
-}
-
-template <typename VariableType_>
-template <typename TestMove>
-VariableWrapper<VariableType_, true>& VariableWrapper<VariableType_, true>::
-operator=(VariableWrapper&& other) noexcept {
-  if (this == &other) {
-    return *this;
-  }
-  std::swap(value_, other.value_);
-  other.value_.reset();
-  return *this;
-}
-
-template <typename VariableType_>
-VariableWrapper<VariableType_, true>::VariableWrapper(
-    std::unique_ptr<VariableType_>& variable_ptr) : value_(variable_ptr.release()){}
-
-template <typename VariableType_>
-template <typename TestCopy>
-VariableWrapper<VariableType_, true>::VariableWrapper(
-    const VariableType_& other) : value_(std::make_unique<VariableType_>(std::forward<VariableType_>(other))){}
-
-template <typename VariableType_>
-template <typename TestMove>
-VariableWrapper<VariableType_, true>::VariableWrapper(VariableType_&& other)
-  : value_(
-      std::make_unique<VariableType_>(std::forward<VariableType_>(other))) {
-}
-
-template <typename VariableType_>
-template <typename ... Args>
-VariableWrapper<VariableType_, true>::VariableWrapper(Args... args) : value_(std::make_unique<VariableType_>(std::forward<Args>(args)...)){}
-
-template <typename VariableType_>
-bool VariableWrapper<VariableType_, true>::IsPropertyVariable() const {
-  return true;
-}
-
-template <typename VariableType_>
-std::unique_ptr<VariableWrapperBase> VariableWrapper<VariableType_, true>::
-CopyToBasePointer() {
-  CopyHelp<std::is_copy_constructible<VariableType_>::value> help_struct{};
-  return help_struct();
-}
-
-template <typename VariableType_>
-MM::Reflection::Type VariableWrapper<VariableType_, true>::GetType() const {
-  return CreateType<VariableType_>();
-}
-
-template <typename VariableType_>
-std::weak_ptr<Meta> VariableWrapper<VariableType_, true>::GetMeta() const {
-  return GetType().GetMate();
-}
-
-template <typename VariableType_>
-void* VariableWrapper<VariableType_, true>::GetValue() const {
-  return value_.get();
-}
-
-template <typename VariableType_>
-bool VariableWrapper<VariableType_, true>::SetValue(void* other) {
-  return SetValueHelp<std::is_copy_assignable<VariableType_>::value>::SetValue(
-      *this, other);
-}
-
-template <typename VariableType_>
-void* VariableWrapper<VariableType_, true>::Release() {
-  return value_.release();
-}
-
-
-template <typename VariableType_>
-VariableType_ Variable::GetValueFunction() const {
-  return static_cast<VariableType_>(*(GetValue()));
-}
-
-template <typename TargetType, typename VariableType_, typename TestConvertible>
-bool Variable::SetValueFunction(TargetType other) {
-  auto temp = static_cast<VariableType_>(other);
-  return SetValue(&temp);
-}
-
-//template <typename VariableType_, bool IsPropertyVariable>
-//Variable::Variable(VariableType_& other)
-//  : variable_wrapper_(
-//      std::make_shared<VariableWrapperBase>(
-//          VariableWrapper<VariableType_&>(std::forward<VariableType_>(other)))) {
-//}
-
-template <typename VariableType_>
-Variable::Variable(VariableType_&& other) noexcept
-  : variable_wrapper_(
-      std::make_shared<VariableWrapperBase>(
-          VariableWrapper<std::remove_reference<VariableType_>::type>(std::forward<VariableType_>(other)))) {}
-
 }  // namespace Reflection
 }  // namespace MM

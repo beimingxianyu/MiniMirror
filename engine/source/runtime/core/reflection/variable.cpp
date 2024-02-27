@@ -1,10 +1,7 @@
 #include "runtime/core/reflection/variable.h"
+#include <memory>
 
 #include "meta.h"
-
-bool MM::Reflection::Variable::IsPropertyVariable() const {
-  return variable_wrapper_->IsPropertyVariable();
-}
 
 MM::Reflection::Variable::Variable() { variable_wrapper_ = nullptr; }
 
@@ -16,27 +13,20 @@ MM::Reflection::Variable::Variable(
   if (other.GetType().HaveCopyConstructor()) {
     // Object is valid before its function can be called.
     if (other.IsValid()) {
-      variable_wrapper_ = other.variable_wrapper_->CopyToBasePointer();
+      variable_wrapper_.reset(other.variable_wrapper_->CopyToBasePointer().release());
     } else {
       variable_wrapper_ = nullptr;
     }
   }
 }
 
-MM::Reflection::Variable::Variable(Variable& other) {
-  // Judge whether the held value can be copied and constructed.
-  if (other.GetType().HaveCopyConstructor()) {
-    // Object is valid before its function can be called.
-    if (other.IsValid()) {
-      variable_wrapper_ = other.variable_wrapper_->CopyToBasePointer();
-    } else {
-      variable_wrapper_ = nullptr;
-    }
-  }
-}
+MM::Reflection::Variable::Variable(Variable& other) : Variable(other){}
 
 MM::Reflection::Variable::Variable(
     Variable&& other) noexcept {
+  if (!other.IsValid()) {
+    return;
+  }
   if (other.GetType().HaveMoveConstructor()) {
     std::swap(variable_wrapper_, other.variable_wrapper_);
     other.variable_wrapper_.reset();
@@ -45,7 +35,10 @@ MM::Reflection::Variable::Variable(
 
 MM::Reflection::Variable& MM::Reflection::Variable::operator=(
     const Variable& other) {
-  if (this == &other) {
+  if (this == std::addressof(other)) {
+    return *this;
+  }
+  if (!other.IsValid()) {
     return *this;
   }
   if (other.GetType().HaveCopyAssign()) {
@@ -60,6 +53,12 @@ MM::Reflection::Variable& MM::Reflection::Variable::operator=(
 
 MM::Reflection::Variable& MM::Reflection::Variable::operator=(
     Variable&& other) noexcept {
+  if (this == std::addressof(other)) {
+    return *this;
+  }
+  if (!other.IsValid()) {
+    return *this;
+  }
   if (other.GetType().HaveMoveAssign()) {
     std::swap(variable_wrapper_, other.variable_wrapper_);
     other.variable_wrapper_.reset();
@@ -72,13 +71,18 @@ MM::Reflection::Variable::Variable(
 
 MM::Reflection::Variable::operator bool() const { return IsValid();}
 
-MM::Reflection::Variable::operator void*() const { return GetValue(); }
-
 bool MM::Reflection::Variable::IsValid() const {
-  return variable_wrapper_ != nullptr;
+  return variable_wrapper_ != nullptr && variable_wrapper_->IsValid();
 }
 
-void* MM::Reflection::Variable::GetValue() const {
+const void* MM::Reflection::Variable::GetValue() const {
+  if (!IsValid()) {
+    return nullptr;
+  }
+  return variable_wrapper_->GetValue();
+}
+
+void* MM::Reflection::Variable::GetValue() {
   if (!IsValid()) {
     return nullptr;
   }
@@ -90,6 +94,10 @@ bool MM::Reflection::Variable::SetValue(void* other) {
     return false;
   }
   return variable_wrapper_->SetValue(other);
+}
+
+bool MM::Reflection::Variable::CopyValue(void* other) {
+  if (!IsPropertyVariable())
 }
 
 MM::Reflection::Type MM::Reflection::Variable::GetType() const {
@@ -122,7 +130,7 @@ MM::Reflection::Variable MM::Reflection::Variable::GetPropertyVariable(
 MM::Reflection::Variable MM::Reflection::Variable::Invoke(
     const std::string& method_name) {
   if (IsValid()) {
-      const auto metadata = GetMeta().lock();
+      const auto metadata = GetMeta();
       if (metadata->IsValid()) {
         const Method method{metadata->GetMethod(method_name)};
         if (method.IsValid()) {
@@ -243,7 +251,7 @@ MM::Reflection::Variable MM::Reflection::Variable::Invoke(
   return Variable{};
 }
 
-void* MM::Reflection::Variable::Release() {
+void* MM::Reflection::Variable::ReleaseOwnership() {
   return variable_wrapper_.release();
 }
 
