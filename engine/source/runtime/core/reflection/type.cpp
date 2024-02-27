@@ -1,33 +1,9 @@
 #include "runtime/core/reflection/type.h"
 
-#include "meta.h"
-#include "meta.h"
 
 MM::Reflection::Type::Type() : type_wrapper_{nullptr} {}
 
 MM::Reflection::Type::~Type() = default;
-
-MM::Reflection::Type::Type(const Type& other) = default;
-
-MM::Reflection::Type::Type(Type&& other) noexcept {
-  std::swap(type_wrapper_, other.type_wrapper_);
-  other.type_wrapper_.reset();
-}
-
-MM::Reflection::Type::Type(const std::shared_ptr<TypeWrapperBase>& other) {
-  type_wrapper_ = other;
-}
-
-MM::Reflection::Type& MM::Reflection::Type::operator=(const Type& other) = default;
-
-MM::Reflection::Type& MM::Reflection::Type::operator=(Type&& other) noexcept {
-  if (this == &other) {
-    return *this;
-  }
-  std::swap(type_wrapper_, other.type_wrapper_);
-  other.type_wrapper_.reset();
-  return *this;
-}
 
 bool MM::Reflection::Type::operator==(const Type& other) const { return IsEqual(other); }
 
@@ -163,9 +139,9 @@ std::string MM::Reflection::Type::GetOriginalTypeName() const {
   return type_wrapper_->GetOriginalTypeName();
 }
 
-std::weak_ptr<MM::Reflection::Meta> MM::Reflection::Type::GetMate() const {
+const MM::Reflection::Meta* MM::Reflection::Type::GetMate() const {
   if (!IsValid()) {
-    return std::weak_ptr<MM::Reflection::Meta>{};
+    return nullptr;
   }
   return type_wrapper_->GetMeta();
 }

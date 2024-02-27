@@ -8,7 +8,6 @@
 
 namespace MM {
 namespace Reflection {
-class Meta;
 class Type;
 class Variable;
 
@@ -150,15 +149,14 @@ class TypeWrapperBase {
    * \remark If the type is not registered, the default empty std::string will
    * be returned.
    */
-  virtual std::string GetOriginalTypeName() const = 0;
+  virtual const std::string& GetOriginalTypeName() const = 0;
 
   /**
    * \brief Get meta data.
    * \return Returns unique_ptr containing metadata.
-   * \remark If the type is not registered, the unique_ptr containing nullptr
-   * will be returned.
+   * \remark If the type is not registered, the nullptr will be returned.
    */
-  virtual std::weak_ptr<Meta> GetMeta() const = 0;
+  virtual const Meta* GetMeta() const = 0;
 };
 
 template <typename TypeName>
@@ -305,25 +303,24 @@ class TypeWrapper final : public TypeWrapperBase {
    * \remark If the type is not registered, the default empty std::string will
    * be returned.
    */
-  std::string GetOriginalTypeName() const override;
+  const std::string& GetOriginalTypeName() const override;
 
   /**
    * \brief Get original type meta data.
    * \return Returns unique_ptr containing metadata.
-   * \remark If the type is not registered, the unique_ptr containing nullptr
-   * will be returned.
+   * \remark If the type is not registered, the nullptr will be returned.
    */
-  std::weak_ptr<Meta> GetMeta() const override;
+  const Meta* GetMeta() const override;
 };
 
 template <typename TypeName>
-Type CreateType(TypeName&& object);
+Type CreateType(TypeName&&);
 
 template <typename TypeName>
 Type CreateType();
 
 class Type {
-  template <typename VariableType, bool IsPropertyVariable_>
+  template <typename VariableType>
   friend class VariableWrapper;
 
  public:
@@ -334,20 +331,18 @@ class Type {
    * \return The MM::Reflection::Type of \ref object
    */
   template <typename TypeName>
-  static Type CreateType(TypeName&& object) {
-    Type result{};
-    result.type_wrapper_ = std::make_shared<TypeWrapper<TypeName>>();
-    return result;
+  static Type CreateType(TypeName&&) {
+    return Type{std::make_unique<TypeWrapper<TypeName>>()};
   }
 
  public:
   Type();
   ~Type();
-  Type(const Type& other);
-  Type(Type&& other) noexcept;
-  explicit Type(const std::shared_ptr<TypeWrapperBase>& other);
-  Type& operator=(const Type& other);
-  Type& operator=(Type&& other) noexcept;
+  Type(const Type& other) = delete;
+  Type(Type&& other) noexcept = delete;
+  explicit Type(std::unique_ptr<TypeWrapperBase>&& other) noexcept;
+  Type& operator=(const Type& other) = delete;
+  Type& operator=(Type&& other) noexcept = delete;
 
  public:
   /**
@@ -362,7 +357,7 @@ class Type {
   /**
    * \brief bool conversion.
    */
-  operator bool() const;
+  explicit operator bool() const;
 
   /**
    * \brief Judge whether the object is a valid object.
@@ -516,17 +511,17 @@ class Type {
    * \brief Get meta data.
    * \return Returns unique_ptr containing metadata.
    * \remark If the type is not registered or this object is not valid, the
-   * unique_ptr containing nullptr will be returned.
+   * nullptr will be returned.
    */
-  std::weak_ptr<Meta> GetMate() const;
+  const Meta* GetMate() const;
 
  private:
-  std::shared_ptr<TypeWrapperBase> type_wrapper_ = nullptr;
+  std::unique_ptr<TypeWrapperBase> type_wrapper_ = nullptr;
 };
 
 template <typename TypeName>
 bool TypeWrapper<TypeName>::IsRegistered() const {
-  return g_type_database.find(GetTypeHashCode()) != g_type_database.end();
+  return g_meta_database.find(GetTypeHashCode()) != g_meta_database.end();
 }
 
 template <typename TypeName>
@@ -586,7 +581,7 @@ bool TypeWrapper<TypeName>::HaveMoveAssign() const {
 
 template <typename TypeName>
 template <typename OtherType>
-bool TypeWrapper<TypeName>::Convertible(OtherType&& other) const {
+bool TypeWrapper<TypeName>::Convertible(OtherType&&) const {
   return Conversion<typename GetOriginalType<OtherType>::Type,
                     typename GetOriginalType<TypeName>::Type>::value;
 }
@@ -640,29 +635,30 @@ std::string TypeWrapper<TypeName>::GetTypeName() const {
 }
 
 template <typename TypeName>
-std::string TypeWrapper<TypeName>::GetOriginalTypeName() const {
+const std::string& TypeWrapper<TypeName>::GetOriginalTypeName() const {
+  static const std::string EmptyTypeName{};
   if (!IsRegistered()) {
-    return std::string{};
+    return EmptyTypeName;
   }
-  return g_type_database[GetOriginalTypeHashCode()];
+  return g_meta_database[GetOriginalTypeHashCode()].GetTypeName();
 }
 
 template <typename TypeName>
-std::weak_ptr<Meta> TypeWrapper<TypeName>::GetMeta() const {
+const Meta* TypeWrapper<TypeName>::GetMeta() const {
   if (!IsRegistered()) {
-    return std::make_shared<Meta>(g_meta_database[std::string{}]);
+    return nullptr; 
   }
-  return std::make_shared<Meta>(g_meta_database[GetOriginalTypeName()]);
+  return g_meta_database[GetOriginalTypeHashCode()];
 }
 
 template <typename TypeName>
-Type CreateType(TypeName&& object) {
-  return Type(std::make_shared<TypeWrapperBase>(TypeWrapper<TypeName>{}));
+Type CreateType(TypeName&&) {
+  return Type{std::make_unique<TypeWrapperBase>(TypeWrapper<TypeName>{})};
 }
 
 template <typename TypeName>
 Type CreateType() {
-  return Type(std::make_shared<TypeWrapperBase>(TypeWrapper<TypeName>{}));
+  return Type{std::make_unique<TypeWrapperBase>(TypeWrapper<TypeName>{})};
 }
 }  // namespace Reflection
 }  // namespace MM
