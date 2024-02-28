@@ -56,7 +56,7 @@ public:
    * \param method_name The name of method.
    * \return The \ref MM::Reflection::Method.
    */
-  Method GetMethod(const std::string& method_name) const;
+  const Method* GetMethod(const std::string& method_name) const;
 
   /**
    * \brief Get all \ref MM::Reflection::Method of this meta.
@@ -77,7 +77,7 @@ public:
    * \param property_name The name of property name.
    * \return The \ref MM::Reflection::Property.
    */
-  Property GetProperty(const std::string& property_name) const;
+  const Property* GetProperty(const std::string& property_name) const;
 
   /**
    * \brief Get all \ref MM::Reflection::Property of this meta.
