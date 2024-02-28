@@ -1,5 +1,7 @@
 #pragma once
 
+#include <memory>
+#include "runtime/core/reflection/property.h"
 #include "runtime/core/reflection/type.h"
 #include "runtime/core/reflection/variable.h"
 
@@ -9,14 +11,26 @@ class PropertyWrapperBase {
   friend class Property;
 
  public:
-  PropertyWrapperBase() = default;
+  PropertyWrapperBase(const std::string& property_name, std::uint64_t offset, std::uint64_t size) : property_name_(property_name), offset_(offset), size_(size) {}
   virtual ~PropertyWrapperBase() = default;
-  PropertyWrapperBase(const PropertyWrapperBase&) = default;
-  PropertyWrapperBase(PropertyWrapperBase&&) = default;
-  PropertyWrapperBase& operator=(const PropertyWrapperBase&) = default;
-  PropertyWrapperBase& operator=(PropertyWrapperBase&&) = default;
+  PropertyWrapperBase(const PropertyWrapperBase& other) = delete;
+  PropertyWrapperBase(PropertyWrapperBase&& other) = delete; 
+  PropertyWrapperBase& operator=(const PropertyWrapperBase& other) = delete;
+  PropertyWrapperBase& operator=(PropertyWrapperBase&&) = delete;
 
  public:
+  const std::string& GetPropertyName() const {return property_name_;}
+
+  std::uint64_t GetPropertyOffset() const {return offset_;}
+
+  std::uint64_t GetPropertySize() const {return size_;}
+
+  virtual bool IsValid() const {
+    return size_ != 0;
+  }
+
+  virtual bool IsStaticProperty() const = 0;
+
   /**
    * \brief Get the hashcode of this class.
    * \return The hashcode of this class.
@@ -27,31 +41,29 @@ class PropertyWrapperBase {
 
   /**
    * \brief Get the MM::Reflection::Type of the class that holds the property.
-   * \return The MM::Reflection::TypeWrapper of the object held by this object.
+   * \return The MM::Reflection::Type of the object held by this object.
    */
-  virtual MM::Reflection::Type GetType() const = 0;
+  virtual const MM::Reflection::Type* GetType() const = 0;
 
   /**
    * \brief Get the MM::Reflection::Type of the class held by this property.
    * \return The MM::Reflection::TypeWrapper of the class held by this property.
    */
-  virtual MM::Reflection::Type GetClassType() const = 0;
+  virtual const MM::Reflection::Type* GetClassType() const = 0;
 
   /**
    * \brief Get meta data.
    * \return Returns the metadata of the property represented by this object.
-   * \remark If the type is not registered, the unique_ptr containing nullptr
-   * will be returned.
+   * \remark If the type is not registered, the nullptr will be returned.
    */
-  virtual std::weak_ptr<Meta> GetMeta() const = 0;
+  virtual const Meta* GetMeta() const = 0;
 
   /**
    * \brief Get class meta data.
    * \return Returns the metadata of the class that holds the property.
-   * \remark If the type is not registered, the unique_ptr containing nullptr
-   * will be returned.
+   * \remark If the type is not registered, the containing nullptr will be returned.
    */
-  virtual std::weak_ptr<Meta> GetClassMeta() const = 0;
+  virtual const Meta* GetClassMeta() const = 0;
 
  private:
   /**
@@ -60,14 +72,25 @@ class PropertyWrapperBase {
    * \return A MM::Reflection::Variable that holds the this property contained
    * in \ref class_variable.
    */
-  virtual Variable GetPropertyVariable(const Variable& class_variable) const;
+  virtual Variable GetPropertyVariable(Variable& class_variable) = 0;
+
+  /**
+   * \brief Gets the variable that the attribute refers to.
+   * \param class_variable The class variable of this property.
+   * \return A MM::Reflection::Variable that holds the this property contained
+   * in \ref class_variable.
+   */
+  virtual Variable GetPropertyVariable(const Variable& class_variable) const = 0;
+
+  private:
+    std::string property_name_{};
+    std::uint64_t offset_{0};
+    std::uint64_t size_{0};
 };
 
-template <typename PropertyType_, typename ClassType_, bool IsStatic>
-class PropertyWrapper : public PropertyWrapperBase {};
 
 template <typename PropertyType_, typename ClassType_>
-class PropertyWrapper<PropertyType_, ClassType_, false>
+class CommonPropertyWrapper
     : public PropertyWrapperBase {
   friend class Property;
 
@@ -77,12 +100,12 @@ class PropertyWrapper<PropertyType_, ClassType_, false>
   using ClassType = ClassType_;
 
  public:
-  PropertyWrapper();
-  ~PropertyWrapper() override;
-  PropertyWrapper(const PropertyWrapper& other);
-  PropertyWrapper(PropertyWrapper&& other) noexcept;
-  PropertyWrapper& operator=(const PropertyWrapper& other);
-  PropertyWrapper& operator=(PropertyWrapper&& other) noexcept;
+  CommonPropertyWrapper(const std::string& property_name, std::uint64_t offset, std::uint64_t size) : PropertyWrapperBase(property_name, offset, size) {}
+  ~CommonPropertyWrapper() override = default;
+  CommonPropertyWrapper(const CommonPropertyWrapper& other) = delete;
+  CommonPropertyWrapper(CommonPropertyWrapper&& other) noexcept = delete;
+  CommonPropertyWrapper& operator=(const CommonPropertyWrapper& other) = delete;
+  CommonPropertyWrapper& operator=(CommonPropertyWrapper&& other) noexcept = delete;
 
  public:
   /**
@@ -91,36 +114,60 @@ class PropertyWrapper<PropertyType_, ClassType_, false>
    * \remark The value of hashcode depends on the type of the property, the type
    * of the class to which the property belongs, and the name of the property.
    */
-  std::size_t HashCode() const override;
+  std::uint64_t HashCode() const override {
+    return AllTypeHashCode<PropertyType_, ClassType_>() + std::hash<std::string>(GetPropertyName());
+  }
 
   /**
    * \brief Get the MM::Reflection::Type of the object held by this property.
    * \return The MM::Reflection::TypeWrapper of the object held by this
    * property.
    */
-  MM::Reflection::Type GetType() const override;
+  const MM::Reflection::Type* GetType() const override {
+    static MM::Reflection::Type Type = CreateType<PropertyType_>();
+    return &Type;
+  }
 
   /**
    * \brief Get the MM::Reflection::Type of the class held by this property.
    * \return The MM::Reflection::TypeWrapper of the class held by this property.
    */
-  MM::Reflection::Type GetClassType() const override;
+  const MM::Reflection::Type* GetClassType() const override {
+    static MM::Reflection::Type Type = CreateType<ClassType_>();
+    return &Type;
+  }
 
   /**
    * \brief Get meta data.
    * \return Returns the metadata of the property represented by this object.
-   * \remark If the type is not registered, the unique_ptr containing nullptr
-   * will be returned.
+   * \remark If the type is not registered, the nullptr will be returned.
    */
-  std::weak_ptr<Meta> GetMeta() const override;
+  const Meta* GetMeta() const override {
+    const MM::Reflection::Type* PropertyType = GetType();
+    assert(PropertyType != nullptr);
+    return PropertyType->GetMate();
+  }
 
   /**
    * \brief Get class meta data.
    * \return Returns the metadata of the class that holds the property.
-   * \remark If the type is not registered, the unique_ptr containing nullptr
-   * will be returned.
+   * \remark If the type is not registered, the nullptr will be returned.
    */
-  std::weak_ptr<Meta> GetClassMeta() const override;
+  const Meta* GetClassMeta() const override {
+    const MM::Reflection::Type* ClassType = GetType();
+    assert(ClassType != nullptr);
+    return ClassType->GetMate();
+  }
+
+};
+
+template <typename PropertyType_, typename ClassType_>
+class PropertyWrapper
+    : public CommonPropertyWrapper<PropertyType_, ClassType_> {
+  public:
+    bool IsStaticProperty() const {
+      return false;
+    }
 
  private:
   /**
@@ -129,67 +176,44 @@ class PropertyWrapper<PropertyType_, ClassType_, false>
    * \return A MM::Reflection::Variable that holds the this property contained
    * in \ref class_variable.
    */
-  Variable GetPropertyVariable(const Variable& class_variable) const override;
+  Variable GetPropertyVariable(Variable& class_variable) override {
+    PropertyType_* property_ptr =reinterpret_cast<PropertyType_*>(static_cast<char*>(class_variable.GetValue()) + GetPropertyOffset());
+    return Variable{std::make_unique<PropertyVariable<PropertyType_>>(*property_ptr)};
+  }
 
- private:
-  PropertyType_ ClassType_::*address_;
+  /**
+   * \brief Gets the variable that the attribute refers to.
+   * \param class_variable The class variable of this property.
+   * \return A MM::Reflection::Variable that holds the this property contained
+   * in \ref class_variable.
+   */
+  Variable GetPropertyVariable(const Variable& class_variable) const override {
+    const PropertyType_* property_ptr =reinterpret_cast<const PropertyType_*>(static_cast<const char*>(class_variable.GetValue()) + GetPropertyOffset());
+    return Variable{std::make_unique<PropertyVariable<const PropertyType_>>(*property_ptr)};
+  }
 };
 
 template <typename PropertyType_, typename ClassType_>
-class PropertyWrapper<PropertyType_, ClassType_, true>
-    : public PropertyWrapperBase {
-  friend class Property;
+class StaticPropertyWrapper
+    : public CommonPropertyWrapper<PropertyType_, ClassType_> {
+  public:
+    using StaticPropertyType = PropertyType_ ClassType_::*;
 
- public:
-  using Type = PropertyType_;
-  using OriginalType = typename GetOriginalType<PropertyType_>::Type;
-  using ClassType = ClassType_;
+  public:
+   StaticPropertyWrapper(const std::string& property_name,
+                         StaticPropertyType address, std::uint64_t size)
+       : PropertyWrapperBase(property_name, 0, size),
+         static_property_address_(address) {}
+  virtual ~StaticPropertyWrapper() = default; 
 
- public:
-  PropertyWrapper();
-  ~PropertyWrapper() override;
-  PropertyWrapper(const PropertyWrapper& other);
-  PropertyWrapper(PropertyWrapper&& other) noexcept;
-  PropertyWrapper& operator=(const PropertyWrapper& other);
-  PropertyWrapper& operator=(PropertyWrapper&& other) noexcept;
+  public:
+    bool IsValid() const override {
+      return PropertyWrapperBase::IsValid() && static_property_address_ != nullptr;
+    }
 
- public:
-  /**
-   * \brief Get the hashcode of this class.
-   * \return The hashcode of this class.
-   * \remark The value of hashcode depends on the type of the property, the type
-   * of the class to which the property belongs, and the name of the property.
-   */
-  std::size_t HashCode() const override;
-
-  /**
-   * \brief Get the MM::Reflection::Type of the object held by this property.
-   * \return The MM::Reflection::TypeWrapper of the object held by this
-   * property.
-   */
-  MM::Reflection::Type GetType() const override;
-
-  /**
-   * \brief Get the MM::Reflection::Type of the class held by this property.
-   * \return The MM::Reflection::TypeWrapper of the class held by this property.
-   */
-  MM::Reflection::Type GetClassType() const override;
-
-  /**
-   * \brief Get meta data.
-   * \return Returns the metadata of the property represented by this object.
-   * \remark If the type is not registered, the unique_ptr containing nullptr
-   * will be returned.
-   */
-  std::weak_ptr<Meta> GetMeta() const override;
-
-  /**
-   * \brief Get class meta data.
-   * \return Returns the metadata of the class that holds the property.
-   * \remark If the type is not registered, the unique_ptr containing nullptr
-   * will be returned.
-   */
-  std::weak_ptr<Meta> GetClassMeta() const override;
+    bool IsStaticProperty() const {
+      return true;
+    }
 
  private:
   /**
@@ -198,144 +222,24 @@ class PropertyWrapper<PropertyType_, ClassType_, true>
    * \return A MM::Reflection::Variable that holds the this property contained
    * in \ref class_variable.
    */
-  Variable GetPropertyVariable(const Variable& class_variable) const override;
+  Variable GetPropertyVariable(Variable&) override {
+    return Variable{std::make_unique<PropertyVariable<PropertyType_>>(*static_property_address_)};
+  }
 
   /**
-   * \brief A destructor that does nothing. Prevent the deletion of data by
-   * variable reference obtained through \ref GetProperty(const Variable&
-   * class_variable) from causing access errors.
+   * \brief Gets the variable that the attribute refers to.
+   * \param class_variable The class variable of this property.
+   * \return A MM::Reflection::Variable that holds the this property contained
+   * in \ref class_variable.
    */
-  struct DoNothingDestructor {
-    void operator()(PropertyType_*) {}
-  };
+  Variable GetPropertyVariable(const Variable&) const override {
+    return Variable{std::make_unique<PropertyVariable<const PropertyType_>>(*static_property_address_)};
+  }
 
- private:
-  PropertyType_* address_;
+  private:
+    StaticPropertyType static_property_address_{nullptr};
 };
 
-template <typename PropertyType, typename ClassType>
-PropertyWrapper<PropertyType, ClassType, false>::PropertyWrapper() = default;
-
-template <typename PropertyType, typename ClassType>
-PropertyWrapper<PropertyType, ClassType, false>::~PropertyWrapper() = default;
-
-template <typename PropertyType, typename ClassType>
-PropertyWrapper<PropertyType, ClassType, false>::PropertyWrapper(
-    const PropertyWrapper& other) = default;
-
-template <typename PropertyType, typename ClassType>
-PropertyWrapper<PropertyType, ClassType, false>::PropertyWrapper(
-    PropertyWrapper&& other) noexcept = default;
-
-template <typename PropertyType, typename ClassType>
-PropertyWrapper<PropertyType, ClassType, false>&
-PropertyWrapper<PropertyType, ClassType, false>::operator=(
-    const PropertyWrapper& other) = default;
-
-template <typename PropertyType, typename ClassType>
-PropertyWrapper<PropertyType, ClassType, false>&
-PropertyWrapper<PropertyType, ClassType, false>::operator=(
-    PropertyWrapper&& other) noexcept = default;
-
-template <typename PropertyType_, typename ClassType_>
-std::size_t PropertyWrapper<PropertyType_, ClassType_, false>::HashCode()
-    const {
-  return AllTypeHashCode<PropertyType_, ClassType_>() + 0;
-}
-
-template <typename PropertyType, typename ClassType>
-MM::Reflection::Type PropertyWrapper<PropertyType, ClassType, false>::GetType()
-    const {
-  return CreateType<PropertyType>();
-}
-
-template <typename PropertyType, typename ClassType>
-MM::Reflection::Type
-PropertyWrapper<PropertyType, ClassType, false>::GetClassType() const {
-  return CreateType<ClassType>();
-}
-
-template <typename PropertyType, typename ClassType>
-std::weak_ptr<Meta> PropertyWrapper<PropertyType, ClassType, false>::GetMeta()
-    const {
-  return GetType().GetMate();
-}
-
-template <typename PropertyType, typename ClassType>
-std::weak_ptr<Meta>
-PropertyWrapper<PropertyType, ClassType, false>::GetClassMeta() const {
-  return GetClassType().GetMate();
-}
-
-template <typename PropertyType, typename ClassType>
-Variable PropertyWrapper<PropertyType, ClassType, false>::GetPropertyVariable(
-    const Variable& class_variable) const {
-  return Variable{std::make_unique<VariableWrapperBase>(
-      &((*static_cast<ClassType*>(class_variable.GetValue())).address))};
-}
-
-template <typename PropertyType, typename ClassType>
-PropertyWrapper<PropertyType, ClassType, true>::PropertyWrapper() = default;
-
-template <typename PropertyType, typename ClassType>
-PropertyWrapper<PropertyType, ClassType, true>::~PropertyWrapper() = default;
-
-template <typename PropertyType, typename ClassType>
-PropertyWrapper<PropertyType, ClassType, true>::PropertyWrapper(
-    const PropertyWrapper& other) = default;
-
-template <typename PropertyType, typename ClassType>
-PropertyWrapper<PropertyType, ClassType, true>::PropertyWrapper(
-    PropertyWrapper&& other) noexcept = default;
-
-template <typename PropertyType, typename ClassType>
-PropertyWrapper<PropertyType, ClassType, true>&
-PropertyWrapper<PropertyType, ClassType, true>::operator=(
-    const PropertyWrapper& other) = default;
-
-template <typename PropertyType, typename ClassType>
-PropertyWrapper<PropertyType, ClassType, true>&
-PropertyWrapper<PropertyType, ClassType, true>::operator=(
-    PropertyWrapper&& other) noexcept = default;
-
-template <typename PropertyType_, typename ClassType_>
-std::size_t PropertyWrapper<PropertyType_, ClassType_, true>::HashCode() const {
-  return AllTypeHashCode<PropertyType_, ClassType_>() + 1;
-}
-
-template <typename PropertyType, typename ClassType>
-MM::Reflection::Type PropertyWrapper<PropertyType, ClassType, true>::GetType()
-    const {
-  return CreateType<PropertyType>();
-}
-
-template <typename PropertyType, typename ClassType>
-MM::Reflection::Type
-PropertyWrapper<PropertyType, ClassType, true>::GetClassType() const {
-  return CreateType<ClassType>();
-}
-
-template <typename PropertyType, typename ClassType>
-std::weak_ptr<Meta> PropertyWrapper<PropertyType, ClassType, true>::GetMeta()
-    const {
-  return GetType().GetMate();
-}
-
-template <typename PropertyType, typename ClassType>
-std::weak_ptr<Meta>
-PropertyWrapper<PropertyType, ClassType, true>::GetClassMeta() const {
-  return GetClassType().GetMate();
-}
-
-template <typename PropertyType, typename ClassType>
-Variable PropertyWrapper<PropertyType, ClassType, true>::GetPropertyVariable(
-    const Variable& class_variable) const {
-  return Variable{
-      std::make_unique<VariableWrapperBase>(
-          &((*static_cast<ClassType*>(
-                 class_variable.GetValue()))
-                .address))};
-}
 
 class Property {
   friend class Meta;
@@ -408,8 +312,6 @@ class Property {
       const std::shared_ptr<PropertyWrapperBase>& property_wrapper);
 
  private:
-  std::string property_name_;
-  std::weak_ptr<PropertyWrapperBase> property_wrapper_{};
 };
 }  // namespace Reflection
 }  // namespace MM

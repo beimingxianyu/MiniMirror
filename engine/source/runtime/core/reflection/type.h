@@ -2,6 +2,7 @@
 
 #include <memory>
 #include <string>
+#include <type_traits>
 
 #include "runtime/core/reflection/database.h"
 #include "runtime/core/reflection/utils.h"
@@ -526,7 +527,7 @@ bool TypeWrapper<TypeName>::IsRegistered() const {
 
 template <typename TypeName>
 bool TypeWrapper<TypeName>::IsConst() const {
-  return std::is_const<TypeName>::value;
+  return std::is_const<std::remove_reference_t<TypeName>>::value;
 }
 
 template <typename TypeName>
