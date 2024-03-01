@@ -1,10 +1,9 @@
 #include "runtime/core/reflection/variable.h"
 #include <memory>
 
-#include "meta.h"
+#include "runtime/core/reflection/meta.h"
 #include "runtime/core/reflection/type.h"
-
-MM::Reflection::Variable::Variable() { variable_wrapper_ = nullptr; }
+#include "runtime/core/reflection/method.h"
 
 MM::Reflection::Variable::~Variable() { Destroy(); };
 
@@ -34,7 +33,10 @@ MM::Reflection::Variable& MM::Reflection::Variable::operator=(
   if (!IsValid() || !other.IsValid()) {
     return *this;
   }
-  variable_wrapper_->MoveValue(other.variable_wrapper_->GetValue());
+  if (GetType()->GetCommonTypeHashCode() != other.GetType()->GetCommonTypeHashCode()) {
+    return *this;
+  }
+  variable_wrapper_->CopyValue(other.variable_wrapper_->GetValue());
   return *this;
 }
 
@@ -46,12 +48,12 @@ MM::Reflection::Variable& MM::Reflection::Variable::operator=(
   if (!IsValid() || !other.IsValid()) {
     return *this;
   }
+  if (GetType()->GetCommonTypeHashCode() != other.GetType()->GetCommonTypeHashCode()) {
+    return *this;
+  }
   variable_wrapper_->MoveValue(other.variable_wrapper_->GetValue());
   return *this;
 }
-
-MM::Reflection::Variable::Variable(
-    std::unique_ptr<VariableWrapperBase>&& variable_wrapper) : variable_wrapper_(variable_wrapper.release()){}
 
 MM::Reflection::Variable::operator bool() const { return IsValid();}
 
@@ -108,7 +110,6 @@ MM::Reflection::Variable MM::Reflection::Variable::GetPropertyVariable(
     const std::string& property_name) {
   const Meta* metadata = GetMeta();
     if (metadata != nullptr) {
-      assert(metadata->IsValid());
       const Property* target_property = metadata->GetProperty(property_name);
       if (target_property != nullptr) {
         assert(target_property->IsValid());
@@ -122,7 +123,6 @@ MM::Reflection::Variable MM::Reflection::Variable::GetPropertyVariable(
     const std::string& property_name) const {
   const Meta* metadata = GetMeta();
     if (metadata != nullptr) {
-      assert(metadata->IsValid());
       const Property* target_property = metadata->GetProperty(property_name);
       if (target_property != nullptr) {
         assert(target_property->IsValid());
@@ -137,7 +137,6 @@ MM::Reflection::Variable MM::Reflection::Variable::Invoke(
   if (IsValid()) {
       const Meta* metadata = GetMeta();
       if (metadata != nullptr) {
-        assert(metadata->IsValid());
         const Method* method{metadata->GetMethod(method_name)};
         if (method != nullptr) {
           assert(method->IsValid());
@@ -154,7 +153,6 @@ MM::Reflection::Variable MM::Reflection::Variable::Invoke(
   if (IsValid()) {
       const Meta* metadata = GetMeta();
       if (metadata != nullptr) {
-        assert(metadata->IsValid());
         const Method* method{metadata->GetMethod(method_name)};
         if (method != nullptr) {
           assert(method->IsValid());
@@ -171,7 +169,6 @@ MM::Reflection::Variable MM::Reflection::Variable::Invoke(
   if (IsValid()) {
       const Meta* metadata = GetMeta();
       if (metadata != nullptr) {
-        assert(metadata->IsValid());
         const Method* method{metadata->GetMethod(method_name)};
         if (method != nullptr) {
           assert(method->IsValid());
@@ -189,7 +186,6 @@ MM::Reflection::Variable MM::Reflection::Variable::Invoke(
   if (IsValid()) {
       const Meta* metadata = GetMeta();
       if (metadata != nullptr) {
-        assert(metadata->IsValid());
         const Method* method{metadata->GetMethod(method_name)};
         if (method != nullptr) {
           assert(method->IsValid());
@@ -207,7 +203,6 @@ MM::Reflection::Variable MM::Reflection::Variable::Invoke(
   if (IsValid()) {
       const Meta* metadata = GetMeta();
       if (metadata != nullptr) {
-        assert(metadata->IsValid());
         const Method* method{metadata->GetMethod(method_name)};
         if (method != nullptr) {
           assert(method->IsValid());
@@ -225,7 +220,6 @@ MM::Reflection::Variable MM::Reflection::Variable::Invoke(
   if (IsValid()) {
       const Meta* metadata = GetMeta();
       if (metadata != nullptr) {
-        assert(metadata->IsValid());
         const Method* method{metadata->GetMethod(method_name)};
         if (method != nullptr) {
           assert(method->IsValid());
@@ -243,7 +237,6 @@ MM::Reflection::Variable MM::Reflection::Variable::Invoke(
   if (IsValid()) {
       const Meta* metadata = GetMeta();
       if (metadata != nullptr) {
-        assert(metadata->IsValid());
         const Method* method{metadata->GetMethod(method_name)};
         if (method != nullptr) {
           assert(method->IsValid());
@@ -256,11 +249,10 @@ MM::Reflection::Variable MM::Reflection::Variable::Invoke(
 }
 
 MM::Reflection::Variable MM::Reflection::Variable::Invoke(
-    const std::string& method_name, std::vector<Variable>& args) {
+    const std::string& method_name, std::vector<Variable*>& args) {
   if (IsValid()) {
       const Meta* metadata = GetMeta();
       if (metadata != nullptr) {
-        assert(metadata->IsValid());
         const Method* method{metadata->GetMethod(method_name)};
         if (method != nullptr) {
           assert(method->IsValid());
@@ -278,4 +270,86 @@ void* MM::Reflection::Variable::ReleaseOwnership() {
 
 void MM::Reflection::Variable::Destroy() {
   variable_wrapper_.reset();
+}
+
+bool MM::Reflection::VariableWrapperBase::IsVoid() const { return false; }
+
+bool MM::Reflection::VariableWrapperBase::IsPropertyVariable() { return false; }
+
+bool MM::Reflection::VariableWrapperBase::IsValid() const { return false; }
+
+std::unique_ptr<MM::Reflection::VariableWrapperBase>
+MM::Reflection::VariableWrapperBase::CopyToBasePointer() const {
+  return nullptr;
+}
+
+std::unique_ptr<MM::Reflection::VariableWrapperBase>
+MM::Reflection::VariableWrapperBase::MoveToBasePointer() {
+  return nullptr;
+}
+
+const void* MM::Reflection::VariableWrapperBase::GetValue() const {
+  return nullptr;
+}
+void* MM::Reflection::VariableWrapperBase::GetValue() { return nullptr; }
+bool MM::Reflection::VariableWrapperBase::SetValue(const void*) {
+  return false;
+}
+
+bool MM::Reflection::VariableWrapperBase::CopyValue(const void*) {
+  return false;
+}
+
+bool MM::Reflection::VariableWrapperBase::MoveValue(void*) {
+  return false;
+}
+
+MM::Reflection::Variable
+MM::Reflection::VariableWrapperBase::GetPropertyVariable(
+    const std::string&) const {
+  return Variable{};
+}
+
+const MM::Reflection::Type* MM::Reflection::VariableWrapperBase::GetType()
+    const {
+  return nullptr;
+}
+
+const MM::Reflection::Meta* MM::Reflection::VariableWrapperBase::GetMeta()
+    const {
+  return nullptr;
+}
+
+void* MM::Reflection::VariableWrapperBase::ReleaseOwnership() {}
+
+bool MM::Reflection::VoidVariable::IsValid() const { return true; }
+
+bool MM::Reflection::VoidVariable::IsVoid() const { return true; }
+
+std::unique_ptr<MM::Reflection::VariableWrapperBase>
+MM::Reflection::VoidVariable::CopyToBasePointer() const {
+  return std::make_unique<VoidVariable>();
+}
+std::unique_ptr<MM::Reflection::VariableWrapperBase>
+MM::Reflection::VoidVariable::MoveToBasePointer() {
+  return std::make_unique<VoidVariable>();
+}
+const MM::Reflection::Type* MM::Reflection::VoidVariable::GetType() const {
+  static MM::Reflection::Type Result = CreateType<void>();
+  return &Result;
+}
+const MM::Reflection::Meta* MM::Reflection::VoidVariable::GetMeta() const {
+  return GetType()->GetMate();
+}
+
+bool MM::Reflection::Variable::IsVoid() const {
+  if (!IsValid()) {
+      return false;
+  }
+
+  return variable_wrapper_->IsVoid();
+}
+
+MM::Reflection::Variable MM::Reflection::Variable::CreateVoidVariable() {
+  return Variable{std::make_unique<VoidVariable>(VoidVariable{})};
 }

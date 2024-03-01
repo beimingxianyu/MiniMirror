@@ -1,191 +1,194 @@
 #include "runtime/core/reflection/method.h"
 
-MM::Reflection::Method::Method() : method_name_(), method_wrapper_() {}
-
-MM::Reflection::Method::Method(const Method& other)
-    : method_name_(other.method_name_),
-      method_wrapper_(other.method_wrapper_) {}
-
-MM::Reflection::Method::Method(Method&& other) noexcept {
-  std::swap(method_name_, other.method_name_);
-  std::swap(method_wrapper_, other.method_wrapper_);
-  other.method_name_.clear();
-  other.method_wrapper_.reset();
+MM::Reflection::MethodWrapperBase::MethodWrapperBase(
+    const std::string& method_name)
+    : method_name_(method_name) {}
+const std::string& MM::Reflection::MethodWrapperBase::GetMethodName() const {
+  return method_name_;
 }
 
-MM::Reflection::Method& MM::Reflection::Method::operator=(const Method& other) {
-  if (this == &other) {
-    return *this;
-  }
-  method_name_ = other.method_name_;
-  method_wrapper_ = other.method_wrapper_;
-  return *this;
+std::size_t MM::Reflection::MethodWrapperBase::HashCode() const {
+  return std::hash<std::string>{}(method_name_);
 }
 
-MM::Reflection::Method& MM::Reflection::Method::operator=(
-    Method&& other) noexcept {
-  if (this == &other) {
-    return *this;
+bool MM::Reflection::MethodWrapperBase::IsValid() const {
+  return !method_name_.empty();
+}
+
+const std::string& MM::Reflection::Method::GetMethodName() const {
+  if (!IsValid()) {
+    return empty_string;
   }
-  std::swap(method_name_, other.method_name_);
-  std::swap(method_wrapper_, other.method_wrapper_);
-  other.method_name_.clear();
-  other.method_wrapper_.reset();
-  return *this;
+
+  return method_wrapper_->GetMethodName();
+}
+
+const std::string& MM::Reflection::Method::GetArgumentName(
+    std::uint32_t argument_index) const {
+  if (!IsValid()) {
+    return empty_string;
+  }
+
+  return method_wrapper_->GetArgumentName(argument_index);
 }
 
 std::size_t MM::Reflection::Method::HashCode() const {
-  return method_wrapper_.lock()->HashCode() +
-         std::hash<std::string>()(method_name_);
+  if (!IsValid()) {
+    return 0;
+  }
+
+  return method_wrapper_->HashCode();
 }
 
 bool MM::Reflection::Method::IsValid() const {
-  return method_wrapper_.expired() && (!method_name_.empty());
+  return method_wrapper_ != nullptr && method_wrapper_->IsValid();
 }
 
 bool MM::Reflection::Method::IsStatic() const {
   if (!IsValid()) {
     return false;
   }
-  return method_wrapper_.lock()->IsStatic();
+
+  return method_wrapper_->IsStatic();
 }
 
 std::size_t MM::Reflection::Method::GetArgumentNumber() const {
   if (!IsValid()) {
     return 0;
   }
-  return method_wrapper_.lock()->GetArgumentNumber();
+
+  return method_wrapper_->GetArgumentNumber();
 }
 
-MM::Reflection::Type MM::Reflection::Method::GetClassType() const {
+const MM::Reflection::Type* MM::Reflection::Method::GetClassType() const {
   if (!IsValid()) {
-    return Type{};
+    return nullptr;
   }
-  return method_wrapper_.lock()->GetClassType();
+
+  return method_wrapper_->GetClassType();
 }
 
-MM::Reflection::Type MM::Reflection::Method::GetReturnType() const {
+const MM::Reflection::Type* MM::Reflection::Method::GetArgumentType(
+    std::uint32_t argument_index) const {
   if (!IsValid()) {
-    return Type{};
+    return nullptr;
   }
-  return method_wrapper_.lock()->GetReturnType();
+
+  return method_wrapper_->GetArgumentType(argument_index);
 }
 
-std::weak_ptr<MM::Reflection::Meta> MM::Reflection::Method::GetClassMeta()
-    const {
+const MM::Reflection::Type* MM::Reflection::Method::GetReturnType() const {
   if (!IsValid()) {
-    return std::weak_ptr<MM::Reflection::Meta>{g_meta_database[std::string{}]};
+    return nullptr;
   }
-  return method_wrapper_.lock()->GetClassMeta();
+
+  return method_wrapper_->GetReturnType();
 }
 
-std::weak_ptr<MM::Reflection::Meta> MM::Reflection::Method::GetReturnMeta()
-    const {
-  if (!IsValid()) {
-    return std::weak_ptr<MM::Reflection::Meta>{g_meta_database[std::string{}]};
+const MM::Reflection::Meta* MM::Reflection::Method::GetClassMeta() const {
+  const Type* class_type = method_wrapper_->GetClassType();
+  if (class_type == nullptr) {
+    return nullptr;
   }
-  return method_wrapper_.lock()->GetReturnMeta();
+
+  return class_type->GetMate();
+}
+
+const MM::Reflection::Meta* MM::Reflection::Method::GetArgumentMeta(
+    std::uint32_t argument_index) const {
+  const Type* argument_type = method_wrapper_->GetArgumentType(argument_index);
+  if (argument_type == nullptr) {
+    return nullptr;
+  }
+
+  return argument_type->GetMate();
+}
+
+const MM::Reflection::Meta* MM::Reflection::Method::GetReturnMeta() const {
+  const Type* return_type = method_wrapper_->GetReturnType();
+  if (return_type == nullptr) {
+    return nullptr;
+  }
+
+  return return_type->GetMate();
 }
 
 MM::Reflection::Variable MM::Reflection::Method::Invoke(
-    MM::Reflection::Variable& instance) const {
-  if (!IsValid() || method_wrapper_.lock()->GetArgumentNumber() != 0 ||
-      method_wrapper_.lock()->GetClassType().GetTypeHashCode() !=
-          instance.GetType().GetTypeHashCode()) {
+    Variable& instance) const {
+  if (!IsValid()) {
     return Variable{};
   }
-  return method_wrapper_.lock()->Invoke(instance);
+
+  return method_wrapper_->Invoke(instance);
 }
 
-MM::Reflection::Variable MM::Reflection::Method::Invoke(MM::Reflection::Variable& instance,
-  MM::Reflection::Variable& arg1) const {
-  if (!IsValid() || method_wrapper_.lock()->GetArgumentNumber() != 1 ||
-      method_wrapper_.lock()->GetClassType().GetTypeHashCode() !=
-          instance.GetType().GetTypeHashCode()) {
+MM::Reflection::Variable MM::Reflection::Method::Invoke(Variable& instance,
+                                                        Variable& arg1) const {
+  if (!IsValid()) {
     return Variable{};
   }
-  return method_wrapper_.lock()->Invoke(instance, arg1);
+
+  return method_wrapper_->Invoke(instance, arg1);
 }
 
-MM::Reflection::Variable MM::Reflection::Method::Invoke(MM::Reflection::Variable& instance,
-  MM::Reflection::Variable& arg1,
-  MM::Reflection::Variable& arg2) const {
-  if (!IsValid() || method_wrapper_.lock()->GetArgumentNumber() != 2 ||
-      method_wrapper_.lock()->GetClassType().GetTypeHashCode() !=
-          instance.GetType().GetTypeHashCode()) {
+MM::Reflection::Variable MM::Reflection::Method::Invoke(Variable& instance,
+                                                        Variable& arg1,
+                                                        Variable& arg2) const {
+  if (!IsValid()) {
     return Variable{};
   }
-  return method_wrapper_.lock()->Invoke(instance, arg1, arg2);
+
+  return method_wrapper_->Invoke(instance, arg1, arg2);
 }
 
-MM::Reflection::Variable MM::Reflection::Method::Invoke(MM::Reflection::Variable& instance,
-  MM::Reflection::Variable& arg1,
-  MM::Reflection::Variable& arg2,
-  MM::Reflection::Variable& arg3) const {
-  if (!IsValid() || method_wrapper_.lock()->GetArgumentNumber() != 3 ||
-      method_wrapper_.lock()->GetClassType().GetTypeHashCode() !=
-          instance.GetType().GetTypeHashCode()) {
+MM::Reflection::Variable MM::Reflection::Method::Invoke(Variable& instance,
+                                                        Variable& arg1,
+                                                        Variable& arg2,
+                                                        Variable& arg3) const {
+  if (!IsValid()) {
     return Variable{};
   }
-  return method_wrapper_.lock()->Invoke(instance, arg1, arg2, arg3);
+
+  return method_wrapper_->Invoke(instance, arg1, arg2, arg3);
 }
 
-MM::Reflection::Variable MM::Reflection::Method::Invoke(MM::Reflection::Variable& instance,
-  MM::Reflection::Variable& arg1,
-  MM::Reflection::Variable& arg2,
-  MM::Reflection::Variable& arg3,
-  MM::Reflection::Variable& arg4) const {
-  if (!IsValid() || method_wrapper_.lock()->GetArgumentNumber() != 4 ||
-      method_wrapper_.lock()->GetClassType().GetTypeHashCode() !=
-          instance.GetType().GetTypeHashCode()) {
+MM::Reflection::Variable MM::Reflection::Method::Invoke(Variable& instance,
+                                                        Variable& arg1,
+                                                        Variable& arg2,
+                                                        Variable& arg3,
+                                                        Variable& arg4) const {
+  if (!IsValid()) {
     return Variable{};
   }
-  return method_wrapper_.lock()->Invoke(instance, arg1, arg2, arg3, arg4);
+
+  return method_wrapper_->Invoke(instance, arg1, arg2, arg3, arg4);
 }
 
 MM::Reflection::Variable MM::Reflection::Method::Invoke(
-    MM::Reflection::Variable& instance, MM::Reflection::Variable& arg1, MM::
-    Reflection::Variable& arg2, MM::Reflection::Variable& arg3,
-    MM::Reflection::Variable& arg4, MM::Reflection::Variable& arg5) const {
-  if (!IsValid() || method_wrapper_.lock()->GetArgumentNumber() != 5 ||
-      method_wrapper_.lock()->GetClassType().GetTypeHashCode() !=
-          instance.GetType().GetTypeHashCode()) {
+    Variable& instance, Variable& arg1, Variable& arg2, Variable& arg3,
+    Variable& arg4, Variable& arg5) const {
+  if (!IsValid()) {
     return Variable{};
   }
-  return method_wrapper_.lock()->Invoke(instance, arg1, arg2, arg3, arg4, arg5);
+
+  return method_wrapper_->Invoke(instance, arg1, arg2, arg3, arg4, arg5);
 }
 
 MM::Reflection::Variable MM::Reflection::Method::Invoke(
-    MM::Reflection::Variable& instance, MM::Reflection::Variable& arg1, MM::
-    Reflection::Variable& arg2, MM::Reflection::Variable& arg3,
-    MM::Reflection::Variable& arg4, MM::Reflection::Variable& arg5, MM::
-    Reflection::Variable& arg6) const {
-  if (!IsValid() || method_wrapper_.lock()->GetArgumentNumber() != 6 ||
-      method_wrapper_.lock()->GetClassType().GetTypeHashCode() !=
-          instance.GetType().GetTypeHashCode()) {
+    Variable& instance, Variable& arg1, Variable& arg2, Variable& arg3,
+    Variable& arg4, Variable& arg5, Variable& arg6) const {
+  if (!IsValid()) {
     return Variable{};
   }
-  return method_wrapper_.lock()->Invoke(instance, arg1, arg2, arg3, arg4, arg5,
-                                        arg6);
+
+  return method_wrapper_->Invoke(instance, arg1, arg2, arg3, arg4, arg5, arg6);
 }
 
 MM::Reflection::Variable MM::Reflection::Method::Invoke(
-    MM::Reflection::Variable& instance, std::vector<MM::Reflection::Variable>&
-    args) const {
-  if (!IsValid() ||
-      method_wrapper_.lock()->GetArgumentNumber() != args.size() ||
-      method_wrapper_.lock()->GetClassType().GetTypeHashCode() !=
-          instance.GetType().GetTypeHashCode()) {
+    Variable& instance, std::vector<Variable*>& args) const {
+  if (!IsValid()) {
     return Variable{};
   }
-  return method_wrapper_.lock()->Invoke(instance, args);
-}
 
-MM::Reflection::Method::Method(const std::string& method_name,
-    const std::shared_ptr<MethodWrapperBase>& method_wrapper): method_name_(method_name), method_wrapper_(method_wrapper) {}
-
-MM::Reflection::Method MM::Reflection::Method::CreateMethod(
-    const std::string& method_name,
-    const std::shared_ptr<MethodWrapperBase>& method_wrapper) {
-  return Method(method_name, method_wrapper);
+  return method_wrapper_->Invoke(instance, args);
 }

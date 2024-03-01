@@ -145,3 +145,9 @@ const MM::Reflection::Meta* MM::Reflection::Type::GetMate() const {
   }
   return type_wrapper_->GetMeta();
 }
+std::size_t MM::Reflection::Type::GetCommonTypeHashCode() const {
+  if (!IsValid()) {
+    return 0;
+  }
+  return type_wrapper_->GetCommonTypeHashCode();
+}
