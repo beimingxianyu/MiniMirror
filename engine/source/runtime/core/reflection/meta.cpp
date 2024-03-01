@@ -1,259 +1,244 @@
-#include "meta.h"
+#include "runtime/core/reflection/meta.h"
 
-bool MM::Reflection::Meta::IsValid() const { return !type_name_.empty(); }
+MM::Reflection::Meta::Meta(
+    const std::string& type_name, Type&& type,
+    std::unordered_map<std::string, Method>&& constructors,
+    std::unordered_map<std::string, Method>&& methods,
+    std::unordered_map<std::string, Property>&& properties)
+    : type_name_(type_name),
+      type_(std::move(type)),
+      constructors_(std::move(constructors)),
+      methods_(std::move(methods)),
+      properties_(std::move(properties)) {}
 
-std::string MM::Reflection::Meta::GetTypeName() const { return type_name_; }
+const std::string& MM::Reflection::Meta::GetTypeName() const {
+  return type_name_;
+}
 
-MM::Reflection::Type MM::Reflection::Meta::GetType() const { return type_; }
+const MM::Reflection::Type& MM::Reflection::Meta::GetType() const {
+  return type_;
+}
 
-MM::Reflection::Destructor MM::Reflection::Meta::GetDestructor() const {
-  if (!IsValid()) {
-    return Destructor{};
+bool MM::Reflection::Meta::HaveConstructor(
+    const std::string& constructor_name) const {
+  return constructors_.find(constructor_name) != constructors_.end();
+}
+
+const MM::Reflection::Method* MM::Reflection::Meta::GetConstuctor(
+    const std::string& constructor_name) const {
+  if (const auto& find_result = constructors_.find(constructor_name);
+      find_result != constructors_.end()) {
+    return &(find_result->second);
   }
-  return Destructor(destructor_);
+
+  return nullptr;
+}
+
+std::vector<const MM::Reflection::Method*> MM::Reflection::Meta::GetAllConstuctor() const {
+  if (constructors_.empty()) {
+    return std::vector<const Method*>{};
+  }
+
+  std::vector<const Method*> result{constructors_.size(), nullptr};
+  for (const std::pair<const std::string, Method>& one_method : constructors_) {
+    result.push_back(&(one_method.second));
+  }
+
+  return result;
 }
 
 bool MM::Reflection::Meta::HaveMethod(const std::string& method_name) const {
-  if (!IsValid()) {
-    return false;
-  }
   return methods_.find(method_name) != methods_.end();
 }
 
-MM::Reflection::Method MM::Reflection::Meta::GetMethod(
+const MM::Reflection::Method* MM::Reflection::Meta::GetMethod(
     const std::string& method_name) const {
-  if (IsValid()) {
-    if (methods_.find(method_name) != methods_.end()) {
-      return Method{method_name, methods_.at(method_name)};
-    }
+  if (const auto& find_result = methods_.find(method_name);
+      find_result != methods_.end()) {
+    return &(find_result->second);
   }
-  return Method{};
+
+  return nullptr;
 }
 
-std::vector<MM::Reflection::Method> MM::Reflection::Meta::GetAllMethod() const {
-  std::vector<Method> method_list;
-  if (IsValid()) {
-    for (const auto& method : methods_) {
-      method_list.push_back(Method{method.first, method.second});
-    }
-    return method_list;
+std::vector<const MM::Reflection::Method*> MM::Reflection::Meta::GetAllMethod() const {
+  if (methods_.empty()) {
+    return std::vector<const Method*>{};
   }
-  return method_list;
+
+  std::vector<const Method*> result{methods_.size(), nullptr};
+  for (const std::pair<const std::string, Method>& one_method : methods_) {
+    result.push_back(&(one_method.second));
+  }
+
+  return result;
 }
 
-bool MM::Reflection::Meta::
-HaveProperty(const std::string& property_name) const {
-  if (!IsValid()) {
+bool MM::Reflection::Meta::HaveProperty(
+    const std::string& property_name) const {
+  return properties_.find(property_name) != properties_.end();
+}
+
+const MM::Reflection::Property* MM::Reflection::Meta::GetProperty(
+    const std::string& property_name) const {
+  if (const auto& find_result = properties_.find(property_name);
+      find_result != properties_.end()) {
+    return &(find_result->second);
+  }
+
+  return nullptr;
+}
+
+std::vector<const MM::Reflection::Property*> MM::Reflection::Meta::GetAllProperty() const {
+  if (properties_.empty()) {
+    return std::vector<const Property*>{};
+  }
+
+  std::vector<const Property*> result{properties_.size(), nullptr};
+  for (const std::pair<const std::string, Property>& one_properties :
+       properties_) {
+    result.push_back(&(one_properties.second));
+  }
+
+  return result;
+}
+
+bool MM::Reflection::Meta::AddConstructor(Method&& constuctor) {
+  if (!constuctor.IsValid()) {
     return false;
   }
-  return properties.find(property_name) != properties.end();
+
+  constructors_[constuctor.GetMethodName()] = std::move(constuctor);
+
+  return true;
 }
 
-MM::Reflection::Property MM::Reflection::Meta::GetProperty(
-    const std::string& property_name) const {
-  if (IsValid()) {
-    if (properties.find(property_name) != properties.end()) {
-      return Property(property_name, properties.at(property_name));
-    }
-  }
-  return Property{};
+void MM::Reflection::Meta::RemoveConstructor(
+    const std::string& constructor_name) {
+  constructors_.erase(constructor_name);
 }
 
-std::vector<MM::Reflection::Property> MM::Reflection::Meta::GetAllProperty()
-    const {
-  std::vector<Property> property_list;
-  if (IsValid()) {
-    for (const auto& property_ : properties) {
-      property_list.push_back(Property{property_.first, property_.second});
-    }
+bool MM::Reflection::Meta::AddMethod(Method&& method) {
+  if (!method.IsValid()) {
+    return false;
   }
-  return property_list;
+
+  methods_[method.GetMethodName()] = std::move(method);
+
+  return true;
 }
 
-bool MM::Reflection::Meta::SetDestructor(
-    const std::shared_ptr<DestructorWrapperBase>& destructor_wrapper) {
-  if (IsValid()) {
-    if (destructor_wrapper->GetType().GetTypeHashCode() ==
-        destructor_->GetType().GetTypeHashCode()) {
-      destructor_ = destructor_wrapper;
-      return true;
-    }
-  }
-  return false;
+void MM::Reflection::Meta::RemoveMethod(const std::string& method_name) {
+  methods_.erase(method_name);
 }
 
-bool MM::Reflection::Meta::AddConstructor(
-    const std::shared_ptr<ConstructorWrapperBase>& constructor_wrapper) {
-  if (IsValid()) {
-    if (GetType().GetTypeHashCode() ==
-        constructor_wrapper->GetType().GetTypeHashCode()) {
-      const std::size_t other_hash_code = constructor_wrapper->HashCode();
-      for (const auto& constructor : constructors_) {
-        if (other_hash_code == constructor->HashCode()) {
-          return false;
-        }
-      }
-      constructors_.push_back(constructor_wrapper);
-      return true;
-    }
+bool MM::Reflection::Meta::AddProperty(Property&& property) {
+  if (!property.IsValid()) {
+    return false;
   }
-  return false;
+
+  if (HaveProperty(property.GetPropertyName())) {
+    return false;
+  }
+
+  properties_.emplace(property.GetPropertyName(), std::move(property));
+
+  return true;
 }
 
-bool MM::Reflection::Meta::AddMethod(
-    const std::string& method_name,
-    const std::shared_ptr<MethodWrapperBase>& method_wrapper) {
-  if (IsValid()) {
-    if (GetType().GetTypeHashCode() ==
-        method_wrapper->GetClassType().GetTypeHashCode()) {
-      const std::size_t other_hash_code = method_wrapper->HashCode();
-      for (const auto& method : methods_) {
-        if (other_hash_code == method.second->HashCode()) {
-          return false;
-        }
-      }
-      methods_[method_name] = method_wrapper;
-      return true;
-    }
-  }
-  return false;
-}
-
-bool MM::Reflection::Meta::AddProperty(
-    const std::string& property_name,
-    const std::shared_ptr<PropertyWrapperBase>& property_wrapper) {
-  if (IsValid()) {
-    if (GetType().GetTypeHashCode() ==
-        property_wrapper->GetClassType().GetTypeHashCode()) {
-      const std::size_t other_hash_code = property_wrapper->HashCode();
-      for (const auto& property_ : properties) {
-        if (other_hash_code == property_.second->HashCode()) {
-          return false;
-        }
-      }
-      properties[property_name] = property_wrapper;
-      return true;
-    }
-  }
-  return false;
-}
-
-MM::Reflection::Variable MM::Reflection::Meta::CreateInstance() const {
-  if (IsValid()) {
-    for (const auto& constructor : constructors_) {
-      if (constructor->GetArgumentNumber() == 0) {
-        Variable temp = constructor->Invoke();
-        if (temp.IsValid()) {
-          return temp;
-        }
-      }
-    }
-  }
-  return Variable{};
+void MM::Reflection::Meta::RemoveProperty(const std::string& property_name) {
+  properties_.erase(property_name);
 }
 
 MM::Reflection::Variable MM::Reflection::Meta::CreateInstance(
-    Variable& arg1) const {
-  if (IsValid()) {
-    for (const auto& constructor : constructors_) {
-      if (constructor->GetArgumentNumber() == 1) {
-        Variable temp = constructor->Invoke(arg1);
-        if (temp.IsValid()) {
-          return temp;
-        }
-      }
-    }
+    const std::string& constructor_name) const {
+  const Method* constructor = GetConstuctor(constructor_name);
+  if (constructor == nullptr) {
+    return Variable{};
   }
-  return Variable{};
-}
 
-MM::Reflection::Variable MM::Reflection::Meta::CreateInstance(Variable& arg1,
-    Variable& arg2) const {
-  if (IsValid()) {
-    for (const auto& constructor : constructors_) {
-      if (constructor->GetArgumentNumber() == 2) {
-        Variable temp = constructor->Invoke(arg1, arg2);
-        if (temp.IsValid()) {
-          return temp;
-        }
-      }
-    }
-  }
-  return Variable{};
-}
-
-MM::Reflection::Variable MM::Reflection::Meta::CreateInstance(Variable& arg1,
-    Variable& arg2, Variable& arg3) const {
-  if (IsValid()) {
-    for (const auto& constructor : constructors_) {
-      if (constructor->GetArgumentNumber() == 3) {
-        Variable temp = constructor->Invoke(arg1, arg2, arg3);
-        if (temp.IsValid()) {
-          return temp;
-        }
-      }
-    }
-  }
-  return Variable{};
-}
-
-MM::Reflection::Variable MM::Reflection::Meta::CreateInstance(Variable& arg1,
-    Variable& arg2, Variable& arg3, Variable& arg4) const {
-  if (IsValid()) {
-    for (const auto& constructor : constructors_) {
-      if (constructor->GetArgumentNumber() == 4) {
-        Variable temp = constructor->Invoke(arg1, arg2, arg3, arg4);
-        if (temp.IsValid()) {
-          return temp;
-        }
-      }
-    }
-  }
-  return Variable{};
-}
-
-MM::Reflection::Variable MM::Reflection::Meta::CreateInstance(Variable& arg1,
-    Variable& arg2, Variable& arg3, Variable& arg4, Variable& arg5) const {
-  if (IsValid()) {
-    for (const auto& constructor : constructors_) {
-      if (constructor->GetArgumentNumber() == 5) {
-        Variable temp = constructor->Invoke(arg1, arg2, arg3, arg4, arg5);
-        if (temp.IsValid()) {
-          return temp;
-        }
-      }
-    }
-  }
-  return Variable{};
-}
-
-MM::Reflection::Variable MM::Reflection::Meta::CreateInstance(Variable& arg1,
-    Variable& arg2, Variable& arg3, Variable& arg4, Variable& arg5,
-    Variable& arg6) const {
-  if (IsValid()) {
-    for (const auto& constructor : constructors_) {
-      if (constructor->GetArgumentNumber() == 6) {
-        Variable temp = constructor->Invoke(arg1, arg2, arg3, arg4, arg5, arg6);
-        if (temp.IsValid()) {
-          return temp;
-        }
-      }
-    }
-  }
-  return Variable{};
+  Variable empty_instance{};
+  return constructor->Invoke(empty_instance);
 }
 
 MM::Reflection::Variable MM::Reflection::Meta::CreateInstance(
-    std::vector<Variable>& args) const {
-  if (IsValid()) {
-    for (const auto& constructor : constructors_) {
-      if (constructor->GetArgumentNumber() == args.size()) {
-        Variable temp = constructor->Invoke(args);
-        if (temp.IsValid()) {
-          return temp;
-        }
-      }
-    }
+    const std::string& constructor_name, Variable& arg1) const {
+  const Method* constructor = GetConstuctor(constructor_name);
+  if (constructor == nullptr) {
+    return Variable{};
   }
-  return Variable{};
+
+  Variable empty_instance{};
+  return constructor->Invoke(empty_instance, arg1);
+}
+
+MM::Reflection::Variable MM::Reflection::Meta::CreateInstance(
+    const std::string& constructor_name, Variable& arg1, Variable& arg2) const {
+  const Method* constructor = GetConstuctor(constructor_name);
+  if (constructor == nullptr) {
+    return Variable{};
+  }
+
+  Variable empty_instance{};
+  return constructor->Invoke(empty_instance, arg1, arg2);
+}
+
+MM::Reflection::Variable MM::Reflection::Meta::CreateInstance(
+    const std::string& constructor_name, Variable& arg1, Variable& arg2,
+    Variable& arg3) const {
+  const Method* constructor = GetConstuctor(constructor_name);
+  if (constructor == nullptr) {
+    return Variable{};
+  }
+
+  Variable empty_instance{};
+  return constructor->Invoke(empty_instance, arg1, arg2, arg3);
+}
+
+MM::Reflection::Variable MM::Reflection::Meta::CreateInstance(
+    const std::string& constructor_name, Variable& arg1, Variable& arg2,
+    Variable& arg3, Variable& arg4) const {
+  const Method* constructor = GetConstuctor(constructor_name);
+  if (constructor == nullptr) {
+    return Variable{};
+  }
+
+  Variable empty_instance{};
+  return constructor->Invoke(empty_instance, arg1, arg2, arg3, arg4);
+}
+
+MM::Reflection::Variable MM::Reflection::Meta::CreateInstance(
+    const std::string& constructor_name, Variable& arg1, Variable& arg2,
+    Variable& arg3, Variable& arg4, Variable& arg5) const {
+  const Method* constructor = GetConstuctor(constructor_name);
+  if (constructor == nullptr) {
+    return Variable{};
+  }
+
+  Variable empty_instance{};
+  return constructor->Invoke(empty_instance, arg1, arg2, arg3, arg4, arg5);
+}
+
+MM::Reflection::Variable MM::Reflection::Meta::CreateInstance(
+    const std::string& constructor_name, Variable& arg1, Variable& arg2,
+    Variable& arg3, Variable& arg4, Variable& arg5, Variable& arg6) const {
+  const Method* constructor = GetConstuctor(constructor_name);
+  if (constructor == nullptr) {
+    return Variable{};
+  }
+
+  Variable empty_instance{};
+  return constructor->Invoke(empty_instance, arg1, arg2, arg3, arg4, arg5,
+                             arg6);
+}
+
+MM::Reflection::Variable MM::Reflection::Meta::CreateInstance(
+    const std::string& constructor_name, std::vector<Variable*>& args) const {
+  const Method* constructor = GetConstuctor(constructor_name);
+  if (constructor == nullptr) {
+    return Variable{};
+  }
+
+  Variable empty_instance{};
+  return constructor->Invoke(empty_instance, args);
 }

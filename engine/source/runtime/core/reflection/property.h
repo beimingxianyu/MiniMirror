@@ -1,8 +1,7 @@
 #pragma once
 
+#include <cstddef>
 #include <memory>
-#include "runtime/core/reflection/property.h"
-#include "runtime/core/reflection/type.h"
 #include "runtime/core/reflection/variable.h"
 
 namespace MM {
@@ -25,11 +24,15 @@ class PropertyWrapperBase {
 
   std::uint64_t GetPropertySize() const {return size_;}
 
+  virtual const void* GetStaticPropertyAddress() const {return nullptr;}
+
+  virtual void* GetStaticPropertyAddress() {return nullptr;}
+
   virtual bool IsValid() const {
     return size_ != 0;
   }
 
-  virtual bool IsStaticProperty() const = 0;
+  virtual bool IsStatic() const = 0;
 
   /**
    * \brief Get the hashcode of this class.
@@ -89,7 +92,7 @@ class PropertyWrapperBase {
 };
 
 
-template <typename PropertyType_, typename ClassType_>
+template <typename ClassType_, typename PropertyType_>
 class CommonPropertyWrapper
     : public PropertyWrapperBase {
   friend class Property;
@@ -161,11 +164,18 @@ class CommonPropertyWrapper
 
 };
 
-template <typename PropertyType_, typename ClassType_>
+template <typename ClassType_, typename PropertyType_>
 class PropertyWrapper
-    : public CommonPropertyWrapper<PropertyType_, ClassType_> {
+    : public CommonPropertyWrapper<ClassType_, PropertyType_> {
+
   public:
-    bool IsStaticProperty() const {
+   PropertyWrapper(const std::string& property_name, std::uint64_t offset,
+                   std::uint64_t size)
+       : CommonPropertyWrapper<ClassType_, PropertyType_>(property_name, offset,
+                                                          size) {}
+
+  public:
+    bool IsStatic() const {
       return false;
     }
 
@@ -178,7 +188,7 @@ class PropertyWrapper
    */
   Variable GetPropertyVariable(Variable& class_variable) override {
     PropertyType_* property_ptr =reinterpret_cast<PropertyType_*>(static_cast<char*>(class_variable.GetValue()) + GetPropertyOffset());
-    return Variable{std::make_unique<PropertyVariable<PropertyType_>>(*property_ptr)};
+    return Variable{std::make_unique<PropertyVariableWrapper<PropertyType_>>(*property_ptr)};
   }
 
   /**
@@ -189,11 +199,11 @@ class PropertyWrapper
    */
   Variable GetPropertyVariable(const Variable& class_variable) const override {
     const PropertyType_* property_ptr =reinterpret_cast<const PropertyType_*>(static_cast<const char*>(class_variable.GetValue()) + GetPropertyOffset());
-    return Variable{std::make_unique<PropertyVariable<const PropertyType_>>(*property_ptr)};
+    return Variable{std::make_unique<PropertyVariableWrapper<const PropertyType_>>(*property_ptr)};
   }
 };
 
-template <typename PropertyType_, typename ClassType_>
+template <typename ClassType_, typename PropertyType_>
 class StaticPropertyWrapper
     : public CommonPropertyWrapper<PropertyType_, ClassType_> {
   public:
@@ -202,7 +212,7 @@ class StaticPropertyWrapper
   public:
    StaticPropertyWrapper(const std::string& property_name,
                          StaticPropertyType address, std::uint64_t size)
-       : PropertyWrapperBase(property_name, 0, size),
+       : CommonPropertyWrapper<ClassType_, PropertyType_>(property_name, 0, size),
          static_property_address_(address) {}
   virtual ~StaticPropertyWrapper() = default; 
 
@@ -211,8 +221,16 @@ class StaticPropertyWrapper
       return PropertyWrapperBase::IsValid() && static_property_address_ != nullptr;
     }
 
-    bool IsStaticProperty() const {
+    bool IsStatic() const {
       return true;
+    }
+
+    const void* GetStaticPropertyAddress() const override { 
+      return static_property_address_;
+    }
+
+    void* GetStaticPropertyAddress() override { 
+      return static_property_address_;
     }
 
  private:
@@ -223,7 +241,7 @@ class StaticPropertyWrapper
    * in \ref class_variable.
    */
   Variable GetPropertyVariable(Variable&) override {
-    return Variable{std::make_unique<PropertyVariable<PropertyType_>>(*static_property_address_)};
+    return Variable{std::make_unique<PropertyVariableWrapper<PropertyType_>>(*static_property_address_)};
   }
 
   /**
@@ -233,7 +251,7 @@ class StaticPropertyWrapper
    * in \ref class_variable.
    */
   Variable GetPropertyVariable(const Variable&) const override {
-    return Variable{std::make_unique<PropertyVariable<const PropertyType_>>(*static_property_address_)};
+    return Variable{std::make_unique<PropertyVariableWrapper<const PropertyType_>>(*static_property_address_)};
   }
 
   private:
@@ -246,14 +264,36 @@ class Property {
   friend class Variable;
 
  public:
-  Property();
-  ~Property();
-  Property(const Property& other);
-  Property(Property&& other) noexcept;
-  Property& operator=(const Property& other);
-  Property& operator=(Property&& other) noexcept;
+  Property() = default;
+  ~Property() = default;
+  Property(const Property& other) = delete;
+  Property(Property&& other) noexcept = default;
+  Property& operator=(const Property& other) = delete;
+  Property& operator=(Property&& other) noexcept = default;
 
  public:
+  template<typename ClassType_, typename PropertyType_>
+  static Property CreateProperty(const std::string& property_name, std::uint64_t offset, std::uint64_t size) {
+    return Property{std::make_unique<PropertyWrapper<ClassType_, PropertyType_>>(property_name, offset, size)};
+  }
+
+  template<typename ClassType_, typename PropertyType_>
+  static Property CreateStaticProperty(const std::string& property_name, void* static_property_address, std::uint64_t size) {
+    using StaticPropertyType = PropertyType_ ClassType_::*;
+    return Property{std::make_unique<StaticPropertyWrapper<ClassType_, PropertyType_>>(property_name, reinterpret_cast<StaticPropertyType>(static_property_address), size)};
+  }
+
+ public:
+  std::size_t GetPropertySize() const;
+
+  const std::string& GetPropertyName() const;
+
+  std::size_t GetPropertyOffset() const;
+
+  void* GetStaticPropertyAddress() const;
+
+  bool IsStatic() const;
+
   /**
    * \brief Get the hashcode of this class.
    * \return The hashcode of this class.
@@ -272,20 +312,16 @@ class Property {
   /**
    * \brief Get the MM::Reflection::Type of the object held by this object.
    * \return The MM::Reflection::TypeWrapper of the object held by this object.
+   * \remark Return nullptr if this object is invalid.
    */
-  MM::Reflection::Type GetType() const;
+  const MM::Reflection::Type* GetType() const;
 
   /**
    * \brief Get the MM::Reflection::Type of the class held by this property.
    * \return The MM::Reflection::TypeWrapper of the class held by this property.
+   * \remark Return nullptr if this object is invalid.
    */
-  MM::Reflection::Type GetClassType() const;
-
-  /**
-   * \brief Get the name of this property.
-   * \return The name of this property.
-   */
-  std::string GetName() const;
+  const MM::Reflection::Type* GetClassType() const;
 
   /**
    * \brief Get meta data.
@@ -293,7 +329,14 @@ class Property {
    * \remark If the type is not registered or this object is invalid, the empty
    * std::weak_ptr will be returned.
    */
-  std::weak_ptr<Meta> GetMate() const;
+  const Meta* GetMate() const;
+
+  /**
+   * \brief Get class meta data.
+   * \return Returns the metadata of the class that holds the property.
+   * \remark If the type is not registered, the containing nullptr will be returned.
+   */
+  const Meta* GetClassMeta() const;
 
  private:
   /**
@@ -302,16 +345,20 @@ class Property {
    * \return A MM::Reflection::Variable that holds the this property contained
    * in \ref class_variable.
    */
+  Variable GetPropertyVariable(Variable& class_variable) const;
+
+  /**
+   * \brief Gets the variable that the attribute refers to.
+   * \param class_variable The class variable of this property.
+   * \return A MM::Reflection::Variable that holds the this property contained
+   * in \ref class_variable.
+   */
   Variable GetPropertyVariable(const Variable& class_variable) const;
 
-  Property(const std::string& property_name,
-           const std::shared_ptr<PropertyWrapperBase>& property_wrapper);
-
-  static Property CreateProperty(
-      const std::string& property_name,
-      const std::shared_ptr<PropertyWrapperBase>& property_wrapper);
+  explicit Property(std::unique_ptr<PropertyWrapperBase>&& property_wrapper) : property_wrapper_(std::move(property_wrapper)) {}
 
  private:
+  std::unique_ptr<PropertyWrapperBase> property_wrapper_{nullptr};
 };
 }  // namespace Reflection
 }  // namespace MM

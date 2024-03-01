@@ -1,89 +1,81 @@
 #include "runtime/core/reflection/property.h"
 
-MM::Reflection::Property::Property() : property_wrapper_{} {}
-
-MM::Reflection::Property::~Property() = default;
-
-MM::Reflection::Property::Property(const Property& other) : property_wrapper_(other.property_wrapper_){}
-
-MM::Reflection::Property::Property(Property&& other) noexcept {
-  std::swap(property_wrapper_, other.property_wrapper_);
-  other.property_wrapper_.reset();
+std::size_t MM::Reflection::Property::GetPropertySize() const {
+  return property_wrapper_->GetPropertySize();
 }
-
-MM::Reflection::Property& MM::Reflection::Property::operator=(
-    const Property& other) {
-  if (this == &other) {
-    return *this;
-  }
-  property_wrapper_ = other.property_wrapper_;
-  return *this;
+const std::string& MM::Reflection::Property::GetPropertyName() const {
+  return property_wrapper_->GetPropertyName();
 }
-
-MM::Reflection::Property& MM::Reflection::Property::operator=(
-    Property&& other) noexcept {
-  if (this == &other) {
-    return *this;
-  }
-  std::swap(property_wrapper_, other.property_wrapper_);
-  other.property_wrapper_.reset();
-  return *this;
+std::size_t MM::Reflection::Property::GetPropertyOffset() const {
+  return property_wrapper_->GetPropertyOffset();
 }
-
+void* MM::Reflection::Property::GetStaticPropertyAddress() const {
+  return property_wrapper_->GetStaticPropertyAddress();
+}
+bool MM::Reflection::Property::IsStatic() const {
+  return property_wrapper_->IsStatic();
+}
 std::size_t MM::Reflection::Property::HashCode() const {
-  return property_wrapper_.lock()->HashCode() +
-         std::hash<std::string>()(property_name_);
+  return property_wrapper_->HashCode();
 }
-
 bool MM::Reflection::Property::IsValid() const {
-  return (property_wrapper_.expired()) && (!property_name_.empty());
+  return property_wrapper_ != nullptr && property_wrapper_->IsValid();
 }
-
-MM::Reflection::Type MM::Reflection::Property::GetType() const {
+const MM::Reflection::Type* MM::Reflection::Property::GetType() const {
   if (!IsValid()) {
-    return Type{};
+    return nullptr;
   }
-  return property_wrapper_.lock()->GetType();
+  return property_wrapper_->GetType();
 }
-
-MM::Reflection::Type MM::Reflection::Property::GetClassType() const {
+const MM::Reflection::Type* MM::Reflection::Property::GetClassType() const {
   if (!IsValid()) {
-    return Type{};
+    return nullptr;
   }
-  return property_wrapper_.lock()->GetClassType();
-}
 
-std::string MM::Reflection::Property::GetName() const {
+  return property_wrapper_->GetClassType();
+}
+const MM::Reflection::Meta* MM::Reflection::Property::GetMate() const {
   if (!IsValid()) {
-    return std::string{};
+    return nullptr;
   }
-  return property_name_;
-}
 
-std::weak_ptr<MM::Reflection::Meta> MM::Reflection::Property::
-GetMate() const {
-  if (IsValid()) {
-    return std::weak_ptr<MM::Reflection::Meta>{g_meta_database[std::string{}]};
+  return property_wrapper_->GetMeta();
+}
+const MM::Reflection::Meta* MM::Reflection::Property::GetClassMeta() const {
+  if (!IsValid()) {
+    return nullptr;
   }
-  return property_wrapper_.lock()->GetMeta();
-}
 
+  return property_wrapper_->GetClassMeta();
+}
 MM::Reflection::Variable MM::Reflection::Property::GetPropertyVariable(
     const Variable& class_variable) const {
-  if (class_variable.GetType().GetTypeHashCode() ==
-      property_wrapper_.lock()->GetClassType().GetOriginalTypeHashCode()) {
-    return property_wrapper_.lock()->GetPropertyVariable(class_variable);
+  if (!IsValid()) {
+    return Variable{};
+  }
+  const Type* class_type = class_variable.GetType();
+  if (class_type == nullptr) {
+    return Variable{};
+  }
+  if (class_type->GetCommonTypeHashCode() ==
+      property_wrapper_->GetClassType()->GetCommonTypeHashCode()) {
+    return property_wrapper_->GetPropertyVariable(class_variable);
   }
   return Variable{};
 }
 
-MM::Reflection::Property::Property(const std::string& property_name,
-                                   const std::shared_ptr<PropertyWrapperBase>& property_wrapper) : property_name_(property_name), property_wrapper_(property_wrapper){}
-
-MM::Reflection::Property MM::Reflection::Property::CreateProperty(
-    const std::string& property_name,
-    const std::shared_ptr<PropertyWrapperBase>& property_wrapper) {
-  return Property{property_name, property_wrapper};
+MM::Reflection::Variable MM::Reflection::Property::GetPropertyVariable(
+    Variable& class_variable) const {
+  if (!IsValid()) {
+    return Variable{};
+  }
+  const Type* class_type = class_variable.GetType();
+  if (class_type == nullptr) {
+    return Variable{};
+  }
+  if (class_type->GetTypeHashCode() ==
+      property_wrapper_->GetClassType()->GetOriginalTypeHashCode()) {
+    return property_wrapper_->GetPropertyVariable(class_variable);
+  }
+  return Variable{};
 }
-
-

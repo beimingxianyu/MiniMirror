@@ -129,10 +129,18 @@ class TypeWrapperBase {
   /**
    * \brief Get original type hash code.
    * \return The original type hash code.
-   * \remark A original type is a type without pointers, references, and
+   * \remark A original type is a type without pointers, references, array, and
    * constants. (Example:int*: int, int&: int, const int&: int, etc.)
    */
   virtual std::size_t GetOriginalTypeHashCode() const = 0;
+
+  /**
+   * \brief Get common type hash code.
+   * \return The common type hash code.
+   * \remark A original type is a type without references and
+   * constants. (Example:int*: int*, int&: int, const int&: int, etc.)
+   */
+  virtual std::size_t GetCommonTypeHashCode() const = 0;
 
   /**
    * \brief Get type Name.
@@ -165,6 +173,7 @@ class TypeWrapper final : public TypeWrapperBase {
  public:
   using Type = TypeName;
   using OriginalType = GetOriginalTypeT<TypeName>;
+  using CommonType = std::remove_reference_t<std::remove_const_t<TypeName>>;
 
  public:
   TypeWrapper() = default;
@@ -290,6 +299,14 @@ class TypeWrapper final : public TypeWrapperBase {
   std::size_t GetOriginalTypeHashCode() const override;
 
   /**
+   * \brief Get common type hash code.
+   * \return The common type hash code.
+   * \remark A original type is a type without references and
+   * constants. (Example:int*: int*, int&: int, const int&: int, etc.)
+   */
+  virtual std::size_t GetCommonTypeHashCode() const override;
+
+  /**
    * \brief Get type Name.
    * \return The \ref TypeName type name.
    * \remark If the type is not registered, the default empty std::string will
@@ -340,10 +357,10 @@ class Type {
   Type();
   ~Type();
   Type(const Type& other) = delete;
-  Type(Type&& other) noexcept = delete;
+  Type(Type&& other) noexcept = default;
   explicit Type(std::unique_ptr<TypeWrapperBase>&& other) noexcept;
   Type& operator=(const Type& other) = delete;
-  Type& operator=(Type&& other) noexcept = delete;
+  Type& operator=(Type&& other) noexcept = default;
 
  public:
   /**
@@ -499,6 +516,14 @@ class Type {
   std::string GetTypeName() const;
 
   /**
+   * \brief Get common type hash code.
+   * \return The common type hash code.
+   * \remark A original type is a type without references and
+   * constants. (Example:int*: int*, int&: int, const int&: int, etc.)
+   */
+  std::size_t GetCommonTypeHashCode() const;
+
+  /**
    * \brief Get original type Name.
    * \return The original type name.
    * \remark If the type is not registered or object is not valid, the default
@@ -598,6 +623,11 @@ std::size_t TypeWrapper<TypeName>::GetTypeHashCode() const {
 }
 
 template <typename TypeName>
+std::size_t TypeWrapper<TypeName>::GetCommonTypeHashCode() const {
+  return typeid(CommonType).hash_code();
+}
+
+template <typename TypeName>
 std::size_t TypeWrapper<TypeName>::GetOriginalTypeHashCode() const {
   return typeid(OriginalType).hash_code();
 }
@@ -607,12 +637,12 @@ std::string TypeWrapper<TypeName>::GetTypeName() const {
   if (!IsRegistered()) {
     return std::string{};
   }
-  std::string result{};
+  std::string result{GetOriginalTypeName()};
   if (std::is_pointer<TypeName>::value) {
     if (std::is_const<std::remove_pointer_t<TypeName>>::type) {
       result += "const ";
     }
-    result += GetOriginalTypeName() + "*";
+    result += "*";
     if (std::is_const<TypeName>::value) {
       result += " const";
     }
@@ -620,16 +650,16 @@ std::string TypeWrapper<TypeName>::GetTypeName() const {
     if (std::is_const<TypeName>::value) {
       result += "const ";
     }
-    result += GetOriginalTypeName() + "[]";
+    result += "[]";
   } else {
     if (std::is_const<std::remove_reference_t<TypeName>>::value) {
       result += "const ";
     }
     if (std::is_lvalue_reference<TypeName>::value) {
-      result += GetOriginalTypeName() + "&";
+      result += "&";
     }
     if (std::is_rvalue_reference<TypeName>::value) {
-      result += GetOriginalTypeName() + "&&";
+      result += "&&";
     }
   }
   return result;
