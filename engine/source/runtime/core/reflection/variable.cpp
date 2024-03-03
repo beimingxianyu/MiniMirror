@@ -48,12 +48,17 @@ MM::Reflection::Variable& MM::Reflection::Variable::operator=(
   if (!IsValid() || !other.IsValid()) {
     return *this;
   }
-  if (GetType()->GetCommonTypeHashCode() != other.GetType()->GetCommonTypeHashCode()) {
+  if (GetType()->GetCommonTypeHashCode() !=
+      other.GetType()->GetCommonTypeHashCode()) {
     return *this;
   }
   variable_wrapper_->MoveValue(other.variable_wrapper_->GetValue());
   return *this;
 }
+
+MM::Reflection::Variable::Variable(
+    std::unique_ptr<VariableWrapperBase>&& variable_wrapper)
+    : variable_wrapper_(std::move(variable_wrapper)) {}
 
 MM::Reflection::Variable::operator bool() const { return IsValid();}
 
@@ -62,10 +67,16 @@ bool MM::Reflection::Variable::IsValid() const {
 }
 
 const void* MM::Reflection::Variable::GetValue() const {
+  if (!IsValid()) {
+    return nullptr;
+  }
   return variable_wrapper_->GetValue();
 }
 
 void* MM::Reflection::Variable::GetValue() {
+  if (!IsValid()) {
+    return nullptr;
+  }
   return variable_wrapper_->GetValue();
 }
 
@@ -264,6 +275,22 @@ MM::Reflection::Variable MM::Reflection::Variable::Invoke(
   return Variable{};
 }
 
+MM::Reflection::Variable MM::Reflection::Variable::Invoke(
+    const std::string& method_name, std::vector<Variable*>&& args) {
+  if (IsValid()) {
+      const Meta* metadata = GetMeta();
+      if (metadata != nullptr) {
+        const Method* method{metadata->GetMethod(method_name)};
+        if (method != nullptr) {
+          assert(method->IsValid());
+          return method->Invoke(*this, args);
+        }
+        return Variable{};
+      }
+  }
+  return Variable{};
+}
+
 void* MM::Reflection::Variable::ReleaseOwnership() {
   return variable_wrapper_->ReleaseOwnership();
 }
@@ -274,9 +301,11 @@ void MM::Reflection::Variable::Destroy() {
 
 bool MM::Reflection::VariableWrapperBase::IsVoid() const { return false; }
 
-bool MM::Reflection::VariableWrapperBase::IsPropertyVariable() { return false; }
-
 bool MM::Reflection::VariableWrapperBase::IsValid() const { return false; }
+
+bool MM::Reflection::VariableWrapperBase::IsPropertyVariable() const {
+  return false;
+}
 
 std::unique_ptr<MM::Reflection::VariableWrapperBase>
 MM::Reflection::VariableWrapperBase::CopyToBasePointer() const {
@@ -291,7 +320,9 @@ MM::Reflection::VariableWrapperBase::MoveToBasePointer() {
 const void* MM::Reflection::VariableWrapperBase::GetValue() const {
   return nullptr;
 }
+
 void* MM::Reflection::VariableWrapperBase::GetValue() { return nullptr; }
+
 bool MM::Reflection::VariableWrapperBase::SetValue(const void*) {
   return false;
 }
@@ -320,7 +351,7 @@ const MM::Reflection::Meta* MM::Reflection::VariableWrapperBase::GetMeta()
   return nullptr;
 }
 
-void* MM::Reflection::VariableWrapperBase::ReleaseOwnership() {}
+void* MM::Reflection::VariableWrapperBase::ReleaseOwnership() {return nullptr;}
 
 bool MM::Reflection::VoidVariable::IsValid() const { return true; }
 

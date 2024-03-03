@@ -3,7 +3,6 @@
 #include <memory>
 #include <type_traits>
 #include "runtime/core/reflection/type.h"
-#include "runtime/core/reflection/utils.h"
 #include "runtime/core/reflection/variable.h"
 #include "utils/type_utils.h"
 #include "utils/utils.h"
@@ -30,13 +29,6 @@ class MethodWrapperBase {
   const std::string& GetMethodName() const;
 
   /**
-   * \brief Get the argument name. 
-   * \brief The argument index.
-   * \return The argument name.
-   */
-  virtual const std::string& GetArgumentName(std::uint32_t argument_index) const = 0;
-
-  /**
    * \brief Get the hashcode of this class.
    * \return The hashcode of this class.
    * \remark The hash value depends on the return value type of the function,
@@ -50,51 +42,55 @@ class MethodWrapperBase {
    * \return If the function is static, it returns true, otherwise it returns
    * false.
    */
-  virtual bool IsStatic() const = 0;
+  virtual bool IsStatic() const {return false;}
+
+  virtual bool IsConst() const {return false;}
+
+  virtual bool IsVolatile() const {return false;}
 
   /**
    * \brief Returns the number of arguments to the function.
    * \return The number of arguments to the function.
    */
-  virtual std::uint32_t GetArgumentNumber() const = 0;
+  virtual std::uint32_t GetArgumentNumber() const {return 0;}
 
   /**
    * \brief Get the \ref MM::Reflection::Type of result type.
    * \return The \ref MM::Reflection::Type of result type.
    */
-  virtual const Type* GetReturnType() const = 0;
+  virtual const Type* GetReturnType() const {return nullptr;}
 
   /**
    * \brief Get the \ref MM::Reflection::Type of result type.
    * \param argument_index The index of argument.
    * \return The \ref MM::Reflection::Type of target argument type.
    */
-  virtual const Type* GetArgumentType(std::uint32_t argument_index) const = 0;
+  virtual const Type* GetArgumentType(std::uint32_t argument_index) const {return nullptr;}
 
   /**
    * \brief Get the \ref MM::Reflection::Type of class type.
    * \return The \ref MM::Reflection::Type of class type.
    */
-  virtual const Type* GetClassType() const = 0;
+  virtual const Type* GetClassType() const {return nullptr;}
 
   /**
    * \brief Get the \ref MM::Reflection::Meta of result type.
    * \return The \ref MM::Reflection::Meta of result type.
    */
-  virtual const Meta* GetReturnMeta() const = 0;
+  virtual const Meta* GetReturnMeta() const {return nullptr;}
 
   /**
    * \brief Get the \ref MM::Reflection::Meta of class type.
    * \param argument_index The index of argument.
    * \return The \ref MM::Reflection::Meta of argument type.
    */
-  virtual const Meta* GetArgumentMeta(std::uint32_t argument_index) const = 0;
+  virtual const Meta* GetArgumentMeta(std::uint32_t argument_index) const {return nullptr;}
 
   /**
    * \brief Get the \ref MM::Reflection::Meta of class type.
    * \return The \ref MM::Reflection::Meta of class type.
    */
-  virtual const Meta* GetClassMeta() const = 0;
+  virtual const Meta* GetClassMeta() const {return nullptr;}
 
   /**
    * \brief Invoke the function with 0 arguments.
@@ -106,7 +102,7 @@ class MethodWrapperBase {
    * function held by this object will not be called and return an empty \ref
    * MM::Reflection::Variable.
    */
-  virtual Variable Invoke(Variable& instance) const = 0;
+  virtual Variable Invoke(Variable& instance) const {return Variable{};}
 
   /**
    * \brief Invoke the function with 1 arguments.
@@ -119,7 +115,7 @@ class MethodWrapperBase {
    * function held by this object will not be called and return an empty \ref
    * MM::Reflection::Variable.
    */
-  virtual Variable Invoke(Variable& instance, Variable& arg1) const = 0;
+  virtual Variable Invoke(Variable& instance, Variable& arg1) const {return Variable{};}
 
   /**
    * \brief Invoke the function with 2 arguments.
@@ -134,7 +130,7 @@ class MethodWrapperBase {
    * MM::Reflection::Variable.
    */
   virtual Variable Invoke(Variable& instance, Variable& arg1,
-                          Variable& arg2) const = 0;
+                          Variable& arg2) const {return Variable{};}
 
   /**
    * \brief Invoke the function with 3 arguments.
@@ -150,7 +146,7 @@ class MethodWrapperBase {
    * MM::Reflection::Variable.
    */
   virtual Variable Invoke(Variable& instance, Variable& arg1, Variable& arg2,
-                          Variable& arg3) const = 0;
+                          Variable& arg3) const {return Variable{};}
 
   /**
    * \brief Invoke the function with 4 arguments.
@@ -167,7 +163,7 @@ class MethodWrapperBase {
    * MM::Reflection::Variable.
    */
   virtual Variable Invoke(Variable& instance, Variable& arg1, Variable& arg2,
-                          Variable& arg3, Variable& arg4) const = 0;
+                          Variable& arg3, Variable& arg4) const {return Variable{};}
 
   /**
    * \brief Invoke the function with 5 arguments.
@@ -186,7 +182,7 @@ class MethodWrapperBase {
    */
   virtual Variable Invoke(Variable& instance, Variable& arg1, Variable& arg2,
                           Variable& arg3, Variable& arg4,
-                          Variable& arg5) const = 0;
+                          Variable& arg5) const {return Variable{};}
 
   /**
    * \brief Invoke the function with 6 arguments.
@@ -206,7 +202,7 @@ class MethodWrapperBase {
    */
   virtual Variable Invoke(Variable& instance, Variable& arg1, Variable& arg2,
                           Variable& arg3, Variable& arg4, Variable& arg5,
-                          Variable& arg6) const = 0;
+                          Variable& arg6) const {return Variable{};}
 
   /**
    * \brief Call the function with any number of parameters.
@@ -220,7 +216,7 @@ class MethodWrapperBase {
    * MM::Reflection::Variable.
    */
   virtual Variable Invoke(Variable& instance,
-                          std::vector<Variable*>& args) const = 0;
+                          std::vector<Variable*>& args) const {return Variable{};}
 
   protected:
     static const std::string empty_string;
@@ -229,30 +225,28 @@ class MethodWrapperBase {
     std::string method_name_{};
 };
 
-const std::string MethodWrapperBase::empty_string{};
 
-
-template <typename ReturnType_, typename InstanceType_,  bool IsStatic_, typename... Args_>
+template <typename ReturnType_, typename InstanceType_,  bool IsStatic_, bool IsConst_, bool IsVolatile_,  typename... Args_>
 class MethodWrapper
     : public MethodWrapperBase {
  public:
   using InstanceType = InstanceType_;
   using ReturnType = ReturnType_;
   using ArgumentsType = std::tuple<Args_...>;
-  using FunctionType = Utils::IfThenElseT<IsStatic_, ReturnType_(*)(Args_...), ReturnType_(InstanceType_::*)(Args_...)>;
+  using FunctionType = Utils::GetFunctionPointTypeT<ReturnType_, InstanceType_, IsStatic_, IsConst_, IsVolatile_, Args_...>;
 
   template <std::size_t index>
   struct StaticGetArgumentType {
     using Types = std::tuple<Args_...>;
-    using Type = typename std::tuple_element<index, Types>::type;
+    using Type = std::tuple_element_t<index, Types>;
   };
   template<std::size_t index>
   using StaticGetArgumentTypeT = typename StaticGetArgumentType<index>::Type;
 
  public:
   MethodWrapper() = default;
-  ~MethodWrapper() override;
-  MethodWrapper(const std::string& method_name, const std::vector<std::string>& argument_name, FunctionType function_ptr) : MethodWrapperBase(method_name), argrument_name_(argument_name), function_ptr_(function_ptr) {}
+  ~MethodWrapper() override = default;
+  MethodWrapper(const std::string& method_name,  FunctionType function_ptr) : MethodWrapperBase(method_name), function_ptr_(function_ptr) {}
   MethodWrapper(const MethodWrapper& other) = delete;
   MethodWrapper(MethodWrapper&& other) noexcept = delete;
   MethodWrapper& operator=(const MethodWrapper& other) = delete;
@@ -277,13 +271,6 @@ class MethodWrapper
             ... ^ (typeid(Args_).hash_code()));
   }
 
-  const std::string& GetArgumentName(std::uint32_t argument_index) const override {
-    if (argument_index >= sizeof...(Args_)) {
-      return empty_string;
-    }
-    return argrument_name_[argument_index];
-  }
-
   /**
    * \brief Determine whether the function is static.
    * \return If the function is static, it returns true, otherwise it returns
@@ -291,6 +278,14 @@ class MethodWrapper
    */
   bool IsStatic() const override {
     return IsStatic_;
+  }
+
+  bool IsConst() const override {
+    return IsConst_;
+  }
+
+  bool IsVolatile() const override {
+    return IsVolatile_;
   }
 
   /**
@@ -315,12 +310,12 @@ class MethodWrapper
    * \param argument_index The index of argument.
    * \return The \ref MM::Reflection::Type of target argument type.
    */
-  virtual const Type* GetArgumentType(std::uint32_t argument_index) const {
-    static std::array<Type, sizeof...(Args_)> ArgTypes{((CreateType<Args_>()) , ...)};
+  const Type* GetArgumentType(std::uint32_t argument_index) const override {
+    static std::array<Type, sizeof...(Args_)> ArgTypes{CreateType<Args_>()...};
     if (argument_index >= sizeof...(Args_)) {
       return nullptr;
     }
-    return ArgTypes[argument_index];
+    return &ArgTypes[argument_index];
   }
 
   /**
@@ -345,7 +340,7 @@ class MethodWrapper
    * \param argument_index The index of argument.
    * \return The \ref MM::Reflection::Meta of argument type.
    */
-  virtual const Meta* GetArgumentMeta(std::uint32_t argument_index) const {
+  const Meta* GetArgumentMeta(std::uint32_t argument_index) const override {
     const Type* argument_type = GetArgumentType(argument_index);
     if (argument_type == nullptr) {
       return nullptr; 
@@ -501,27 +496,29 @@ class MethodWrapper
    */
   Variable Invoke(Variable& instance,
                   std::vector<Variable*>& args) const override {
-    return InvokeVectorImp(instance, args, MakeIndexSequence<sizeof...(Args_)>());
+    return InvokeVectorImp(instance, args, Utils::MakeIndexSequence<sizeof...(Args_)>());
   }
 
  private:
   template<typename ...ArgVariableTypes>
-  constexpr bool AllTypeIsVariable(ArgVariableTypes&&...  /*args*/) {
+  static constexpr bool AllTypeIsVariable(ArgVariableTypes&&...  /*args*/) {
     return ((std::is_same_v<std::remove_reference_t<ArgVariableTypes>, Variable>) && ...);
   }
 
   template<typename ...ArgVariableTypes>
-  bool AllTypeIsArgType(ArgVariableTypes&&... args) {
-    static_assert(AllTypeIsVariable(std::forward<ArgVariableTypes>(args)...), "All parameters must be of type MM::Reflection::Variable.");
+  bool AllTypeIsArgType(ArgVariableTypes&&... args) const {
+    // static_assert(AllTypeIsVariable(std::forward<ArgVariableTypes>(args)...), "All parameters must be of type MM::Reflection::Variable.");
+    static_assert(((std::is_same_v<std::remove_reference_t<ArgVariableTypes>, Variable>) && ...), "All parameters must be of type MM::Reflection::Variable.");
     std::uint32_t i = 0;
     bool all_valid = ((args.IsValid()) && ...);
     if (!all_valid) {
       return all_valid;
     }
+    i = 0;
     return (((args.GetType()->GetCommonTypeHashCode() == GetArgumentType(i)->GetCommonTypeHashCode()) && (++i)) && ...);
   }
   
-  bool AllTypeIsArgTypeFromVector(const std::vector<Variable*>& args) {
+  bool AllTypeIsArgTypeFromVector(const std::vector<Variable*>& args) const {
     if (args.size() != GetArgumentNumber()) {
       return false;
     }
@@ -540,67 +537,84 @@ class MethodWrapper
   }
 
   template<typename ...ArgVariableTypes>
-  Variable InvokeImp(Variable& instance, ArgVariableTypes&& ...args) {
+  Variable InvokeImp(Variable& instance, ArgVariableTypes&& ...args) const {
     if (!IsValid()) {
       return Variable{};
     }
-    if constexpr (!IsStatic_) {
-      if (!instance.IsValid() || (instance.GetType()->GetTypeHashCode() != GetClassType()->GetTypeHashCode())) {
-        return Variable{}; 
+    if constexpr (sizeof...(ArgVariableTypes) == sizeof...(Args_)) {
+      if constexpr (!IsStatic_) {
+        if (!instance.IsValid()) {
+          return Variable{};
+        }
+        const Type* instance_type = instance.GetType();
+        const Type* class_type = GetClassType();
+        if ((instance_type->GetCommonTypeHashCode() != class_type->GetCommonTypeHashCode()) || (instance_type->IsConst() != class_type->IsConst())) {
+          return Variable{};
+        }
       }
-    }
-    if (AllTypeIsArgType(std::forward<ArgVariableTypes>(args)...)) {
-      return Variable{};
-    }
-    if constexpr (IsStatic_) {
-      if constexpr (std::is_same_v<ReturnType_, void>) {
-        (*function_ptr_)((*reinterpret_cast<std::add_pointer_t<std::remove_reference_t<Args_>>>(args.GetValue()))...);
-        return Variable::CreateVoidVariable();
+      if (!AllTypeIsArgType(std::forward<ArgVariableTypes>(args)...)) {
+        return Variable{};
+      }
+      if constexpr (IsStatic_) {
+        if constexpr (std::is_same_v<ReturnType_, void>) {
+          (*function_ptr_)((*reinterpret_cast<std::add_pointer_t<Utils::GetCommonTypeT<Args_>>>(args.GetValue()))...);
+          return Variable::CreateVoidVariable();
+        } else {
+          return Variable::CreateVariable<ReturnType_>((*function_ptr_)((*reinterpret_cast<std::add_pointer_t<Utils::GetCommonTypeT<Args_>>>(args.GetValue()))...));
+        }
       } else {
-        return Variable::CreateVariable<ReturnType_>((*function_ptr_)((*reinterpret_cast<std::add_pointer_t<std::remove_reference_t<Args_>>>(args.GetValue()))...));
-      }
-    } else {
-      if constexpr (std::is_same_v<ReturnType_, void>) {
-        (instance.*function_ptr_)((*reinterpret_cast<std::add_pointer_t<std::remove_reference_t<Args_>>>(args.GetValue()))...);
-        return Variable::CreateVoidVariable();
-      } else {
-        return Variable::CreateVariable<ReturnType_>((instance.*function_ptr_)((*reinterpret_cast<std::add_pointer_t<std::remove_reference_t<Args_>>>(args.GetValue()))...));
+        using InstancePtrType = Utils::IfThenElseT<IsConst_, const InstanceType*, InstanceType*>;
+        InstancePtrType instance_ptr = reinterpret_cast<InstancePtrType>(instance.GetValue());
+        if constexpr (std::is_same_v<ReturnType_, void>) {
+          ((*instance_ptr).*function_ptr_)((*reinterpret_cast<std::add_pointer_t<Utils::GetCommonTypeT<Args_>>>(args.GetValue()))...);
+          return Variable::CreateVoidVariable();
+        } else {
+          return Variable::CreateVariable<ReturnType_>(((*instance_ptr).*function_ptr_)((*reinterpret_cast<std::add_pointer_t<Utils::GetCommonTypeT<Args_>>>(args.GetValue()))...));
+        }
       }
     }
+
+    return Variable{};
   }
 
   template<std::size_t ...ArgIndex>
-  Variable InvokeVectorImp(Variable& instance, std::vector<Variable*>& args, IndexSequence<ArgIndex...>) {
+  Variable InvokeVectorImp(Variable& instance, std::vector<Variable*>& args, Utils::IndexSequence<ArgIndex...>) const {
     if (!IsValid()) {
       return Variable{};
     }
     if constexpr (!IsStatic_) {
-      if (!instance.IsValid() || (instance.GetType()->GetTypeHashCode() != GetClassType()->GetTypeHashCode())) {
-        return Variable{}; 
+      if (!instance.IsValid()) {
+        return Variable{};
+      }
+      const Type* instance_type = instance.GetType();
+      const Type* class_type = GetClassType();
+      if ((instance_type->GetCommonTypeHashCode() != class_type->GetCommonTypeHashCode()) || (instance_type->IsConst() != class_type->IsConst())) {
+        return Variable{};
       }
     }
-    if (AllTypeIsArgTypeFromVector(args)) {
+    if (!AllTypeIsArgTypeFromVector(args)) {
       return Variable{};
     }
     if constexpr (IsStatic_) {
       if constexpr (std::is_same_v<ReturnType_, void>) {
-        (*function_ptr_)((*reinterpret_cast<std::remove_reference_t<Args_>*>(args[ArgIndex]->GetValue()))...);
+        (*function_ptr_)((*reinterpret_cast<std::add_pointer_t<Utils::GetCommonTypeT<Args_>>>(args[ArgIndex]->GetValue()))...);
         return Variable::CreateVoidVariable();
       } else {
-        return Variable::CreateVariable<ReturnType_>((*function_ptr_)((*reinterpret_cast<std::remove_reference_t<Args_>*>(args[ArgIndex]->GetValue()))...));
+        return Variable::CreateVariable<ReturnType_>((*function_ptr_)((*reinterpret_cast<std::add_pointer_t<Utils::GetCommonTypeT<Args_>>>(args[ArgIndex]->GetValue()))...));
       }
     } else {
+      using InstancePtrType = Utils::IfThenElseT<IsConst_, const InstanceType*, InstanceType*>;
+      InstancePtrType instance_ptr = reinterpret_cast<InstancePtrType>(instance.GetValue());
       if constexpr (std::is_same_v<ReturnType_, void>) {
-        (instance.*function_ptr_)((*reinterpret_cast<std::remove_reference_t<Args_>*>(args[ArgIndex]->GetValue()))...);
+        ((*instance_ptr).*function_ptr_)((*reinterpret_cast<std::add_pointer_t<Utils::GetCommonTypeT<Args_>>>(args[ArgIndex]->GetValue()))...);
         return Variable::CreateVoidVariable();
       } else {
-        return Variable::CreateVariable<ReturnType_>((instance.*function_ptr_)((*reinterpret_cast<std::remove_reference_t<Args_>*>(args[ArgIndex]->GetValue()))...));
+        return Variable::CreateVariable<ReturnType_>(((*instance_ptr).*function_ptr_)((*reinterpret_cast<std::add_pointer_t<Utils::GetCommonTypeT<Args_>>>(args[ArgIndex]->GetValue()))...));
       }
     }
   }
 
  private:
-  std::string argrument_name_[sizeof...(Args_)];
   FunctionType function_ptr_ = nullptr;
 };
 
@@ -616,13 +630,11 @@ class Method {
   Method& operator=(Method&& other) noexcept = default;
 
  public:
-  template<typename ReturnType_, typename InstanceType_, bool IsStatic_, typename ...Args_>
+  template<typename ReturnType, typename InstanceType, bool IsStatic, bool IsConst, bool IsVolatile, typename ...Args>
   static Method CreateMethod(
       const std::string& method_name,
-      const std::vector<std::string>& argument_name,
-      void* function_ptr) {
-    using FunctionType = Utils::IfThenElseT<IsStatic_, ReturnType_(*)(Args_...), ReturnType_(InstanceType_::*)(Args_...)>;
-    return Method{std::make_unique<MethodWrapper<ReturnType_, InstanceType_, IsStatic_, Args_...>>(method_name, argument_name, reinterpret_cast<FunctionType>(function_ptr))};
+      Utils::GetFunctionPointTypeT<ReturnType, InstanceType, IsStatic, IsConst, IsVolatile, Args...> function_ptr) {
+    return Method{std::make_unique<MethodWrapper<ReturnType, InstanceType, IsStatic, IsConst, IsVolatile, Args...>>(method_name, function_ptr)};
   }
 
  public:
@@ -631,13 +643,6 @@ class Method {
    * \return The method name.
    */
   const std::string& GetMethodName() const;
-
-  /**
-   * \brief Get the argument name. 
-   * \param argument_index The argument index.
-   * \return The argument name.
-   */
-  const std::string& GetArgumentName(std::uint32_t argument_index) const;
 
   /**
    * \brief Get the hashcode of this class.
@@ -836,6 +841,20 @@ class Method {
    */
   Variable Invoke(Variable& instance, std::vector<Variable*>& args) const;
 
+  /**
+   * \brief Call the function with any number of parameters.
+   * \param instance instance Instance that calls this function.
+   * \param args The list of arguments,
+   * \return \ref MM::Reflection::Variable containing the return value of this
+   * function.
+   * \remark If this object is invalid ,empty \ref MM::Reflection::Variable will
+   * be return. \remark If the number or type of incoming argument is different
+   * from the argument required by the function held by this object, the
+   * function held by this object will not be called and return an empty \ref
+   * MM::Reflection::Variable.
+   */
+  Variable Invoke(Variable& instance, std::vector<Variable*>&& args) const;
+
  private:
   explicit Method(std::unique_ptr<MethodWrapperBase>&& method_wrapper) : method_wrapper_(std::move(method_wrapper)) {}
 
@@ -845,7 +864,5 @@ class Method {
   private:
     std::unique_ptr<MethodWrapperBase> method_wrapper_{};
 };
-
-const std::string Method::empty_string{};
 }  // namespace Reflection
 }  // namespace MM

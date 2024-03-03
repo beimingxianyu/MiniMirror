@@ -25,6 +25,7 @@ class Meta;
 /**
  * \brief The Database of all registered metadata.
  */
-extern std::unordered_map<std::size_t, const Meta*> g_meta_database;
-}
+
+std::unordered_map<std::size_t, Meta*>& GetMetaDatabase();
+}  // namespace Reflection
 }

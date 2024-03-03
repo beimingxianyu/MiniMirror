@@ -5,8 +5,8 @@
 #include <utility>
 #include "runtime/core/reflection/database.h"
 #include "runtime/core/reflection/type.h"
-#include "runtime/core/reflection/utils.h"
 #include "runtime/core/reflection/variable.h"
+#include "utils/type_utils.h"
 
 namespace MM {
 namespace Reflection {
@@ -56,7 +56,7 @@ class VariableWrapperBase {
 
   /**
    * \brief Set the value of the object held by this object.
-   * \param other A void * pointer to the new value.
+   * \param object A void * pointer to the new value.
    * \return Returns true if the value is set successfully, otherwise returns
    * false.
    */
@@ -64,7 +64,7 @@ class VariableWrapperBase {
 
   /**
    * \brief Copy the new value to the object held by the pair, and this function will call the copy assignment function.
-   * \param other A void * pointer to the new value.
+   * \param object A void * pointer to the new value.
    * \return Returns true if the value is set successfully, otherwise returns
    * false.
    */
@@ -72,7 +72,7 @@ class VariableWrapperBase {
 
   /**
    * \brief Move the new value to the object held by the pair, and this function will call the move assignment function.
-   * \param other A void * pointer to the new value.
+   * \param object A void * pointer to the new value.
    * \return Returns true if the value is set successfully, otherwise returns
    * false.
    */
@@ -112,9 +112,6 @@ class VariableWrapper final : public VariableWrapperBase {
   template <typename TargetType_, typename DestructorType_>
   friend class DestructorWrapper;
 
-  template <typename PropertyType_, typename ClassType_, bool IsStatic>
-  friend class PropertyWrapper;
-
   friend class Variable;
 
  public:
@@ -122,8 +119,6 @@ class VariableWrapper final : public VariableWrapperBase {
   using OriginalType = typename TypeWrapper<VariableType_>::OriginalType;
 
  public:
-  VariableWrapper() : value_(nullptr) {}
-
   ~VariableWrapper() override = default;
 
   /**
@@ -136,7 +131,7 @@ class VariableWrapper final : public VariableWrapperBase {
       return;
     }
 
-    other.value_.reset(std::make_unique(*other.value_));
+    value_.reset(std::make_unique<VariableType_>(*other.value_).release());
   }
   /**
    * \brief Move constructor.
@@ -144,7 +139,7 @@ class VariableWrapper final : public VariableWrapperBase {
    */
   VariableWrapper(VariableWrapper&& other) noexcept
     : value_(nullptr) {
-    other.value_.reset(std::make_unique(std::move(*other.value_)));
+    value_.reset(std::make_unique<VariableType_>(std::move(*other.value_)).release());
   }
 
   /**
@@ -232,7 +227,7 @@ class VariableWrapper final : public VariableWrapperBase {
    * \return The "MM::Reflection::Type" of the object held by this object.
    */
   const MM::Reflection::Type* GetType() const override {
-    static MM::Reflection::Type Result = CreateType<VariableType_>;
+    static MM::Reflection::Type Result = CreateType<VariableType_>();
     return &Result;
   }
 
@@ -259,7 +254,7 @@ class VariableWrapper final : public VariableWrapperBase {
    * \return The value pointer of the object held by this object.
    */
   void* GetValue() override {
-    return value_.get();
+    return (void*)(value_.get());
   }
 
   /**
@@ -273,7 +268,7 @@ class VariableWrapper final : public VariableWrapperBase {
         if (object == nullptr) {
           return false;
         }
-        value_.reset(std::make_unique<VariableType_>(*static_cast<VariableType_*>(object)));
+        value_.reset(std::make_unique<VariableType_>(*static_cast<VariableType_*>(const_cast<void*>(object))).release());
         return true;
       }
 
@@ -282,7 +277,7 @@ class VariableWrapper final : public VariableWrapperBase {
 
   /**
    * \brief Copy the new value to the object held by the pair, and this function will call the copy assignment function.
-   * \param other A void * pointer to the new value.
+   * \param object A void * pointer to the new value.
    * \return Returns true if the value is set successfully, otherwise returns
    * false.
    */
@@ -291,7 +286,7 @@ class VariableWrapper final : public VariableWrapperBase {
       if (object == nullptr || !IsValid()) {
         return false;
       }
-      *value_ = *static_cast<VariableType_*>(object);
+      *value_ = *((VariableType_*)object);
       return true;
     }
 
@@ -300,7 +295,7 @@ class VariableWrapper final : public VariableWrapperBase {
 
   /**
    * \brief Move the new value to the object held by the pair, and this function will call the move assignment function.
-   * \param other A void * pointer to the new value.
+   * \param object A void * pointer to the new value.
    * \return Returns true if the value is set successfully, otherwise returns
    * false.
    */
@@ -321,7 +316,7 @@ class VariableWrapper final : public VariableWrapperBase {
    * \return The pointer to the managed object.
    */
   void* ReleaseOwnership() override {
-    return value_.release();
+    return (void*)(value_.release());
   }
 
  private:
@@ -331,7 +326,7 @@ class VariableWrapper final : public VariableWrapperBase {
 template<typename VariableType_>
 class VariableRefrenceWrapper : public VariableWrapperBase {
  public:
-  using VariableRefrenceType = VariableType_&;
+  using VariableRefrenceType = std::add_lvalue_reference_t<std::remove_reference_t<VariableType_>>;
 
  public:
   ~VariableRefrenceWrapper() override = default;
@@ -343,12 +338,16 @@ class VariableRefrenceWrapper : public VariableWrapperBase {
   VariableRefrenceWrapper(const VariableRefrenceWrapper& other)
     : value_(other.value_) {}
 
+
+  explicit VariableRefrenceWrapper(VariableRefrenceType other)
+    : value_(other) {};
+
   /**
-   * \brief Move constructor.
-   * \param other Objects to be moved.
+   * \brief Copy constructor.
+   * \param other Objects to be copied.
    */
-  VariableRefrenceWrapper(VariableRefrenceWrapper&& other)
-    : value_(std::move(other.value_)) {}
+  VariableRefrenceWrapper(VariableRefrenceWrapper& other)
+    : value_(other.value_) {}
 
   /**
    * \brief Copy assign.
@@ -381,15 +380,6 @@ class VariableRefrenceWrapper : public VariableWrapperBase {
     return *this;
   }
 
-  explicit VariableRefrenceWrapper(std::unique_ptr<VariableType_>&& variable_ptr)
-    : value_(std::move(*variable_ptr)) {}
-
-  explicit VariableRefrenceWrapper(const VariableType_& other)
-    : value_(other) {}
-
-  explicit VariableRefrenceWrapper(VariableType_&& other)
-    : value_(std::move(other)) {}
-
  public:
   bool IsPropertyVariable() const override {
     return false;
@@ -402,7 +392,7 @@ class VariableRefrenceWrapper : public VariableWrapperBase {
   std::unique_ptr<VariableWrapperBase> CopyToBasePointer() const override {
     if constexpr (std::is_copy_constructible_v<VariableType_>) {
       return std::make_unique<VariableWrapperBase>(
-          VariableWrapper<VariableType_>(value_));
+          VariableWrapper<std::remove_reference_t<VariableType_>>(value_));
     } else {
       return nullptr;
     }
@@ -411,7 +401,7 @@ class VariableRefrenceWrapper : public VariableWrapperBase {
   std::unique_ptr<VariableWrapperBase> MoveToBasePointer() override {
     if constexpr (std::is_move_constructible_v<VariableType_>) {
       return std::make_unique<VariableWrapperBase>(
-          VariableWrapper<VariableType_>(std::move(value_)));
+          VariableWrapper<std::remove_reference_t<VariableType_>>(std::move(value_)));
     } else {
       return nullptr;
     }
@@ -422,7 +412,7 @@ class VariableRefrenceWrapper : public VariableWrapperBase {
    * \return The "MM::Reflection::Type" of the object held by this object.
    */
   const MM::Reflection::Type* GetType() const override {
-    static MM::Reflection::Type Result = CreateType<VariableType_>;
+    static MM::Reflection::Type Result = CreateType<VariableRefrenceType>();
     return &Result;
   }
 
@@ -449,7 +439,7 @@ class VariableRefrenceWrapper : public VariableWrapperBase {
    * \return The value pointer of the object held by this object.
    */
   void* GetValue() override {
-    return &const_cast<std::remove_const_t<VariableType_>>(value_);
+    return (void*)(&value_);
   }
 
   /**
@@ -463,7 +453,8 @@ class VariableRefrenceWrapper : public VariableWrapperBase {
         if (object == nullptr) {
           return false;
         }
-        value_ = *static_cast<VariableType_*>(object);
+        // using CopyPtrType = std::add_pointer_t<std::remove_reference_t<std::remove_const_t<VariableType_>>>;
+        *const_cast<std::add_pointer_t<Utils::GetNotConstRefrenceT<VariableRefrenceType>>>(&value_) = *static_cast<std::add_pointer_t<std::add_const_t<std::remove_reference_t<VariableRefrenceType>>>>(object);
         return true;
       }
 
@@ -472,7 +463,7 @@ class VariableRefrenceWrapper : public VariableWrapperBase {
 
   /**
    * \brief Copy the new value to the object held by the pair, and this function will call the copy assignment function.
-   * \param other A void * pointer to the new value.
+   * \param object A void * pointer to the new value.
    * \return Returns true if the value is set successfully, otherwise returns
    * false.
    */
@@ -481,7 +472,7 @@ class VariableRefrenceWrapper : public VariableWrapperBase {
       if (object == nullptr) {
         return false;
       }
-      *value_ = *static_cast<VariableType_*>(object);
+      *const_cast<std::add_pointer_t<Utils::GetNotConstRefrenceT<VariableRefrenceType>>>(&value_) = *static_cast<std::add_pointer_t<std::add_const_t<std::remove_reference_t<VariableRefrenceType>>>>(object);
       return true;
     }
 
@@ -490,7 +481,7 @@ class VariableRefrenceWrapper : public VariableWrapperBase {
 
   /**
    * \brief Move the new value to the object held by the pair, and this function will call the move assignment function.
-   * \param other A void * pointer to the new value.
+   * \param object A void * pointer to the new value.
    * \return Returns true if the value is set successfully, otherwise returns
    * false.
    */
@@ -499,7 +490,7 @@ class VariableRefrenceWrapper : public VariableWrapperBase {
       if (object == nullptr) {
         return false;
       }
-      *value_ = std::move(*static_cast<VariableType_*>(object));
+      *const_cast<std::add_pointer_t<Utils::GetNotConstRefrenceT<VariableRefrenceType>>>(&value_) = std::move(*static_cast<std::add_pointer_t<std::add_const_t<std::remove_reference_t<VariableRefrenceType>>>>(object));
       return true;
     }
 
@@ -514,12 +505,69 @@ class VariableRefrenceWrapper : public VariableWrapperBase {
     return nullptr;
   }
 
- private:
+ protected:
   VariableRefrenceType value_;
 };
 
-template<typename PropertyType>
-class PropertyVariableWrapper : public VariableRefrenceWrapper<PropertyType> {
+template<typename PropertyType_>
+class PropertyVariableWrapper : public VariableRefrenceWrapper<PropertyType_> {
+public:
+  ~PropertyVariableWrapper() override = default;
+
+  /**
+   * \brief Copy constructor.
+   * \param other Objects to be copied.
+   */
+  PropertyVariableWrapper(const PropertyVariableWrapper& other)
+    : VariableRefrenceWrapper<PropertyType_>(other) {}
+
+  /**
+   * \brief Move constructor.
+   * \param other Objects to be moved.
+   */
+  PropertyVariableWrapper(PropertyVariableWrapper&& other) noexcept
+    : VariableRefrenceWrapper<PropertyType_>(std::move(other)) {}
+
+  /**
+   * \brief Copy assign.
+   * \param other Objects to be copied.
+   * \return New objects after copying.
+   */
+  PropertyVariableWrapper& operator=(const PropertyVariableWrapper& other) {
+    if (std::addressof(other) == this) {
+      return *this;
+    }
+
+    VariableRefrenceWrapper<PropertyType_>::value_ = other.VariableRefrenceWrapper<PropertyType_>::value_;
+
+    return *this;
+  }
+
+  /**
+   * \brief Move assign.
+   * \tparam TestMove Determine whether move assign can be performed.
+   * \param other Objects to be moved.
+   * \return New objects after moving.
+   */
+  PropertyVariableWrapper& operator=(PropertyVariableWrapper&& other) noexcept {
+    if (std::addressof(other) == this) {
+      return *this;
+    }
+
+    VariableRefrenceWrapper<PropertyType_>::value_ = std::move(other.VariableRefrenceWrapper<PropertyType_>::value_);
+
+    return *this;
+  }
+
+  explicit PropertyVariableWrapper(std::unique_ptr<PropertyType_>&& variable_ptr)
+    : VariableRefrenceWrapper<PropertyType_>(std::move(variable_ptr)) {}
+
+  // explicit PropertyVariableWrapper(const PropertyType_& other)
+  //   : VariableRefrenceWrapper<PropertyType_>(other) {}
+
+  explicit PropertyVariableWrapper(PropertyType_& other)
+    : VariableRefrenceWrapper<PropertyType_>(other) {}
+
 public:
   bool IsPropertyVariable() const override {
     return true;
@@ -529,34 +577,34 @@ public:
 class VoidVariable : public VariableWrapperBase {
 public:
   VoidVariable() = default;
-  ~VoidVariable() = default;
+  ~VoidVariable() override = default;
   VoidVariable(const VoidVariable& other) = default;
   VoidVariable(VoidVariable&& other) noexcept = default;
   VoidVariable& operator=(const VoidVariable& other) = default;
   VoidVariable& operator=(VoidVariable&& other) noexcept = default;
 
 public:
- virtual bool IsValid() const;
+  bool IsValid() const override;
 
- virtual bool IsVoid() const;
+ bool IsVoid() const override;
 
  /**
   * \brief Get a base pointer of copy.
   * \return The base pointer of copy.
   */
- virtual std::unique_ptr<VariableWrapperBase> CopyToBasePointer() const;
+ std::unique_ptr<VariableWrapperBase> CopyToBasePointer() const override;
 
  /**
   * \brief Get a base pointer of move.
   * \return The base pointer of move.
   */
- virtual std::unique_ptr<VariableWrapperBase> MoveToBasePointer();
+ std::unique_ptr<VariableWrapperBase> MoveToBasePointer() override;
 
  /**
   * \brief Get the MM::Reflection::Type of the object held by this object.
   * \return The MM::Reflection::TypeWrapper of the object held by this object.
   */
- virtual const MM::Reflection::Type* GetType() const;
+ const MM::Reflection::Type* GetType() const override;
 
  /**
   * \brief Get meta data.
@@ -564,7 +612,7 @@ public:
   * \remark If the type is not registered, the unique_ptr containing nullptr
   * will be returned.
   */
- virtual const Meta* GetMeta() const;
+ const Meta* GetMeta() const override;
 };
 
 
@@ -586,7 +634,9 @@ class Variable {
    * \return The value you want.
    */
   template <typename VariableType>
-  const VariableType& GetValueCast() const;
+  const VariableType& GetValueCast() const {
+    return *static_cast<const VariableType*>(GetValue());
+  }
 
   /**
    * \brief Get the value and perform type conversion.
@@ -594,7 +644,9 @@ class Variable {
    * \return The value you want.
    */
   template <typename VariableType>
-  VariableType& GetValueCast();
+  VariableType& GetValueCast() {
+    return *static_cast<VariableType*>(GetValue());
+  }
 
   /**
    * \brief Set new value.
@@ -606,20 +658,29 @@ class Variable {
    * false.
    */
   template <typename TargetType, typename VariableType,
-            typename TestConvertible = typename std::enable_if<
-                Conversion<TargetType, VariableType>::value>::type>
-  bool SetValueCast(TargetType&& other);
+            typename TestConvertible =
+                std::enable_if_t<
+                Utils::Conversion<TargetType, VariableType>::value>>
+  bool SetValueCast(TargetType&& other) {
+    VariableType value = static_cast<VariableType>(GetValue());
+    if (value == nullptr) {
+     return false;
+    }
+    value = other;
+
+    return true;
+  }
 
  public:
   /**
    * \brief Default initialization. The initialized object is invalid.
    */
-  Variable();
+  Variable() = default;
 
   /**
    * \brief Use the registered destructor to destruct. If the destructor is not registered actively, the destructor of each class itself will be used.
    */
-  ~Variable(); 
+  ~Variable();
 
   /**
    * \brief Create a \ref MM::Reflection::Variable from an rvalue.
@@ -630,11 +691,16 @@ class Variable {
    */
   template <typename VariableType>
   static Variable CreateVariable(VariableType&& other, bool is_refrence = false) {
-    if (is_refrence || std::is_reference_v<VariableType>) {
-      return Variable{std::make_unique<VariableRefrenceWrapper<VariableType>>(std::forward<VariableType>(other))};
+    if (is_refrence || std::is_lvalue_reference_v<VariableType>) {
+      return Variable{std::make_unique<VariableRefrenceWrapper<VariableType>>(other)};
     }
 
-    return Variable{std::make_unique<VariableWrapper<VariableType>>(std::forward<VariableType>(other))};
+    return Variable{std::make_unique<VariableWrapper<std::remove_reference_t<VariableType>>>(std::forward<VariableType>(other))};
+  }
+
+  template <typename VariableType, typename ...Args>
+  static Variable EmplaceVariable(Args&&... args) {
+    return Variable{std::make_unique<VariableWrapper<std::remove_reference_t<VariableType>>>(std::forward<Args>(args)...)};
   }
 
   static Variable CreateVoidVariable();
@@ -746,7 +812,7 @@ class Variable {
   /**
    * \brief Get the MM::Reflection::Type of the object held by this object.
    * \return The "MM::Reflection::Type" of the object held by this object.
-   * \remark If object is not valid, it will return the nullptr. 
+   * \remark If object is not valid, it will return the nullptr.
    */
   const Type* GetType() const;
 
@@ -889,6 +955,19 @@ class Variable {
    * MM::Reflection::Variable.
    */
   Variable Invoke(const std::string& method_name, std::vector<Variable*>& args);
+
+  /**
+   * \brief Invoke the function with 0 arguments.
+   * \param method_name The name of a method that you want call.
+   * \param args Arguments.
+   * \return \ref MM::Reflection::Variable containing the return value of this
+   * function.
+   * \remark If the number or type of incoming argument is different
+   * from the argument required by the function held by this object or the target method not exist, the
+   * function held by this object will not be called and return an empty \ref
+   * MM::Reflection::Variable.
+   */
+  Variable Invoke(const std::string& method_name, std::vector<Variable*>&& args);
 
   /**
    * \brief Returns a pointer to the managed object and releases the ownership.

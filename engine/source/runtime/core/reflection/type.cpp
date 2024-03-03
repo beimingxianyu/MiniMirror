@@ -1,13 +1,33 @@
 #include "runtime/core/reflection/type.h"
 
+std::string MM::Reflection::TypeWrapper<void>::void_type_name{"void"};
 
 MM::Reflection::Type::Type() : type_wrapper_{nullptr} {}
 
 MM::Reflection::Type::~Type() = default;
 
+MM::Reflection::Type::Type(std::unique_ptr<TypeWrapperBase>&& other) noexcept
+    : type_wrapper_(std::move(other)) {}
+
 bool MM::Reflection::Type::operator==(const Type& other) const { return IsEqual(other); }
 
 MM::Reflection::Type::operator bool() const { return type_wrapper_ != nullptr; }
+
+bool MM::Reflection::Type::IsRegistered() const {
+  if (!IsValid()) {
+    return false;
+  }
+
+  return type_wrapper_->IsRegistered();
+}
+
+bool MM::Reflection::Type::IsVoid() const {
+  if (!IsValid()) {
+    return false;
+  }
+
+  return type_wrapper_->IsVoid();
+}
 
 bool MM::Reflection::Type::IsValid() const { return type_wrapper_ != nullptr; }
 

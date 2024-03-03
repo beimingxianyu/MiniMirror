@@ -2,10 +2,8 @@
 
 #include <string>
 #include <unordered_map>
-#include <unordered_set>
 #include <vector>
 
-#include "runtime/core/reflection/database.h"
 #include "runtime/core/reflection/type.h"
 #include "runtime/core/reflection/method.h"
 #include "runtime/core/reflection/property.h"
@@ -23,9 +21,9 @@ public:
                 std::unordered_map<std::string, Property>&& properties =
                     std::unordered_map<std::string, Property>{});
   Meta(const Meta& other) = delete;
-  Meta(Meta&& other) noexcept = delete;
+  Meta(Meta&& other) noexcept = default;
   Meta& operator=(const Meta& other) = delete;
-  Meta& operator=(Meta&& other) = delete;
+  Meta& operator=(Meta&& other) = default;
 
 public:
   /**

@@ -1,5 +1,9 @@
 #include "runtime/core/reflection/method.h"
 
+const std::string MM::Reflection::MethodWrapperBase::empty_string{};
+
+const std::string MM::Reflection::Method::empty_string{};
+
 MM::Reflection::MethodWrapperBase::MethodWrapperBase(
     const std::string& method_name)
     : method_name_(method_name) {}
@@ -21,15 +25,6 @@ const std::string& MM::Reflection::Method::GetMethodName() const {
   }
 
   return method_wrapper_->GetMethodName();
-}
-
-const std::string& MM::Reflection::Method::GetArgumentName(
-    std::uint32_t argument_index) const {
-  if (!IsValid()) {
-    return empty_string;
-  }
-
-  return method_wrapper_->GetArgumentName(argument_index);
 }
 
 std::size_t MM::Reflection::Method::HashCode() const {
@@ -186,6 +181,15 @@ MM::Reflection::Variable MM::Reflection::Method::Invoke(
 
 MM::Reflection::Variable MM::Reflection::Method::Invoke(
     Variable& instance, std::vector<Variable*>& args) const {
+  if (!IsValid()) {
+    return Variable{};
+  }
+
+  return method_wrapper_->Invoke(instance, args);
+}
+
+MM::Reflection::Variable MM::Reflection::Method::Invoke(
+    Variable& instance, std::vector<Variable*>&& args) const {
   if (!IsValid()) {
     return Variable{};
   }

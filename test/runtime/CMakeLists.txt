@@ -25,7 +25,12 @@ AddExecutable("manager_test" "${CMAKE_CURRENT_SOURCE_DIR}/core/manager")
 # add_executable(manager_test "${CMAKE_CURRENT_SOURCE_DIR}/core/manager/set_test.cpp")
 target_link_libraries(manager_test PRIVATE gtest_main manager)
 # CopySharedLibraryToDestDirPostBuild(manager_test ${engine_dir}/bin manager ${engine_dir_test}/bin)
+##########  reflection ##########
+AddExecutable("reflection_test" "${CMAKE_CURRENT_SOURCE_DIR}/core/reflection")
+target_link_libraries(reflection_test PRIVATE gtest_main reflection)
 
+
+#####################  resource  ####################
 ##########  asset_system ##########
 AddExecutable("asset_system_test" "${CMAKE_CURRENT_SOURCE_DIR}/resource/asset_system")
 target_link_libraries(asset_system_test PRIVATE asset_system gtest_main)
@@ -36,4 +41,5 @@ include(GoogleTest)
 gtest_add_tests(TARGET config_system_test WORKING_DIRECTORY ${bin_dir})
 gtest_add_tests(TARGET file_system_test   WORKING_DIRECTORY ${bin_dir})
 gtest_add_tests(TARGET manager_test       WORKING_DIRECTORY ${bin_dir})
+gtest_add_tests(TARGET reflection_test       WORKING_DIRECTORY ${bin_dir})
 gtest_add_tests(TARGET asset_system_test  WORKING_DIRECTORY ${bin_dir})
