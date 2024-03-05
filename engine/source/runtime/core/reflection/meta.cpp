@@ -1,12 +1,12 @@
 #include "runtime/core/reflection/meta.h"
 
 MM::Reflection::Meta::Meta(
-    const std::string& type_name, Type&& type,
+    const std::string& type_name, const Type& type,
     std::unordered_map<std::string, Method>&& constructors,
     std::unordered_map<std::string, Method>&& methods,
     std::unordered_map<std::string, Property>&& properties)
     : type_name_(type_name),
-      type_(std::move(type)),
+      type_(&type),
       constructors_(std::move(constructors)),
       methods_(std::move(methods)),
       properties_(std::move(properties)) {}
@@ -16,7 +16,8 @@ const std::string& MM::Reflection::Meta::GetTypeName() const {
 }
 
 const MM::Reflection::Type& MM::Reflection::Meta::GetType() const {
-  return type_;
+  assert(type_ != nullptr && type_->IsValid());
+  return *type_;
 }
 
 bool MM::Reflection::Meta::HaveConstructor(
@@ -39,7 +40,8 @@ std::vector<const MM::Reflection::Method*> MM::Reflection::Meta::GetAllConstucto
     return std::vector<const Method*>{};
   }
 
-  std::vector<const Method*> result{constructors_.size(), nullptr};
+  std::vector<const Method*> result{};
+  result.reserve(constructors_.size());
   for (const std::pair<const std::string, Method>& one_method : constructors_) {
     result.push_back(&(one_method.second));
   }
@@ -66,7 +68,8 @@ std::vector<const MM::Reflection::Method*> MM::Reflection::Meta::GetAllMethod() 
     return std::vector<const Method*>{};
   }
 
-  std::vector<const Method*> result{methods_.size(), nullptr};
+  std::vector<const Method*> result{};
+  result.reserve(methods_.size());
   for (const std::pair<const std::string, Method>& one_method : methods_) {
     result.push_back(&(one_method.second));
   }
@@ -94,7 +97,8 @@ std::vector<const MM::Reflection::Property*> MM::Reflection::Meta::GetAllPropert
     return std::vector<const Property*>{};
   }
 
-  std::vector<const Property*> result{properties_.size(), nullptr};
+  std::vector<const Property*> result{};
+  result.reserve(properties_.size());
   for (const std::pair<const std::string, Property>& one_properties :
        properties_) {
     result.push_back(&(one_properties.second));

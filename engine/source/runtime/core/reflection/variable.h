@@ -3,14 +3,14 @@
 #include <memory>
 #include <type_traits>
 #include <utility>
-#include "runtime/core/reflection/database.h"
+#include <vector>
 #include "runtime/core/reflection/type.h"
-#include "runtime/core/reflection/variable.h"
 #include "utils/type_utils.h"
 
 namespace MM {
 namespace Reflection {
 class Property;
+class Variable;
 
 class VariableWrapperBase {
   friend class Variable;
@@ -116,7 +116,8 @@ class VariableWrapper final : public VariableWrapperBase {
 
  public:
   using Type = VariableType_;
-  using OriginalType = typename TypeWrapper<VariableType_>::OriginalType;
+  // using OriginalType = typename TypeWrapper<VariableType_>::OriginalType;
+  using OriginalType = Utils::GetOriginalTypeT<VariableType_>;
 
  public:
   ~VariableWrapper() override = default;
@@ -227,7 +228,7 @@ class VariableWrapper final : public VariableWrapperBase {
    * \return The "MM::Reflection::Type" of the object held by this object.
    */
   const MM::Reflection::Type* GetType() const override {
-    static MM::Reflection::Type Result = CreateType<VariableType_>();
+    const MM::Reflection::Type& Result = MM::Reflection::Type::CreateType<VariableType_>();
     return &Result;
   }
 
@@ -412,7 +413,7 @@ class VariableRefrenceWrapper : public VariableWrapperBase {
    * \return The "MM::Reflection::Type" of the object held by this object.
    */
   const MM::Reflection::Type* GetType() const override {
-    static MM::Reflection::Type Result = CreateType<VariableRefrenceType>();
+    const MM::Reflection::Type& Result = MM::Reflection::Type::CreateType<VariableRefrenceType>();
     return &Result;
   }
 
@@ -691,6 +692,9 @@ class Variable {
    */
   template <typename VariableType>
   static Variable CreateVariable(VariableType&& other, bool is_refrence = false) {
+    if constexpr (std::is_same_v<VariableType, void>) {
+      return Variable::CreateVoidVariable();
+    }
     if (is_refrence || std::is_lvalue_reference_v<VariableType>) {
       return Variable{std::make_unique<VariableRefrenceWrapper<VariableType>>(other)};
     }

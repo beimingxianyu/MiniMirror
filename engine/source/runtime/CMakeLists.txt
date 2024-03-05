@@ -35,7 +35,10 @@ target_link_libraries(log_system PUBLIC spdlog::spdlog base)
 ##########  reflection  ##########
 AddModule("reflection" "${CMAKE_CURRENT_SOURCE_DIR}/core/reflection")
 target_link_libraries(reflection PUBLIC utils)
-target_compile_options(reflection PUBLIC -Wno-pmf-conversions)
+check_cxx_compiler_flag(-Wno-pmf-conversions COMPILER_SUPPORTS_NPC)
+if (COMPILER_SUPPORTS_NPC)
+    target_compile_options(reflection PUBLIC -Wno-pmf-conversions)
+endif ()
 
 ##########  math  ##########
 AddModule("math" "${CMAKE_CURRENT_SOURCE_DIR}/core/math")

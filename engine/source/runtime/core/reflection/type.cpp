@@ -2,9 +2,9 @@
 
 std::string MM::Reflection::TypeWrapper<void>::void_type_name{"void"};
 
-MM::Reflection::Type::Type() : type_wrapper_{nullptr} {}
+const std::string MM::Reflection::TypeWrapperBase::empty_type_name_{};
 
-MM::Reflection::Type::~Type() = default;
+MM::Reflection::Type::Type() : type_wrapper_{nullptr} {}
 
 MM::Reflection::Type::Type(std::unique_ptr<TypeWrapperBase>&& other) noexcept
     : type_wrapper_(std::move(other)) {}
@@ -165,9 +165,11 @@ const MM::Reflection::Meta* MM::Reflection::Type::GetMate() const {
   }
   return type_wrapper_->GetMeta();
 }
-std::size_t MM::Reflection::Type::GetCommonTypeHashCode() const {
+
+MM::Reflection::TypeID MM::Reflection::Type::GetTypeID() const {
   if (!IsValid()) {
-    return 0;
+    return TypeID{};
   }
-  return type_wrapper_->GetCommonTypeHashCode();
+
+  return type_wrapper_->GetTypeID();
 }

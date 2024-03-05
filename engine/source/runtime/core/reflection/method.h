@@ -2,10 +2,8 @@
 
 #include <memory>
 #include <type_traits>
-#include "runtime/core/reflection/type.h"
 #include "runtime/core/reflection/variable.h"
 #include "utils/type_utils.h"
-#include "utils/utils.h"
 
 namespace MM {
 namespace Reflection {
@@ -226,6 +224,15 @@ class MethodWrapperBase {
 };
 
 
+// bool InvokeInstanceIsValid(Variable& method_variable, Variable& instance) const {
+//       if (!instance.IsValid() || !method_variable.IsValid()) {
+//         return Variable{};
+//       }
+//       const Type* instance_type = instance.GetType();
+//       const Type* class_type = method_variable.GetClassType();
+//       return (instance_type->GetTypeHashCode() != class_type->GetTypeHashCode()) || (instance_type->IsConst() != class_type->IsConst());
+// }
+
 template <typename ReturnType_, typename InstanceType_,  bool IsStatic_, bool IsConst_, bool IsVolatile_,  typename... Args_>
 class MethodWrapper
     : public MethodWrapperBase {
@@ -301,7 +308,7 @@ class MethodWrapper
    * \return The \ref MM::Reflection::Type of result type.
    */
   const Type* GetReturnType() const override {
-    static Type ReturnType = CreateType<ReturnType_>();
+    const Type& ReturnType = MM::Reflection::Type::CreateType<ReturnType_>();
     return &ReturnType;
   }
 
@@ -311,11 +318,11 @@ class MethodWrapper
    * \return The \ref MM::Reflection::Type of target argument type.
    */
   const Type* GetArgumentType(std::uint32_t argument_index) const override {
-    static std::array<Type, sizeof...(Args_)> ArgTypes{CreateType<Args_>()...};
+    std::array<const Type*, sizeof...(Args_)> ArgTypes{(&MM::Reflection::Type::CreateType<Args_>())...};
     if (argument_index >= sizeof...(Args_)) {
       return nullptr;
     }
-    return &ArgTypes[argument_index];
+    return ArgTypes[argument_index];
   }
 
   /**
@@ -323,7 +330,7 @@ class MethodWrapper
    * \return The \ref MM::Reflection::Type of class type.
    */
   const Type* GetClassType() const override {
-    static Type ClassType = CreateType<InstanceType_>();
+    const Type& ClassType = MM::Reflection::Type::CreateType<InstanceType_>();
     return &ClassType;
   }
 
@@ -356,6 +363,7 @@ class MethodWrapper
   const Meta* GetClassMeta() const override {
     return GetClassType()->GetMate();
   }
+
 
   /**
    * \brief Invoke the function with 0 arguments.
@@ -501,21 +509,14 @@ class MethodWrapper
 
  private:
   template<typename ...ArgVariableTypes>
-  static constexpr bool AllTypeIsVariable(ArgVariableTypes&&...  /*args*/) {
-    return ((std::is_same_v<std::remove_reference_t<ArgVariableTypes>, Variable>) && ...);
-  }
-
-  template<typename ...ArgVariableTypes>
   bool AllTypeIsArgType(ArgVariableTypes&&... args) const {
-    // static_assert(AllTypeIsVariable(std::forward<ArgVariableTypes>(args)...), "All parameters must be of type MM::Reflection::Variable.");
     static_assert(((std::is_same_v<std::remove_reference_t<ArgVariableTypes>, Variable>) && ...), "All parameters must be of type MM::Reflection::Variable.");
     std::uint32_t i = 0;
     bool all_valid = ((args.IsValid()) && ...);
     if (!all_valid) {
       return all_valid;
     }
-    i = 0;
-    return (((args.GetType()->GetCommonTypeHashCode() == GetArgumentType(i)->GetCommonTypeHashCode()) && (++i)) && ...);
+    return (((args.GetType()->GetTypeHashCode() == GetArgumentType(i)->GetTypeHashCode()) && (++i)) && ...);
   }
   
   bool AllTypeIsArgTypeFromVector(const std::vector<Variable*>& args) const {
@@ -528,7 +529,7 @@ class MethodWrapper
       }
     }
     for (std::uint32_t arg_index = 0; arg_index != GetArgumentNumber(); ++arg_index) {
-      if (args[arg_index]->GetType()->GetCommonTypeHashCode() != GetArgumentType(arg_index)->GetCommonTypeHashCode()) {
+      if (args[arg_index]->GetType()->GetTypeHashCode() != GetArgumentType(arg_index)->GetTypeHashCode()) {
         return false;
       }
     }
@@ -548,7 +549,7 @@ class MethodWrapper
         }
         const Type* instance_type = instance.GetType();
         const Type* class_type = GetClassType();
-        if ((instance_type->GetCommonTypeHashCode() != class_type->GetCommonTypeHashCode()) || (instance_type->IsConst() != class_type->IsConst())) {
+        if ((instance_type->GetTypeHashCode() != class_type->GetTypeHashCode()) || (instance_type->IsConst() != class_type->IsConst())) {
           return Variable{};
         }
       }
@@ -588,7 +589,7 @@ class MethodWrapper
       }
       const Type* instance_type = instance.GetType();
       const Type* class_type = GetClassType();
-      if ((instance_type->GetCommonTypeHashCode() != class_type->GetCommonTypeHashCode()) || (instance_type->IsConst() != class_type->IsConst())) {
+      if ((instance_type->GetTypeHashCode() != class_type->GetTypeHashCode()) || (instance_type->IsConst() != class_type->IsConst())) {
         return Variable{};
       }
     }

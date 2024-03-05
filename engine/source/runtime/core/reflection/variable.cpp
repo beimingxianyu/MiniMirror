@@ -33,7 +33,7 @@ MM::Reflection::Variable& MM::Reflection::Variable::operator=(
   if (!IsValid() || !other.IsValid()) {
     return *this;
   }
-  if (GetType()->GetCommonTypeHashCode() != other.GetType()->GetCommonTypeHashCode()) {
+  if (GetType()->GetTypeHashCode() != other.GetType()->GetTypeHashCode()) {
     return *this;
   }
   variable_wrapper_->CopyValue(other.variable_wrapper_->GetValue());
@@ -48,8 +48,8 @@ MM::Reflection::Variable& MM::Reflection::Variable::operator=(
   if (!IsValid() || !other.IsValid()) {
     return *this;
   }
-  if (GetType()->GetCommonTypeHashCode() !=
-      other.GetType()->GetCommonTypeHashCode()) {
+  if (GetType()->GetTypeHashCode() !=
+      other.GetType()->GetTypeHashCode()) {
     return *this;
   }
   variable_wrapper_->MoveValue(other.variable_wrapper_->GetValue());
@@ -102,7 +102,7 @@ bool MM::Reflection::Variable::MoveValue(void* other) {
 }
 
 const MM::Reflection::Type* MM::Reflection::Variable::GetType() const {
-  static MM::Reflection::Type EmptyType{};
+  static Type EmptyType{};
   if (!IsValid()) {
     return &EmptyType;
   }
@@ -366,7 +366,7 @@ MM::Reflection::VoidVariable::MoveToBasePointer() {
   return std::make_unique<VoidVariable>();
 }
 const MM::Reflection::Type* MM::Reflection::VoidVariable::GetType() const {
-  static MM::Reflection::Type Result = CreateType<void>();
+  const MM::Reflection::Type& Result = MM::Reflection::Type::CreateType<void>();
   return &Result;
 }
 const MM::Reflection::Meta* MM::Reflection::VoidVariable::GetMeta() const {

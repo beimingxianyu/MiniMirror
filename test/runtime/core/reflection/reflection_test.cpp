@@ -5,7 +5,7 @@
 using namespace MM::Reflection;
 
 TEST(reflection, type) {
-  Type int_type = Type::CreateType<int>();
+  const Type& int_type = Type::CreateType<int>();
   EXPECT_EQ(int_type.IsValid(), true);
   EXPECT_EQ(int_type.IsRegistered(), true);
   EXPECT_EQ(int_type.GetSize(), sizeof(int));
@@ -24,91 +24,91 @@ TEST(reflection, type) {
   EXPECT_EQ(int_meta->GetAllProperty().size(), 0);
 
   enum class TestEnum { UNDIFINED, VALUE1, VALUE2};
-  Type enum_type = Type::CreateType<TestEnum>();
-  EXPECT_EQ(enum_type.IsValid(), true);
-  EXPECT_EQ(enum_type.IsRegistered(), false);
-  EXPECT_EQ(enum_type.GetSize(), sizeof(TestEnum));
-  EXPECT_EQ(enum_type.HaveDestructor(), true);
-  EXPECT_EQ(enum_type.IsArray(), false);
-  EXPECT_EQ(enum_type.IsConst(), false);
-  EXPECT_EQ(enum_type.IsReference(), false);
-  EXPECT_EQ(enum_type.IsEnum(), true);
-  EXPECT_EQ(enum_type.IsPointer(), false);
-  EXPECT_EQ(enum_type.GetTypeName(), std::string(""));
-  const Meta* enum_meta = enum_type.GetMate();
-  EXPECT_EQ(enum_meta, nullptr);
+  const Type& enum_type1 = Type::CreateType<TestEnum>();
+  EXPECT_EQ(enum_type1.IsValid(), true);
+  EXPECT_EQ(enum_type1.IsRegistered(), false);
+  EXPECT_EQ(enum_type1.GetSize(), sizeof(TestEnum));
+  EXPECT_EQ(enum_type1.HaveDestructor(), true);
+  EXPECT_EQ(enum_type1.IsArray(), false);
+  EXPECT_EQ(enum_type1.IsConst(), false);
+  EXPECT_EQ(enum_type1.IsReference(), false);
+  EXPECT_EQ(enum_type1.IsEnum(), true);
+  EXPECT_EQ(enum_type1.IsPointer(), false);
+  EXPECT_EQ(enum_type1.GetTypeName(), std::string(""));
+  const Meta* enum_meta1 = enum_type1.GetMate();
+  EXPECT_EQ(enum_meta1, nullptr);
 
-  enum_type = Type::CreateType<const TestEnum>();
-  EXPECT_EQ(enum_type.IsValid(), true);
-  EXPECT_EQ(enum_type.IsRegistered(), false);
-  EXPECT_EQ(enum_type.GetSize(), sizeof(TestEnum));
-  EXPECT_EQ(enum_type.HaveDestructor(), true);
-  EXPECT_EQ(enum_type.IsArray(), false);
-  EXPECT_EQ(enum_type.IsConst(), true);
-  EXPECT_EQ(enum_type.IsReference(), false);
-  EXPECT_EQ(enum_type.IsEnum(), true);
-  EXPECT_EQ(enum_type.IsPointer(), false);
-  EXPECT_EQ(enum_type.GetTypeName(), std::string(""));
+  const Type& enum_type2 = Type::CreateType<const TestEnum>();
+  EXPECT_EQ(enum_type2.IsValid(), true);
+  EXPECT_EQ(enum_type2.IsRegistered(), false);
+  EXPECT_EQ(enum_type2.GetSize(), sizeof(TestEnum));
+  EXPECT_EQ(enum_type2.HaveDestructor(), true);
+  EXPECT_EQ(enum_type2.IsArray(), false);
+  EXPECT_EQ(enum_type2.IsConst(), true);
+  EXPECT_EQ(enum_type2.IsReference(), false);
+  EXPECT_EQ(enum_type2.IsEnum(), true);
+  EXPECT_EQ(enum_type2.IsPointer(), false);
+  EXPECT_EQ(enum_type2.GetTypeName(), std::string(""));
 
-  enum_type = Type::CreateType<TestEnum[3]>();
-  EXPECT_EQ(enum_type.IsValid(), true);
-  EXPECT_EQ(enum_type.IsRegistered(), false);
-  EXPECT_EQ(enum_type.GetSize(), sizeof(TestEnum[3]));
-  EXPECT_EQ(enum_type.HaveDestructor(), true);
-  EXPECT_EQ(enum_type.IsArray(), true);
-  EXPECT_EQ(enum_type.IsConst(), false);
-  EXPECT_EQ(enum_type.IsReference(), false);
-  EXPECT_EQ(enum_type.IsEnum(), false);
-  EXPECT_EQ(enum_type.IsPointer(), false);
-  EXPECT_EQ(enum_type.GetTypeName(), std::string(""));
+  const Type& enum_type3 = Type::CreateType<TestEnum[3]>();
+  EXPECT_EQ(enum_type3.IsValid(), true);
+  EXPECT_EQ(enum_type3.IsRegistered(), false);
+  EXPECT_EQ(enum_type3.GetSize(), sizeof(TestEnum[3]));
+  EXPECT_EQ(enum_type3.HaveDestructor(), true);
+  EXPECT_EQ(enum_type3.IsArray(), true);
+  EXPECT_EQ(enum_type3.IsConst(), false);
+  EXPECT_EQ(enum_type3.IsReference(), false);
+  EXPECT_EQ(enum_type3.IsEnum(), false);
+  EXPECT_EQ(enum_type3.IsPointer(), false);
+  EXPECT_EQ(enum_type3.GetTypeName(), std::string(""));
 
-  enum_type = Type::CreateType<const TestEnum[3]>();
-  EXPECT_EQ(enum_type.IsValid(), true);
-  EXPECT_EQ(enum_type.IsRegistered(), false);
-  EXPECT_EQ(enum_type.GetSize(), sizeof(const TestEnum[3]));
-  EXPECT_EQ(enum_type.HaveDestructor(), true);
-  EXPECT_EQ(enum_type.IsArray(), true);
-  EXPECT_EQ(enum_type.IsConst(), true);
-  EXPECT_EQ(enum_type.IsReference(), false);
-  EXPECT_EQ(enum_type.IsEnum(), false);
-  EXPECT_EQ(enum_type.IsPointer(), false);
-  EXPECT_EQ(enum_type.GetTypeName(), std::string(""));
+  const Type& enum_type4 = Type::CreateType<const TestEnum[3]>();
+  EXPECT_EQ(enum_type4.IsValid(), true);
+  EXPECT_EQ(enum_type4.IsRegistered(), false);
+  EXPECT_EQ(enum_type4.GetSize(), sizeof(const TestEnum[3]));
+  EXPECT_EQ(enum_type4.HaveDestructor(), true);
+  EXPECT_EQ(enum_type4.IsArray(), true);
+  EXPECT_EQ(enum_type4.IsConst(), true);
+  EXPECT_EQ(enum_type4.IsReference(), false);
+  EXPECT_EQ(enum_type4.IsEnum(), false);
+  EXPECT_EQ(enum_type4.IsPointer(), false);
+  EXPECT_EQ(enum_type4.GetTypeName(), std::string(""));
+                     
+  const Type& enum_type5 = Type::CreateType<TestEnum*>();
+  EXPECT_EQ(enum_type5.IsValid(), true);
+  EXPECT_EQ(enum_type5.IsRegistered(), false);
+  EXPECT_EQ(enum_type5.GetSize(), sizeof(TestEnum*));
+  EXPECT_EQ(enum_type5.HaveDestructor(), true);
+  EXPECT_EQ(enum_type5.IsArray(), false);
+  EXPECT_EQ(enum_type5.IsConst(), false);
+  EXPECT_EQ(enum_type5.IsReference(), false);
+  EXPECT_EQ(enum_type5.IsEnum(), false);
+  EXPECT_EQ(enum_type5.IsPointer(), true);
+  EXPECT_EQ(enum_type5.GetTypeName(), std::string(""));
 
-  enum_type = Type::CreateType<TestEnum*>();
-  EXPECT_EQ(enum_type.IsValid(), true);
-  EXPECT_EQ(enum_type.IsRegistered(), false);
-  EXPECT_EQ(enum_type.GetSize(), sizeof(TestEnum*));
-  EXPECT_EQ(enum_type.HaveDestructor(), true);
-  EXPECT_EQ(enum_type.IsArray(), false);
-  EXPECT_EQ(enum_type.IsConst(), false);
-  EXPECT_EQ(enum_type.IsReference(), false);
-  EXPECT_EQ(enum_type.IsEnum(), false);
-  EXPECT_EQ(enum_type.IsPointer(), true);
-  EXPECT_EQ(enum_type.GetTypeName(), std::string(""));
+  const Type& enum_type6 = Type::CreateType<const TestEnum*>();
+  EXPECT_EQ(enum_type6.IsValid(), true);
+  EXPECT_EQ(enum_type6.IsRegistered(), false);
+  EXPECT_EQ(enum_type6.GetSize(), sizeof(TestEnum*));
+  EXPECT_EQ(enum_type6.HaveDestructor(), true);
+  EXPECT_EQ(enum_type6.IsArray(), false);
+  EXPECT_EQ(enum_type6.IsConst(), false);
+  EXPECT_EQ(enum_type6.IsReference(), false);
+  EXPECT_EQ(enum_type6.IsEnum(), false);
+  EXPECT_EQ(enum_type6.IsPointer(), true);
+  EXPECT_EQ(enum_type6.GetTypeName(), std::string(""));
 
-  enum_type = Type::CreateType<const TestEnum*>();
-  EXPECT_EQ(enum_type.IsValid(), true);
-  EXPECT_EQ(enum_type.IsRegistered(), false);
-  EXPECT_EQ(enum_type.GetSize(), sizeof(TestEnum*));
-  EXPECT_EQ(enum_type.HaveDestructor(), true);
-  EXPECT_EQ(enum_type.IsArray(), false);
-  EXPECT_EQ(enum_type.IsConst(), false);
-  EXPECT_EQ(enum_type.IsReference(), false);
-  EXPECT_EQ(enum_type.IsEnum(), false);
-  EXPECT_EQ(enum_type.IsPointer(), true);
-  EXPECT_EQ(enum_type.GetTypeName(), std::string(""));
-
-  enum_type = Type::CreateType<TestEnum* const>();
-  EXPECT_EQ(enum_type.IsValid(), true);
-  EXPECT_EQ(enum_type.IsRegistered(), false);
-  EXPECT_EQ(enum_type.GetSize(), sizeof(TestEnum*));
-  EXPECT_EQ(enum_type.HaveDestructor(), true);
-  EXPECT_EQ(enum_type.IsArray(), false);
-  EXPECT_EQ(enum_type.IsConst(), true);
-  EXPECT_EQ(enum_type.IsReference(), false);
-  EXPECT_EQ(enum_type.IsEnum(), false);
-  EXPECT_EQ(enum_type.IsPointer(), true);
-  EXPECT_EQ(enum_type.GetTypeName(), std::string(""));
+  const Type& enum_type7 = Type::CreateType<TestEnum* const>();
+  EXPECT_EQ(enum_type7.IsValid(), true);
+  EXPECT_EQ(enum_type7.IsRegistered(), false);
+  EXPECT_EQ(enum_type7.GetSize(), sizeof(TestEnum*));
+  EXPECT_EQ(enum_type7.HaveDestructor(), true);
+  EXPECT_EQ(enum_type7.IsArray(), false);
+  EXPECT_EQ(enum_type7.IsConst(), true);
+  EXPECT_EQ(enum_type7.IsReference(), false);
+  EXPECT_EQ(enum_type7.IsEnum(), false);
+  EXPECT_EQ(enum_type7.IsPointer(), true);
+  EXPECT_EQ(enum_type7.GetTypeName(), std::string(""));
 }
 
 class MethodTestClass {
@@ -252,7 +252,7 @@ TEST(reflection, method) {
   Variable variable10{Variable::EmplaceVariable<std::string>("10.0")};
 
 
-  const Meta* method_test_meta = GetMetaDatabase()[typeid(MethodTestClass).hash_code()];
+  const Meta* method_test_meta = GetMetaDatabase().at(typeid(MethodTestClass).hash_code());
   EXPECT_EQ(method_test_meta->HaveMethod("FunTest1"), false);
   EXPECT_EQ(method_test_meta->GetMethod("FunTest2"), nullptr);
   EXPECT_EQ(method_test_meta->HaveMethod("Function0"), true);
@@ -456,9 +456,6 @@ MM_REGISTER {
 TEST(reflection, property) {
   const Meta* property_test_meta = GetMetaDatabase().at(typeid(PropertyTestClass).hash_code());
   EXPECT_NE(property_test_meta, nullptr);
-  for (const Property* p: property_test_meta->GetAllProperty()) {
-    std::cout << p->GetPropertyName() << std::endl;
-  }
   EXPECT_EQ(property_test_meta->GetAllProperty().size(), 3);
   EXPECT_EQ(property_test_meta->HaveProperty("falid_property"), false);
   EXPECT_EQ(property_test_meta->HaveProperty("property1_"), true);
@@ -494,6 +491,99 @@ TEST(reflection, property) {
   EXPECT_EQ(property1->GetPropertySize(), sizeof(int));
   EXPECT_EQ(property2->GetPropertySize(), sizeof(float));
   EXPECT_EQ(property3->GetPropertySize(), sizeof(std::string));
+}
+
+class VariableTestClass {
+  MM_GENERATE_REFLECTION_BODY()
+
+public:
+  VariableTestClass(int property1, const float& property2) : property1_(property1), property2_(property2) {}
+
+public:
+  int property1_{10};
+  float property2_{20.0};
+  static std::string property3_;
+
+  int GetProperty1() const {
+    return property1_;
+  }
+
+  float GetProperty2() const {
+    return property2_;
+  }
+
+  const float& GetProperty2Refrence() const {
+    return property2_;
+  }
+
+  void SetProperty1(const int& property1) {
+    property1_ = property1;
+  }
+
+  void SetProperty2(float property2) {
+    property2_ = property2;
+  }
+};
+
+std::string VariableTestClass::property3_{"string"};
+
+MM_REGISTER {
+  Class<VariableTestClass>{"VariableTestClass"}
+    .Constructor<int, const float&>("Init")
+    .Property("property1_", &VariableTestClass::property1_)
+    .Property("property2_", &VariableTestClass::property2_)
+    .Property("property3_", &VariableTestClass::property3_)
+    .Method("GetProperty1", &VariableTestClass::GetProperty1)
+    .Method("GetProperty2", &VariableTestClass::GetProperty2)
+    .Method("GetProperty2Refrence", &VariableTestClass::GetProperty2Refrence)
+    .Method("SetProperty1", &VariableTestClass::SetProperty1)
+    .Method("SetProperty2", &VariableTestClass::SetProperty2);
+}
+
+TEST(reflection, variable) {
+  const Meta* variable_test_meta = GetMetaDatabase().at(typeid(VariableTestClass).hash_code());
+  EXPECT_NE(variable_test_meta, nullptr);
+
+  std::vector<const Method*> constructors = variable_test_meta->GetAllConstuctor();
+  std::vector<const Method*> methods = variable_test_meta->GetAllMethod();
+  std::vector<const Property*> properties = variable_test_meta->GetAllProperty();
+
+  EXPECT_EQ(constructors.size(), 1);
+  EXPECT_EQ(properties.size(), 3);
+  EXPECT_EQ(methods.size(), 5);
+
+  EXPECT_EQ(variable_test_meta->HaveConstructor("Init"), true);
+  EXPECT_EQ(variable_test_meta->HaveConstructor("falid_constructor"), false);
+  EXPECT_EQ(variable_test_meta->HaveProperty("property1_"), true);
+  EXPECT_EQ(variable_test_meta->HaveProperty("property2_"), true);
+  EXPECT_EQ(variable_test_meta->HaveProperty("property3_"), true);
+  EXPECT_EQ(variable_test_meta->HaveProperty("falid_property"), false);
+  EXPECT_EQ(variable_test_meta->HaveMethod("GetProperty1"), true);
+  EXPECT_EQ(variable_test_meta->HaveMethod("GetProperty2"), true);
+  EXPECT_EQ(variable_test_meta->HaveMethod("GetProperty2Refrence"), true);
+  EXPECT_EQ(variable_test_meta->HaveMethod("SetProperty1"), true);
+  EXPECT_EQ(variable_test_meta->HaveMethod("SetProperty2"), true);
+  EXPECT_EQ(variable_test_meta->HaveMethod("SetProperty2"), true);
+  EXPECT_EQ(variable_test_meta->HaveMethod("falid_method"), false);
+
+  Variable empty_variable{};
+  Variable constructor_arg1 = Variable::EmplaceVariable<int>(20), constructor_arg2 = Variable::EmplaceVariable<float>(10.0);
+  Variable invalid_variable = constructors[0]->Invoke(empty_variable, empty_variable, constructor_arg2);
+  EXPECT_EQ(invalid_variable.IsValid(), false);
+  Variable new_variable = constructors[0]->Invoke(empty_variable, constructor_arg1, constructor_arg2);
+  EXPECT_EQ(new_variable.IsValid(), true);
+  VariableTestClass* variable_object = static_cast<VariableTestClass*>(new_variable.GetValue());
+  EXPECT_EQ(variable_object->property1_, 20);
+  EXPECT_EQ(variable_object->property2_, 10.0);
+
+  EXPECT_EQ(variable_test_meta->GetMethod("GetProperty1")->Invoke(new_variable).GetValueCast<int>(), 20);
+  EXPECT_EQ(variable_test_meta->GetMethod("GetProperty2")->Invoke(new_variable).GetValueCast<float>(), 10.0);
+  EXPECT_EQ(variable_test_meta->GetMethod("GetProperty2Refrence")->Invoke(new_variable).GetValue(), &(variable_object->property2_));
+  Variable new_int_variable = Variable::EmplaceVariable<int>(10), new_float_variable = Variable::EmplaceVariable<float>(20.0);
+  EXPECT_EQ(variable_test_meta->GetMethod("SetProperty1")->Invoke(new_variable, new_int_variable).IsVoid(), true);
+  EXPECT_EQ(variable_test_meta->GetMethod("SetProperty2")->Invoke(new_variable, new_float_variable).IsVoid(), true);
+  EXPECT_EQ(variable_test_meta->GetMethod("GetProperty1")->Invoke(new_variable).GetValueCast<int>(), 10);
+  EXPECT_EQ(variable_test_meta->GetMethod("GetProperty2")->Invoke(new_variable).GetValueCast<float>(), 20.0);
 }
 
 TEST(reflection, meta) {

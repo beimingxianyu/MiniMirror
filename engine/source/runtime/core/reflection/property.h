@@ -4,6 +4,7 @@
 #include <cstddef>
 #include <memory>
 
+#include "runtime/core/reflection/type.h"
 #include "runtime/core/reflection/variable.h"
 
 namespace MM {
@@ -128,8 +129,8 @@ class CommonPropertyWrapper
    * property.
    */
   const MM::Reflection::Type* GetType() const override {
-    static MM::Reflection::Type Type = CreateType<PropertyType_>();
-    return &Type;
+    const MM::Reflection::Type& type = MM::Reflection::Type::CreateType<PropertyType_>();
+    return &type;
   }
 
   /**
@@ -137,8 +138,8 @@ class CommonPropertyWrapper
    * \return The MM::Reflection::TypeWrapper of the class held by this property.
    */
   const MM::Reflection::Type* GetClassType() const override {
-    static MM::Reflection::Type Type = CreateType<ClassType_>();
-    return &Type;
+    const MM::Reflection::Type& type = MM::Reflection::Type::CreateType<ClassType_>();
+    return &type;
   }
 
   /**
@@ -162,7 +163,6 @@ class CommonPropertyWrapper
     assert(ClassType != nullptr);
     return ClassType->GetMate();
   }
-
 };
 
 template <typename ClassType_, typename PropertyType_>

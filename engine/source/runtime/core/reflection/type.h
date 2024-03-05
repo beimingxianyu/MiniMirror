@@ -3,6 +3,9 @@
 #include <memory>
 #include <string>
 #include <type_traits>
+#include <unordered_map>
+#include <utility>
+#include <cassert>
 
 #include "runtime/core/reflection/database.h"
 #include "utils/type_utils.h"
@@ -110,6 +113,8 @@ class TypeWrapperBase {
    */
   virtual std::size_t GetSize() const {return 0;}
 
+  TypeID GetTypeID() const {return TypeID{GetTypeHashCode(), IsConst(), IsReference()};}
+
   /**
    * \brief Get type hash code.
    * \return The type hash code.
@@ -123,14 +128,6 @@ class TypeWrapperBase {
    * constants. (Example:int*: int, int&: int, const int&: int, etc.)
    */
   virtual std::size_t GetOriginalTypeHashCode() const {return 0;}
-
-  /**
-   * \brief Get common type hash code.
-   * \return The common type hash code.
-   * \remark A original type is a type without references and
-   * constants. (Example:int*: int*, int&: int, const int&: int, etc.)
-   */
-  virtual std::size_t GetCommonTypeHashCode() const {return 0;}
 
   /**
    * \brief Get type Name.
@@ -148,7 +145,7 @@ class TypeWrapperBase {
    * \remark If the type is not registered, the default empty std::string will
    * be returned.
    */
-  virtual const std::string& GetOriginalTypeName() const {static std::string empty_name{}; return empty_name;}
+  virtual const std::string& GetOriginalTypeName() const {return empty_type_name_;}
 
   /**
    * \brief Get meta data.
@@ -156,6 +153,9 @@ class TypeWrapperBase {
    * \remark If the type is not registered, the nullptr will be returned.
    */
   virtual const Meta* GetMeta() const {return nullptr;}
+
+protected:
+  static const std::string empty_type_name_;
 };
 
 template <typename TypeName>
@@ -291,14 +291,6 @@ class TypeWrapper final : public TypeWrapperBase {
   std::size_t GetOriginalTypeHashCode() const override;
 
   /**
-   * \brief Get common type hash code.
-   * \return The common type hash code.
-   * \remark A original type is a type without references and
-   * constants. (Example:int*: int*, int&: int, const int&: int, etc.)
-   */
-  virtual std::size_t GetCommonTypeHashCode() const override;
-
-  /**
    * \brief Get type Name.
    * \return The \ref TypeName type name.
    * \remark If the type is not registered, the default empty std::string will
@@ -329,7 +321,6 @@ public:
  public:
   using Type = void;
   using OriginalType = Utils::GetOriginalTypeT<void>;
-  using CommonType = void;
 
  public:
   TypeWrapper() = default;
@@ -445,14 +436,6 @@ public:
   std::size_t GetOriginalTypeHashCode() const override {return GetTypeHashCode();}
 
   /**
-   * \brief Get common type hash code.
-   * \return The common type hash code.
-   * \remark A original type is a type without references and
-   * constants. (Example:int*: int*, int&: int, const int&: int, etc.)
-   */
-  virtual std::size_t GetCommonTypeHashCode() const override {return GetTypeHashCode();}
-
-  /**
    * \brief Get type Name.
    * \return The \ref TypeName type name.
    * \remark If the type is not registered, the default empty std::string will
@@ -467,7 +450,12 @@ public:
    * \remark If the type is not registered, the default empty std::string will
    * be returned.
    */
-  const std::string& GetOriginalTypeName() const override { return void_type_name;}
+  const std::string& GetOriginalTypeName() const override { 
+    if (!IsRegistered()) {
+      return empty_type_name_;   
+    }
+    return void_type_name;
+  }
 
   /**
    * \brief Get original type meta data.
@@ -478,15 +466,13 @@ public:
     if (!IsRegistered()) {
       return nullptr;
     }
-    return GetMetaDatabase()[GetOriginalTypeHashCode()];
+
+    return GetMetaDatabase().at(GetOriginalTypeHashCode());
   }
 
 private:
   static std::string void_type_name;
 };
-
-template <typename TypeName>
-Type CreateType();
 
 class Type {
   template <typename VariableType>
@@ -494,13 +480,21 @@ class Type {
 
  public:
   template <typename TypeName>
-  static Type CreateType() {
-    return Type{std::make_unique<TypeWrapper<TypeName>>()};
+  static const Type& CreateType() {
+    TypeID type_id{typeid(TypeName).hash_code(), std::is_const_v<TypeName>, std::is_reference_v<TypeName>};
+    auto& type_database = GetTypeDatabase();
+    std::unordered_map<TypeID, const Type*>::iterator find_result = type_database.find(type_id);
+    if (find_result == type_database.end()) {
+      auto emplace_result = type_database.emplace(std::make_pair(type_id, new Type{std::make_unique<TypeWrapper<TypeName>>()}));
+      assert(emplace_result.second);
+      find_result = emplace_result.first;
+    }
+    return *find_result->second;
   }
 
  public:
   Type();
-  ~Type();
+  ~Type() = default;
   Type(const Type& other) = delete;
   Type(Type&& other) noexcept = default;
   explicit Type(std::unique_ptr<TypeWrapperBase>&& other) noexcept;
@@ -640,12 +634,14 @@ class Type {
    */
   std::size_t GetSize() const;
 
+  TypeID GetTypeID() const;
+
   /**
    * \brief Get type hash code.
    * \return The type hash code.
    * \remark If object is not valid, it will return 0.
    */
-  std::size_t GetTypeHashCode() const;
+  TypeHashCode GetTypeHashCode() const;
 
   /**
    * \brief Get original type hash code.
@@ -654,7 +650,7 @@ class Type {
    * constants. (Example:int*: int, int&: int, const int&: int, etc.)
    * \remark If object is not valid, it will return 0.
    */
-  std::size_t GetOriginalTypeHashCode() const;
+  TypeHashCode GetOriginalTypeHashCode() const;
 
   /**
    * \brief Get type Name.
@@ -663,14 +659,6 @@ class Type {
    * empty std::string will be returned.
    */
   std::string GetTypeName() const;
-
-  /**
-   * \brief Get common type hash code.
-   * \return The common type hash code.
-   * \remark A original type is a type without references and
-   * constants. (Example:int*: int*, int&: int, const int&: int, etc.)
-   */
-  std::size_t GetCommonTypeHashCode() const;
 
   /**
    * \brief Get original type Name.
@@ -772,11 +760,6 @@ std::size_t TypeWrapper<TypeName>::GetTypeHashCode() const {
 }
 
 template <typename TypeName>
-std::size_t TypeWrapper<TypeName>::GetCommonTypeHashCode() const {
-  return typeid(CommonType).hash_code();
-}
-
-template <typename TypeName>
 std::size_t TypeWrapper<TypeName>::GetOriginalTypeHashCode() const {
   return typeid(OriginalType).hash_code();
 }
@@ -816,11 +799,10 @@ std::string TypeWrapper<TypeName>::GetTypeName() const {
 
 template <typename TypeName>
 const std::string& TypeWrapper<TypeName>::GetOriginalTypeName() const {
-  static const std::string EmptyTypeName{};
   if (!IsRegistered()) {
-    return EmptyTypeName;
+    return empty_type_name_;
   }
-  return GetMetaDatabase()[GetOriginalTypeHashCode()]->GetTypeName();
+  return GetMetaDatabase().at(GetOriginalTypeHashCode())->GetTypeName();
 }
 
 template <typename TypeName>
@@ -828,12 +810,7 @@ const Meta* TypeWrapper<TypeName>::GetMeta() const {
   if (!IsRegistered()) {
     return nullptr; 
   }
-  return GetMetaDatabase()[GetOriginalTypeHashCode()];
-}
-
-template <typename TypeName>
-Type CreateType() {
-  return Type::CreateType<TypeName>();
+  return GetMetaDatabase().at(GetOriginalTypeHashCode());
 }
 }  // namespace Reflection
 }  // namespace MM

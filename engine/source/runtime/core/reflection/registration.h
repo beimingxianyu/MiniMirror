@@ -2,7 +2,6 @@
 
 #include <cassert>
 #include <filesystem>
-#include <typeinfo>
 
 #include "runtime/core/reflection/meta.h"
 #include "utils/marco.h"
@@ -36,6 +35,11 @@ namespace MM {
 namespace Reflection {
 template<std::uint64_t RegisterID>
 struct MMAutoRegisterStruct;
+
+template<typename ConstructorClassType, typename ...Args>
+ConstructorClassType ConstructorFunction(Args ...args) {
+  return ConstructorClassType{((Args)args)...};
+}
 
 template <typename ClassType_>
 class Class {
@@ -94,7 +98,7 @@ public:
 
   template<typename ...Args>
   Class& Constructor(const std::string& constructor_name) {
-    const bool add_result = meta_.AddMethod(Method::CreateMethod<ClassType_, ClassType_, true, Args...>(constructor_name, reinterpret_cast<void*>(ConstructorFunction<ClassType_, Args...>())));
+    const bool add_result = meta_.AddConstructor(Method::CreateMethod<ClassType_, ClassType_, true, false, false, Args...>(constructor_name, &ConstructorFunction<ClassType_, Args...>));
     assert(add_result);
 
     return *this;
@@ -102,14 +106,13 @@ public:
 
 private:
   void Register() {
-    GetMetaDatabase().emplace(std::pair{meta_.GetType().GetTypeHashCode(), new Meta{std::move(meta_)}});
+    auto name_to_hash_emplace_result = GetNameToTypeHashDatabase().emplace(std::pair{meta_.GetTypeName(), meta_.GetType().GetTypeHashCode()});
+    assert(name_to_hash_emplace_result.second);
+    auto meta_data_emplace_result = GetMetaDatabase().emplace(std::pair{meta_.GetType().GetTypeHashCode(), new Meta{std::move(meta_)}});
+    assert(meta_data_emplace_result.second);
   }
 
 private:
-  template<typename ConstructorClassType, typename ...Args>
-  static ConstructorClassType ConstructorFunction(Args&& ...args) {
-    return ConstructorClassType{std::forward<Args>(args)...};
-  }
 
   template<typename T>
   struct TypePack {

@@ -57,8 +57,8 @@ MM::Reflection::Variable MM::Reflection::Property::GetPropertyVariable(
   if (class_type == nullptr) {
     return Variable{};
   }
-  if (class_type->GetCommonTypeHashCode() ==
-      property_wrapper_->GetClassType()->GetCommonTypeHashCode()) {
+  if (class_type->GetTypeHashCode() ==
+      property_wrapper_->GetClassType()->GetTypeHashCode()) {
     return property_wrapper_->GetPropertyVariable(class_variable);
   }
   return Variable{};

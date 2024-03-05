@@ -4,7 +4,6 @@
 #include <unordered_map>
 #include <vector>
 
-#include "runtime/core/reflection/type.h"
 #include "runtime/core/reflection/method.h"
 #include "runtime/core/reflection/property.h"
 
@@ -13,7 +12,7 @@ namespace Reflection {
 class Meta {
 public:
   Meta() = delete;
-  explicit Meta(const std::string& type_name, Type&& type,
+  explicit Meta(const std::string& type_name, const Type& type,
                 std::unordered_map<std::string, Method>&& constructors =
                     std::unordered_map<std::string, Method>{},
                 std::unordered_map<std::string, Method>&& methods =
@@ -47,7 +46,7 @@ public:
 
  /**
   * \brief Get \ref MM::Reflection::Method with a name.
-  * \param method_name The name of constructor.
+  * \param constructor_name The name of constructor.
   * \return The \ref MM::Reflection::Method.
   */
  const Method* GetConstuctor(const std::string& constructor_name) const;
@@ -107,7 +106,7 @@ public:
   * unique. If the action constructor has the same name as the old constructor,
   * the new constructor replaces the old constructor.
   */
- bool AddConstructor(Method&& constuctor);
+ bool AddConstructor(Method&& constructor);
 
  void RemoveConstructor(const std::string& constructor_name);
 
@@ -268,7 +267,7 @@ private:
   /**
    * \brief The \ref MM::Reflection::Type of this object.
    */
-  Type type_;
+  const Type* type_;
 
   /**
    * \brief Constructor map.
