@@ -5,6 +5,11 @@
 
 #include "runtime/core/reflection/meta.h"
 
+const std::string& MM::Reflection::GetEmptyString() {
+  static std::string empty_string{};
+  return empty_string;
+}
+
 std::unordered_map<std::size_t, MM::Reflection::Meta*>&
 MM::Reflection::GetMetaDatabase() {
   static std::unordered_map<std::size_t, Meta*> g_meta_database;

@@ -15,7 +15,6 @@ namespace Reflection {
 class Type;
 class Variable;
 
-
 class TypeWrapperBase {
  public:
   virtual ~TypeWrapperBase() = default;
@@ -145,7 +144,7 @@ class TypeWrapperBase {
    * \remark If the type is not registered, the default empty std::string will
    * be returned.
    */
-  virtual const std::string& GetOriginalTypeName() const {return empty_type_name_;}
+  virtual const std::string& GetOriginalTypeName() const {return GetEmptyString();}
 
   /**
    * \brief Get meta data.
@@ -154,8 +153,6 @@ class TypeWrapperBase {
    */
   virtual const Meta* GetMeta() const {return nullptr;}
 
-protected:
-  static const std::string empty_type_name_;
 };
 
 template <typename TypeName>
@@ -173,6 +170,236 @@ class TypeWrapper final : public TypeWrapperBase {
 
  public:
   bool IsVoid() const override {return false;}
+
+  /**
+   * \brief Determine whether the original type of \ref TypeName is registered.
+   * \return Returns true if the original type is registered, otherwise returns
+   * false.
+   */
+  bool IsRegistered() const override {
+    return GetMetaDatabase().find(GetTypeHashCode()) != GetMetaDatabase().end();
+  }
+
+  /**
+   * \brief Determine whether type is "const".
+   * \return If the type is "const", it returns true; otherwise, it returns
+   * false.
+   */
+  bool IsConst() const override {
+    return std::is_const_v<std::remove_reference_t<TypeName>>;
+  }
+
+  /**
+   * \brief Determine whether type is "reference".
+   * \return If the type is "reference", it returns true; otherwise, it returns
+   * false.
+   */
+  bool IsReference() const override {
+    return std::is_reference_v<TypeName>;
+  }
+
+  /**
+   * \brief Determine whether type is "array".
+   * \return If the type is "array", it returns true; otherwise, it returns
+   * false.
+   */
+  bool IsArray() const override {
+    return std::is_array_v<TypeName>;
+  }
+
+  /**
+   * \brief Determine whether type is "pointer".
+   * \return If the type is "pointer", it returns true; otherwise, it returns
+   * false.
+   */
+  bool IsPointer() const override {
+    return std::is_pointer_v<TypeName>;
+  }
+
+  /**
+   * \brief Determine whether this property is an enumeration.
+   * \return If this property is an enumeration, it returns true, otherwise it
+   * returns false.
+   */
+  bool IsEnum() const override {
+    return std::is_enum_v<TypeName>;
+  }
+
+  /**
+   * \brief Determine whether the type has a default constructor.
+   * \return If the type contains a default constructor, it returns true,
+   * otherwise it returns false.
+   */
+  bool HaveDefaultConstructor() const override {
+    return std::is_default_constructible_v<TypeName>;
+  }
+
+  /**
+   * \brief Determine whether the type has a destructor.
+   * \return If the type contains a destructor, it returns true,
+   * otherwise it returns false.
+   */
+  bool HaveDestructor() const override {
+    return std::is_destructible_v<TypeName>;
+  }
+
+  /**
+   * \brief Determine whether the type has a copy constructor.
+   * \return If the type contains a copy constructor, it returns true,
+   * otherwise it returns false.
+   */
+  bool HaveCopyConstructor() const override {
+    return std::is_copy_constructible_v<TypeName>;
+  }
+
+  /**
+   * \brief Determine whether the type has a move constructor.
+   * \return If the type contains a move constructor, it returns true,
+   * otherwise it returns false.
+   */
+  bool HaveMoveConstructor() const override {
+    return std::is_move_constructible_v<TypeName>;
+  }
+
+  /**
+   * \brief Determine whether the type has a copy assign.
+   * \return If the type contains a copy assign, it returns true,
+   * otherwise it returns false.
+   */
+  bool HaveCopyAssign() const override {
+    return std::is_copy_assignable_v<TypeName>;
+  }
+
+  /**
+   * \brief Determine whether the type has a move assign.
+   * \return If the type contains a move assign, it returns true,
+   * otherwise it returns false.
+   */
+  bool HaveMoveAssign() const override {
+    return std::is_move_assignable_v<TypeName>;
+  }
+
+  // TODO Add some instantiation.(int，float，double，std::string,vec3,
+  // vec4,mat3,mat4,etc.)
+  /**
+   * \brief Determine whether \ref OtherType can be converted to \ref TypeName.
+   * \tparam OtherType Other types that determine whether they can be converted
+   * with this type. \param other Other types object that determine whether they
+   * can be converted with this type. \return If \ref OtherType can be converted
+   * to \ref TypeName, return true, otherwise return false.
+   */
+  template <typename OtherType>
+  bool Convertible(OtherType&& other) const {
+    return Utils::Conversion<typename Utils::GetOriginalType<OtherType>::Type,
+                     typename Utils::GetOriginalType<TypeName>::Type>::value;
+  }
+
+  /**
+   * \brief Get size of \ref TypeName.
+   * \return The size of \ref TypeName.
+   */
+  std::size_t GetSize() const override {
+    return sizeof(TypeName);
+  }
+
+  /**
+   * \brief Get type hash code.
+   * \return The \ref TypeName hash code.
+   */
+  std::size_t GetTypeHashCode() const override {
+    return typeid(TypeName).hash_code();
+  }
+
+  /**
+   * \brief Get the original type of \ref TypeName hash code.
+   * \return The original type of \ref TypeName hash code.
+   * \remark A original type is a type without pointers, references, and
+   * constants. (Example:int*: int, int&: int, const int&: int, etc.)
+   */
+  std::size_t GetOriginalTypeHashCode() const override {
+    return typeid(OriginalType).hash_code();
+  }
+
+  /**
+   * \brief Get type Name.
+   * \return The \ref TypeName type name.
+   * \remark If the type is not registered, the default empty std::string will
+   * be returned.
+   */
+  std::string GetTypeName() const override {
+    if (!IsRegistered()) {
+      return std::string{};
+    }
+    std::string result{GetOriginalTypeName()};
+    if constexpr (std::is_pointer_v<TypeName>) {
+      if constexpr (std::is_const_v<std::remove_pointer_t<TypeName>>) {
+        result += "const ";
+      }
+      result += "*";
+      if constexpr (std::is_const_v<TypeName>) {
+        result += " const";
+      }
+    } else if constexpr (std::is_array_v<TypeName>) {
+      if (std::is_const_v<TypeName>) {
+        result += "const ";
+      }
+      result += "[]";
+    } else {
+      if constexpr (std::is_const_v<std::remove_reference_t<TypeName>>) {
+        result += "const ";
+      }
+      if constexpr (std::is_lvalue_reference_v<TypeName>) {
+        result += "&";
+      }
+      if constexpr (std::is_rvalue_reference_v<TypeName>) {
+        result += "&&";
+      }
+    }
+    return result;
+  }
+  /**
+   * \brief Get original type Name of \ref TypeName.
+   * \return The original type name of \ref TypeName.
+   * \remark A original type is a type without pointers, references, and
+   * constants. (Example:int*: int, int&: int, const int&: int, etc.)
+   * \remark If the type is not registered, the default empty std::string will
+   * be returned.
+   */
+  const std::string& GetOriginalTypeName() const override {
+    if (!IsRegistered()) {
+      return GetEmptyString();
+    }
+    return GetMetaDatabase().at(GetOriginalTypeHashCode())->GetTypeName();
+  }
+
+  /**
+   * \brief Get original type meta data.
+   * \return Returns unique_ptr containing metadata.
+   * \remark If the type is not registered, the nullptr will be returned.
+   */
+  const Meta* GetMeta() const override {
+    if (!IsRegistered()) {
+      return nullptr;
+    }
+    return GetMetaDatabase().at(GetOriginalTypeHashCode());
+  }
+};
+
+template<>
+class TypeWrapper<void> final : public TypeWrapperBase {
+public:
+ public:
+  using Type = void;
+  using OriginalType = Utils::GetOriginalTypeT<void>;
+
+ public:
+  TypeWrapper() = default;
+  ~TypeWrapper() override = default;
+  TypeWrapper(const TypeWrapper& other) = default;
+  TypeWrapper& operator=(const TypeWrapper& other) = default;
+
+ public:
+  bool IsVoid() const override;
 
   /**
    * \brief Determine whether the original type of \ref TypeName is registered.
@@ -258,18 +485,6 @@ class TypeWrapper final : public TypeWrapperBase {
    */
   bool HaveMoveAssign() const override;
 
-  // TODO Add some instantiation.(int，float，double，std::string,vec3,
-  // vec4,mat3,mat4,etc.)
-  /**
-   * \brief Determine whether \ref OtherType can be converted to \ref TypeName.
-   * \tparam OtherType Other types that determine whether they can be converted
-   * with this type. \param other Other types object that determine whether they
-   * can be converted with this type. \return If \ref OtherType can be converted
-   * to \ref TypeName, return true, otherwise return false.
-   */
-  template <typename OtherType>
-  bool Convertible(OtherType&& other) const;
-
   /**
    * \brief Get size of \ref TypeName.
    * \return The size of \ref TypeName.
@@ -313,165 +528,6 @@ class TypeWrapper final : public TypeWrapperBase {
    * \remark If the type is not registered, the nullptr will be returned.
    */
   const Meta* GetMeta() const override;
-};
-
-template<>
-class TypeWrapper<void> final : public TypeWrapperBase {
-public:
- public:
-  using Type = void;
-  using OriginalType = Utils::GetOriginalTypeT<void>;
-
- public:
-  TypeWrapper() = default;
-  ~TypeWrapper() override = default;
-  TypeWrapper(const TypeWrapper& other) = default;
-  TypeWrapper& operator=(const TypeWrapper& other) = default;
-
- public:
-  bool IsVoid() const override {return true;}
-
-  /**
-   * \brief Determine whether the original type of \ref TypeName is registered.
-   * \return Returns true if the original type is registered, otherwise returns
-   * false.
-   */
-  bool IsRegistered() const override {return true;}
-
-  /**
-   * \brief Determine whether type is "const".
-   * \return If the type is "const", it returns true; otherwise, it returns
-   * false.
-   */
-  bool IsConst() const override {return false;}
-
-  /**
-   * \brief Determine whether type is "reference".
-   * \return If the type is "reference", it returns true; otherwise, it returns
-   * false.
-   */
-  bool IsReference() const override {return false;}
-
-  /**
-   * \brief Determine whether type is "array".
-   * \return If the type is "array", it returns true; otherwise, it returns
-   * false.
-   */
-  bool IsArray() const override {return false;}
-
-  /**
-   * \brief Determine whether type is "pointer".
-   * \return If the type is "pointer", it returns true; otherwise, it returns
-   * false.
-   */
-  bool IsPointer() const override {return false;}
-
-  /**
-   * \brief Determine whether this property is an enumeration.
-   * \return If this property is an enumeration, it returns true, otherwise it
-   * returns false.
-   */
-  bool IsEnum() const override {return false;}
-
-  /**
-   * \brief Determine whether the type has a default constructor.
-   * \return If the type contains a default constructor, it returns true,
-   * otherwise it returns false.
-   */
-  bool HaveDefaultConstructor() const override {return false;}
-
-  /**
-   * \brief Determine whether the type has a destructor.
-   * \return If the type contains a destructor, it returns true,
-   * otherwise it returns false.
-   */
-  bool HaveDestructor() const override {return false;}
-
-  /**
-   * \brief Determine whether the type has a copy constructor.
-   * \return If the type contains a copy constructor, it returns true,
-   * otherwise it returns false.
-   */
-  bool HaveCopyConstructor() const override {return false;}
-
-  /**
-   * \brief Determine whether the type has a move constructor.
-   * \return If the type contains a move constructor, it returns true,
-   * otherwise it returns false.
-   */
-  bool HaveMoveConstructor() const override {return false;}
-
-  /**
-   * \brief Determine whether the type has a copy assign.
-   * \return If the type contains a copy assign, it returns true,
-   * otherwise it returns false.
-   */
-  bool HaveCopyAssign() const override {return false;}
-
-  /**
-   * \brief Determine whether the type has a move assign.
-   * \return If the type contains a move assign, it returns true,
-   * otherwise it returns false.
-   */
-  bool HaveMoveAssign() const override {return false;}
-
-  /**
-   * \brief Get size of \ref TypeName.
-   * \return The size of \ref TypeName.
-   */
-  std::size_t GetSize() const override {return 0;}
-
-  /**
-   * \brief Get type hash code.
-   * \return The \ref TypeName hash code.
-   */
-  std::size_t GetTypeHashCode() const override {return typeid(void).hash_code();}
-
-  /**
-   * \brief Get the original type of \ref TypeName hash code.
-   * \return The original type of \ref TypeName hash code.
-   * \remark A original type is a type without pointers, references, and
-   * constants. (Example:int*: int, int&: int, const int&: int, etc.)
-   */
-  std::size_t GetOriginalTypeHashCode() const override {return GetTypeHashCode();}
-
-  /**
-   * \brief Get type Name.
-   * \return The \ref TypeName type name.
-   * \remark If the type is not registered, the default empty std::string will
-   * be returned.
-   */
-  std::string GetTypeName() const override {return "void";}
-  /**
-   * \brief Get original type Name of \ref TypeName.
-   * \return The original type name of \ref TypeName.
-   * \remark A original type is a type without pointers, references, and
-   * constants. (Example:int*: int, int&: int, const int&: int, etc.)
-   * \remark If the type is not registered, the default empty std::string will
-   * be returned.
-   */
-  const std::string& GetOriginalTypeName() const override { 
-    if (!IsRegistered()) {
-      return empty_type_name_;   
-    }
-    return void_type_name;
-  }
-
-  /**
-   * \brief Get original type meta data.
-   * \return Returns unique_ptr containing metadata.
-   * \remark If the type is not registered, the nullptr will be returned.
-   */
-  const Meta* GetMeta() const override {
-    if (!IsRegistered()) {
-      return nullptr;
-    }
-
-    return GetMetaDatabase().at(GetOriginalTypeHashCode());
-  }
-
-private:
-  static std::string void_type_name;
 };
 
 class Type {
@@ -681,136 +737,6 @@ class Type {
  private:
   std::unique_ptr<TypeWrapperBase> type_wrapper_ = nullptr;
 };
-
-template <typename TypeName>
-bool TypeWrapper<TypeName>::IsRegistered() const {
-  return GetMetaDatabase().find(GetTypeHashCode()) != GetMetaDatabase().end();
-}
-
-template <typename TypeName>
-bool TypeWrapper<TypeName>::IsConst() const {
-  return std::is_const_v<std::remove_reference_t<TypeName>>;
-}
-
-template <typename TypeName>
-bool TypeWrapper<TypeName>::IsReference() const {
-  return std::is_reference_v<TypeName>;
-}
-
-template <typename TypeName>
-bool TypeWrapper<TypeName>::IsArray() const {
-  return std::is_array_v<TypeName>;
-}
-
-template <typename TypeName>
-bool TypeWrapper<TypeName>::IsPointer() const {
-  return std::is_pointer_v<TypeName>;
-}
-
-template <typename TypeName>
-bool TypeWrapper<TypeName>::IsEnum() const {
-  return std::is_enum_v<TypeName>;
-}
-
-template <typename TypeName>
-bool TypeWrapper<TypeName>::HaveDefaultConstructor() const {
-  return std::is_default_constructible_v<TypeName>;
-}
-
-template <typename TypeName>
-bool TypeWrapper<TypeName>::HaveDestructor() const {
-  return std::is_destructible_v<TypeName>;
-}
-
-template <typename TypeName>
-bool TypeWrapper<TypeName>::HaveCopyConstructor() const {
-  return std::is_copy_constructible_v<TypeName>;
-}
-
-template <typename TypeName>
-bool TypeWrapper<TypeName>::HaveMoveConstructor() const {
-  return std::is_move_constructible_v<TypeName>;
-}
-
-template <typename TypeName>
-bool TypeWrapper<TypeName>::HaveCopyAssign() const {
-  return std::is_copy_assignable_v<TypeName>;
-}
-
-template <typename TypeName>
-bool TypeWrapper<TypeName>::HaveMoveAssign() const {
-  return std::is_move_assignable_v<TypeName>;
-}
-
-template <typename TypeName>
-template <typename OtherType>
-bool TypeWrapper<TypeName>::Convertible(OtherType&&) const {
-  return Utils::Conversion<typename Utils::GetOriginalType<OtherType>::Type,
-                    typename Utils::GetOriginalType<TypeName>::Type>::value;
-}
-
-template <typename TypeName>
-std::size_t TypeWrapper<TypeName>::GetSize() const {
-  return sizeof(TypeName);
-}
-
-template <typename TypeName>
-std::size_t TypeWrapper<TypeName>::GetTypeHashCode() const {
-  return typeid(TypeName).hash_code();
-}
-
-template <typename TypeName>
-std::size_t TypeWrapper<TypeName>::GetOriginalTypeHashCode() const {
-  return typeid(OriginalType).hash_code();
-}
-
-template <typename TypeName>
-std::string TypeWrapper<TypeName>::GetTypeName() const {
-  if (!IsRegistered()) {
-    return std::string{};
-  }
-  std::string result{GetOriginalTypeName()};
-  if constexpr (std::is_pointer_v<TypeName>) {
-    if constexpr (std::is_const_v<std::remove_pointer_t<TypeName>>) {
-      result += "const ";
-    }
-    result += "*";
-    if constexpr (std::is_const_v<TypeName>) {
-      result += " const";
-    }
-  } else if constexpr (std::is_array_v<TypeName>) {
-    if (std::is_const_v<TypeName>) {
-      result += "const ";
-    }
-    result += "[]";
-  } else {
-    if constexpr (std::is_const_v<std::remove_reference_t<TypeName>>) {
-      result += "const ";
-    }
-    if constexpr (std::is_lvalue_reference_v<TypeName>) {
-      result += "&";
-    }
-    if constexpr (std::is_rvalue_reference_v<TypeName>) {
-      result += "&&";
-    }
-  }
-  return result;
-}
-
-template <typename TypeName>
-const std::string& TypeWrapper<TypeName>::GetOriginalTypeName() const {
-  if (!IsRegistered()) {
-    return empty_type_name_;
-  }
-  return GetMetaDatabase().at(GetOriginalTypeHashCode())->GetTypeName();
-}
-
-template <typename TypeName>
-const Meta* TypeWrapper<TypeName>::GetMeta() const {
-  if (!IsRegistered()) {
-    return nullptr; 
-  }
-  return GetMetaDatabase().at(GetOriginalTypeHashCode());
-}
 }  // namespace Reflection
 }  // namespace MM
+

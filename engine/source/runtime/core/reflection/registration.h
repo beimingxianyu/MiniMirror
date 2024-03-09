@@ -4,32 +4,23 @@
 #include <filesystem>
 
 #include "runtime/core/reflection/meta.h"
+// #include "runtime/core/reflection/registration_imp.h"
 #include "utils/marco.h"
 #include "utils/type_utils.h"
 
-template<std::uint64_t N>
-void MMAutoRegisterFunction();
+static void MMAutoRegistionFunction();
 
-#define MM_REGISTER_IMP(count)                  \
-  template <>                                   \
-  void MMAutoRegisterFunction<count>();         \
-  namespace {                                   \
-  struct MM_CAT(MMAutoRegisterStruct, count) {  \
-    MM_CAT(MMAutoRegisterStruct, count)() {     \
-      MMAutoRegisterFunction<count>();  \
-    }                                           \
-  };                                            \
-  const MM_CAT(MMAutoRegisterStruct, count)     \
-      MM_CAT(MM_auto_register_variable, count); \
-  }                                             \
-  template <>                                   \
-  void MMAutoRegisterFunction<count>()
-
-#define MM_REGISTER MM_REGISTER_IMP(__COUNTER__)
+#define MM_REGISTER                                                        \
+  namespace {                                                              \
+  struct MMAutoRegistionStruct {                                           \
+    MMAutoRegistionStruct() { MMAutoRegistionFunction(); }                 \
+  };                                                                       \
+  }                                                                        \
+  static const MMAutoRegistionStruct MM_CAT(mm_auto_register__, __LINE__); \
+  static void MMAutoRegistionFunction()
 
 #define MM_GENERATE_REFLECTION_BODY() \
-  template <std::uint64_t N>       \
-  friend void MMAutoRegisterFunction();
+  friend void ::MMAutoRegistionFunction();
 
 namespace MM {
 namespace Reflection {

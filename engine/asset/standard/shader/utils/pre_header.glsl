@@ -44,9 +44,9 @@
 
 #define STORAGE_TEXTURECUBE_SET_AND_BINDING set = MATERIAL_SET, binding = STORAGE_TEXTURECUBE_BINDING
 
-#define GET_UNIFORM_BUFFER_NAME(variable_name) __uniform_buffer_register_##variable_name##__
+#define GET_UNIFORM_BUFFER_NAME(type_name) __uniform_buffer_register_##type_name##__
 
-#define GET_STORAGE_BUFFER_NAME(variable_name) __storage_buffer_register_##variable_name##__
+#define GET_STORAGE_BUFFER_NAME(type_name) __storage_buffer_register_##type_name##__
 
 #define GET_TEXTURE2D_NAME(variable_name) __texture2D_buffer_register_##variable_name##__
 
@@ -86,25 +86,25 @@
 	layout(STORAGE_TEXTURE3D_SET_AND_BINDING, STORAGE_TEXTURE_FORMAT) uniform image3D __STORAGE_TEXTURE3D_VECTOR_NAME__[];       \
 	layout(STORAGE_TEXTURECUBE_SET_AND_BINDING, STORAGE_TEXTURE_FORMAT) uniform imageCube __STORAGE_TEXTURECUBE_VECTOR_NAME__[]; \
 
-#define IMPORT_UNIFORM_BUFFER(type_name, variable_name) type_name GET_UNIFORM_BUFFER_NAME(variable_name)
+#define IMPORT_UNIFORM_BUFFER(type_name, variable_name) type_name GET_UNIFORM_BUFFER_NAME(type_name, variable_name);
 
-#define IMPORT_STORAGE_BUFFER(type_name, variable_name) type_name GET_STORAGE_BUFFER_NAME(variable_name)
+#define IMPORT_STORAGE_BUFFER(type_name, variable_name) type_name GET_STORAGE_BUFFER_NAME(type_name, variable_name);
 
-#define IMPORT_TEXTURE2D(variable_name) uint64_t GET_TEXTURE2D_NAME(variable_name)
+#define IMPORT_TEXTURE2D(variable_name) uint64_t GET_TEXTURE2D_NAME(variable_name);
 
-#define IMPORT_TEXTURE3D(variable_name) uint64_t GET_TEXTURE3D_NAME(variable_name)
+#define IMPORT_TEXTURE3D(variable_name) uint64_t GET_TEXTURE3D_NAME(variable_name);
 
-#define IMPORT_TEXTURECUBE(variable_name) uint64_t GET_TEXTURECUBE_NAME(variable_name)
+#define IMPORT_TEXTURECUBE(variable_name) uint64_t GET_TEXTURECUBE_NAME(variable_name);
 
-#define IMPORT_STORAGE_TEXTURE2D(variable_name) uint64_t GET_STORAGE_TEXTURE2D_NAME(variable_name)
+#define IMPORT_STORAGE_TEXTURE2D(variable_name) uint64_t GET_STORAGE_TEXTURE2D_NAME(variable_name);
 
-#define IMPORT_STORAGE_TEXTURE3D(variable_name) uint64_t GET_STORAGE_TEXTURE2D_NAME(variable_name)
+#define IMPORT_STORAGE_TEXTURE3D(variable_name) uint64_t GET_STORAGE_TEXTURE2D_NAME(variable_name);
 
-#define IMPORT_STORAGE_TEXTURECUBE(variable_name) uint64_t GET_STORAGE_TEXTURECUBE_NAME(variable_name)
+#define IMPORT_STORAGE_TEXTURECUBE(variable_name) uint64_t GET_STORAGE_TEXTURECUBE_NAME(variable_name);
 
-#define REGISTER_UNIFORM_BUFFER(type_name) layout(STD_LAYOUT, buffer_reference) uniform type_name 
+#define REGISTER_UNIFORM_BUFFER(type_name, registe_struct) layout(STD_LAYOUT, buffer_reference) uniform type_name registe_struct GET_UNIFORM_BUFFER_NAME(type_name);
 
-#define REGISTER_STORAGE_BUFFER(buffer_accsess, type_name) layout(STD_LAYOUT, buffer_reference) buffer_accsess buffer type_name 
+#define REGISTER_STORAGE_BUFFER(buffer_accsess, type_name, registe_struct) layout(STD_LAYOUT, buffer_reference) buffer_accsess buffer type_name registe_struct GET_STORAGE_BUFFER_NAME(type_name);
 
 //#define REGISTER_TEXTURE2D(variable_name) layout(SAMPLER_TEXTURE_SET_AND_BINDING) uniform sampler2D GET_TEXTURE2D_NAME(variable_name);
 //
@@ -124,13 +124,13 @@
 
 #define GET_TEXTURE2D(variable_name) __SAMPLER_TEXTURE2D_VECTOR_NAME__[uint(__CONSTANT_VARIABLE_NAME__.GET_TEXTURE2D(variable_name))]
 
-#define GET_TEXTURE3D(variable_name) __SAMPLER_TEXTURE3D_VECTOR_NAME__[uint(__CONSTANT_VARIABLE_NAME__.GET_TEXTURE3D(variable_name))]
+#define GET_TEXTURE3D(varable_name) __SAMPLER_TEXTURE3D_VECTOR_NAME__[uint(__CONSTANT_VARIABLE_NAME__.GET_TEXTURE3D(variable_name))]
 
-#define GET_TEXTURECUBE(variable_name) __SAMPLER_TEXTURECUBE_VECTOR_NAME__[uint(__CONSTANT_VARIABLE_NAME__.GET_TEXTURE3D(variable_name))]
+#define GET_TEXTURECUBE(varable_name) __SAMPLER_TEXTURECUBE_VECTOR_NAME__[uint(__CONSTANT_VARIABLE_NAME__.GET_TEXTURE3D(variable_name))]
 
-#define GET_STORAGE_TEXTURE2D(variable_name) __STORAGE_TEXTURE2D_VECTOR_NAME__[uint(__CONSTANT_VARIABLE_NAME__.GET_STORAGE_TEXTURE2D_NAME(variable_name))]
+#define GET_STORAGE_TEXTURE2D(variable_name) __STORAGE_TEXTURE2D_VECTOR_NAME__[uint(__CONSTANT_VARIABLE_NAME__.GET_STORAGE_TEXTURE2D_NAME(varable_name))]
 
-#define GET_STORAGE_TEXTURE3D(variable_name) __STORAGE_TEXTURE3D_VECTOR_NAME__[uint(__CONSTANT_VARIABLE_NAME__.GET_STORAGE_TEXTURE3D_NAME(variable_name))]
+#define GET_STORAGE_TEXTURE3D(variable_name) __STORAGE_TEXTURE3D_VECTOR_NAME__[uint(__CONSTANT_VARIABLE_NAME__.GET_STORAGE_TEXTURE3D_NAME(varable_name))]
 
-#define GET_STORAGE_TEXTURECUBE(variable_name) __STORAGE_TEXTURECUBE_VECTOR_NAME__[uint(__CONSTANT_VARIABLE_NAME__.GET_STORAGE_TEXTURECUBE_NAME(variable_name))]
+#define GET_STORAGE_TEXTURECUBE(variable_name) __STORAGE_TEXTURECUBE_VECTOR_NAME__[uint(__CONSTANT_VARIABLE_NAME__.GET_STORAGE_TEXTURECUBE_NAME(varable_name))]
 

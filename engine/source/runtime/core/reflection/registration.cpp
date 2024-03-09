@@ -1,5 +1,7 @@
 #include "runtime/core/reflection/registration.h"
 
+#include "iostream"
+
 MM_REGISTER {
   MM::Reflection::Class<void>{"void"};
   MM::Reflection::Class<char>{"char"};

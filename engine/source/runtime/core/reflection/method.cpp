@@ -1,6 +1,34 @@
 #include "runtime/core/reflection/method.h"
 
-const std::string MM::Reflection::MethodWrapperBase::empty_string{};
+bool MM::Reflection::AllTypeIsArgTypeFromVector(const MM::Reflection::MethodWrapperBase& method, const std::vector<MM::Reflection::Variable*>& args) {
+  if (!method.IsValid()) {
+    return false;
+  }
+  if (args.size() != method.GetArgumentNumber()) {
+    return false;
+  }
+  for (const auto& arg: args) {
+    if (arg == nullptr || !(arg->IsValid())) {
+      return false;
+    }
+  }
+  for (std::uint32_t arg_index = 0; arg_index != method.GetArgumentNumber(); ++arg_index) {
+    if (args[arg_index]->GetType()->GetTypeHashCode() != method.GetArgumentType(arg_index)->GetTypeHashCode()) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+bool MM::Reflection::VariableInstaceIsValid(const MM::Reflection::MethodWrapperBase& method, MM::Reflection::Variable& instance) {
+    const Type* instance_type = instance.GetType();
+    const Type* class_type = method.GetClassType();
+    if (instance_type == nullptr || class_type == nullptr) {
+      return false;
+    }
+    return (instance_type->GetTypeHashCode() == class_type->GetTypeHashCode()) && (instance_type->IsConst() == class_type->IsConst());
+}
 
 const std::string MM::Reflection::Method::empty_string{};
 

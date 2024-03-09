@@ -8,6 +8,8 @@
 
 namespace MM{
 namespace Reflection {
+const std::string& GetEmptyString();
+
 class Meta;
 class Type;
 

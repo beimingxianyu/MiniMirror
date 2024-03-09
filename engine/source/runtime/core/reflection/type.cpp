@@ -1,8 +1,57 @@
 #include "runtime/core/reflection/type.h"
 
-std::string MM::Reflection::TypeWrapper<void>::void_type_name{"void"};
+bool MM::Reflection::TypeWrapper<void>::IsVoid() const { return true; }
 
-const std::string MM::Reflection::TypeWrapperBase::empty_type_name_{};
+bool MM::Reflection::TypeWrapper<void>::IsRegistered() const { return true; }
+
+bool MM::Reflection::TypeWrapper<void>::IsConst() const { return false; }
+
+bool MM::Reflection::TypeWrapper<void>::IsReference() const { return false; }
+
+bool MM::Reflection::TypeWrapper<void>::IsArray() const { return false; }
+
+bool MM::Reflection::TypeWrapper<void>::IsPointer() const { return false; }
+
+bool MM::Reflection::TypeWrapper<void>::IsEnum() const { return false; }
+
+bool MM::Reflection::TypeWrapper<void>::HaveDefaultConstructor() const { return false; }
+
+bool MM::Reflection::TypeWrapper<void>::HaveDestructor() const { return false; }
+
+bool MM::Reflection::TypeWrapper<void>::HaveCopyConstructor() const { return false; }
+
+bool MM::Reflection::TypeWrapper<void>::HaveMoveConstructor() const { return false; }
+
+bool MM::Reflection::TypeWrapper<void>::HaveCopyAssign() const { return false; }
+
+bool MM::Reflection::TypeWrapper<void>::HaveMoveAssign() const { return false; }
+
+std::size_t MM::Reflection::TypeWrapper<void>::GetSize() const { return 0; }
+
+std::size_t MM::Reflection::TypeWrapper<void>::GetTypeHashCode() const { return typeid(void).hash_code(); }
+
+std::size_t MM::Reflection::TypeWrapper<void>::GetOriginalTypeHashCode() const { return GetTypeHashCode(); }
+
+std::string MM::Reflection::TypeWrapper<void>::GetTypeName() const { return "void";}
+
+const std::string& MM::Reflection::TypeWrapper<void>::GetOriginalTypeName()
+    const {
+  if (!IsRegistered()) {
+    return GetEmptyString();
+  }
+
+  static std::string void_type_name{"void"};
+
+  return void_type_name;
+}
+
+const MM::Reflection::Meta* MM::Reflection::TypeWrapper<void>::GetMeta() const {
+  if (!IsRegistered()) {
+    return nullptr;
+  }
+
+  return GetMetaDatabase().at(GetOriginalTypeHashCode());
+}
 
 MM::Reflection::Type::Type() : type_wrapper_{nullptr} {}
 
